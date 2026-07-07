@@ -1,6 +1,6 @@
 @implements IDisposable
 @inject NavigationManager NavigationManager
-@inject HoshiBotDbContext Db
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb mb-0">
@@ -70,7 +70,8 @@
 
                 if (segments.Length >= 4 && ulong.TryParse(segments[2], out var guildId))
                 {
-                    var guildName = await Db.DiscordGuilds
+                    await using var db = await DbFactory.CreateDbContextAsync();
+                    var guildName = await db.DiscordGuilds
                         .Where(g => g.Id == guildId)
                         .Select(g => g.Name)
                         .FirstOrDefaultAsync() ?? segments[2];
