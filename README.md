@@ -90,3 +90,51 @@ unreliable and will sometimes scaffold a `DropTable`/`CreateTable` (or drop/add 
 for what's actually a rename, silently discarding production data on deploy. Rewrite those
 by hand as `RenameTable`/`RenameColumn`/`RenameIndex` (+ `ALTER TABLE ... RENAME
 CONSTRAINT ...` for PK/FK names) instead.
+
+## Roadmap / TODO
+
+Hoshi Bot currently serves **Alliance Discords** (the full feature set: absences, shield/raid
+alerts, Territory Capture, RoE violations, tickets, announcements, diplomacy, anonymous
+messages, Setup Wizard). The following is unbuilt — a raw backlog, not a scoped/prioritized
+spec, several items depend on each other (e.g. the boarding wizard feeds nickname tagging;
+RoE alliance lists feed the diplomacy channel structure).
+
+### Server & Veil Group Discords (new audience, not built yet)
+
+- Diplomacy group — a server-wide diplomacy construct (distinct from the existing per-alliance
+  diplomacy), grouping which alliances are allied/enemy/etc. at the whole-server level.
+- Diplomacy channel per alliance in that group, for alliance-to-alliance comms.
+- RoE alliances — a listing of alliances recognized under the server's Rules of Engagement,
+  with an application flow for alliances to join it.
+- No-RoE alliances — a separate tracked list of alliances explicitly excluded from the RoE.
+- Rogue players — tracking for players acting outside any alliance structure.
+- Server RoE, multilingual — the RoE document needs to be presented in multiple languages.
+- Boarding wizard — new member picks alliance, server, and in-game player name, driving an
+  automatic Discord nickname change to match.
+- Role application with human confirmation — a role request is only granted after mod team or
+  alliance leadership approves it, not automatically.
+- Cross-Discord role sync — if a player's home alliance also runs Hoshi Bot in their own
+  Discord, sync that player's role/status between the server Discord and the alliance Discord.
+
+### Applies to all server-type Discords (Server + Veil Group)
+
+- Per-channel default language, not just per-guild.
+- stfc.pro sync — alliance/player name synchronization against the external stfc.pro data
+  source, not just in-guild data.
+- Conditional nickname tagging — format as `[server][alliance-tag] Player Name`, conditionally:
+  no tags for a player from the Discord's own home alliance/server, but foreign players (from
+  another server or an external allied alliance) get both tags to disambiguate.
+
+### Enhancements to the existing Alliance Discord feature set
+
+- Allied-alliance channel/group — dedicated channel or category for allied alliances inside an
+  alliance's own Discord, driven by the existing diplomacy status data.
+- Player-left-alliance leadership warning — when stfc.pro sync detects a player has left the
+  alliance, warn alliance leadership and prompt them to reassign/remove that player's Discord
+  roles (human-confirmed, not automatic). The server-Discord equivalent should auto-correct the
+  player's roles/tags instead of just warning, since it isn't the player's home alliance.
+
+### Community Discords (new audience, no concrete feature set yet)
+
+Not tied to one alliance, server, or veil group. Existing generic features (announcements,
+tickets, anonymous messages) already carry over; no community-specific features are scoped yet.
