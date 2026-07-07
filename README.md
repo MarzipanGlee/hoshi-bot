@@ -103,18 +103,49 @@ RoE alliance lists feed the diplomacy channel structure).
 
 - Diplomacy group — a server-wide diplomacy construct (distinct from the existing per-alliance
   diplomacy), grouping which alliances are allied/enemy/etc. at the whole-server level.
-- Diplomacy channel per alliance in that group, for alliance-to-alliance comms.
+- Diplomacy channel per alliance in that group — split into a "RoE Diplomacy" category
+  (per-alliance RoE compliance discussion) and a separate "Non-RoE Diplomacy" category (general
+  war declarations, general diplomacy chat). Confirmed pattern from a real reference server.
 - RoE alliances — a listing of alliances recognized under the server's Rules of Engagement,
   with an application flow for alliances to join it.
 - No-RoE alliances — a separate tracked list of alliances explicitly excluded from the RoE.
-- Rogue players — tracking for players acting outside any alliance structure.
-- Server RoE, multilingual — the RoE document needs to be presented in multiple languages.
+- Rogue players — two pieces: a published rogue-policy document (same versioned-document
+  pattern as RoE, below) plus a live rogue-listing (an actual tracked roster), plus a "no-id"
+  holding channel/role for members who haven't completed boarding yet.
+- **RoE governance workflow** (not just a static multilingual doc):
+  - Versioned with a change pipeline — proposal → discussion → council vote → publish with a
+    future effective date (a real reference server's RoE embed literally has "Last Change" and
+    "Validity from" timestamps in its footer).
+  - Structured content — numbered rules, an "Exceptions" sub-list per rule, and a Definitions
+    glossary section (e.g. Warship, Miner, OPC/UPC, Zero/D-Node, Full Cargo).
+  - Per-language **channels**, not a language switcher — separate channels per language, each
+    mirroring the same structured embed, kept in sync from one template.
 - Boarding wizard — new member picks alliance, server, and in-game player name, driving an
   automatic Discord nickname change to match.
 - Role application with human confirmation — a role request is only granted after mod team or
   alliance leadership approves it, not automatically.
 - Cross-Discord role sync — if a player's home alliance also runs Hoshi Bot in their own
   Discord, sync that player's role/status between the server Discord and the alliance Discord.
+
+### Governance bodies (new, not previously scoped)
+
+Two distinct cross-alliance bodies, separate from any single alliance's own leadership:
+
+- **Alliances Council** — owns the RoE proposal/discussion/vote pipeline above; has its own
+  deliberation ("chamber") and voting channels.
+- **Mediation Council** — a separate dispute-resolution body with published guidelines, a
+  requests channel (alliances/players file mediation requests), and its own mediator vote
+  channel. Don't conflate this with the Alliances Council — different purpose and membership.
+
+### Cross-server events ("Incursions") — new, not previously scoped
+
+Recurring scheduled PvP events against another whole server, with a template-shaped
+announcement every time: event name/dates/duration, scoring-rule changes for the event, a
+pre-event safety window (shields drop above a system threshold), a "server purge" at a fixed
+offset before start (prevents cheesing), a declared ceasefire between the home server's
+alliances during the event, the opposing server's ID, and a temporary access-restricted
+channel group that only exists for the event window. Good fit for a reusable scheduled-event
+templating feature alongside the existing Quartz jobs in `HoshiBot.Discord/Scheduling/`.
 
 ### Applies to all server-type Discords (Server + Veil Group)
 
@@ -124,6 +155,8 @@ RoE alliance lists feed the diplomacy channel structure).
 - Conditional nickname tagging — format as `[server][alliance-tag] Player Name`, conditionally:
   no tags for a player from the Discord's own home alliance/server, but foreign players (from
   another server or an external allied alliance) get both tags to disambiguate.
+- Anonymous coordinate/violation reporting — likely reuses the already-built Anonymous Messages
+  feature (built for alliances) rather than needing new engineering, just exposed server-wide.
 
 ### Enhancements to the existing Alliance Discord feature set
 
@@ -133,6 +166,15 @@ RoE alliance lists feed the diplomacy channel structure).
   alliance, warn alliance leadership and prompt them to reassign/remove that player's Discord
   roles (human-confirmed, not automatic). The server-Discord equivalent should auto-correct the
   player's roles/tags instead of just warning, since it isn't the player's home alliance.
+
+### Engineering requirement learned from a legacy bot failure
+
+A reference server's legacy (YAGPDB-based) self-service "claim your alliance tag" command
+broke in production when a moderator role got reordered above another role in the guild's
+hierarchy — Discord bots can only manage roles/nicknames positioned below their own top role.
+It failed with a cryptic error rather than a clear one. **Hoshi Bot's boarding/tag-claiming
+implementation must detect this failure mode explicitly and surface a clear error to mods**,
+not fail silently/cryptically.
 
 ### Community Discords (new audience, no concrete feature set yet)
 
