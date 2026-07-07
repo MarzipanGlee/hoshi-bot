@@ -6,7 +6,6 @@ COPY src/HoshiBot.Host/HoshiBot.Host.csproj src/HoshiBot.Host/
 COPY src/HoshiBot.Discord/HoshiBot.Discord.csproj src/HoshiBot.Discord/
 COPY src/HoshiBot.Domain/HoshiBot.Domain.csproj src/HoshiBot.Domain/
 COPY src/HoshiBot.Data/HoshiBot.Data.csproj src/HoshiBot.Data/
-COPY src/HoshiBot.Scheduling/HoshiBot.Scheduling.csproj src/HoshiBot.Scheduling/
 RUN dotnet restore src/HoshiBot.Host/HoshiBot.Host.csproj
 
 COPY src/ src/
