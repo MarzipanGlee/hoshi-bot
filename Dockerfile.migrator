@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY HoshiBot.slnx ./
+COPY tools/HoshiBot.Migrator/HoshiBot.Migrator.csproj tools/HoshiBot.Migrator/
+COPY src/HoshiBot.Domain/HoshiBot.Domain.csproj src/HoshiBot.Domain/
+COPY src/HoshiBot.Data/HoshiBot.Data.csproj src/HoshiBot.Data/
+RUN dotnet restore tools/HoshiBot.Migrator/HoshiBot.Migrator.csproj
+
+COPY src/ src/
+COPY tools/HoshiBot.Migrator/ tools/HoshiBot.Migrator/
+RUN dotnet publish tools/HoshiBot.Migrator/HoshiBot.Migrator.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app .
+ENTRYPOINT ["dotnet", "HoshiBot.Migrator.dll"]
