@@ -53,7 +53,24 @@
     .features h2 {
         text-align: center;
         font-weight: 700;
-        margin-bottom: 2.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+.features-intro {
+    text-align: center;
+    color: #5a5a63;
+    max-width: 40rem;
+    margin: 0 auto 2.5rem;
+}
+
+.features-alt {
+    background: #f7f7f9;
+    border-radius: 1rem;
+}
+
+    .features-alt .feature-grid-3 {
+        max-width: 900px;
+        margin: 0 auto;
     }
 
 .feature-grid {
