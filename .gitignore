@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+.idea/
+*.db
+.env
+
+# ASP.NET Core Data Protection keys contain unencrypted key material
+src/HoshiBot.Web/keys/
+keys/
+
+# Manually-provided third-party source snapshots for HoshiBot.StfcCatalogSync (not ours to commit)
+data/
