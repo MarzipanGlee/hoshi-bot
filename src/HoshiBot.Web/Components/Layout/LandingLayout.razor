@@ -1,0 +1,31 @@
+@inherits LayoutComponentBase
+
+<PageTitle>Hoshi Bot</PageTitle>
+
+<div class="landing">
+    <header class="landing-nav">
+        <div class="landing-nav-inner">
+            <a class="landing-brand" href="/">
+                <img src="favicon.png" alt="" class="landing-brand-icon" />
+                Hoshi Bot
+            </a>
+            <div class="landing-nav-actions">
+                <AuthorizeView>
+                    <Authorized>
+                        <a class="btn btn-outline-light btn-sm" href="manage/dashboard">Manage</a>
+                        <form method="post" action="logout" data-enhance="false" class="d-inline">
+                            <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="btn btn-outline-light btn-sm" href="login">Log in</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        @Body
+    </main>
+</div>

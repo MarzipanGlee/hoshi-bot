@@ -1,17 +1,87 @@
 @page "/"
+@layout LandingLayout
 
-<PageTitle>Hoshi Bot Admin</PageTitle>
+<PageTitle>Hoshi Bot</PageTitle>
 
-<AuthorizeView>
-    <Authorized>
-        <h1>Welcome, @context.User.Identity?.Name</h1>
-        <p><a href="manage/guilds">Manage your guilds</a></p>
-        <form method="post" action="logout" data-enhance="false">
-            <button type="submit" class="btn btn-secondary">Log out</button>
-        </form>
-    </Authorized>
-    <NotAuthorized>
-        <h1>Hoshi Bot Admin</h1>
-        <p><a class="btn btn-primary" href="login">Log in with Discord</a></p>
-    </NotAuthorized>
-</AuthorizeView>
+<section class="hero">
+    <div class="hero-inner">
+        <div class="hero-text">
+            <h1>Command Your STFC Alliance With Hoshi Bot.</h1>
+            <p class="hero-subtitle">
+                Raid and shield alerts, absences, Territory Capture reminders, RoE reports, and more —
+                one bot for your whole Star Trek Fleet Command alliance.
+            </p>
+            <div class="hero-actions">
+                <a class="btn btn-light btn-lg" href="invite">Add to Discord</a>
+                <AuthorizeView>
+                    <Authorized>
+                        <a class="btn btn-outline-light btn-lg" href="manage/dashboard">Manage</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="btn btn-outline-light btn-lg" href="login">Log in with Discord</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+        <img src="favicon.png" alt="" class="hero-portrait" />
+    </div>
+</section>
+
+<section class="features">
+    <h2>Why Hoshi Bot?</h2>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-calendar" aria-hidden="true"></span></div>
+            <h3>Absences</h3>
+            <p>A simple button/modal flow to report absences, with visibility controls and automatic reporting.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-bell" aria-hidden="true"></span></div>
+            <h3>Shield &amp; Raid Alerts</h3>
+            <p>Get pinged before shields drop or raids land, with configurable warning windows per member.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-target" aria-hidden="true"></span></div>
+            <h3>Territory Capture</h3>
+            <p>Zone slot signups, rank roles, and daily/weekly digests keep your TC squad organized.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-warning" aria-hidden="true"></span></div>
+            <h3>RoE Violations</h3>
+            <p>Report and track Rules of Engagement violations with a structured review flow.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-comment-square" aria-hidden="true"></span></div>
+            <h3>Tickets</h3>
+            <p>A built-in support ticket system so members can reach your team without cluttering channels.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-bullhorn" aria-hidden="true"></span></div>
+            <h3>Announcements</h3>
+            <p>Post rich announcements with read receipts, so you know who's actually seen the news.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-flag" aria-hidden="true"></span></div>
+            <h3>Diplomacy &amp; Alliances</h3>
+            <p>Track diplomacy status and coalitions across every alliance your server deals with.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-chat" aria-hidden="true"></span></div>
+            <h3>Anonymous Messages</h3>
+            <p>Let members raise concerns anonymously, without losing moderator accountability.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><span class="oi oi-wrench" aria-hidden="true"></span></div>
+            <h3>Setup Wizard</h3>
+            <p>Get a new server configured in minutes with a guided, step-by-step setup flow.</p>
+        </div>
+    </div>
+</section>
+
+<section class="cta">
+    <div class="cta-inner">
+        <h2>Ready to upgrade your alliance?</h2>
+        <p>Add Hoshi Bot to your server and get set up in minutes.</p>
+        <a class="btn btn-light btn-lg" href="invite">Add to Discord</a>
+    </div>
+</section>

@@ -5,6 +5,8 @@ obj/
 *.suo
 .idea/
 *.db
+*.db-shm
+*.db-wal
 .env
 
 # ASP.NET Core Data Protection keys contain unencrypted key material

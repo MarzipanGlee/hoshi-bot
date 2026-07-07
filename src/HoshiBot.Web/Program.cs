@@ -85,7 +85,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapGet("/login", (string? returnUrl) => Results.Challenge(
-    new AuthenticationProperties { RedirectUri = returnUrl ?? "/" },
+    new AuthenticationProperties { RedirectUri = returnUrl ?? "/manage/dashboard" },
     [DiscordAuthenticationDefaults.AuthenticationScheme]));
 
 app.MapPost("/logout", async (HttpContext http) =>

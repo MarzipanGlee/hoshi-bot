@@ -9,6 +9,16 @@
 
 .navbar-brand {
     font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.navbar-brand-icon {
+    height: 1.75rem;
+    width: 1.75rem;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
 .oi {

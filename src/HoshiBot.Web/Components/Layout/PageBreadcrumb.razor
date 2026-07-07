@@ -1,0 +1,117 @@
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject HoshiBotDbContext Db
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        @for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            var isLast = i == items.Count - 1;
+            @if (isLast || item.Href is null)
+            {
+                <li class="breadcrumb-item active" aria-current="page">@item.Text</li>
+            }
+            else
+            {
+                <li class="breadcrumb-item"><a href="@item.Href">@item.Text</a></li>
+            }
+        }
+    </ol>
+</nav>
+
+@code {
+    private static readonly (string Segment, string Label)[] StfcCatalogSections =
+    [
+        ("stfc-regions", "Regions"),
+        ("stfc-veil-groups", "Veil Groups"),
+        ("stfc-servers", "Servers"),
+        ("stfc-alliances", "Alliances"),
+        ("stfc-alliance-diplomacy", "Diplomacy"),
+        ("stfc-systems", "Systems"),
+        ("stfc-territories", "Territories"),
+    ];
+
+    private static readonly Dictionary<string, string> CrudLabels = new()
+    {
+        ["create"] = "Create",
+        ["edit"] = "Edit",
+        ["delete"] = "Delete",
+        ["settings"] = "Settings",
+        ["setup"] = "Setup",
+        ["scope"] = "Scope",
+    };
+
+    private List<(string Text, string? Href)> items = [("Home", "/")];
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        await BuildAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await BuildAsync();
+        StateHasChanged();
+    }
+
+    private async Task BuildAsync()
+    {
+        var path = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Split('?')[0].Trim('/');
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var result = new List<(string, string?)> { ("Home", "/") };
+
+        if (segments.Length >= 2 && segments[0] == "manage")
+        {
+            if (segments[1] == "guilds")
+            {
+                result.Add(("Guilds", "manage/guilds"));
+
+                if (segments.Length >= 4 && ulong.TryParse(segments[2], out var guildId))
+                {
+                    var guildName = await Db.DiscordGuilds
+                        .Where(g => g.Id == guildId)
+                        .Select(g => g.Name)
+                        .FirstOrDefaultAsync() ?? segments[2];
+                    result.Add((guildName, null));
+
+                    if (CrudLabels.TryGetValue(segments[3], out var pageLabel))
+                    {
+                        result.Add((pageLabel, null));
+                    }
+                }
+            }
+            else
+            {
+                var catalogSection = Array.Find(StfcCatalogSections, s => s.Segment == segments[1]);
+                if (catalogSection != default)
+                {
+                    result.Add(("STFC Catalog", null));
+                    result.Add((catalogSection.Label, $"manage/{catalogSection.Segment}"));
+
+                    if (segments.Length >= 3 && CrudLabels.TryGetValue(segments[2], out var crudLabel))
+                    {
+                        result.Add((crudLabel, null));
+                    }
+                }
+                else if (segments[1] == "global-admins")
+                {
+                    result.Add(("Administration", null));
+                    result.Add(("Global Admins", null));
+                }
+                else if (segments[1] == "dashboard")
+                {
+                    result.Add(("Dashboard", null));
+                }
+            }
+        }
+
+        items = result;
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

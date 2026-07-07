@@ -1,0 +1,140 @@
+.hero {
+    background: linear-gradient(90deg, rgb(5, 39, 103) 0%, #3a0647 100%);
+    color: white;
+    padding: 4rem 1.5rem;
+}
+
+.hero-inner {
+    max-width: 1140px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+}
+
+.hero-text {
+    flex: 1;
+}
+
+    .hero-text h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.85);
+    max-width: 40rem;
+    margin-bottom: 2rem;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.hero-portrait {
+    width: 220px;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+}
+
+.features {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+}
+
+    .features h2 {
+        text-align: center;
+        font-weight: 700;
+        margin-bottom: 2.5rem;
+    }
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.feature-card {
+    background: #f7f7f9;
+    border: 1px solid #e5e5e8;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+    .feature-card h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+        color: #5a5a63;
+        margin-bottom: 0;
+    }
+
+.feature-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.6rem;
+    background: rgb(5, 39, 103);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+    .feature-icon .oi {
+        font-size: 1.3rem;
+    }
+
+.cta {
+    background: linear-gradient(90deg, rgb(5, 39, 103) 0%, #3a0647 100%);
+    color: white;
+    text-align: center;
+    padding: 3rem 1.5rem;
+}
+
+.cta-inner {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+    .cta-inner h2 {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .cta-inner p {
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 1.5rem;
+    }
+
+@media (max-width: 768px) {
+    .hero-inner {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .hero-actions {
+        justify-content: center;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .feature-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

@@ -8,6 +8,27 @@
     </div>
 
     <main>
+        <div class="top-row px-4">
+            <PageBreadcrumb />
+            <AuthorizeView>
+                <Authorized>
+                    <div class="topbar-actions">
+                        <span class="topbar-user">
+                            @{ var avatarUrl = GetAvatarUrl(context.User); }
+                            @if (avatarUrl is not null)
+                            {
+                                <img src="@avatarUrl" alt="" class="topbar-avatar" />
+                            }
+                            @context.User.Identity?.Name
+                        </span>
+                        <form method="post" action="logout" data-enhance="false">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Log out</button>
+                        </form>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
         <article class="content px-4">
             <BootstrapBlazorRoot>
                 @Body
@@ -15,3 +36,14 @@
         </article>
     </main>
 </div>
+
+@code {
+    private static string? GetAvatarUrl(ClaimsPrincipal user)
+    {
+        var id = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var avatarHash = user.FindFirst("urn:discord:avatar:hash")?.Value;
+        return id is not null && avatarHash is not null
+            ? $"https://cdn.discordapp.com/avatars/{id}/{avatarHash}.png"
+            : null;
+    }
+}

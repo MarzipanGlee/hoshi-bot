@@ -1,0 +1,80 @@
+@page "/manage/dashboard"
+@inject HoshiBotDbContext Db
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Dashboard</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <h1>Welcome, @context.User.Identity?.Name</h1>
+
+        @if (needsSetupGuilds.Count > 0)
+        {
+            <div class="alert alert-warning">
+                <strong>@needsSetupGuilds.Count guild@(needsSetupGuilds.Count == 1 ? "" : "s")</strong> still
+                need@(needsSetupGuilds.Count == 1 ? "s" : "") setup:
+                @string.Join(", ", needsSetupGuilds.Select(g => g.Name))
+            </div>
+        }
+
+        <div class="dashboard-grid">
+            <a class="dashboard-card" href="manage/guilds">
+                <span class="oi oi-list-rich" aria-hidden="true"></span>
+                <h2>Your Guilds</h2>
+                <p>@(accessibleGuilds?.Count.ToString() ?? "...") guild@((accessibleGuilds?.Count ?? 0) == 1 ? "" : "s") you administer</p>
+            </a>
+            <a class="dashboard-card" href="manage/stfc-regions">
+                <span class="oi oi-globe" aria-hidden="true"></span>
+                <h2>STFC Catalog</h2>
+                <p>Regions, servers, alliances, and territories</p>
+            </a>
+            @if (isGlobalAdmin)
+            {
+                <a class="dashboard-card" href="manage/global-admins">
+                    <span class="oi oi-shield" aria-hidden="true"></span>
+                    <h2>Administration</h2>
+                    <p>Manage global admin access</p>
+                </a>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <p><a href="login?returnUrl=%2Fmanage%2Fdashboard">Log in with Discord</a> to see your dashboard.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<DiscordGuild>? accessibleGuilds;
+    private List<DiscordGuild> needsSetupGuilds = [];
+    private bool isGlobalAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+            return;
+
+        var globalAdminResult = await AuthorizationService.AuthorizeAsync(user, null, new GlobalAdminRequirement());
+        isGlobalAdmin = globalAdminResult.Succeeded;
+
+        var allGuilds = await Db.DiscordGuilds.AsNoTracking().ToListAsync();
+        var accessible = new List<DiscordGuild>();
+        foreach (var guild in allGuilds)
+        {
+            var result = await AuthorizationService.AuthorizeAsync(user, guild.Id, new GuildAdminRequirement());
+            if (result.Succeeded)
+                accessible.Add(guild);
+        }
+
+        accessibleGuilds = accessible;
+
+        var setupCompleteGuildIds = (await Db.GuildSettings
+            .Where(s => s.SetupCompletedAt != null)
+            .Select(s => s.GuildId)
+            .ToListAsync())
+            .ToHashSet();
+        needsSetupGuilds = accessible.Where(g => !setupCompleteGuildIds.Contains(g.Id)).ToList();
+    }
+}
