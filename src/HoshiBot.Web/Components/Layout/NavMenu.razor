@@ -1,0 +1,100 @@
+@implements IDisposable
+@inject NavigationManager NavigationManager
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">HoshiBot.Web</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <AuthorizeView>
+            <Authorized>
+                <NavMenuGroup Title="Guilds" Icon="oi-list-rich" Active="@IsGroupActive(GuildsHrefs)">
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/guilds">Your Guilds</NavLink>
+                    </div>
+                </NavMenuGroup>
+
+                <NavMenuGroup Title="STFC Catalog" Icon="oi-globe" Active="@IsGroupActive(CatalogHrefs)">
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc-regions">Regions</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc-veil-groups">Veil Groups</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc-servers">Servers</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc-alliances">Alliances</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc-alliance-diplomacy">Diplomacy</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc-systems">Systems</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc-territories">Territories</NavLink>
+                    </div>
+                </NavMenuGroup>
+
+                <NavMenuGroup Title="Administration" Icon="oi-shield" Active="@IsGroupActive(AdministrationHrefs)">
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/global-admins">Global Admins</NavLink>
+                    </div>
+                </NavMenuGroup>
+            </Authorized>
+        </AuthorizeView>
+    </nav>
+</div>
+
+@code {
+    private static readonly string[] GuildsHrefs = ["manage/guilds"];
+    private static readonly string[] CatalogHrefs =
+        ["manage/stfc-regions", "manage/stfc-veil-groups", "manage/stfc-servers", "manage/stfc-alliances", "manage/stfc-alliance-diplomacy", "manage/stfc-systems", "manage/stfc-territories"];
+    private static readonly string[] AdministrationHrefs = ["manage/global-admins"];
+
+    private bool collapseNavMenu = true;
+    private string? currentUrl;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    private bool IsActive(string href) =>
+        string.Equals(currentUrl, href, StringComparison.OrdinalIgnoreCase) ||
+        (currentUrl?.StartsWith(href + "/", StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private bool IsGroupActive(string[] hrefs) => Array.Exists(hrefs, IsActive);
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

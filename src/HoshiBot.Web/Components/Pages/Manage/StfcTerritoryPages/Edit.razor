@@ -1,0 +1,250 @@
+@page "/manage/stfc-territories/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Territory</PageTitle>
+
+<h1>Edit Territory</h1>
+<hr />
+@if (Territory is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Territory" OnValidSubmit="UpdateTerritory" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Territory.Id" value="@Territory.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name" @bind-Value="Territory.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Territory.Name" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="tier" class="form-label">Tier:</label>
+                    <InputNumber id="tier" @bind-Value="Territory.Tier" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Territory.Tier" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="weekday" class="form-label">Weekday (UTC):</label>
+                    <InputSelect id="weekday" @bind-Value="Territory.Weekday" class="form-control">
+                        <option value="">Unknown</option>
+                        @foreach (var day in Enum.GetValues<DayOfWeek>())
+                        {
+                            <option value="@day">@day</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="mb-3">
+                    <label for="captureTime" class="form-label">Capture Time (UTC):</label>
+                    <InputDate id="captureTime" Type="InputDateType.Time" @bind-Value="Territory.CaptureTimeUtc" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <h2 class="mt-4">Systems</h2>
+    <p>@(systems.Count == 0 ? "No linked systems yet — StfcSystemSyncService links them automatically." : string.Join(", ", systems.Select(s => s.Name)))</p>
+
+    <h2 class="mt-4">Neighbours</h2>
+    <table class="table">
+        <thead><tr><th>Zone</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var neighbour in neighbours)
+            {
+                <tr>
+                    <td>@neighbour.NeighbourTerritory.Name</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveNeighbourAsync(neighbour)">Remove</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="add-neighbour" OnValidSubmit="AddNeighbourAsync">
+        <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newNeighbourId">
+            <option value="0">Select zone...</option>
+            @foreach (var candidate in allTerritories.Where(t => t.Id != Id && !neighbours.Any(n => n.NeighbourTerritoryId == t.Id)))
+            {
+                <option value="@candidate.Id">@candidate.Name</option>
+            }
+        </InputSelect>
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+
+    <h2 class="mt-4">Ownership</h2>
+    <table class="table">
+        <thead><tr><th>Server</th><th>Alliance</th><th>Last Captured</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var ownership in ownerships)
+            {
+                <tr>
+                    <td>@ownership.Server.DisplayName</td>
+                    <td>[@ownership.Alliance.Tag] @ownership.Alliance.Name</td>
+                    <td>@(ownership.LastCapturedAt?.ToString("g") ?? "-")</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveOwnershipAsync(ownership)">Remove</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="add-ownership" OnValidSubmit="AddOwnershipAsync">
+        <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newOwnershipServerId">
+            <option value="0">Select server...</option>
+            @foreach (var server in allServers)
+            {
+                <option value="@server.Id">@server.DisplayName</option>
+            }
+        </InputSelect>
+        <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newOwnershipAllianceId">
+            <option value="0">Select alliance...</option>
+            @foreach (var alliance in allAlliances)
+            {
+                <option value="@alliance.Id">[@alliance.Tag] @alliance.Name</option>
+            }
+        </InputSelect>
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+}
+
+<div class="mt-4">
+    <a href="/manage/stfc-territories">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcTerritory? Territory { get; set; }
+
+    private List<StfcSystem> systems = [];
+    private List<StfcTerritoryNeighbour> neighbours = [];
+    private List<StfcTerritoryOwnership> ownerships = [];
+    private List<StfcTerritory> allTerritories = [];
+    private List<StfcServer> allServers = [];
+    private List<StfcAlliance> allAlliances = [];
+    private int newNeighbourId;
+    private int newOwnershipServerId;
+    private int newOwnershipAllianceId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Territory ??= await context.StfcTerritories.FirstOrDefaultAsync(t => t.Id == Id);
+
+        if (Territory is null)
+        {
+            NavigationManager.NotFound();
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        systems = await context.StfcSystems.Where(s => s.TerritoryId == Id).AsNoTracking().ToListAsync();
+        neighbours = await context.StfcTerritoryNeighbours
+            .Include(n => n.NeighbourTerritory)
+            .Where(n => n.TerritoryId == Id)
+            .AsNoTracking()
+            .ToListAsync();
+        ownerships = await context.StfcTerritoryOwnerships
+            .Include(o => o.Server).ThenInclude(s => s.Region)
+            .Include(o => o.Alliance)
+            .Where(o => o.TerritoryId == Id)
+            .AsNoTracking()
+            .ToListAsync();
+        allTerritories = await context.StfcTerritories.OrderBy(t => t.Name).AsNoTracking().ToListAsync();
+        allServers = await context.StfcServers.Include(s => s.Region).OrderBy(s => s.Region.Name).ThenBy(s => s.Id).AsNoTracking().ToListAsync();
+        allAlliances = await context.StfcAlliances.OrderBy(a => a.Tag).AsNoTracking().ToListAsync();
+    }
+
+    private async Task UpdateTerritory()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Territory!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await context.StfcTerritories.AnyAsync(t => t.Id == Territory!.Id))
+            {
+                NavigationManager.NotFound();
+                return;
+            }
+
+            throw;
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc-territories");
+    }
+
+    private async Task AddNeighbourAsync()
+    {
+        if (newNeighbourId == 0)
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcTerritoryNeighbours.Add(new StfcTerritoryNeighbour { TerritoryId = Id, NeighbourTerritoryId = newNeighbourId });
+        await context.SaveChangesAsync();
+
+        newNeighbourId = 0;
+        await LoadAsync();
+    }
+
+    private async Task RemoveNeighbourAsync(StfcTerritoryNeighbour neighbour)
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcTerritoryNeighbours.Remove(neighbour);
+        await context.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task AddOwnershipAsync()
+    {
+        if (newOwnershipServerId == 0 || newOwnershipAllianceId == 0)
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        var existing = await context.StfcTerritoryOwnerships
+            .FirstOrDefaultAsync(o => o.TerritoryId == Id && o.ServerId == newOwnershipServerId);
+        if (existing is null)
+        {
+            context.StfcTerritoryOwnerships.Add(new StfcTerritoryOwnership
+            {
+                TerritoryId = Id,
+                ServerId = newOwnershipServerId,
+                AllianceId = newOwnershipAllianceId,
+                LastCapturedAt = DateTimeOffset.UtcNow,
+            });
+        }
+        else
+        {
+            existing.AllianceId = newOwnershipAllianceId;
+            existing.LastCapturedAt = DateTimeOffset.UtcNow;
+        }
+
+        await context.SaveChangesAsync();
+
+        newOwnershipServerId = 0;
+        newOwnershipAllianceId = 0;
+        await LoadAsync();
+    }
+
+    private async Task RemoveOwnershipAsync(StfcTerritoryOwnership ownership)
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcTerritoryOwnerships.Remove(ownership);
+        await context.SaveChangesAsync();
+        await LoadAsync();
+    }
+}

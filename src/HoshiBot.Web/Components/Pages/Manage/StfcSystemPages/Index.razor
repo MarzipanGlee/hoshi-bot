@@ -1,0 +1,51 @@
+@page "/manage/stfc-systems"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Systems</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to the STFC catalog.</p>
+}
+else
+{
+    <h1>Systems</h1>
+    <p>Synced daily from stfc.space by StfcSystemSyncService — read-only here, no manual edits (they'd just get overwritten on the next sync).</p>
+
+    <QuickGrid Class="table" Items="context.StfcSystems.OrderBy(s => s.Number)" Pagination="pagination">
+        <PropertyColumn Property="system => system.Number" />
+        <PropertyColumn Property="system => system.Name" />
+        <PropertyColumn Title="Station Housing" Property="system => system.HasStationHousing" />
+    </QuickGrid>
+
+    <Paginator State="pagination" />
+}
+
+@code {
+    private bool? authorized;
+    private HoshiBotDbContext context = default!;
+    private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
+        authorized = result.Succeeded;
+
+        if (authorized == true)
+            context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

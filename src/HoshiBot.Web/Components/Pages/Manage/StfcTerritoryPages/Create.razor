@@ -1,0 +1,71 @@
+@page "/manage/stfc-territories/create"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Territory</PageTitle>
+
+<h1>Create Territory</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Territory" OnValidSubmit="AddTerritory" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="id" class="form-label">Id (real Scopely territory ID):</label>
+                <InputNumber id="id" @bind-Value="Territory.Id" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Territory.Id" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="name" class="form-label">Name:</label>
+                <InputText id="name" @bind-Value="Territory.Name" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Territory.Name" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="tier" class="form-label">Tier:</label>
+                <InputNumber id="tier" @bind-Value="Territory.Tier" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Territory.Tier" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <label for="weekday" class="form-label">Weekday (UTC):</label>
+                <InputSelect id="weekday" @bind-Value="Territory.Weekday" class="form-control">
+                    <option value="">Unknown</option>
+                    @foreach (var day in Enum.GetValues<DayOfWeek>())
+                    {
+                        <option value="@day">@day</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <label for="captureTime" class="form-label">Capture Time (UTC):</label>
+                <InputDate id="captureTime" Type="InputDateType.Time" @bind-Value="Territory.CaptureTimeUtc" class="form-control" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/manage/stfc-territories">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private StfcTerritory Territory { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        Territory ??= new() { Name = "" };
+    }
+
+    private async Task AddTerritory()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcTerritories.Add(Territory);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc-territories");
+    }
+}

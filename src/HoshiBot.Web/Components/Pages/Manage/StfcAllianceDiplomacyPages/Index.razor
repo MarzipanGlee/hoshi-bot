@@ -1,0 +1,56 @@
+@page "/manage/stfc-alliance-diplomacy"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Alliance Diplomacy</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to the STFC catalog.</p>
+}
+else
+{
+    <h1>Alliance Diplomacy</h1>
+
+    <p>
+        <a href="manage/stfc-alliance-diplomacy/create">Create New</a>
+    </p>
+
+    <QuickGrid Class="table" Items="context.StfcAllianceDiplomacies.Include(d => d.SourceAlliance).Include(d => d.TargetAlliance).OrderBy(d => d.SourceAlliance.Tag).ThenBy(d => d.TargetAlliance.Tag)">
+        <PropertyColumn Property="diplomacy => diplomacy.SourceAlliance.Tag" Title="Source" />
+        <PropertyColumn Property="diplomacy => diplomacy.TargetAlliance.Tag" Title="Target" />
+        <PropertyColumn Property="diplomacy => diplomacy.Status" />
+
+        <TemplateColumn Context="diplomacy">
+            <a href="@($"manage/stfc-alliance-diplomacy/edit?id={diplomacy.Id}")">Edit</a> |
+            <a href="@($"manage/stfc-alliance-diplomacy/delete?id={diplomacy.Id}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private bool? authorized;
+    private HoshiBotDbContext context = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
+        authorized = result.Succeeded;
+
+        if (authorized == true)
+            context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

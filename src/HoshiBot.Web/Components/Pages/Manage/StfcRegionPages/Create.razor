@@ -1,0 +1,48 @@
+@page "/manage/stfc-regions/create"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Region</PageTitle>
+
+<h1>Create Region</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Region" OnValidSubmit="AddRegion" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="id" class="form-label">Id (matches Scopely's region numbering):</label>
+                <InputNumber id="id" @bind-Value="Region.Id" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Region.Id" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="name" class="form-label">Name:</label>
+                <InputText id="name" @bind-Value="Region.Name" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Region.Name" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/manage/stfc-regions">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private StfcRegion Region { get; set; } = default!;
+
+    protected override void OnInitialized() => Region ??= new() { Name = "" };
+
+    private async Task AddRegion()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcRegions.Add(Region);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc-regions");
+    }
+}

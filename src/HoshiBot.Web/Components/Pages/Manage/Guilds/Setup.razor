@@ -1,0 +1,481 @@
+@page "/manage/guilds/{GuildId}/setup"
+@using Microsoft.Extensions.Caching.Memory
+@using NetCord
+@using NetCord.Rest
+@inject HoshiBotDbContext Db
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject RestClient BotRestClient
+@inject IMemoryCache Cache
+@inject GuildFeatureService FeatureService
+@inject NavigationManager Nav
+
+<PageTitle>Guild Setup Wizard</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this guild.</p>
+}
+else
+{
+    <h1>Setup Wizard</h1>
+    <p class="text-muted">Step @(step + 1) of @StepTitles.Length — @StepTitles[step]. Every step is optional; you can always adjust things later via Scope/Settings.</p>
+
+    @if (step == 0)
+    {
+        <h2>Welcome</h2>
+        <p>This wizard walks you through the essentials for a new guild: linking your alliance(s)/server(s), choosing which features to enable, setting a few core channels/roles, and making sure someone besides the server owner can manage the bot.</p>
+        <p>Nothing here is mandatory — skip anything and configure it later via the Scope/Settings pages.</p>
+    }
+    else if (step == 1)
+    {
+        <h2>Scope</h2>
+        <p>Which shared alliances, servers, and veil groups this guild tracks.</p>
+        <ScopeEditor GuildId="ParsedGuildId" />
+    }
+    else if (step == 2)
+    {
+        <h2>Features</h2>
+        <p>Turn off anything this guild doesn't want to use — hides its Command Bridge button, blocks its slash commands, and pauses its background jobs.</p>
+        <table class="table">
+            <tbody>
+                @foreach (var feature in Enum.GetValues<GuildFeature>())
+                {
+                    <tr>
+                        <td>@GuildFeatureService.FeatureLabel(feature)</td>
+                        <td>
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" role="switch" checked="@(!disabledFeatures.Contains(feature))"
+                                       @onchange="e => ToggleFeature(feature, (bool)e.Value!)" />
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (step == 3)
+    {
+        <h2>Core channels &amp; roles</h2>
+        <p>A curated subset most features need right away — the full list (~30 more fields) is on the <a href="manage/guilds/@GuildId/settings">Settings page</a>, editable any time.</p>
+        <p>Leave any field below empty to have Hoshi Bot create it for you.</p>
+
+        @if (discordDataError is not null)
+        {
+            <p class="text-danger">@discordDataError</p>
+        }
+        @if (createError is not null)
+        {
+            <p class="text-danger">@createError</p>
+        }
+
+        @if (creating)
+        {
+            <p class="text-muted">Creating anything left blank on Discord...</p>
+        }
+
+        <div class="mb-3">
+            <label>Channel group for anything created below</label>
+            <select class="form-select d-inline-block w-auto" @bind="selectedCategoryIdInput">
+                <option value="">— none / server root —</option>
+                @foreach (var category in categories)
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            </select>
+            <span class="mx-1">or</span>
+            <input type="text" class="form-control d-inline-block w-auto" @bind="newCategoryNameInput" placeholder="create a new group named..." />
+        </div>
+        <div class="mb-2">
+            <label>Log Channel</label>
+            <select class="form-select" @bind="logChannelIdInput">
+                <option value="">— create automatically —</option>
+                @if (IsUnknownChannel(logChannelIdInput))
+                {
+                    <option value="@logChannelIdInput" selected>⚠ Unbekannt (@logChannelIdInput)</option>
+                }
+                @foreach (var channel in channels)
+                {
+                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                }
+            </select>
+        </div>
+        <div class="mb-2">
+            <label>Admin Channel</label>
+            <select class="form-select" @bind="adminChannelIdInput">
+                <option value="">— create automatically —</option>
+                @if (IsUnknownChannel(adminChannelIdInput))
+                {
+                    <option value="@adminChannelIdInput" selected>⚠ Unbekannt (@adminChannelIdInput)</option>
+                }
+                @foreach (var channel in channels)
+                {
+                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                }
+            </select>
+        </div>
+        <div class="mb-2">
+            <label>Member Role</label>
+            <select class="form-select" @bind="memberRoleIdInput">
+                <option value="">— create automatically —</option>
+                @if (IsUnknownRole(memberRoleIdInput))
+                {
+                    <option value="@memberRoleIdInput" selected>⚠ Unbekannt (@memberRoleIdInput)</option>
+                }
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@role.Name</option>
+                }
+            </select>
+        </div>
+        <div class="mb-2">
+            <label>Command Staff Role</label>
+            <select class="form-select" @bind="commandStaffRoleIdInput">
+                <option value="">— create automatically —</option>
+                @if (IsUnknownRole(commandStaffRoleIdInput))
+                {
+                    <option value="@commandStaffRoleIdInput" selected>⚠ Unbekannt (@commandStaffRoleIdInput)</option>
+                }
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@role.Name</option>
+                }
+            </select>
+        </div>
+    }
+    else if (step == 4)
+    {
+        <h2>Admin access</h2>
+        <p>Members holding any of these roles can manage this guild's Hoshi Bot settings even without Discord's "Manage Server" permission — so setup doesn't leave the server owner as the only possible admin.</p>
+
+        <table class="table">
+            <thead><tr><th>Role</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var adminRole in guildAdminRoles)
+                {
+                    <tr>
+                        <td>@RoleName(adminRole.DiscordRoleId)</td>
+                        <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAdminRoleAsync(adminRole)">Delete</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <EditForm Model="this" FormName="setup-add-admin-role" OnValidSubmit="AddAdminRoleAsync">
+            <select class="form-select d-inline-block w-auto" @bind="newAdminRoleIdInput">
+                <option value="">— select role —</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@role.Name</option>
+                }
+            </select>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </EditForm>
+    }
+    else if (step == 5)
+    {
+        <h2>Review &amp; finish</h2>
+        <p>Alliances/servers/veil groups linked: <strong>@(guildAllianceCount + guildServerCount + guildVeilGroupCount)</strong></p>
+        <p>Features disabled: <strong>@disabledFeatures.Count</strong> of @totalFeatureCount</p>
+        <p>Admin roles configured: <strong>@guildAdminRoles.Count</strong></p>
+        <p>Anything left unset here just stays editable later via Scope/Settings — finishing doesn't require completing every step.</p>
+        <button class="btn btn-success" @onclick="FinishAsync">Finish setup</button>
+    }
+
+    <div class="mt-3">
+        @if (step > 0)
+        {
+            <button class="btn btn-secondary" disabled="@creating" @onclick="Back">Back</button>
+        }
+        @if (step < StepTitles.Length - 1)
+        {
+            <button class="btn btn-primary" disabled="@creating" @onclick="Next">@(creating ? "Saving..." : "Next")</button>
+        }
+    </div>
+}
+
+@code {
+    private static readonly string[] StepTitles = ["Welcome", "Scope", "Features", "Core channels & roles", "Admin access", "Review & finish"];
+    private static readonly int totalFeatureCount = Enum.GetValues<GuildFeature>().Length;
+
+    [Parameter] public string GuildId { get; set; } = "";
+
+    private ulong ParsedGuildId => ulong.Parse(GuildId);
+
+    private bool? authorized;
+    private int step;
+    private GuildSettings settings = new();
+    private HashSet<GuildFeature> disabledFeatures = [];
+    private List<GuildAdminRole> guildAdminRoles = [];
+    private List<IGuildChannel> channels = [];
+    private List<CategoryGuildChannel> categories = [];
+    private List<Role> roles = [];
+    private string? discordDataError;
+    private string? createError;
+    private bool creating;
+    private string? selectedCategoryIdInput;
+    private string? newCategoryNameInput;
+    private string? logChannelIdInput;
+    private string? adminChannelIdInput;
+    private string? memberRoleIdInput;
+    private string? commandStaffRoleIdInput;
+    private string? newAdminRoleIdInput;
+    private int guildAllianceCount;
+    private int guildServerCount;
+    private int guildVeilGroupCount;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
+        authorized = result.Succeeded;
+
+        if (authorized == true)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        var guildId = ParsedGuildId;
+
+        settings = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == guildId) ?? new GuildSettings { GuildId = guildId };
+        disabledFeatures = await FeatureService.GetDisabledAsync(guildId);
+        guildAdminRoles = await Db.GuildAdminRoles.Where(r => r.GuildId == guildId).AsNoTracking().ToListAsync();
+
+        logChannelIdInput = settings.LogChannelId?.ToString();
+        adminChannelIdInput = settings.AdminChannelId?.ToString();
+        memberRoleIdInput = settings.MemberRoleId?.ToString();
+        commandStaffRoleIdInput = settings.CommandStaffRoleId?.ToString();
+        selectedCategoryIdInput = settings.DefaultChannelCategoryId?.ToString();
+
+        guildAllianceCount = await Db.GuildAlliances.CountAsync(g => g.GuildId == guildId);
+        guildServerCount = await Db.GuildServers.CountAsync(g => g.GuildId == guildId);
+        guildVeilGroupCount = await Db.GuildVeilGroups.CountAsync(g => g.GuildId == guildId);
+
+        await LoadDiscordDataAsync();
+    }
+
+    // Same 60s-cached channel/role fetch as Settings.razor's own copy — kept local rather
+    // than shared, since this wizard only ever needs the curated 4-field subset while
+    // Settings.razor drives ~30 fields off a generic Field[] array; a shared abstraction
+    // isn't worth it for this small a surface (see Settings.razor's own version for the
+    // full one, if this ever grows to need it).
+    private async Task LoadDiscordDataAsync()
+    {
+        discordDataError = null;
+        try
+        {
+            var guildId = ParsedGuildId;
+
+            var allChannels = await Cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await BotRestClient.GetGuildChannelsAsync(guildId);
+            });
+            channels = (allChannels ?? [])
+                .Where(c => c is not CategoryGuildChannel)
+                .OrderBy(c => c.Position ?? int.MaxValue)
+                .ThenBy(c => c.Name)
+                .ToList();
+            categories = (allChannels ?? [])
+                .OfType<CategoryGuildChannel>()
+                .OrderBy(c => c.Position ?? int.MaxValue)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            var allRoles = await Cache.GetOrCreateAsync($"discord-guild-roles:{guildId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await BotRestClient.GetGuildRolesAsync(guildId);
+            });
+            roles = (allRoles ?? [])
+                .Where(r => r.Id != guildId)
+                .OrderByDescending(r => r.RawPosition)
+                .ToList();
+        }
+        catch (RestException)
+        {
+            channels = [];
+            roles = [];
+            discordDataError = "Could not load channels/roles from Discord (is the bot in this guild?)";
+        }
+    }
+
+    private static string ChannelLabel(IGuildChannel channel) => channel switch
+    {
+        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        _ => $"# {channel.Name}",
+    };
+
+    private string RoleName(ulong id) =>
+        roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+
+    private bool IsUnknownChannel(string? current) =>
+        !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !channels.Any(c => c.Id == id);
+
+    private bool IsUnknownRole(string? current) =>
+        !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !roles.Any(r => r.Id == id);
+
+    private async Task ToggleFeature(GuildFeature feature, bool enabled)
+    {
+        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, enabled);
+
+        if (enabled)
+            disabledFeatures.Remove(feature);
+        else
+            disabledFeatures.Add(feature);
+    }
+
+    // Any of the four fields left blank gets created on Discord instead of just being
+    // saved as null — a new group/category first (or the selected existing one), then
+    // channels/roles under/using it, so a brand-new guild doesn't need everything
+    // pre-created by hand before it can finish this step. Returns false (and leaves
+    // createError set) on failure, so Next/Back know not to advance the step.
+    private async Task<bool> SaveCoreSettingsAsync()
+    {
+        createError = null;
+        creating = true;
+        try
+        {
+            var guildId = ParsedGuildId;
+
+            ulong? categoryId = null;
+            if (!string.IsNullOrWhiteSpace(newCategoryNameInput))
+            {
+                var category = await BotRestClient.CreateGuildChannelAsync(guildId,
+                    new GuildChannelProperties(newCategoryNameInput.Trim(), ChannelType.CategoryChannel));
+                categoryId = category.Id;
+            }
+            else if (ulong.TryParse(selectedCategoryIdInput, out var existingCategoryId))
+            {
+                categoryId = existingCategoryId;
+            }
+
+            var logId = await EnsureChannelAsync(logChannelIdInput, "log", categoryId);
+            var adminId = await EnsureChannelAsync(adminChannelIdInput, "admin", categoryId);
+            var memberId = await EnsureRoleAsync(memberRoleIdInput, "Member");
+            var staffId = await EnsureRoleAsync(commandStaffRoleIdInput, "Command Staff");
+
+            var existing = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == guildId);
+            if (existing is null)
+            {
+                existing = new GuildSettings { GuildId = guildId };
+                Db.GuildSettings.Add(existing);
+            }
+
+            existing.LogChannelId = logId;
+            existing.AdminChannelId = adminId;
+            existing.MemberRoleId = memberId;
+            existing.CommandStaffRoleId = staffId;
+            existing.DefaultChannelCategoryId = categoryId;
+
+            await Db.SaveChangesAsync();
+            settings = existing;
+
+            logChannelIdInput = logId?.ToString();
+            adminChannelIdInput = adminId?.ToString();
+            memberRoleIdInput = memberId?.ToString();
+            commandStaffRoleIdInput = staffId?.ToString();
+            newCategoryNameInput = null;
+            selectedCategoryIdInput = categoryId?.ToString();
+
+            // Invalidate the 60s Discord-data cache so anything just created shows up
+            // immediately here and on the Admin Access step's role dropdown.
+            Cache.Remove($"discord-guild-channels:{guildId}");
+            Cache.Remove($"discord-guild-roles:{guildId}");
+            await LoadDiscordDataAsync();
+
+            return true;
+        }
+        catch (RestException)
+        {
+            createError = "Could not create a channel/role on Discord — does the bot have Manage Channels/Manage Roles permission in this server?";
+            return false;
+        }
+        finally
+        {
+            creating = false;
+        }
+    }
+
+    private async Task<ulong?> EnsureChannelAsync(string? currentInput, string defaultName, ulong? categoryId)
+    {
+        if (ulong.TryParse(currentInput, out var existingId))
+            return existingId;
+
+        var created = await BotRestClient.CreateGuildChannelAsync(ParsedGuildId,
+            new GuildChannelProperties(defaultName, ChannelType.TextGuildChannel) { ParentId = categoryId });
+        return created.Id;
+    }
+
+    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName)
+    {
+        if (ulong.TryParse(currentInput, out var existingId))
+            return existingId;
+
+        var created = await BotRestClient.CreateGuildRoleAsync(ParsedGuildId, new RoleProperties { Name = defaultName });
+        return created.Id;
+    }
+
+    private async Task AddAdminRoleAsync()
+    {
+        if (!ulong.TryParse(newAdminRoleIdInput, out var roleId))
+            return;
+
+        if (guildAdminRoles.Any(r => r.DiscordRoleId == roleId))
+            return;
+
+        Db.GuildAdminRoles.Add(new GuildAdminRole { GuildId = ParsedGuildId, DiscordRoleId = roleId });
+        await Db.SaveChangesAsync();
+        newAdminRoleIdInput = null;
+        guildAdminRoles = await Db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
+    }
+
+    private async Task DeleteAdminRoleAsync(GuildAdminRole adminRole)
+    {
+        Db.GuildAdminRoles.Remove(adminRole);
+        await Db.SaveChangesAsync();
+        guildAdminRoles = await Db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
+    }
+
+    // The Core-settings step (3) has no separate Save button — leaving it in either
+    // direction runs SaveCoreSettingsAsync (including its create-if-missing Discord
+    // calls) first, and a failure (e.g. missing Discord permission) keeps the step in
+    // place with createError shown rather than silently discarding what was entered.
+    private async Task<bool> LeaveCurrentStepAsync() =>
+        step != 3 || await SaveCoreSettingsAsync();
+
+    private async Task Back()
+    {
+        if (step > 0 && await LeaveCurrentStepAsync())
+            step--;
+    }
+
+    private async Task Next()
+    {
+        if (step < StepTitles.Length - 1 && await LeaveCurrentStepAsync())
+            step++;
+    }
+
+    private async Task FinishAsync()
+    {
+        var existing = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
+        if (existing is null)
+        {
+            existing = new GuildSettings { GuildId = ParsedGuildId };
+            Db.GuildSettings.Add(existing);
+        }
+
+        existing.SetupCompletedAt = DateTimeOffset.UtcNow;
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo("manage/guilds");
+    }
+}

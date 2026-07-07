@@ -1,0 +1,442 @@
+@page "/manage/guilds/{GuildId}/settings"
+@using System.Reflection
+@using Microsoft.Extensions.Caching.Memory
+@using NetCord
+@using NetCord.Rest
+@inject HoshiBotDbContext Db
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject RestClient BotRestClient
+@inject IMemoryCache Cache
+@inject GuildFeatureService FeatureService
+
+<PageTitle>Guild Settings</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this guild.</p>
+}
+else
+{
+    <div class="guild-settings">
+    <h1>Guild Settings</h1>
+
+    <h2>Features</h2>
+    <p>Disabling a feature hides its Command Bridge button, blocks its slash commands, and pauses its background jobs for this guild.</p>
+    <table class="table settings-table">
+        <tbody>
+            @foreach (var feature in Enum.GetValues<GuildFeature>())
+            {
+                <tr>
+                    <td>@GuildFeatureService.FeatureLabel(feature)</td>
+                    <td>
+                        <div class="form-check form-switch">
+                            <input type="checkbox" class="form-check-input" role="switch" checked="@(!disabledFeatures.Contains(feature))"
+                                   @onchange="e => ToggleFeature(feature, (bool)e.Value!)" />
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <p>Channel/role IDs for features not built yet — set them now, they'll be picked up once each feature lands.</p>
+
+    @if (discordDataError is not null)
+    {
+        <div class="alert alert-warning">@discordDataError — showing raw IDs only until this is resolved.</div>
+    }
+
+    <EditForm Model="this" FormName="save-settings" OnValidSubmit="SaveSettings">
+        <h2>Channels</h2>
+        <table class="table settings-table">
+            <tbody>
+                @foreach (var field in ChannelFields)
+                {
+                    <tr>
+                        <td>@field.Label</td>
+                        <td>
+                            <select class="form-select" @bind="fieldInputs[field.PropertyName]">
+                                <option value="">— keine —</option>
+                                @if (IsUnknownChannel(fieldInputs[field.PropertyName]))
+                                {
+                                    <option value="@fieldInputs[field.PropertyName]">⚠ Unbekannt (@fieldInputs[field.PropertyName])</option>
+                                }
+                                @foreach (var channel in channels)
+                                {
+                                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                                }
+                            </select>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h2 class="mt-4">Roles</h2>
+        <table class="table settings-table">
+            <tbody>
+                @foreach (var field in RoleFields)
+                {
+                    <tr>
+                        <td>@field.Label</td>
+                        <td>
+                            <select class="form-select" @bind="fieldInputs[field.PropertyName]">
+                                <option value="">— keine —</option>
+                                @if (IsUnknownRole(fieldInputs[field.PropertyName]))
+                                {
+                                    <option value="@fieldInputs[field.PropertyName]">⚠ Unbekannt (@fieldInputs[field.PropertyName])</option>
+                                }
+                                @foreach (var role in roles)
+                                {
+                                    <option value="@role.Id">@role.Name</option>
+                                }
+                            </select>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h2 class="mt-4">Territory Capture Zone Slot Roles</h2>
+        <p>Roles for each of the alliance's owned zone slots this week (the "Zone Slots: N/5" cap shown in-game), not days of the week.</p>
+        <table class="table settings-table">
+            <tbody>
+                @foreach (var field in ZoneSlotRoleFields)
+                {
+                    <tr>
+                        <td>@field.Label</td>
+                        <td>
+                            <select class="form-select" @bind="fieldInputs[field.PropertyName]">
+                                <option value="">— keine —</option>
+                                @if (IsUnknownRole(fieldInputs[field.PropertyName]))
+                                {
+                                    <option value="@fieldInputs[field.PropertyName]">⚠ Unbekannt (@fieldInputs[field.PropertyName])</option>
+                                }
+                                @foreach (var role in roles)
+                                {
+                                    <option value="@role.Id">@role.Name</option>
+                                }
+                            </select>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h2 class="mt-4">Rank Roles</h2>
+        <table class="table settings-table">
+            <tbody>
+                @foreach (var field in RankRoleFields)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">@field.Label</span>
+                                <img src="@field.IconUrl" alt="" width="40" height="40" />
+                            </div>
+                        </td>
+                        <td>
+                            <select class="form-select" @bind="fieldInputs[field.PropertyName]">
+                                <option value="">— keine —</option>
+                                @if (IsUnknownRole(fieldInputs[field.PropertyName]))
+                                {
+                                    <option value="@fieldInputs[field.PropertyName]">⚠ Unbekannt (@fieldInputs[field.PropertyName])</option>
+                                }
+                                @foreach (var role in roles)
+                                {
+                                    <option value="@role.Id">@role.Name</option>
+                                }
+                            </select>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h2 class="mt-4">Territory Capture</h2>
+        <div class="mb-3">
+            <label for="territoryCaptureInstructions" class="form-label">Instructions ("Anweisungen von {Command Staff}" section on the digest):</label>
+            <textarea id="territoryCaptureInstructions" class="form-control" rows="4" @bind="settings.TerritoryCaptureInstructions"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+    </EditForm>
+
+    <h2 class="mt-4">Alert Channels</h2>
+    <table class="table">
+        <thead><tr><th>Kind</th><th>Channel</th><th>Role</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var alertChannel in alertChannels)
+            {
+                <tr>
+                    <td>@alertChannel.Kind</td>
+                    <td>@ChannelName(alertChannel.ChannelId)</td>
+                    <td>@RoleName(alertChannel.RoleId)</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannel(alertChannel)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="add-alert-channel" OnValidSubmit="AddAlertChannel">
+        <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newAlertChannelKind">
+            @foreach (var kind in Enum.GetValues<GuildAlertChannelKind>())
+            {
+                <option value="@kind">@kind</option>
+            }
+        </InputSelect>
+        <select class="form-select d-inline-block w-auto" @bind="newAlertChannelIdInput">
+            <option value="">— select channel —</option>
+            @foreach (var channel in channels)
+            {
+                <option value="@channel.Id">@ChannelLabel(channel)</option>
+            }
+        </select>
+        <select class="form-select d-inline-block w-auto" @bind="newAlertRoleIdInput">
+            <option value="">— select role —</option>
+            @foreach (var role in roles)
+            {
+                <option value="@role.Id">@role.Name</option>
+            }
+        </select>
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+    </div>
+}
+
+@code {
+    private record Field(string PropertyName, string Label, string? IconUrl = null);
+
+    private static readonly Field[] ChannelFields =
+    [
+        new(nameof(GuildSettings.LogChannelId), "Log"),
+        new(nameof(GuildSettings.AdminChannelId), "Admin"),
+        new(nameof(GuildSettings.UserLogChannelId), "User Log"),
+        new(nameof(GuildSettings.AbsencesReportChannelId), "Absences Report"),
+        new(nameof(GuildSettings.AbsencesReportStaffChannelId), "Absences Report (Staff)"),
+        new(nameof(GuildSettings.AllianceBoardingChannelId), "Alliance Boarding"),
+        new(nameof(GuildSettings.AnnouncementsChannelId), "Announcements"),
+        new(nameof(GuildSettings.AnnouncementsRemindersChannelId), "Announcements Reminders"),
+        new(nameof(GuildSettings.AnnouncementsDraftChannelId), "Announcements Draft"),
+        new(nameof(GuildSettings.CommandBridgeChannelId), "Command Bridge"),
+        new(nameof(GuildSettings.DiplomacyChannelId), "Diplomacy"),
+        new(nameof(GuildSettings.RaidReportsChannelId), "Raid Reports"),
+        new(nameof(GuildSettings.RemindersChannelId), "Reminders"),
+        new(nameof(GuildSettings.RemindersAlliesChannelId), "Reminders (Allies)"),
+        new(nameof(GuildSettings.RemindersServicesChannelId), "Reminders (Services)"),
+        new(nameof(GuildSettings.RulesDeChannelId), "Rules (DE)"),
+        new(nameof(GuildSettings.RulesEnChannelId), "Rules (EN)"),
+        new(nameof(GuildSettings.RoeViolationsChannelId), "RoE Violations"),
+        new(nameof(GuildSettings.ShieldReminderChannelId), "Shield Reminder"),
+        new(nameof(GuildSettings.UserNotificationsChannelId), "User Notifications"),
+        new(nameof(GuildSettings.AnonymousMessagesChannelId), "Anonymous Messages"),
+        new(nameof(GuildSettings.BotSupportChannelId), "Bot Support"),
+        new(nameof(GuildSettings.CommandStaffJobsChannelId), "Command Staff Jobs"),
+        new(nameof(GuildSettings.TicketsChannelId), "Tickets"),
+    ];
+
+    private static readonly Field[] RoleFields =
+    [
+        new(nameof(GuildSettings.CommandStaffRoleId), "Command Staff"),
+        new(nameof(GuildSettings.DiplomatRoleId), "Diplomat"),
+        new(nameof(GuildSettings.MemberRoleId), "Member"),
+        new(nameof(GuildSettings.BoardingRoleId), "Boarding"),
+        new(nameof(GuildSettings.CrewsRoleId), "Crews"),
+        new(nameof(GuildSettings.BetaTesterRoleId), "Beta Tester"),
+        new(nameof(GuildSettings.HoshiTesterRoleId), "Hoshi Tester"),
+        new(nameof(GuildSettings.AlertsRoleId), "Alerts"),
+        new(nameof(GuildSettings.WarningsRoleId), "Warnings"),
+    ];
+
+    private static readonly Field[] ZoneSlotRoleFields =
+    [
+        new(nameof(GuildSettings.ZoneSlot1RoleId), "Slot 1"),
+        new(nameof(GuildSettings.ZoneSlot2RoleId), "Slot 2"),
+        new(nameof(GuildSettings.ZoneSlot3RoleId), "Slot 3"),
+        new(nameof(GuildSettings.ZoneSlot4RoleId), "Slot 4"),
+        new(nameof(GuildSettings.ZoneSlot5RoleId), "Slot 5"),
+    ];
+
+    private static readonly Field[] RankRoleFields =
+    [
+        new(nameof(GuildSettings.AdmiralRoleId), "Admiral", "images/ranks/admiral.png"),
+        new(nameof(GuildSettings.CommodoreRoleId), "Commodore", "images/ranks/commodore.png"),
+        new(nameof(GuildSettings.PremierRoleId), "Premier", "images/ranks/premier.png"),
+        new(nameof(GuildSettings.OperativeRoleId), "Operative", "images/ranks/operative.png"),
+        new(nameof(GuildSettings.AgentRoleId), "Agent", "images/ranks/agent.png"),
+    ];
+
+    [Parameter] public string GuildId { get; set; } = "";
+
+    private ulong ParsedGuildId => ulong.Parse(GuildId);
+
+    private bool? authorized;
+    private GuildSettings settings = new();
+    private HashSet<GuildFeature> disabledFeatures = [];
+    private readonly Dictionary<string, string?> fieldInputs = new();
+    private List<GuildAlertChannel> alertChannels = [];
+    private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
+    private string? discordDataError;
+    private GuildAlertChannelKind newAlertChannelKind;
+    private string? newAlertChannelIdInput;
+    private string? newAlertRoleIdInput;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
+        authorized = result.Succeeded;
+
+        if (authorized == true)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        settings = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId)
+            ?? new GuildSettings { GuildId = ParsedGuildId };
+
+        disabledFeatures = await FeatureService.GetDisabledAsync(ParsedGuildId);
+
+        fieldInputs.Clear();
+        foreach (var field in ChannelFields.Concat(RoleFields).Concat(ZoneSlotRoleFields).Concat(RankRoleFields))
+        {
+            var value = (ulong?)typeof(GuildSettings).GetProperty(field.PropertyName)!.GetValue(settings);
+            fieldInputs[field.PropertyName] = value?.ToString();
+        }
+
+        alertChannels = await Db.GuildAlertChannels
+            .Where(c => c.GuildId == ParsedGuildId)
+            .AsNoTracking()
+            .ToListAsync();
+
+        await LoadDiscordDataAsync();
+    }
+
+    // Cached briefly (same 60s TTL as GuildAdminHandler's Discord API caching) so
+    // repeatedly opening this page doesn't hammer the Discord API — channel/role lists
+    // rarely change within that window.
+    private async Task LoadDiscordDataAsync()
+    {
+        discordDataError = null;
+        try
+        {
+            var guildId = ParsedGuildId;
+
+            var allChannels = await Cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await BotRestClient.GetGuildChannelsAsync(guildId);
+            });
+            channels = (allChannels ?? [])
+                .Where(c => c is not CategoryGuildChannel)
+                .OrderBy(c => c.Position ?? int.MaxValue)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            var allRoles = await Cache.GetOrCreateAsync($"discord-guild-roles:{guildId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await BotRestClient.GetGuildRolesAsync(guildId);
+            });
+            // @everyone's role Id always equals the guild Id — not a real assignable option here.
+            roles = (allRoles ?? [])
+                .Where(r => r.Id != guildId)
+                .OrderByDescending(r => r.RawPosition)
+                .ToList();
+        }
+        catch (RestException)
+        {
+            channels = [];
+            roles = [];
+            discordDataError = "Could not load channels/roles from Discord (is the bot in this guild?)";
+        }
+    }
+
+    private static string ChannelLabel(IGuildChannel channel) => channel switch
+    {
+        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        _ => $"# {channel.Name}",
+    };
+
+    private string ChannelName(ulong id) =>
+        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+
+    private string RoleName(ulong id) =>
+        roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+
+    // A saved value with no matching Discord entity (deleted channel/role, or a
+    // channel/role from before the bot could see this guild) gets a synthetic option so
+    // saving the form without touching that field doesn't silently wipe it out.
+    private bool IsUnknownChannel(string? current) =>
+        !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !channels.Any(c => c.Id == id);
+
+    private bool IsUnknownRole(string? current) =>
+        !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !roles.Any(r => r.Id == id);
+
+    private async Task ToggleFeature(GuildFeature feature, bool enabled)
+    {
+        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, enabled);
+
+        if (enabled)
+            disabledFeatures.Remove(feature);
+        else
+            disabledFeatures.Add(feature);
+    }
+
+    private async Task SaveSettings()
+    {
+        foreach (var field in ChannelFields.Concat(RoleFields).Concat(ZoneSlotRoleFields).Concat(RankRoleFields))
+        {
+            var property = typeof(GuildSettings).GetProperty(field.PropertyName)!;
+            var parsedValue = ulong.TryParse(fieldInputs[field.PropertyName], out var value) ? value : (ulong?)null;
+            property.SetValue(settings, parsedValue);
+        }
+
+        if (await Db.GuildSettings.AnyAsync(s => s.GuildId == ParsedGuildId))
+        {
+            Db.GuildSettings.Update(settings);
+        }
+        else
+        {
+            Db.GuildSettings.Add(settings);
+        }
+
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task AddAlertChannel()
+    {
+        if (!ulong.TryParse(newAlertChannelIdInput, out var channelId) || !ulong.TryParse(newAlertRoleIdInput, out var roleId))
+            return;
+
+        Db.GuildAlertChannels.Add(new GuildAlertChannel
+        {
+            GuildId = ParsedGuildId,
+            Kind = newAlertChannelKind,
+            ChannelId = channelId,
+            RoleId = roleId,
+        });
+
+        await Db.SaveChangesAsync();
+        newAlertChannelIdInput = null;
+        newAlertRoleIdInput = null;
+        await LoadAsync();
+    }
+
+    private async Task DeleteAlertChannel(GuildAlertChannel alertChannel)
+    {
+        Db.GuildAlertChannels.Remove(alertChannel);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+}

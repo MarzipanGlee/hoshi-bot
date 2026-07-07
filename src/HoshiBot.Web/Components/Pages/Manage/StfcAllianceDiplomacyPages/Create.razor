@@ -1,0 +1,81 @@
+@page "/manage/stfc-alliance-diplomacy/create"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Alliance Diplomacy</PageTitle>
+
+<h1>Create Alliance Diplomacy</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Diplomacy" OnValidSubmit="AddDiplomacy" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="source" class="form-label">Source Alliance:</label>
+                <InputSelect id="source" @bind-Value="Diplomacy.SourceAllianceId" class="form-control">
+                    <option value="0">Select alliance...</option>
+                    @foreach (var alliance in alliances)
+                    {
+                        <option value="@alliance.Id">@alliance.Tag</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Diplomacy.SourceAllianceId" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="target" class="form-label">Target Alliance:</label>
+                <InputSelect id="target" @bind-Value="Diplomacy.TargetAllianceId" class="form-control">
+                    <option value="0">Select alliance...</option>
+                    @foreach (var alliance in alliances)
+                    {
+                        <option value="@alliance.Id">@alliance.Tag</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Diplomacy.TargetAllianceId" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="status" class="form-label">Status:</label>
+                <InputSelect id="status" @bind-Value="Diplomacy.Status" class="form-control">
+                    @foreach (var status in Enum.GetValues<DiplomacyStatus>())
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Diplomacy.Status" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/manage/stfc-alliance-diplomacy">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private StfcAllianceDiplomacy Diplomacy { get; set; } = default!;
+
+    private List<StfcAlliance> alliances = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Diplomacy ??= new();
+        using var context = DbFactory.CreateDbContext();
+        alliances = await context.StfcAlliances.AsNoTracking().ToListAsync();
+    }
+
+    private async Task AddDiplomacy()
+    {
+        if (Diplomacy.SourceAllianceId == 0 || Diplomacy.TargetAllianceId == 0)
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcAllianceDiplomacies.Add(Diplomacy);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc-alliance-diplomacy");
+    }
+}

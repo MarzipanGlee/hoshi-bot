@@ -1,0 +1,164 @@
+@page "/manage/stfc-servers/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Server</PageTitle>
+
+<h1>Edit Server</h1>
+<hr />
+@if (Server is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Server" OnValidSubmit="UpdateServer" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Server.Id" value="@Server.Id" />
+                <div class="mb-3">
+                    <label class="form-label">Server Number (ID):</label>
+                    <p class="form-control-plaintext">@Server.Id</p>
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name" @bind-Value="Server.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Server.Name" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="region" class="form-label">Region:</label>
+                    <InputSelect id="region" @bind-Value="Server.RegionId" class="form-control">
+                        @foreach (var region in regions)
+                        {
+                            <option value="@region.Id">@region.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Server.RegionId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="veilGroup" class="form-label">Veil Group:</label>
+                    <InputSelect id="veilGroup" @bind-Value="Server.VeilGroupId" class="form-control">
+                        <option value="">No veil group (new/unclassified)</option>
+                        @foreach (var veilGroup in veilGroups)
+                        {
+                            <option value="@veilGroup.Id">@veilGroup.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <h2 class="mt-4">Discord Invites</h2>
+    <table class="table">
+        <thead><tr><th>Url</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var invite in invites)
+            {
+                <tr>
+                    <td>@invite.Url</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveInviteAsync(invite)">Remove</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="add-invite" OnValidSubmit="AddInviteAsync">
+        <input type="text" class="form-control d-inline-block w-auto" @bind="newInviteUrl" placeholder="https://discord.gg/..." />
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+}
+
+<div>
+    <a href="/manage/stfc-servers">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcServer? Server { get; set; }
+
+    private List<StfcRegion> regions = [];
+    private List<StfcVeilGroup> veilGroups = [];
+    private List<StfcServerDiscordInvite> invites = [];
+    private string? newInviteUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        regions = await context.StfcRegions.AsNoTracking().ToListAsync();
+        veilGroups = await context.StfcVeilGroups.AsNoTracking().ToListAsync();
+        Server ??= await context.StfcServers.FirstOrDefaultAsync(s => s.Id == Id);
+
+        if (Server is null)
+        {
+            NavigationManager.NotFound();
+            return;
+        }
+
+        await LoadInvitesAsync();
+    }
+
+    private async Task LoadInvitesAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        invites = await context.StfcServerDiscordInvites.Where(i => i.ServerId == Id).AsNoTracking().ToListAsync();
+    }
+
+    private async Task AddInviteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newInviteUrl))
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcServerDiscordInvites.Add(new StfcServerDiscordInvite { ServerId = Id, Url = newInviteUrl });
+        await context.SaveChangesAsync();
+
+        newInviteUrl = null;
+        await LoadInvitesAsync();
+    }
+
+    private async Task RemoveInviteAsync(StfcServerDiscordInvite invite)
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcServerDiscordInvites.Remove(invite);
+        await context.SaveChangesAsync();
+        await LoadInvitesAsync();
+    }
+
+    private async Task UpdateServer()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Server!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await ServerExistsAsync(Server!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc-servers");
+    }
+
+    private async Task<bool> ServerExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcServers.AnyAsync(s => s.Id == id);
+    }
+}

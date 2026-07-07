@@ -1,0 +1,77 @@
+.nav-group {
+    margin-bottom: 0.25rem;
+}
+
+/* Pure CSS checkbox/label toggle -- no interactive circuit needed, works on static SSR pages too
+   (same technique as the mobile navbar-toggler in NavMenu.razor.css). */
+.nav-group-toggle-checkbox {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.nav-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 1rem;
+    color: #d7d7d7;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+    /* NavMenu.razor.css sets a matching width on .oi for its own top-level links, but
+       Blazor's CSS isolation scopes that rule to NavMenu's own elements -- it doesn't reach
+       this icon, rendered by NavMenuGroup itself. Repeat it here so group headers line up
+       with the top-level "Home" link's icon column. */
+    .nav-group-toggle .oi {
+        width: 2rem;
+        font-size: 1.1rem;
+    }
+
+    .nav-group-toggle:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+.nav-group-toggle-active {
+    color: white;
+}
+
+.nav-group-label {
+    flex: 1;
+    text-align: left;
+}
+
+.nav-group-chevron {
+    display: inline-block;
+    font-size: 0.7rem;
+    transition: transform 0.15s ease-in-out;
+}
+
+.nav-group-items {
+    display: none;
+}
+
+.nav-group-toggle-checkbox:checked ~ .nav-group-toggle .nav-group-chevron {
+    transform: rotate(90deg);
+}
+
+.nav-group-toggle-checkbox:checked ~ .nav-group-items {
+    display: block;
+}
+
+.nav-group-items ::deep .nav-item {
+    padding-left: 1.5rem;
+    font-size: 0.85rem;
+}
+
+.nav-group-items ::deep .nav-link {
+    padding-left: 0.75rem;
+}

@@ -1,0 +1,114 @@
+@page "/manage/stfc-alliance-diplomacy/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Alliance Diplomacy</PageTitle>
+
+<h1>Edit Alliance Diplomacy</h1>
+<hr />
+@if (Diplomacy is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Diplomacy" OnValidSubmit="UpdateDiplomacy" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Diplomacy.Id" value="@Diplomacy.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="source" class="form-label">Source Alliance:</label>
+                    <InputSelect id="source" @bind-Value="Diplomacy.SourceAllianceId" class="form-control">
+                        @foreach (var alliance in alliances)
+                        {
+                            <option value="@alliance.Id">@alliance.Tag</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Diplomacy.SourceAllianceId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="target" class="form-label">Target Alliance:</label>
+                    <InputSelect id="target" @bind-Value="Diplomacy.TargetAllianceId" class="form-control">
+                        @foreach (var alliance in alliances)
+                        {
+                            <option value="@alliance.Id">@alliance.Tag</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Diplomacy.TargetAllianceId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="status" class="form-label">Status:</label>
+                    <InputSelect id="status" @bind-Value="Diplomacy.Status" class="form-control">
+                        @foreach (var status in Enum.GetValues<DiplomacyStatus>())
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Diplomacy.Status" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/manage/stfc-alliance-diplomacy">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcAllianceDiplomacy? Diplomacy { get; set; }
+
+    private List<StfcAlliance> alliances = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        alliances = await context.StfcAlliances.AsNoTracking().ToListAsync();
+        Diplomacy ??= await context.StfcAllianceDiplomacies.FirstOrDefaultAsync(d => d.Id == Id);
+
+        if (Diplomacy is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+
+    private async Task UpdateDiplomacy()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Diplomacy!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await DiplomacyExistsAsync(Diplomacy!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc-alliance-diplomacy");
+    }
+
+    private async Task<bool> DiplomacyExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcAllianceDiplomacies.AnyAsync(d => d.Id == id);
+    }
+}

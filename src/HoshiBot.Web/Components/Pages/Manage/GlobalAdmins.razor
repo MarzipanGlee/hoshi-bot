@@ -1,0 +1,81 @@
+@page "/manage/global-admins"
+@inject HoshiBotDbContext Db
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Global Admins</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this page.</p>
+}
+else
+{
+    <h1>Global Admins</h1>
+    <p>Discord users with bot-wide access to the STFC catalog.</p>
+
+    <table class="table">
+        <thead><tr><th>Discord User ID</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var admin in admins)
+            {
+                <tr>
+                    <td>@admin.DiscordUserId</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAdmin(admin)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <EditForm Model="this" FormName="add-global-admin" OnValidSubmit="AddAdmin">
+        <input type="text" class="form-control d-inline-block w-auto" @bind="newDiscordUserIdInput" placeholder="Discord user ID" />
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+}
+
+@code {
+    private bool? authorized;
+    private List<GlobalAdmin> admins = [];
+    private string? newDiscordUserIdInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
+        authorized = result.Succeeded;
+
+        if (authorized == true)
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        admins = await Db.GlobalAdmins.AsNoTracking().ToListAsync();
+    }
+
+    private async Task AddAdmin()
+    {
+        if (!ulong.TryParse(newDiscordUserIdInput, out var discordUserId))
+            return;
+
+        if (await Db.GlobalAdmins.FindAsync(discordUserId) is null)
+        {
+            Db.GlobalAdmins.Add(new GlobalAdmin { DiscordUserId = discordUserId });
+            await Db.SaveChangesAsync();
+        }
+
+        newDiscordUserIdInput = null;
+        await LoadAsync();
+    }
+
+    private async Task DeleteAdmin(GlobalAdmin admin)
+    {
+        Db.GlobalAdmins.Remove(admin);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+}

@@ -1,0 +1,12 @@
+.guild-settings {
+    max-width: 800px;
+}
+
+.guild-settings table td {
+    vertical-align: middle;
+}
+
+.guild-settings .settings-table td:first-child,
+.guild-settings .settings-table td:last-child {
+    width: 50%;
+}

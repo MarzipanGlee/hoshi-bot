@@ -1,0 +1,282 @@
+@using Microsoft.Extensions.Caching.Memory
+@using NetCord
+@using NetCord.Rest
+@inject HoshiBotDbContext Db
+@inject RestClient BotRestClient
+@inject IMemoryCache Cache
+
+<h2>Linked Alliances (role mappings)</h2>
+@if (discordDataError is not null)
+{
+    <p class="text-danger">@discordDataError</p>
+}
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Alliance</th>
+            <th>Member Role</th>
+            <th>Officer Role</th>
+            <th>Diplomat Role</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var link in guildAlliances)
+        {
+            <tr>
+                <td>@allAlliances.FirstOrDefault(a => a.Id == link.StfcAllianceId)?.Tag</td>
+                <td>@RoleName(link.MemberRoleId)</td>
+                <td>@RoleName(link.OfficerRoleId)</td>
+                <td>@RoleName(link.DiplomatRoleId)</td>
+                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">Delete</button></td>
+            </tr>
+        }
+        <tr>
+            <td>
+                <select class="form-select" @bind="newAllianceLink.StfcAllianceId">
+                    <option value="0">Select alliance...</option>
+                    @foreach (var alliance in allAlliances)
+                    {
+                        <option value="@alliance.Id">@alliance.Tag - @alliance.Name</option>
+                    }
+                </select>
+            </td>
+            <td>
+                <select class="form-select" @bind="memberRoleIdInput">
+                    <option value="">— create a role —</option>
+                    @foreach (var role in roles)
+                    {
+                        <option value="@role.Id">@role.Name</option>
+                    }
+                </select>
+            </td>
+            <td>
+                <select class="form-select" @bind="officerRoleIdInput">
+                    <option value="">— create a role —</option>
+                    @foreach (var role in roles)
+                    {
+                        <option value="@role.Id">@role.Name</option>
+                    }
+                </select>
+            </td>
+            <td>
+                <select class="form-select" @bind="diplomatRoleIdInput">
+                    <option value="">— create a role —</option>
+                    @foreach (var role in roles)
+                    {
+                        <option value="@role.Id">@role.Name</option>
+                    }
+                </select>
+            </td>
+            <td><button class="btn btn-primary" disabled="@creatingRole" @onclick="AddGuildAlliance">@(creatingRole ? "Creating..." : "Add")</button></td>
+        </tr>
+    </tbody>
+</table>
+
+<h2 class="mt-4">Linked Servers</h2>
+<table class="table">
+    <thead><tr><th>Server</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var link in guildServers)
+        {
+            <tr>
+                <td>@allServers.FirstOrDefault(s => s.Id == link.StfcServerId)?.DisplayName</td>
+                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildServer(link)">Delete</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+<EditForm Model="newServerLink" FormName="add-guild-server" OnValidSubmit="AddGuildServer">
+    <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newServerLink.StfcServerId">
+        <option value="0">Select server...</option>
+        @foreach (var server in allServers)
+        {
+            <option value="@server.Id">@server.DisplayName</option>
+        }
+    </InputSelect>
+    <button type="submit" class="btn btn-primary">Add</button>
+</EditForm>
+
+<h2 class="mt-4">Linked Veil Groups</h2>
+<table class="table">
+    <thead><tr><th>Veil Group</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var link in guildVeilGroups)
+        {
+            <tr>
+                <td>@allVeilGroups.FirstOrDefault(v => v.Id == link.StfcVeilGroupId)?.Name</td>
+                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildVeilGroup(link)">Delete</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+<EditForm Model="newVeilGroupLink" FormName="add-guild-veil-group" OnValidSubmit="AddGuildVeilGroup">
+    <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newVeilGroupLink.StfcVeilGroupId">
+        <option value="0">Select veil group...</option>
+        @foreach (var veilGroup in allVeilGroups)
+        {
+            <option value="@veilGroup.Id">@veilGroup.Name</option>
+        }
+    </InputSelect>
+    <button type="submit" class="btn btn-primary">Add</button>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    private List<StfcAlliance> allAlliances = [];
+    private List<StfcServer> allServers = [];
+    private List<StfcVeilGroup> allVeilGroups = [];
+    private List<GuildAlliance> guildAlliances = [];
+    private List<GuildServer> guildServers = [];
+    private List<GuildVeilGroup> guildVeilGroups = [];
+    private List<Role> roles = [];
+    private GuildAlliance newAllianceLink = new();
+    private GuildServer newServerLink = new();
+    private GuildVeilGroup newVeilGroupLink = new();
+    private string? memberRoleIdInput;
+    private string? officerRoleIdInput;
+    private string? diplomatRoleIdInput;
+    private string? discordDataError;
+    private string? createRoleError;
+    private bool creatingRole;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        allAlliances = await Db.StfcAlliances.AsNoTracking().ToListAsync();
+        allServers = await Db.StfcServers.Include(s => s.Region).OrderBy(s => s.Region.Name).ThenBy(s => s.Id).AsNoTracking().ToListAsync();
+        allVeilGroups = await Db.StfcVeilGroups.AsNoTracking().ToListAsync();
+        guildAlliances = await Db.GuildAlliances.Where(ga => ga.GuildId == GuildId).AsNoTracking().ToListAsync();
+        guildServers = await Db.GuildServers.Where(gs => gs.GuildId == GuildId).AsNoTracking().ToListAsync();
+        guildVeilGroups = await Db.GuildVeilGroups.Where(gv => gv.GuildId == GuildId).AsNoTracking().ToListAsync();
+
+        await LoadDiscordRolesAsync();
+    }
+
+    // Same 60s-cached role fetch/cache key Settings.razor and Setup.razor use — kept
+    // local rather than shared, matching the same "not worth a shared abstraction for a
+    // small surface" call made for Setup.razor's own copy.
+    private async Task LoadDiscordRolesAsync()
+    {
+        discordDataError = null;
+        try
+        {
+            var allRoles = await Cache.GetOrCreateAsync($"discord-guild-roles:{GuildId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await BotRestClient.GetGuildRolesAsync(GuildId);
+            });
+            roles = (allRoles ?? [])
+                .Where(r => r.Id != GuildId)
+                .OrderByDescending(r => r.RawPosition)
+                .ToList();
+        }
+        catch (RestException)
+        {
+            roles = [];
+            discordDataError = "Could not load roles from Discord (is the bot in this guild?)";
+        }
+    }
+
+    private string RoleName(ulong? id) =>
+        id is null ? "-" : roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+
+    // A blank Member/Officer/Diplomat selection creates a new role instead of just
+    // saving null — named after the alliance tag so multiple linked alliances don't end
+    // up sharing ambiguous "Member"/"Officer" role names.
+    private async Task AddGuildAlliance()
+    {
+        if (newAllianceLink.StfcAllianceId == 0)
+            return;
+
+        createRoleError = null;
+        creatingRole = true;
+        try
+        {
+            var tag = allAlliances.First(a => a.Id == newAllianceLink.StfcAllianceId).Tag;
+
+            newAllianceLink.GuildId = GuildId;
+            newAllianceLink.MemberRoleId = await EnsureRoleAsync(memberRoleIdInput, $"{tag} Member");
+            newAllianceLink.OfficerRoleId = await EnsureRoleAsync(officerRoleIdInput, $"{tag} Officer");
+            newAllianceLink.DiplomatRoleId = await EnsureRoleAsync(diplomatRoleIdInput, $"{tag} Diplomat");
+
+            Db.GuildAlliances.Add(newAllianceLink);
+            await Db.SaveChangesAsync();
+            newAllianceLink = new();
+            memberRoleIdInput = null;
+            officerRoleIdInput = null;
+            diplomatRoleIdInput = null;
+
+            Cache.Remove($"discord-guild-roles:{GuildId}");
+            await LoadAsync();
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+        }
+        finally
+        {
+            creatingRole = false;
+        }
+    }
+
+    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName)
+    {
+        if (ulong.TryParse(currentInput, out var existingId))
+            return existingId;
+
+        var created = await BotRestClient.CreateGuildRoleAsync(GuildId, new RoleProperties { Name = defaultName });
+        return created.Id;
+    }
+
+    private async Task DeleteGuildAlliance(GuildAlliance link)
+    {
+        Db.GuildAlliances.Remove(link);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task AddGuildServer()
+    {
+        if (newServerLink.StfcServerId == 0)
+            return;
+
+        newServerLink.GuildId = GuildId;
+        Db.GuildServers.Add(newServerLink);
+        await Db.SaveChangesAsync();
+        newServerLink = new();
+        await LoadAsync();
+    }
+
+    private async Task DeleteGuildServer(GuildServer link)
+    {
+        Db.GuildServers.Remove(link);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task AddGuildVeilGroup()
+    {
+        if (newVeilGroupLink.StfcVeilGroupId == 0)
+            return;
+
+        newVeilGroupLink.GuildId = GuildId;
+        Db.GuildVeilGroups.Add(newVeilGroupLink);
+        await Db.SaveChangesAsync();
+        newVeilGroupLink = new();
+        await LoadAsync();
+    }
+
+    private async Task DeleteGuildVeilGroup(GuildVeilGroup link)
+    {
+        Db.GuildVeilGroups.Remove(link);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+}

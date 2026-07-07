@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HoshiBot.Data/HoshiBot.Data.csproj" />
+    <Project Path="src/HoshiBot.Discord/HoshiBot.Discord.csproj" />
+    <Project Path="src/HoshiBot.Domain/HoshiBot.Domain.csproj" />
+    <Project Path="src/HoshiBot.Host/HoshiBot.Host.csproj" />
+    <Project Path="src/HoshiBot.Web/HoshiBot.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HoshiBot.Domain.Tests/HoshiBot.Domain.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/HoshiBot.Migrator/HoshiBot.Migrator.csproj" />
+    <Project Path="tools/HoshiBot.StfcCatalogSync/HoshiBot.StfcCatalogSync.csproj" />
+  </Folder>
+</Solution>

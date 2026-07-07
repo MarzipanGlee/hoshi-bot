@@ -1,0 +1,35 @@
+<div class="nav-group">
+    <input type="checkbox" id="@_checkboxId" class="nav-group-toggle-checkbox" checked="@(InitiallyExpanded || Active)" />
+    <label for="@_checkboxId" class="nav-group-toggle @(Active ? "nav-group-toggle-active" : "")">
+        <span class="oi @Icon" aria-hidden="true"></span>
+        <span class="nav-group-label">@Title</span>
+        <span class="nav-group-chevron" aria-hidden="true">&#9656;</span>
+    </label>
+    <div class="nav-group-items">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    // Most pages could render as static SSR -- a C# @onclick toggle here could silently do
+    // nothing on those pages. A pure CSS checkbox/label pair (same technique the mobile
+    // navbar-toggler already uses) needs no interactive circuit at all.
+    private readonly string _checkboxId = $"nav-group-{Guid.NewGuid():N}";
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Icon { get; set; } = string.Empty;
+
+    /// <summary>Whether the current route falls inside this group -- forces it open regardless of
+    /// <see cref="InitiallyExpanded"/>, so navigating straight to a page never hides its own group.</summary>
+    [Parameter]
+    public bool Active { get; set; }
+
+    [Parameter]
+    public bool InitiallyExpanded { get; set; } = true;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

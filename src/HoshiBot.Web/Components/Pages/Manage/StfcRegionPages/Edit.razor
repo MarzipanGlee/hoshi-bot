@@ -1,0 +1,84 @@
+@page "/manage/stfc-regions/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Region</PageTitle>
+
+<h1>Edit Region</h1>
+<hr />
+@if (Region is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Region" OnValidSubmit="UpdateRegion" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Region.Id" value="@Region.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name" @bind-Value="Region.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Region.Name" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/manage/stfc-regions">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcRegion? Region { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Region ??= await context.StfcRegions.FirstOrDefaultAsync(r => r.Id == Id);
+
+        if (Region is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+
+    private async Task UpdateRegion()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Region!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await RegionExistsAsync(Region!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc-regions");
+    }
+
+    private async Task<bool> RegionExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcRegions.AnyAsync(r => r.Id == id);
+    }
+}

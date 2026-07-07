@@ -1,0 +1,47 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - ConnectionStrings__HoshiBotDbContext=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
+      - Discord__Token=${DISCORD_TOKEN}
+      - PublicWebBaseUrl=${PUBLIC_WEB_BASE_URL}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - ConnectionStrings__HoshiBotDbContext=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
+      - Discord__Token=${DISCORD_TOKEN}
+      - Discord__ClientId=${DISCORD_CLIENT_ID}
+      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET}
+      - DataProtection__KeyPath=/keys
+      - GlobalAdmins__DiscordUserIds__0=${GLOBAL_ADMIN_DISCORD_ID}
+    ports:
+      - "8080:8080"
+    volumes:
+      - web-dpkeys:/keys
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=hoshibot
+      - POSTGRES_USER=hoshibot
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  web-dpkeys:

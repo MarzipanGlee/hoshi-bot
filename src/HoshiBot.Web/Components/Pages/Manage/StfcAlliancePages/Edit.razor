@@ -1,0 +1,154 @@
+@page "/manage/stfc-alliances/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Alliance</PageTitle>
+
+<h1>Edit Alliance</h1>
+<hr />
+@if (Alliance is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Alliance" OnValidSubmit="UpdateAlliance" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Alliance.Id" value="@Alliance.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="tag" class="form-label">Tag:</label>
+                    <InputText id="tag" @bind-Value="Alliance.Tag" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Alliance.Tag" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name" @bind-Value="Alliance.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Alliance.Name" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="server" class="form-label">Server:</label>
+                    <InputSelect id="server" @bind-Value="Alliance.ServerId" class="form-control">
+                        @foreach (var server in servers)
+                        {
+                            <option value="@server.Id">@server.DisplayName</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Alliance.ServerId" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <h2 class="mt-4">Discord Invites</h2>
+    <table class="table">
+        <thead><tr><th>Url</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var invite in invites)
+            {
+                <tr>
+                    <td>@invite.Url</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveInviteAsync(invite)">Remove</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="add-invite" OnValidSubmit="AddInviteAsync">
+        <input type="text" class="form-control d-inline-block w-auto" @bind="newInviteUrl" placeholder="https://discord.gg/..." />
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+}
+
+<div>
+    <a href="/manage/stfc-alliances">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcAlliance? Alliance { get; set; }
+
+    private List<StfcServer> servers = [];
+    private List<StfcAllianceDiscordInvite> invites = [];
+    private string? newInviteUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        servers = await context.StfcServers.Include(s => s.Region).OrderBy(s => s.Region.Name).ThenBy(s => s.Id).AsNoTracking().ToListAsync();
+        Alliance ??= await context.StfcAlliances.FirstOrDefaultAsync(a => a.Id == Id);
+
+        if (Alliance is null)
+        {
+            NavigationManager.NotFound();
+            return;
+        }
+
+        await LoadInvitesAsync();
+    }
+
+    private async Task LoadInvitesAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        invites = await context.StfcAllianceDiscordInvites.Where(i => i.AllianceId == Id).AsNoTracking().ToListAsync();
+    }
+
+    private async Task AddInviteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newInviteUrl))
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcAllianceDiscordInvites.Add(new StfcAllianceDiscordInvite { AllianceId = Id, Url = newInviteUrl });
+        await context.SaveChangesAsync();
+
+        newInviteUrl = null;
+        await LoadInvitesAsync();
+    }
+
+    private async Task RemoveInviteAsync(StfcAllianceDiscordInvite invite)
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcAllianceDiscordInvites.Remove(invite);
+        await context.SaveChangesAsync();
+        await LoadInvitesAsync();
+    }
+
+    private async Task UpdateAlliance()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Alliance!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await AllianceExistsAsync(Alliance!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc-alliances");
+    }
+
+    private async Task<bool> AllianceExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcAlliances.AnyAsync(a => a.Id == id);
+    }
+}

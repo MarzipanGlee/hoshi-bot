@@ -1,0 +1,17 @@
+@page "/"
+
+<PageTitle>Hoshi Bot Admin</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <h1>Welcome, @context.User.Identity?.Name</h1>
+        <p><a href="manage/guilds">Manage your guilds</a></p>
+        <form method="post" action="logout" data-enhance="false">
+            <button type="submit" class="btn btn-secondary">Log out</button>
+        </form>
+    </Authorized>
+    <NotAuthorized>
+        <h1>Hoshi Bot Admin</h1>
+        <p><a class="btn btn-primary" href="login">Log in with Discord</a></p>
+    </NotAuthorized>
+</AuthorizeView>

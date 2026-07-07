@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY HoshiBot.slnx ./
+COPY src/HoshiBot.Web/HoshiBot.Web.csproj src/HoshiBot.Web/
+COPY src/HoshiBot.Domain/HoshiBot.Domain.csproj src/HoshiBot.Domain/
+COPY src/HoshiBot.Data/HoshiBot.Data.csproj src/HoshiBot.Data/
+RUN dotnet restore src/HoshiBot.Web/HoshiBot.Web.csproj
+
+COPY src/ src/
+RUN dotnet publish src/HoshiBot.Web/HoshiBot.Web.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app .
+ENTRYPOINT ["dotnet", "HoshiBot.Web.dll"]

@@ -1,0 +1,148 @@
+@page "/manage/stfc-veil-groups/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Veil Group</PageTitle>
+
+<h1>Edit Veil Group</h1>
+<hr />
+@if (VeilGroup is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="VeilGroup" OnValidSubmit="UpdateVeilGroup" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="VeilGroup.Id" value="@VeilGroup.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name" @bind-Value="VeilGroup.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => VeilGroup.Name" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="region" class="form-label">Region:</label>
+                    <InputSelect id="region" @bind-Value="VeilGroup.RegionId" class="form-control">
+                        @foreach (var region in regions)
+                        {
+                            <option value="@region.Id">@region.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => VeilGroup.RegionId" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <h2 class="mt-4">Discord Invites</h2>
+    <table class="table">
+        <thead><tr><th>Url</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var invite in invites)
+            {
+                <tr>
+                    <td>@invite.Url</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveInviteAsync(invite)">Remove</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="add-invite" OnValidSubmit="AddInviteAsync">
+        <input type="text" class="form-control d-inline-block w-auto" @bind="newInviteUrl" placeholder="https://discord.gg/..." />
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+}
+
+<div>
+    <a href="/manage/stfc-veil-groups">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcVeilGroup? VeilGroup { get; set; }
+
+    private List<StfcRegion> regions = [];
+    private List<StfcVeilGroupDiscordInvite> invites = [];
+    private string? newInviteUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        regions = await context.StfcRegions.AsNoTracking().ToListAsync();
+        VeilGroup ??= await context.StfcVeilGroups.FirstOrDefaultAsync(v => v.Id == Id);
+
+        if (VeilGroup is null)
+        {
+            NavigationManager.NotFound();
+            return;
+        }
+
+        await LoadInvitesAsync();
+    }
+
+    private async Task LoadInvitesAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        invites = await context.StfcVeilGroupDiscordInvites.Where(i => i.VeilGroupId == Id).AsNoTracking().ToListAsync();
+    }
+
+    private async Task AddInviteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newInviteUrl))
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcVeilGroupDiscordInvites.Add(new StfcVeilGroupDiscordInvite { VeilGroupId = Id, Url = newInviteUrl });
+        await context.SaveChangesAsync();
+
+        newInviteUrl = null;
+        await LoadInvitesAsync();
+    }
+
+    private async Task RemoveInviteAsync(StfcVeilGroupDiscordInvite invite)
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcVeilGroupDiscordInvites.Remove(invite);
+        await context.SaveChangesAsync();
+        await LoadInvitesAsync();
+    }
+
+    private async Task UpdateVeilGroup()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(VeilGroup!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await VeilGroupExistsAsync(VeilGroup!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc-veil-groups");
+    }
+
+    private async Task<bool> VeilGroupExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcVeilGroups.AnyAsync(v => v.Id == id);
+    }
+}
