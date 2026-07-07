@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using NetCord;
 using NetCord.Rest;
 
@@ -60,6 +61,18 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+// Behind nginx, which terminates TLS and proxies over plain HTTP — without this, the app
+// thinks every request is HTTP, breaking HTTPS redirection and building OAuth redirect_uri
+// values as http:// instead of https://. KnownNetworks/KnownProxies are cleared because the
+// proxy hop arrives via the Docker bridge network, not loopback.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 app.UseHttpsRedirection();
 
