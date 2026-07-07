@@ -6,16 +6,23 @@ namespace HoshiBot.Data;
 // Presence of a GuildDisabledFeature row means "off" — see that entity for why absence
 // means enabled by default. Used both to gate feature entry points and to filter which
 // Command Bridge hub buttons get posted for a guild.
-public class GuildFeatureService(HoshiBotDbContext db)
+public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
 {
-    public async Task<bool> IsEnabledAsync(ulong guildId, GuildFeature feature) =>
-        !await db.GuildDisabledFeatures.AnyAsync(f => f.GuildId == guildId && f.Feature == feature);
+    public async Task<bool> IsEnabledAsync(ulong guildId, GuildFeature feature)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return !await db.GuildDisabledFeatures.AnyAsync(f => f.GuildId == guildId && f.Feature == feature);
+    }
 
-    public async Task<HashSet<GuildFeature>> GetDisabledAsync(ulong guildId) =>
-        (await db.GuildDisabledFeatures.Where(f => f.GuildId == guildId).Select(f => f.Feature).ToListAsync()).ToHashSet();
+    public async Task<HashSet<GuildFeature>> GetDisabledAsync(ulong guildId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return (await db.GuildDisabledFeatures.Where(f => f.GuildId == guildId).Select(f => f.Feature).ToListAsync()).ToHashSet();
+    }
 
     public async Task SetEnabledAsync(ulong guildId, GuildFeature feature, bool enabled)
     {
+        await using var db = await dbFactory.CreateDbContextAsync();
         var existing = await db.GuildDisabledFeatures.FirstOrDefaultAsync(f => f.GuildId == guildId && f.Feature == feature);
 
         if (enabled)

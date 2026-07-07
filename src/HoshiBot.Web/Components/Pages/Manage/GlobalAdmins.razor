@@ -1,5 +1,5 @@
 @page "/manage/global-admins"
-@inject HoshiBotDbContext Db
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -54,7 +54,8 @@ else
 
     private async Task LoadAsync()
     {
-        admins = await Db.GlobalAdmins.AsNoTracking().ToListAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        admins = await db.GlobalAdmins.AsNoTracking().ToListAsync();
     }
 
     private async Task AddAdmin()
@@ -62,10 +63,13 @@ else
         if (!ulong.TryParse(newDiscordUserIdInput, out var discordUserId))
             return;
 
-        if (await Db.GlobalAdmins.FindAsync(discordUserId) is null)
+        await using (var db = await DbFactory.CreateDbContextAsync())
         {
-            Db.GlobalAdmins.Add(new GlobalAdmin { DiscordUserId = discordUserId });
-            await Db.SaveChangesAsync();
+            if (await db.GlobalAdmins.FindAsync(discordUserId) is null)
+            {
+                db.GlobalAdmins.Add(new GlobalAdmin { DiscordUserId = discordUserId });
+                await db.SaveChangesAsync();
+            }
         }
 
         newDiscordUserIdInput = null;
@@ -74,8 +78,12 @@ else
 
     private async Task DeleteAdmin(GlobalAdmin admin)
     {
-        Db.GlobalAdmins.Remove(admin);
-        await Db.SaveChangesAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.GlobalAdmins.Remove(admin);
+            await db.SaveChangesAsync();
+        }
+
         await LoadAsync();
     }
 }

@@ -19,7 +19,7 @@ namespace HoshiBot.Web.Authorization;
 public class GuildAdminHandler(
     IHttpContextAccessor httpContextAccessor,
     IHttpClientFactory httpClientFactory,
-    HoshiBotDbContext db,
+    IDbContextFactory<HoshiBotDbContext> dbFactory,
     IMemoryCache cache,
     RestClient botRestClient) : AuthorizationHandler<GuildAdminRequirement, ulong>
 {
@@ -62,6 +62,7 @@ public class GuildAdminHandler(
             return;
         }
 
+        await using var db = await dbFactory.CreateDbContextAsync();
         var allowedRoleIds = await db.GuildAdminRoles
             .Where(r => r.GuildId == guildId)
             .Select(r => r.DiscordRoleId)

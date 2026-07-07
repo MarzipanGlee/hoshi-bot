@@ -9,13 +9,18 @@ namespace HoshiBot.Data;
 public static class ServiceCollectionExtensions
 {
     // "Postgres" (default, used in production/Docker) or "Sqlite" (local dev, zero setup).
-    // Registers both IDbContextFactory<HoshiBotDbContext> (used by the scaffolded CRUD pages —
-    // one per STFC catalog entity — which follow CallFlowManager's per-request-fresh-context
-    // pattern) and a scoped HoshiBotDbContext derived from that factory (used by existing pages
-    // that inject the context directly). Registering both via AddDbContext + AddDbContextFactory
-    // independently causes a DI lifetime-validation error (a singleton factory can't consume the
-    // scoped DbContextOptions<T> that AddDbContext registers) — deriving the scoped context from
-    // the factory instead avoids a second, conflicting DbContextOptions<T> registration.
+    // Registers both IDbContextFactory<HoshiBotDbContext> — a fresh, short-lived context per
+    // operation, which every HoshiBot.Web page/service/authorization-handler must use, since a
+    // Blazor Server circuit's DI scope spans the whole session (many page navigations), not one
+    // request; sharing a single scoped DbContext across that span causes "a second operation was
+    // started on this context instance" crashes the moment two components/pages touch it at
+    // once — and a scoped HoshiBotDbContext derived from that factory, safe for HoshiBot.Discord's
+    // command modules specifically because Discord.NET creates a fresh DI scope per interaction
+    // (one command execution = one scope, not one bot-lifetime session). Registering both via
+    // AddDbContext + AddDbContextFactory independently causes a DI lifetime-validation error (a
+    // singleton factory can't consume the scoped DbContextOptions<T> that AddDbContext registers)
+    // — deriving the scoped context from the factory instead avoids a second, conflicting
+    // DbContextOptions<T> registration.
     public static IServiceCollection AddHoshiBotDatabase(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("HoshiBotDbContext");

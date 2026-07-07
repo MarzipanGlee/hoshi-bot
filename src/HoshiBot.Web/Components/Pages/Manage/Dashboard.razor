@@ -1,5 +1,5 @@
 @page "/manage/dashboard"
-@inject HoshiBotDbContext Db
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -59,7 +59,8 @@
         var globalAdminResult = await AuthorizationService.AuthorizeAsync(user, null, new GlobalAdminRequirement());
         isGlobalAdmin = globalAdminResult.Succeeded;
 
-        var allGuilds = await Db.DiscordGuilds.AsNoTracking().ToListAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var allGuilds = await db.DiscordGuilds.AsNoTracking().ToListAsync();
         var accessible = new List<DiscordGuild>();
         foreach (var guild in allGuilds)
         {
@@ -70,7 +71,7 @@
 
         accessibleGuilds = accessible;
 
-        var setupCompleteGuildIds = (await Db.GuildSettings
+        var setupCompleteGuildIds = (await db.GuildSettings
             .Where(s => s.SetupCompletedAt != null)
             .Select(s => s.GuildId)
             .ToListAsync())

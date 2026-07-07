@@ -1,7 +1,7 @@
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
 @using NetCord.Rest
-@inject HoshiBotDbContext Db
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject RestClient BotRestClient
 @inject IMemoryCache Cache
 
@@ -149,12 +149,13 @@
 
     private async Task LoadAsync()
     {
-        allAlliances = await Db.StfcAlliances.AsNoTracking().ToListAsync();
-        allServers = await Db.StfcServers.Include(s => s.Region).OrderBy(s => s.Region.Name).ThenBy(s => s.Id).AsNoTracking().ToListAsync();
-        allVeilGroups = await Db.StfcVeilGroups.AsNoTracking().ToListAsync();
-        guildAlliances = await Db.GuildAlliances.Where(ga => ga.GuildId == GuildId).AsNoTracking().ToListAsync();
-        guildServers = await Db.GuildServers.Where(gs => gs.GuildId == GuildId).AsNoTracking().ToListAsync();
-        guildVeilGroups = await Db.GuildVeilGroups.Where(gv => gv.GuildId == GuildId).AsNoTracking().ToListAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        allAlliances = await db.StfcAlliances.AsNoTracking().ToListAsync();
+        allServers = await db.StfcServers.Include(s => s.Region).OrderBy(s => s.Region.Name).ThenBy(s => s.Id).AsNoTracking().ToListAsync();
+        allVeilGroups = await db.StfcVeilGroups.AsNoTracking().ToListAsync();
+        guildAlliances = await db.GuildAlliances.Where(ga => ga.GuildId == GuildId).AsNoTracking().ToListAsync();
+        guildServers = await db.GuildServers.Where(gs => gs.GuildId == GuildId).AsNoTracking().ToListAsync();
+        guildVeilGroups = await db.GuildVeilGroups.Where(gv => gv.GuildId == GuildId).AsNoTracking().ToListAsync();
 
         await LoadDiscordRolesAsync();
     }
@@ -206,8 +207,12 @@
             newAllianceLink.OfficerRoleId = await EnsureRoleAsync(officerRoleIdInput, $"{tag} Officer");
             newAllianceLink.DiplomatRoleId = await EnsureRoleAsync(diplomatRoleIdInput, $"{tag} Diplomat");
 
-            Db.GuildAlliances.Add(newAllianceLink);
-            await Db.SaveChangesAsync();
+            await using (var db = await DbFactory.CreateDbContextAsync())
+            {
+                db.GuildAlliances.Add(newAllianceLink);
+                await db.SaveChangesAsync();
+            }
+
             newAllianceLink = new();
             memberRoleIdInput = null;
             officerRoleIdInput = null;
@@ -237,8 +242,12 @@
 
     private async Task DeleteGuildAlliance(GuildAlliance link)
     {
-        Db.GuildAlliances.Remove(link);
-        await Db.SaveChangesAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.GuildAlliances.Remove(link);
+            await db.SaveChangesAsync();
+        }
+
         await LoadAsync();
     }
 
@@ -248,16 +257,24 @@
             return;
 
         newServerLink.GuildId = GuildId;
-        Db.GuildServers.Add(newServerLink);
-        await Db.SaveChangesAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.GuildServers.Add(newServerLink);
+            await db.SaveChangesAsync();
+        }
+
         newServerLink = new();
         await LoadAsync();
     }
 
     private async Task DeleteGuildServer(GuildServer link)
     {
-        Db.GuildServers.Remove(link);
-        await Db.SaveChangesAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.GuildServers.Remove(link);
+            await db.SaveChangesAsync();
+        }
+
         await LoadAsync();
     }
 
@@ -267,16 +284,24 @@
             return;
 
         newVeilGroupLink.GuildId = GuildId;
-        Db.GuildVeilGroups.Add(newVeilGroupLink);
-        await Db.SaveChangesAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.GuildVeilGroups.Add(newVeilGroupLink);
+            await db.SaveChangesAsync();
+        }
+
         newVeilGroupLink = new();
         await LoadAsync();
     }
 
     private async Task DeleteGuildVeilGroup(GuildVeilGroup link)
     {
-        Db.GuildVeilGroups.Remove(link);
-        await Db.SaveChangesAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.GuildVeilGroups.Remove(link);
+            await db.SaveChangesAsync();
+        }
+
         await LoadAsync();
     }
 }

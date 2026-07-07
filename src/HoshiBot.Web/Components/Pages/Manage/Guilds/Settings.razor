@@ -3,7 +3,7 @@
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
 @using NetCord.Rest
-@inject HoshiBotDbContext Db
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject RestClient BotRestClient
@@ -300,7 +300,9 @@ else
 
     private async Task LoadAsync()
     {
-        settings = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId)
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        settings = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId)
             ?? new GuildSettings { GuildId = ParsedGuildId };
 
         disabledFeatures = await FeatureService.GetDisabledAsync(ParsedGuildId);
@@ -312,7 +314,7 @@ else
             fieldInputs[field.PropertyName] = value?.ToString();
         }
 
-        alertChannels = await Db.GuildAlertChannels
+        alertChannels = await db.GuildAlertChannels
             .Where(c => c.GuildId == ParsedGuildId)
             .AsNoTracking()
             .ToListAsync();
@@ -401,16 +403,20 @@ else
             property.SetValue(settings, parsedValue);
         }
 
-        if (await Db.GuildSettings.AnyAsync(s => s.GuildId == ParsedGuildId))
+        await using (var db = await DbFactory.CreateDbContextAsync())
         {
-            Db.GuildSettings.Update(settings);
-        }
-        else
-        {
-            Db.GuildSettings.Add(settings);
+            if (await db.GuildSettings.AnyAsync(s => s.GuildId == ParsedGuildId))
+            {
+                db.GuildSettings.Update(settings);
+            }
+            else
+            {
+                db.GuildSettings.Add(settings);
+            }
+
+            await db.SaveChangesAsync();
         }
 
-        await Db.SaveChangesAsync();
         await LoadAsync();
     }
 
@@ -419,15 +425,19 @@ else
         if (!ulong.TryParse(newAlertChannelIdInput, out var channelId) || !ulong.TryParse(newAlertRoleIdInput, out var roleId))
             return;
 
-        Db.GuildAlertChannels.Add(new GuildAlertChannel
+        await using (var db = await DbFactory.CreateDbContextAsync())
         {
-            GuildId = ParsedGuildId,
-            Kind = newAlertChannelKind,
-            ChannelId = channelId,
-            RoleId = roleId,
-        });
+            db.GuildAlertChannels.Add(new GuildAlertChannel
+            {
+                GuildId = ParsedGuildId,
+                Kind = newAlertChannelKind,
+                ChannelId = channelId,
+                RoleId = roleId,
+            });
 
-        await Db.SaveChangesAsync();
+            await db.SaveChangesAsync();
+        }
+
         newAlertChannelIdInput = null;
         newAlertRoleIdInput = null;
         await LoadAsync();
@@ -435,8 +445,12 @@ else
 
     private async Task DeleteAlertChannel(GuildAlertChannel alertChannel)
     {
-        Db.GuildAlertChannels.Remove(alertChannel);
-        await Db.SaveChangesAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.GuildAlertChannels.Remove(alertChannel);
+            await db.SaveChangesAsync();
+        }
+
         await LoadAsync();
     }
 }

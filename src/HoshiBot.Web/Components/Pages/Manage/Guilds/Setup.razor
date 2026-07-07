@@ -2,7 +2,7 @@
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
 @using NetCord.Rest
-@inject HoshiBotDbContext Db
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject RestClient BotRestClient
@@ -244,9 +244,11 @@ else
     {
         var guildId = ParsedGuildId;
 
-        settings = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == guildId) ?? new GuildSettings { GuildId = guildId };
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        settings = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == guildId) ?? new GuildSettings { GuildId = guildId };
         disabledFeatures = await FeatureService.GetDisabledAsync(guildId);
-        guildAdminRoles = await Db.GuildAdminRoles.Where(r => r.GuildId == guildId).AsNoTracking().ToListAsync();
+        guildAdminRoles = await db.GuildAdminRoles.Where(r => r.GuildId == guildId).AsNoTracking().ToListAsync();
 
         logChannelIdInput = settings.LogChannelId?.ToString();
         adminChannelIdInput = settings.AdminChannelId?.ToString();
@@ -254,9 +256,9 @@ else
         commandStaffRoleIdInput = settings.CommandStaffRoleId?.ToString();
         selectedCategoryIdInput = settings.DefaultChannelCategoryId?.ToString();
 
-        guildAllianceCount = await Db.GuildAlliances.CountAsync(g => g.GuildId == guildId);
-        guildServerCount = await Db.GuildServers.CountAsync(g => g.GuildId == guildId);
-        guildVeilGroupCount = await Db.GuildVeilGroups.CountAsync(g => g.GuildId == guildId);
+        guildAllianceCount = await db.GuildAlliances.CountAsync(g => g.GuildId == guildId);
+        guildServerCount = await db.GuildServers.CountAsync(g => g.GuildId == guildId);
+        guildVeilGroupCount = await db.GuildVeilGroups.CountAsync(g => g.GuildId == guildId);
 
         await LoadDiscordDataAsync();
     }
@@ -363,21 +365,24 @@ else
             var memberId = await EnsureRoleAsync(memberRoleIdInput, "Member");
             var staffId = await EnsureRoleAsync(commandStaffRoleIdInput, "Command Staff");
 
-            var existing = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == guildId);
-            if (existing is null)
+            await using (var db = await DbFactory.CreateDbContextAsync())
             {
-                existing = new GuildSettings { GuildId = guildId };
-                Db.GuildSettings.Add(existing);
+                var existing = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == guildId);
+                if (existing is null)
+                {
+                    existing = new GuildSettings { GuildId = guildId };
+                    db.GuildSettings.Add(existing);
+                }
+
+                existing.LogChannelId = logId;
+                existing.AdminChannelId = adminId;
+                existing.MemberRoleId = memberId;
+                existing.CommandStaffRoleId = staffId;
+                existing.DefaultChannelCategoryId = categoryId;
+
+                await db.SaveChangesAsync();
+                settings = existing;
             }
-
-            existing.LogChannelId = logId;
-            existing.AdminChannelId = adminId;
-            existing.MemberRoleId = memberId;
-            existing.CommandStaffRoleId = staffId;
-            existing.DefaultChannelCategoryId = categoryId;
-
-            await Db.SaveChangesAsync();
-            settings = existing;
 
             logChannelIdInput = logId?.ToString();
             adminChannelIdInput = adminId?.ToString();
@@ -432,17 +437,19 @@ else
         if (guildAdminRoles.Any(r => r.DiscordRoleId == roleId))
             return;
 
-        Db.GuildAdminRoles.Add(new GuildAdminRole { GuildId = ParsedGuildId, DiscordRoleId = roleId });
-        await Db.SaveChangesAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.GuildAdminRoles.Add(new GuildAdminRole { GuildId = ParsedGuildId, DiscordRoleId = roleId });
+        await db.SaveChangesAsync();
         newAdminRoleIdInput = null;
-        guildAdminRoles = await Db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
+        guildAdminRoles = await db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
     }
 
     private async Task DeleteAdminRoleAsync(GuildAdminRole adminRole)
     {
-        Db.GuildAdminRoles.Remove(adminRole);
-        await Db.SaveChangesAsync();
-        guildAdminRoles = await Db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.GuildAdminRoles.Remove(adminRole);
+        await db.SaveChangesAsync();
+        guildAdminRoles = await db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
     }
 
     // The Core-settings step (3) has no separate Save button — leaving it in either
@@ -466,15 +473,16 @@ else
 
     private async Task FinishAsync()
     {
-        var existing = await Db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
         if (existing is null)
         {
             existing = new GuildSettings { GuildId = ParsedGuildId };
-            Db.GuildSettings.Add(existing);
+            db.GuildSettings.Add(existing);
         }
 
         existing.SetupCompletedAt = DateTimeOffset.UtcNow;
-        await Db.SaveChangesAsync();
+        await db.SaveChangesAsync();
 
         Nav.NavigateTo("manage/guilds");
     }
