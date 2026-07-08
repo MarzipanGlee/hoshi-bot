@@ -11,9 +11,12 @@ public class StfcPlayerNameHistoryConfiguration : IEntityTypeConfiguration<StfcP
         builder.HasKey(h => h.Id);
         builder.Property(h => h.Name).HasMaxLength(100).IsRequired();
 
-        // A resync re-observing the same current name shouldn't create a duplicate row —
-        // this is the safety net behind that, not just an application-logic check.
-        builder.HasIndex(h => new { h.StfcPlayerId, h.Name }).IsUnique();
+        // Not unique on (StfcPlayerId, Name) — a player can switch back to a name they
+        // used before (A -> B -> A again), which is a legitimate second row at a later
+        // ObservedAt, not a duplicate. "Don't insert if unchanged since the last sync" is
+        // an application-level check (compare against the most recent row by ObservedAt),
+        // not something a uniqueness constraint can express correctly here.
+        builder.HasIndex(h => h.StfcPlayerId);
 
         builder.HasOne(h => h.StfcPlayer)
             .WithMany(p => p.NameHistory)
