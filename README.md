@@ -73,7 +73,7 @@ From the repo checkout on the host:
 
 ```bash
 git pull
-docker compose build
+docker compose --profile migrate build
 docker compose --profile migrate run --rm migrator
 docker compose up -d
 ```
@@ -81,6 +81,13 @@ docker compose up -d
 Order matters — `build` picks up the new code for all three app images, `migrator` applies
 any pending EF Core migrations against Postgres, and only then does `up -d` recreate
 `bot`/`web` so they start against the schema the new code expects, not the old one.
+
+**`--profile migrate` is required on the `build` step too**, not just `run` — `migrator`
+is gated behind that profile (see above), and plain `docker compose build` silently skips
+any service not in the active profile set instead of erroring, leaving it on a stale image.
+`db.Database.MigrateAsync()` then reports "Schema is up to date" against whatever
+migrations *that* stale build knows about, which looks identical to a successful deploy
+right up until `bot`/`web` crash on a column/table the real schema never got.
 
 Migrations are applied via `HoshiBot.Migrator`, not automatically by the bot/web
 processes. The `docker compose` invocation above is the normal path; it can also be run
