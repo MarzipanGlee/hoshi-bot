@@ -1,4 +1,4 @@
-@page "/manage/stfc-veil-groups"
+@page "/manage/stfc/veil-groups"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
@@ -19,7 +19,7 @@ else
     <h1>Veil Groups</h1>
 
     <p>
-        <a href="manage/stfc-veil-groups/create">Create New</a>
+        <a href="manage/stfc/veil-groups/create">Create New</a>
     </p>
 
     <QuickGrid Class="table" Items="context.StfcVeilGroups.Include(v => v.Region).OrderBy(v => v.Name)">
@@ -28,8 +28,8 @@ else
         <PropertyColumn Property="veilGroup => veilGroup.Region.Name" Title="Region" />
 
         <TemplateColumn Context="veilGroup">
-            <a href="@($"manage/stfc-veil-groups/edit?id={veilGroup.Id}")">Edit</a> |
-            <a href="@($"manage/stfc-veil-groups/delete?id={veilGroup.Id}")">Delete</a>
+            <a href="@($"manage/stfc/veil-groups/edit?id={veilGroup.Id}")">Edit</a> |
+            <a href="@($"manage/stfc/veil-groups/delete?id={veilGroup.Id}")">Delete</a>
         </TemplateColumn>
     </QuickGrid>
 }

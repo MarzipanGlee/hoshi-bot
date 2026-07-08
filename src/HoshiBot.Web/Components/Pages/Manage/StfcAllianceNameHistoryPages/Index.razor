@@ -1,10 +1,10 @@
-@page "/manage/stfc/alliances"
+@page "/manage/stfc/alliance-name-history"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Alliances</PageTitle>
+<PageTitle>Alliance Name History</PageTitle>
 
 @if (authorized is null)
 {
@@ -16,20 +16,18 @@ else if (authorized == false)
 }
 else
 {
-    <h1>Alliances</h1>
+    <h1>Alliance Name History</h1>
+    <p>Read-only audit trail — one row per (Tag, Name) an alliance has been observed under. Most recent first.</p>
 
-    <p>
-        <a href="manage/stfc/alliances/create">Create New</a>
-    </p>
-
-    <QuickGrid Class="table" Items="context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
-        <PropertyColumn Property="alliance => alliance.Tag" />
-        <PropertyColumn Property="alliance => alliance.Name" />
-        <PropertyColumn Property="alliance => alliance.Server.DisplayName" Title="Server" />
-
-        <TemplateColumn Context="alliance">
-            <a href="@($"manage/stfc/alliances/edit?id={alliance.Id}")">Edit</a> |
-            <a href="@($"manage/stfc/alliances/delete?id={alliance.Id}")">Delete</a>
+    @* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
+       insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
+    <QuickGrid Class="table" Items="context.StfcAllianceNameHistories.Include(h => h.StfcAlliance).ThenInclude(a => a.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
+        <PropertyColumn Property="h => h.StfcAlliance.Server.DisplayName" Title="Server" />
+        <PropertyColumn Property="h => h.Tag" />
+        <PropertyColumn Property="h => h.Name" />
+        <PropertyColumn Property="h => h.ObservedAt" />
+        <TemplateColumn Title="Current Alliance" Context="h">
+            <a href="@($"manage/stfc/alliances/edit?id={h.StfcAllianceId}")">@h.StfcAlliance.Tag - @h.StfcAlliance.Name</a>
         </TemplateColumn>
     </QuickGrid>
 

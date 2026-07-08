@@ -1,0 +1,54 @@
+@page "/manage/stfc/players/delete"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete Player</PageTitle>
+
+<h1>Delete Player</h1>
+
+<p>Are you sure you want to delete this?</p>
+<div>
+    @if (player is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <dl class="row">
+            <dt class="col-sm-2">Name</dt>
+            <dd class="col-sm-10">@player.Name</dd>
+            <dt class="col-sm-2">Server</dt>
+            <dd class="col-sm-10">@player.Server.DisplayName</dd>
+        </dl>
+        <EditForm method="post" Model="player" OnValidSubmit="DeletePlayer" FormName="delete" Enhance>
+            <button type="submit" class="btn btn-danger">Delete</button> |
+            <a href="/manage/stfc/players">Back to List</a>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private StfcPlayer? player;
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        player = await context.StfcPlayers.Include(p => p.Server).ThenInclude(s => s.Region).FirstOrDefaultAsync(p => p.Id == Id);
+
+        if (player is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+
+    private async Task DeletePlayer()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.StfcPlayers.Remove(player!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc/players");
+    }
+}

@@ -30,25 +30,40 @@
 
                 <NavMenuGroup Title="STFC Catalog" Icon="oi-globe" Active="@IsGroupActive(CatalogHrefs)">
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc-regions">Regions</NavLink>
+                        <NavLink class="nav-link" href="manage/stfc/regions">Regions</NavLink>
                     </div>
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc-veil-groups">Veil Groups</NavLink>
+                        <NavLink class="nav-link" href="manage/stfc/veil-groups">Veil Groups</NavLink>
                     </div>
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc-servers">Servers</NavLink>
+                        <NavLink class="nav-link" href="manage/stfc/servers">Servers</NavLink>
                     </div>
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc-alliances">Alliances</NavLink>
+                        <NavLink class="nav-link" href="manage/stfc/alliances">Alliances</NavLink>
                     </div>
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc-alliance-diplomacy">Diplomacy</NavLink>
+                        <NavLink class="nav-link" href="manage/stfc/alliance-diplomacy">Diplomacy</NavLink>
                     </div>
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc-systems">Systems</NavLink>
+                        <NavLink class="nav-link" href="manage/stfc/alliance-name-history">Alliance Name History</NavLink>
                     </div>
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc-territories">Territories</NavLink>
+                        <NavLink class="nav-link" href="manage/stfc/players">Players</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc/player-name-history">Player Name History</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc/systems">Systems</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc/territories">Territories</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc/server-status">Server Status</NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="manage/stfc/event-status">Event Status</NavLink>
                     </div>
                 </NavMenuGroup>
 
@@ -65,7 +80,9 @@
 @code {
     private static readonly string[] GuildsHrefs = ["manage/guilds"];
     private static readonly string[] CatalogHrefs =
-        ["manage/stfc-regions", "manage/stfc-veil-groups", "manage/stfc-servers", "manage/stfc-alliances", "manage/stfc-alliance-diplomacy", "manage/stfc-systems", "manage/stfc-territories"];
+        ["manage/stfc/regions", "manage/stfc/veil-groups", "manage/stfc/servers", "manage/stfc/alliances", "manage/stfc/alliance-diplomacy",
+         "manage/stfc/alliance-name-history", "manage/stfc/players", "manage/stfc/player-name-history", "manage/stfc/systems",
+         "manage/stfc/territories", "manage/stfc/server-status", "manage/stfc/event-status"];
     private static readonly string[] AdministrationHrefs = ["manage/global-admins"];
 
     private bool collapseNavMenu = true;

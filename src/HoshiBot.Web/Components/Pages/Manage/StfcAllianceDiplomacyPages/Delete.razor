@@ -1,4 +1,4 @@
-@page "/manage/stfc-alliance-diplomacy/delete"
+@page "/manage/stfc/alliance-diplomacy/delete"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -24,7 +24,7 @@
         </dl>
         <EditForm method="post" Model="diplomacy" OnValidSubmit="DeleteDiplomacy" FormName="delete" Enhance>
             <button type="submit" class="btn btn-danger">Delete</button> |
-            <a href="/manage/stfc-alliance-diplomacy">Back to List</a>
+            <a href="/manage/stfc/alliance-diplomacy">Back to List</a>
         </EditForm>
     }
 </div>
@@ -54,6 +54,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcAllianceDiplomacies.Remove(diplomacy!);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-alliance-diplomacy");
+        NavigationManager.NavigateTo("/manage/stfc/alliance-diplomacy");
     }
 }

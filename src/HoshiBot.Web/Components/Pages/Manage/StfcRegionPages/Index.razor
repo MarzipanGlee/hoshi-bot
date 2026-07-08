@@ -1,4 +1,4 @@
-@page "/manage/stfc-regions"
+@page "/manage/stfc/regions"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
@@ -19,7 +19,7 @@ else
     <h1>Regions</h1>
 
     <p>
-        <a href="manage/stfc-regions/create">Create New</a>
+        <a href="manage/stfc/regions/create">Create New</a>
     </p>
 
     <QuickGrid Class="table" Items="context.StfcRegions.OrderBy(r => r.Name)">
@@ -27,8 +27,8 @@ else
         <PropertyColumn Property="region => region.Name" />
 
         <TemplateColumn Context="region">
-            <a href="@($"manage/stfc-regions/edit?id={region.Id}")">Edit</a> |
-            <a href="@($"manage/stfc-regions/delete?id={region.Id}")">Delete</a>
+            <a href="@($"manage/stfc/regions/edit?id={region.Id}")">Edit</a> |
+            <a href="@($"manage/stfc/regions/delete?id={region.Id}")">Delete</a>
         </TemplateColumn>
     </QuickGrid>
 }

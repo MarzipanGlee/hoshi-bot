@@ -1,4 +1,4 @@
-@page "/manage/stfc-alliances/create"
+@page "/manage/stfc/alliances/create"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -41,7 +41,7 @@
 </div>
 
 <div>
-    <a href="/manage/stfc-alliances">Back to List</a>
+    <a href="/manage/stfc/alliances">Back to List</a>
 </div>
 
 @code {
@@ -65,6 +65,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcAlliances.Add(Alliance);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-alliances");
+        NavigationManager.NavigateTo("/manage/stfc/alliances");
     }
 }

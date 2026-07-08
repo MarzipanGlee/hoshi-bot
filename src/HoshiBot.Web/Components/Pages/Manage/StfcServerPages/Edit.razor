@@ -1,4 +1,4 @@
-@page "/manage/stfc-servers/edit"
+@page "/manage/stfc/servers/edit"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -74,7 +74,7 @@ else
 }
 
 <div>
-    <a href="/manage/stfc-servers">Back to List</a>
+    <a href="/manage/stfc/servers">Back to List</a>
 </div>
 
 @code {
@@ -153,7 +153,7 @@ else
             }
         }
 
-        NavigationManager.NavigateTo("/manage/stfc-servers");
+        NavigationManager.NavigateTo("/manage/stfc/servers");
     }
 
     private async Task<bool> ServerExistsAsync(int id)

@@ -1,4 +1,4 @@
-@page "/manage/stfc-veil-groups/create"
+@page "/manage/stfc/veil-groups/create"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -41,7 +41,7 @@
 </div>
 
 <div>
-    <a href="/manage/stfc-veil-groups">Back to List</a>
+    <a href="/manage/stfc/veil-groups">Back to List</a>
 </div>
 
 @code {
@@ -65,6 +65,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcVeilGroups.Add(VeilGroup);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-veil-groups");
+        NavigationManager.NavigateTo("/manage/stfc/veil-groups");
     }
 }

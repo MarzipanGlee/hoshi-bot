@@ -23,13 +23,18 @@
 @code {
     private static readonly (string Segment, string Label)[] StfcCatalogSections =
     [
-        ("stfc-regions", "Regions"),
-        ("stfc-veil-groups", "Veil Groups"),
-        ("stfc-servers", "Servers"),
-        ("stfc-alliances", "Alliances"),
-        ("stfc-alliance-diplomacy", "Diplomacy"),
-        ("stfc-systems", "Systems"),
-        ("stfc-territories", "Territories"),
+        ("regions", "Regions"),
+        ("veil-groups", "Veil Groups"),
+        ("servers", "Servers"),
+        ("alliances", "Alliances"),
+        ("alliance-diplomacy", "Diplomacy"),
+        ("alliance-name-history", "Alliance Name History"),
+        ("players", "Players"),
+        ("player-name-history", "Player Name History"),
+        ("systems", "Systems"),
+        ("territories", "Territories"),
+        ("server-status", "Server Status"),
+        ("event-status", "Event Status"),
     ];
 
     private static readonly Dictionary<string, string> CrudLabels = new()
@@ -84,20 +89,25 @@
                     }
                 }
             }
-            else
+            else if (segments[1] == "stfc")
             {
-                var catalogSection = Array.Find(StfcCatalogSections, s => s.Segment == segments[1]);
+                var catalogSection = segments.Length >= 3
+                    ? Array.Find(StfcCatalogSections, s => s.Segment == segments[2])
+                    : default;
                 if (catalogSection != default)
                 {
                     result.Add(("STFC Catalog", null));
-                    result.Add((catalogSection.Label, $"manage/{catalogSection.Segment}"));
+                    result.Add((catalogSection.Label, $"manage/stfc/{catalogSection.Segment}"));
 
-                    if (segments.Length >= 3 && CrudLabels.TryGetValue(segments[2], out var crudLabel))
+                    if (segments.Length >= 4 && CrudLabels.TryGetValue(segments[3], out var crudLabel))
                     {
                         result.Add((crudLabel, null));
                     }
                 }
-                else if (segments[1] == "global-admins")
+            }
+            else
+            {
+                if (segments[1] == "global-admins")
                 {
                     result.Add(("Administration", null));
                     result.Add(("Global Admins", null));

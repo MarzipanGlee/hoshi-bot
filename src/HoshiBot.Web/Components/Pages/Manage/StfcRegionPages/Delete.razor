@@ -1,4 +1,4 @@
-@page "/manage/stfc-regions/delete"
+@page "/manage/stfc/regions/delete"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -20,7 +20,7 @@
         </dl>
         <EditForm method="post" Model="region" OnValidSubmit="DeleteRegion" FormName="delete" Enhance>
             <button type="submit" class="btn btn-danger">Delete</button> |
-            <a href="/manage/stfc-regions">Back to List</a>
+            <a href="/manage/stfc/regions">Back to List</a>
         </EditForm>
     }
 </div>
@@ -47,6 +47,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcRegions.Remove(region!);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-regions");
+        NavigationManager.NavigateTo("/manage/stfc/regions");
     }
 }

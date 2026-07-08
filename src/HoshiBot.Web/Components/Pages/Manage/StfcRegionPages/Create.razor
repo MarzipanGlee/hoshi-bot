@@ -1,4 +1,4 @@
-@page "/manage/stfc-regions/create"
+@page "/manage/stfc/regions/create"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -29,7 +29,7 @@
 </div>
 
 <div>
-    <a href="/manage/stfc-regions">Back to List</a>
+    <a href="/manage/stfc/regions">Back to List</a>
 </div>
 
 @code {
@@ -43,6 +43,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcRegions.Add(Region);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-regions");
+        NavigationManager.NavigateTo("/manage/stfc/regions");
     }
 }

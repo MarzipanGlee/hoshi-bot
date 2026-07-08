@@ -1,10 +1,10 @@
-@page "/manage/stfc/alliances"
+@page "/manage/stfc/server-status"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Alliances</PageTitle>
+<PageTitle>Server Status</PageTitle>
 
 @if (authorized is null)
 {
@@ -16,21 +16,19 @@ else if (authorized == false)
 }
 else
 {
-    <h1>Alliances</h1>
-
+    <h1>Server Status</h1>
     <p>
-        <a href="manage/stfc/alliances/create">Create New</a>
+        One-time seed snapshot, not a live sync (see StfcServerStatusSeedData) — read-only here.
+        Status/Maintenance is what was last observed; Notified* is what ServerStatusNotifyJob last announced to Discord.
     </p>
 
-    <QuickGrid Class="table" Items="context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
-        <PropertyColumn Property="alliance => alliance.Tag" />
-        <PropertyColumn Property="alliance => alliance.Name" />
-        <PropertyColumn Property="alliance => alliance.Server.DisplayName" Title="Server" />
-
-        <TemplateColumn Context="alliance">
-            <a href="@($"manage/stfc/alliances/edit?id={alliance.Id}")">Edit</a> |
-            <a href="@($"manage/stfc/alliances/delete?id={alliance.Id}")">Delete</a>
-        </TemplateColumn>
+    <QuickGrid Class="table" Items="context.StfcServerStatuses.Include(s => s.StfcServer).ThenInclude(s => s.Region).OrderBy(s => s.StfcServerId)" Pagination="pagination">
+        <PropertyColumn Property="status => status.StfcServer.DisplayName" Title="Server" />
+        <PropertyColumn Property="status => status.Status" />
+        <PropertyColumn Property="status => status.Maintenance" />
+        <PropertyColumn Property="status => status.UpdatedAt" />
+        <PropertyColumn Property="status => status.NotifiedStatus" Title="Notified Status" />
+        <PropertyColumn Property="status => status.NotifiedMaintenance" Title="Notified Maintenance" />
     </QuickGrid>
 
     <Paginator State="pagination" />

@@ -1,4 +1,4 @@
-@page "/manage/stfc-servers/create"
+@page "/manage/stfc/servers/create"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -51,7 +51,7 @@
 </div>
 
 <div>
-    <a href="/manage/stfc-servers">Back to List</a>
+    <a href="/manage/stfc/servers">Back to List</a>
 </div>
 
 @code {
@@ -77,6 +77,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcServers.Add(Server);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-servers");
+        NavigationManager.NavigateTo("/manage/stfc/servers");
     }
 }

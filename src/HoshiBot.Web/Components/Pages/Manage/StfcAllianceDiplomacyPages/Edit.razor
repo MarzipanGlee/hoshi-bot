@@ -1,4 +1,4 @@
-@page "/manage/stfc-alliance-diplomacy/edit"
+@page "/manage/stfc/alliance-diplomacy/edit"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -58,7 +58,7 @@ else
 }
 
 <div>
-    <a href="/manage/stfc-alliance-diplomacy">Back to List</a>
+    <a href="/manage/stfc/alliance-diplomacy">Back to List</a>
 </div>
 
 @code {
@@ -103,7 +103,7 @@ else
             }
         }
 
-        NavigationManager.NavigateTo("/manage/stfc-alliance-diplomacy");
+        NavigationManager.NavigateTo("/manage/stfc/alliance-diplomacy");
     }
 
     private async Task<bool> DiplomacyExistsAsync(int id)

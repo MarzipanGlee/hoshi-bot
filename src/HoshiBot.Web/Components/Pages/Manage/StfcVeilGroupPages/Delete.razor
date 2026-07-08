@@ -1,4 +1,4 @@
-@page "/manage/stfc-veil-groups/delete"
+@page "/manage/stfc/veil-groups/delete"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -22,7 +22,7 @@
         </dl>
         <EditForm method="post" Model="veilGroup" OnValidSubmit="DeleteVeilGroup" FormName="delete" Enhance>
             <button type="submit" class="btn btn-danger">Delete</button> |
-            <a href="/manage/stfc-veil-groups">Back to List</a>
+            <a href="/manage/stfc/veil-groups">Back to List</a>
         </EditForm>
     }
 </div>
@@ -49,6 +49,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcVeilGroups.Remove(veilGroup!);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-veil-groups");
+        NavigationManager.NavigateTo("/manage/stfc/veil-groups");
     }
 }

@@ -1,4 +1,4 @@
-@page "/manage/stfc-territories/edit"
+@page "/manage/stfc/territories/edit"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -111,7 +111,7 @@ else
 }
 
 <div class="mt-4">
-    <a href="/manage/stfc-territories">Back to List</a>
+    <a href="/manage/stfc/territories">Back to List</a>
 </div>
 
 @code {
@@ -185,7 +185,7 @@ else
             throw;
         }
 
-        NavigationManager.NavigateTo("/manage/stfc-territories");
+        NavigationManager.NavigateTo("/manage/stfc/territories");
     }
 
     private async Task AddNeighbourAsync()

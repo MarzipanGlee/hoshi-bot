@@ -1,4 +1,4 @@
-@page "/manage/stfc-territories/delete"
+@page "/manage/stfc/territories/delete"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
@@ -26,7 +26,7 @@
         </dl>
         <EditForm method="post" Model="territory" OnValidSubmit="DeleteTerritory" FormName="delete" Enhance>
             <button type="submit" class="btn btn-danger">Delete</button> |
-            <a href="/manage/stfc-territories">Back to List</a>
+            <a href="/manage/stfc/territories">Back to List</a>
         </EditForm>
     }
 </div>
@@ -53,6 +53,6 @@
         using var context = DbFactory.CreateDbContext();
         context.StfcTerritories.Remove(territory!);
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc-territories");
+        NavigationManager.NavigateTo("/manage/stfc/territories");
     }
 }

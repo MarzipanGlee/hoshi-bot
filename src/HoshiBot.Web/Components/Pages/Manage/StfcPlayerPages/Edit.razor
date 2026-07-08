@@ -1,0 +1,120 @@
+@page "/manage/stfc/players/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Player</PageTitle>
+
+<h1>Edit Player</h1>
+<hr />
+@if (Player is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Player" OnValidSubmit="UpdatePlayer" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Player.Id" value="@Player.Id" />
+                <input type="hidden" name="Player.ServerId" value="@Player.ServerId" />
+                <input type="hidden" name="Player.ExternalId" value="@Player.ExternalId" />
+                <div class="mb-3">
+                    <label class="form-label">External ID:</label>
+                    <p class="form-control-plaintext">@Player.ExternalId</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Server:</label>
+                    <p class="form-control-plaintext">@serverName</p>
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name" @bind-Value="Player.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Player.Name" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="alliance" class="form-label">Alliance:</label>
+                    <InputSelect id="alliance" @bind-Value="Player.AllianceId" class="form-control">
+                        <option value="">Unaffiliated</option>
+                        @foreach (var alliance in alliances)
+                        {
+                            <option value="@alliance.Id">@alliance.Tag - @alliance.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/manage/stfc/players">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcPlayer? Player { get; set; }
+
+    private string? serverName;
+    private List<StfcAlliance> alliances = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Player ??= await context.StfcPlayers.FirstOrDefaultAsync(p => p.Id == Id);
+
+        if (Player is null)
+        {
+            NavigationManager.NotFound();
+            return;
+        }
+
+        serverName = await context.StfcServers
+            .Include(s => s.Region)
+            .Where(s => s.Id == Player.ServerId)
+            .Select(s => s.DisplayName)
+            .FirstOrDefaultAsync();
+
+        alliances = await context.StfcAlliances
+            .Where(a => a.ServerId == Player.ServerId)
+            .OrderBy(a => a.Tag)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    private async Task UpdatePlayer()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Player!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await PlayerExistsAsync(Player!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc/players");
+    }
+
+    private async Task<bool> PlayerExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcPlayers.AnyAsync(p => p.Id == id);
+    }
+}
