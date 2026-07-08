@@ -21,6 +21,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<StfcAllianceDiscordInvite> StfcAllianceDiscordInvites => Set<StfcAllianceDiscordInvite>();
 
+    public DbSet<StfcAllianceNameHistory> StfcAllianceNameHistories => Set<StfcAllianceNameHistory>();
+
     public DbSet<StfcPlayer> StfcPlayers => Set<StfcPlayer>();
 
     public DbSet<StfcPlayerNameHistory> StfcPlayerNameHistories => Set<StfcPlayerNameHistory>();

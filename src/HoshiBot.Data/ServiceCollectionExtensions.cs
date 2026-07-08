@@ -249,12 +249,14 @@ public static class ServiceCollectionExtensions
         await db.SaveChangesAsync();
     }
 
-    // Seeds a one-time snapshot of server 164's alliance roster from StfcAllianceSeedData.
-    // Checked per-server (not table-wide like the other Seed*IfEmptyAsync methods) since
-    // this is a partial, single-server snapshot rather than a complete catalog — future
-    // per-server seed additions should stay independent of each other. Never overwrites
-    // alliances added/edited later via the admin UI. See StfcAllianceSeedData for why this
-    // isn't auto-regenerated like StfcCatalogSeedData/StfcTerritorySeedData.
+    // Seeds a one-time snapshot of server 164's alliance roster from StfcAllianceSeedData,
+    // each with an initial NameHistory row so a future re-sync has a baseline to diff
+    // against for rename/re-tag detection. Checked per-server (not table-wide like the
+    // other Seed*IfEmptyAsync methods) since this is a partial, single-server snapshot
+    // rather than a complete catalog — future per-server seed additions should stay
+    // independent of each other. Never overwrites alliances added/edited later via the
+    // admin UI. See StfcAllianceSeedData for why this isn't auto-regenerated like
+    // StfcCatalogSeedData/StfcTerritorySeedData.
     public static async Task SeedStfcAlliancesIfEmptyAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -263,12 +265,20 @@ public static class ServiceCollectionExtensions
         if (await db.StfcAlliances.AnyAsync(a => a.ServerId == StfcAllianceSeedData.Server164Id))
             return;
 
-        db.StfcAlliances.AddRange(StfcAllianceSeedData.Server164Entries.Select(e => new StfcAlliance
+        var seededAt = DateTimeOffset.UtcNow;
+
+        foreach (var (tag, name) in StfcAllianceSeedData.Server164Entries)
         {
-            Tag = e.Tag,
-            Name = e.Name,
-            ServerId = StfcAllianceSeedData.Server164Id,
-        }));
+            var alliance = new StfcAlliance
+            {
+                Tag = tag,
+                Name = name,
+                ServerId = StfcAllianceSeedData.Server164Id,
+            };
+            alliance.NameHistory.Add(new StfcAllianceNameHistory { Tag = tag, Name = name, ObservedAt = seededAt });
+
+            db.StfcAlliances.Add(alliance);
+        }
 
         await db.SaveChangesAsync();
     }

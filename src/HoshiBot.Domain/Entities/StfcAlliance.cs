@@ -22,4 +22,6 @@ public class StfcAlliance
     public ICollection<StfcTerritoryOwnership> TerritoryOwnerships { get; set; } = [];
 
     public ICollection<StfcAllianceDiscordInvite> DiscordInvites { get; set; } = [];
+
+    public ICollection<StfcAllianceNameHistory> NameHistory { get; set; } = [];
 }
