@@ -30,4 +30,6 @@ public class DiscordGuild
     public ICollection<NotificationRole> NotificationRoles { get; set; } = [];
 
     public ICollection<ThreadRemovalRequest> ThreadRemovalRequests { get; set; } = [];
+
+    public ICollection<ChannelPermissionExpectation> ChannelPermissionExpectations { get; set; } = [];
 }

@@ -1,0 +1,397 @@
+@page "/manage/guilds/{GuildId}/permission-check"
+@using Microsoft.Extensions.Caching.Memory
+@using NetCord
+@using NetCord.Rest
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject RestClient BotRestClient
+@inject IMemoryCache Cache
+
+<PageTitle>Permission Check</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this guild.</p>
+}
+else
+{
+    <h1>Channel Permission Check</h1>
+    <p>Define the exact permission overwrite a role should have on a channel, then audit live Discord permissions against it.</p>
+
+    @if (discordDataError is not null)
+    {
+        <div class="alert alert-warning">@discordDataError</div>
+    }
+
+    <h2>Expected Permissions</h2>
+    <table class="table">
+        <thead><tr><th>Channel</th><th>Role</th><th>Allow</th><th>Deny</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var exp in expectations)
+            {
+                <tr>
+                    <td>@ChannelName(exp.ChannelId)</td>
+                    <td>@RoleName(exp.RoleId)</td>
+                    <td>@PermissionListLabel((Permissions)exp.Allow)</td>
+                    <td>@PermissionListLabel((Permissions)exp.Deny)</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => EditExpectation(exp)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteExpectation(exp)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h3>@(editingId is null ? "Add" : "Edit") Expected Permission</h3>
+    <div class="mb-2">
+        <label>Channel</label>
+        <select class="form-select d-inline-block w-auto" @bind="formChannelIdInput">
+            <option value="">— select channel —</option>
+            @foreach (var channel in channels)
+            {
+                <option value="@channel.Id">@ChannelLabel(channel)</option>
+            }
+        </select>
+    </div>
+    <div class="mb-2">
+        <label>Role</label>
+        <select class="form-select d-inline-block w-auto" @bind="formRoleIdInput">
+            <option value="">— select role —</option>
+            @foreach (var role in roles)
+            {
+                <option value="@role.Id">@role.Name</option>
+            }
+        </select>
+    </div>
+
+    <table class="table table-sm permission-grid">
+        <thead><tr><th>Permission</th><th>Neutral</th><th>Allow</th><th>Deny</th></tr></thead>
+        <tbody>
+            @foreach (var permission in AllPermissions)
+            {
+                var current = permission;
+                <tr>
+                    <td>@current</td>
+                    <td><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Neutral)" @onchange="() => SetState(current, PermissionState.Neutral)" /></td>
+                    <td><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Allow)" @onchange="() => SetState(current, PermissionState.Allow)" /></td>
+                    <td><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Deny)" @onchange="() => SetState(current, PermissionState.Deny)" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button class="btn btn-primary" @onclick="SaveExpectation">@(editingId is null ? "Add" : "Save")</button>
+    @if (editingId is not null)
+    {
+        <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    }
+
+    <h2 class="mt-4">Audit</h2>
+    <button class="btn btn-primary" disabled="@auditing" @onclick="RunAudit">@(auditing ? "Checking..." : "Run Audit")</button>
+
+    @if (auditResults is not null)
+    {
+        <table class="table mt-3">
+            <thead><tr><th>Channel</th><th>Role</th><th>Status</th><th>Details</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var result in auditResults)
+                {
+                    <tr class="@(result.IsMatch ? "table-success" : "table-danger")">
+                        <td>@ChannelName(result.Expectation.ChannelId)</td>
+                        <td>@RoleName(result.Expectation.RoleId)</td>
+                        <td>@(result.IsMatch ? "✅ OK" : "🚫 Mismatch")</td>
+                        <td>
+                            @if (!result.IsMatch)
+                            {
+                                @if (result.MissingAllow.Count > 0)
+                                {
+                                    <div>Missing Allow: @string.Join(", ", result.MissingAllow)</div>
+                                }
+                                @if (result.ExtraAllow.Count > 0)
+                                {
+                                    <div>Unexpected Allow: @string.Join(", ", result.ExtraAllow)</div>
+                                }
+                                @if (result.MissingDeny.Count > 0)
+                                {
+                                    <div>Missing Deny: @string.Join(", ", result.MissingDeny)</div>
+                                }
+                                @if (result.ExtraDeny.Count > 0)
+                                {
+                                    <div>Unexpected Deny: @string.Join(", ", result.ExtraDeny)</div>
+                                }
+                            }
+                        </td>
+                        <td>
+                            @if (!result.IsMatch)
+                            {
+                                <button class="btn btn-sm btn-warning" @onclick="() => FixAsync(result)">Fix</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private enum PermissionState { Neutral, Allow, Deny }
+
+    private record AuditResult(
+        ChannelPermissionExpectation Expectation,
+        bool IsMatch,
+        List<Permissions> MissingAllow,
+        List<Permissions> ExtraAllow,
+        List<Permissions> MissingDeny,
+        List<Permissions> ExtraDeny);
+
+    private static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
+
+    [Parameter] public string GuildId { get; set; } = "";
+
+    private ulong ParsedGuildId => ulong.Parse(GuildId);
+
+    private bool? authorized;
+    private List<ChannelPermissionExpectation> expectations = [];
+    private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
+    private string? discordDataError;
+
+    private int? editingId;
+    private string? formChannelIdInput;
+    private string? formRoleIdInput;
+    private readonly Dictionary<Permissions, PermissionState> formPermissionStates = new();
+
+    private bool auditing;
+    private List<AuditResult>? auditResults;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
+        authorized = result.Succeeded;
+
+        if (authorized == true)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        expectations = await db.ChannelPermissionExpectations
+            .Where(e => e.GuildId == ParsedGuildId)
+            .AsNoTracking()
+            .ToListAsync();
+
+        await LoadDiscordDataAsync();
+    }
+
+    // Same 60s-cached channel/role fetch pattern as Settings.razor/Setup.razor.
+    private async Task LoadDiscordDataAsync()
+    {
+        discordDataError = null;
+        try
+        {
+            var guildId = ParsedGuildId;
+
+            var allChannels = await Cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await BotRestClient.GetGuildChannelsAsync(guildId);
+            });
+            channels = (allChannels ?? [])
+                .Where(c => c is not CategoryGuildChannel)
+                .OrderBy(c => c.Position ?? int.MaxValue)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            var allRoles = await Cache.GetOrCreateAsync($"discord-guild-roles:{guildId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                return await BotRestClient.GetGuildRolesAsync(guildId);
+            });
+            roles = (allRoles ?? [])
+                .Where(r => r.Id != guildId)
+                .OrderByDescending(r => r.RawPosition)
+                .ToList();
+        }
+        catch (RestException)
+        {
+            channels = [];
+            roles = [];
+            discordDataError = "Could not load channels/roles from Discord (is the bot in this guild?)";
+        }
+    }
+
+    private static string ChannelLabel(IGuildChannel channel) => channel switch
+    {
+        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        _ => $"# {channel.Name}",
+    };
+
+    private string ChannelName(ulong id) =>
+        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+
+    private string RoleName(ulong id) =>
+        roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+
+    private static string PermissionListLabel(Permissions permissions) =>
+        permissions == 0 ? "—" : string.Join(", ", AllPermissions.Where(p => permissions.HasFlag(p)));
+
+    private static string RadioGroupName(Permissions permission) => $"perm-{(ulong)permission}";
+
+    private PermissionState GetState(Permissions permission) =>
+        formPermissionStates.GetValueOrDefault(permission, PermissionState.Neutral);
+
+    private void SetState(Permissions permission, PermissionState state) =>
+        formPermissionStates[permission] = state;
+
+    private void EditExpectation(ChannelPermissionExpectation exp)
+    {
+        editingId = exp.Id;
+        formChannelIdInput = exp.ChannelId.ToString();
+        formRoleIdInput = exp.RoleId.ToString();
+
+        formPermissionStates.Clear();
+        var allow = (Permissions)exp.Allow;
+        var deny = (Permissions)exp.Deny;
+        foreach (var permission in AllPermissions)
+        {
+            if (allow.HasFlag(permission))
+                formPermissionStates[permission] = PermissionState.Allow;
+            else if (deny.HasFlag(permission))
+                formPermissionStates[permission] = PermissionState.Deny;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        formChannelIdInput = null;
+        formRoleIdInput = null;
+        formPermissionStates.Clear();
+    }
+
+    private async Task SaveExpectation()
+    {
+        if (!ulong.TryParse(formChannelIdInput, out var channelId) || !ulong.TryParse(formRoleIdInput, out var roleId))
+            return;
+
+        ulong allow = 0;
+        ulong deny = 0;
+        foreach (var (permission, state) in formPermissionStates)
+        {
+            if (state == PermissionState.Allow)
+                allow |= (ulong)permission;
+            else if (state == PermissionState.Deny)
+                deny |= (ulong)permission;
+        }
+
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            if (editingId is { } id)
+            {
+                var existing = await db.ChannelPermissionExpectations.FirstAsync(e => e.Id == id);
+                existing.ChannelId = channelId;
+                existing.RoleId = roleId;
+                existing.Allow = allow;
+                existing.Deny = deny;
+            }
+            else
+            {
+                db.ChannelPermissionExpectations.Add(new ChannelPermissionExpectation
+                {
+                    GuildId = ParsedGuildId,
+                    ChannelId = channelId,
+                    RoleId = roleId,
+                    Allow = allow,
+                    Deny = deny,
+                });
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        CancelEdit();
+        await LoadAsync();
+    }
+
+    private async Task DeleteExpectation(ChannelPermissionExpectation exp)
+    {
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.ChannelPermissionExpectations.Remove(exp);
+            await db.SaveChangesAsync();
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task RunAudit()
+    {
+        auditing = true;
+        auditResults = null;
+        try
+        {
+            var results = new List<AuditResult>();
+            foreach (var expectation in expectations)
+            {
+                var channel = channels.FirstOrDefault(c => c.Id == expectation.ChannelId);
+
+                PermissionOverwrite? overwrite = channel is not null && channel.PermissionOverwrites.TryGetValue(expectation.RoleId, out var found)
+                    ? found
+                    : null;
+
+                var actualAllow = overwrite?.Allowed ?? default;
+                var actualDeny = overwrite?.Denied ?? default;
+                var expectedAllow = (Permissions)expectation.Allow;
+                var expectedDeny = (Permissions)expectation.Deny;
+
+                var missingAllow = AllPermissions.Where(p => expectedAllow.HasFlag(p) && !actualAllow.HasFlag(p)).ToList();
+                var extraAllow = AllPermissions.Where(p => actualAllow.HasFlag(p) && !expectedAllow.HasFlag(p)).ToList();
+                var missingDeny = AllPermissions.Where(p => expectedDeny.HasFlag(p) && !actualDeny.HasFlag(p)).ToList();
+                var extraDeny = AllPermissions.Where(p => actualDeny.HasFlag(p) && !expectedDeny.HasFlag(p)).ToList();
+
+                var isMatch = missingAllow.Count == 0 && extraAllow.Count == 0 && missingDeny.Count == 0 && extraDeny.Count == 0;
+                results.Add(new AuditResult(expectation, isMatch, missingAllow, extraAllow, missingDeny, extraDeny));
+            }
+
+            auditResults = results;
+        }
+        finally
+        {
+            auditing = false;
+        }
+    }
+
+    private async Task FixAsync(AuditResult result)
+    {
+        var expectation = result.Expectation;
+        try
+        {
+            await BotRestClient.ModifyGuildChannelPermissionsAsync(expectation.ChannelId,
+                new PermissionOverwriteProperties(expectation.RoleId, PermissionOverwriteType.Role)
+                {
+                    Allowed = (Permissions)expectation.Allow,
+                    Denied = (Permissions)expectation.Deny,
+                });
+
+            Cache.Remove($"discord-guild-channels:{ParsedGuildId}");
+            await LoadDiscordDataAsync();
+            await RunAudit();
+        }
+        catch (RestException)
+        {
+            discordDataError = "Could not update the permission overwrite on Discord — does the bot have Manage Roles/Manage Channels permission in this server?";
+        }
+    }
+}
