@@ -61,6 +61,12 @@ main {
         height: 100vh;
         position: sticky;
         top: 0;
+        /* Scroll inside the sidebar itself once its content (nav links) grows taller
+           than the viewport, instead of letting it overflow into the page below — an
+           overflowing sidebar has nothing to paint its background past the 100vh box,
+           so the nav items below the fold rendered on plain white instead of the
+           gradient. */
+        overflow-y: auto;
     }
 
     .top-row {
