@@ -83,6 +83,10 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<ChannelPermissionExpectation> ChannelPermissionExpectations => Set<ChannelPermissionExpectation>();
 
+    public DbSet<StfcServerStatus> StfcServerStatuses => Set<StfcServerStatus>();
+
+    public DbSet<StfcEventStatus> StfcEventStatuses => Set<StfcEventStatus>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HoshiBotDbContext).Assembly);

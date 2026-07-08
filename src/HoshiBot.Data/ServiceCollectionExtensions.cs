@@ -49,6 +49,8 @@ public static class ServiceCollectionExtensions
         await services.SeedStfcAlliancesIfEmptyAsync();
         await services.SeedStfcPlayersIfEmptyAsync();
         await services.SeedStfcTerritoriesIfEmptyAsync();
+        await services.SeedStfcServerStatusIfEmptyAsync();
+        await services.SeedStfcEventStatusIfEmptyAsync();
         await services.SeedGuildSettingsIfEmptyAsync();
     }
 
@@ -306,6 +308,64 @@ public static class ServiceCollectionExtensions
 
             db.StfcPlayers.Add(player);
         }
+
+        await db.SaveChangesAsync();
+    }
+
+    // Seeds a one-time snapshot of every known server's up/down/maintenance state from
+    // StfcServerStatusSeedData. Must run after SeedStfcCatalogIfEmptyAsync — it FKs into
+    // StfcServers. NotifiedStatus/NotifiedMaintenance are set equal to the seeded observed
+    // values so ServerStatusNotifyJob doesn't fire a false "changed" notification for
+    // every server the first time it runs after this seed.
+    public static async Task SeedStfcServerStatusIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.StfcServerStatuses.AnyAsync())
+            return;
+
+        var seededAt = DateTimeOffset.UtcNow;
+        var knownServerIds = await db.StfcServers.Select(s => s.Id).ToHashSetAsync();
+
+        db.StfcServerStatuses.AddRange(StfcServerStatusSeedData.Entries
+            .Where(e => knownServerIds.Contains(e.StfcServerId))
+            .Select(e => new StfcServerStatus
+            {
+                StfcServerId = e.StfcServerId,
+                Status = e.Status,
+                Maintenance = e.Maintenance,
+                UpdatedAt = seededAt,
+                NotifiedStatus = e.Status,
+                NotifiedMaintenance = e.Maintenance,
+            }));
+
+        await db.SaveChangesAsync();
+    }
+
+    // Seeds a one-time snapshot of each recurring event category's most recent occurrence
+    // from StfcEventStatusSeedData. NotifiedEventStart is set equal to the seeded
+    // EventStart so IncursionNotifyJob doesn't treat the seeded value as a new,
+    // not-yet-announced start time.
+    public static async Task SeedStfcEventStatusIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.StfcEventStatuses.AnyAsync())
+            return;
+
+        var seededAt = DateTimeOffset.UtcNow;
+
+        db.StfcEventStatuses.AddRange(StfcEventStatusSeedData.Entries.Select(e => new StfcEventStatus
+        {
+            EventGroup = e.EventGroup,
+            EventStart = e.EventStart,
+            EventEnd = e.EventEnd,
+            Active = e.Active,
+            UpdatedAt = seededAt,
+            NotifiedEventStart = e.EventStart,
+        }));
 
         await db.SaveChangesAsync();
     }
