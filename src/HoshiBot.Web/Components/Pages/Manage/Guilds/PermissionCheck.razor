@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject RestClient BotRestClient
 @inject IMemoryCache Cache
+@inject IConfiguration Configuration
 
 <PageTitle>Permission Check</PageTitle>
 
@@ -266,10 +267,15 @@ else
     // given permission at all, and how high its own role sits in the hierarchy.
     private async Task LoadBotStatusAsync(ulong guildId)
     {
+        // Not GetCurrentUserGuildUserAsync — that's an OAuth "current user" endpoint
+        // (/users/@me/guilds/{id}/member) and BotRestClient here is a plain bot-token
+        // client with no OAuth session behind it, so it always fails. Fetch by the bot's
+        // own ID instead, same as EmbedBranding.BuildAuthorAsync does.
+        var botUserId = ulong.Parse(Configuration["Discord:ClientId"]!);
         var botMember = await Cache.GetOrCreateAsync($"discord-bot-member:{guildId}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-            return await BotRestClient.GetCurrentUserGuildUserAsync(guildId);
+            return await BotRestClient.GetGuildUserAsync(guildId, botUserId);
         });
 
         var botRoles = (botMember?.RoleIds ?? [])
