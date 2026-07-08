@@ -105,6 +105,11 @@ RoE alliance lists feed the diplomacy channel structure).
   (Alliance, Server, Community), not tied to one audience. Could later become the underlying
   mechanism for the Council/RoE/Mediation vote channels below, rather than a separate
   implementation, but stands on its own as a feature regardless.
+- Rate-limit visibility — NetCord (the Discord library) already handles rate limiting
+  automatically (per-route + global buckets, `Retry-After` aware), but nothing in the codebase
+  subscribes to its `RateLimited` event, so throttling happens silently. Subscribe to it and
+  surface an active-rate-limit banner in the web admin backend, purely for operator visibility
+  — not a correctness fix, since requests already succeed, just delayed.
 
 ### Server & Veil Group Discords (new audience, not built yet)
 
