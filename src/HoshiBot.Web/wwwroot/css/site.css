@@ -70,12 +70,14 @@ a, .btn-link {
 /* QuickGrid intentionally renders extra empty <tr>/<td> elements on a paginated grid's
    last page to keep a stable row count/height across pages (documented behavior, see
    https://github.com/dotnet/aspnetcore/issues/59096 and /issues/57199) — it explicitly
-   leaves the styling of those placeholder rows to the app. visibility: hidden (not
-   display: none) keeps their layout space so the height stays stable, the actual point
-   of the feature, while hiding the borders/backgrounds that otherwise look like stray
-   lines. :has(td:not(:empty)) excludes real rows that just happen to have one blank
-   cell (e.g. a null Notified* column) — only rows where every cell is empty are hidden. */
-.quickgrid tbody tr:not(:has(td:not(:empty))) {
+   leaves the styling of those placeholder rows to the app. Can't target them via
+   :empty — the placeholder <td>s aren't actually childless (likely whitespace), so
+   :empty silently fails to match. QuickGrid does mark every REAL data row with an
+   aria-rowindex attribute (accessibility metadata) that placeholder rows lack — that's
+   the reliable signal (see the aria-rowindex workaround in aspnetcore#57199's comments).
+   visibility: hidden (not display: none) keeps the placeholder rows' layout space, which
+   is the actual point of the feature, while hiding their borders/backgrounds. */
+.quickgrid tbody tr:not([aria-rowindex]) {
     visibility: hidden;
 }
 
