@@ -170,6 +170,18 @@ before building: whether this API actually gets updated with advance notice at a
 observed so far was a past, inactive event — needs watching over time to confirm), and whether
 to post through a new dedicated channel/setting or the existing Announcements pipeline.
 
+### Server up/down + maintenance notification (external API found, not built)
+
+The same stats site also exposes `/api/server-status` — one row per real STFC server (113
+total), shaped `{id, name, region: {id, description, num}, status, player_transfer_state:
+{transfer_in, transfer_out, authenticated}, priority, maintenance}`. Server 164 confirmed
+present (region `eu-west-1`, "Ireland (EU)"). Planned: poll it and post a Discord announcement
+when `status`/`maintenance` changes for the tracked server, so players know a maintenance
+window is why the game is unreachable instead of assuming something's broken locally. Checked
+2026-07-08: every server showed `status:1`/`maintenance:"0"` (all up) — the actual down/
+maintenance values are unconfirmed, need a real state change to verify. `player_transfer_state`
+looks like a separate server-merge/transfer concern, not needed for basic up/down/maintenance.
+
 ### Applies to all server-type Discords (Server + Veil Group)
 
 - Per-channel default language, not just per-guild.
