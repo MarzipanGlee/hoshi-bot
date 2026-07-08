@@ -23,6 +23,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<StfcPlayer> StfcPlayers => Set<StfcPlayer>();
 
+    public DbSet<StfcPlayerNameHistory> StfcPlayerNameHistories => Set<StfcPlayerNameHistory>();
+
     public DbSet<StfcSystem> StfcSystems => Set<StfcSystem>();
 
     public DbSet<StfcTerritory> StfcTerritories => Set<StfcTerritory>();

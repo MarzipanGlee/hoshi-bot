@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
         await services.EnsureHoshiBotDatabaseCreatedIfSqliteAsync(configuration);
         await services.SeedStfcCatalogIfEmptyAsync();
         await services.SeedStfcAlliancesIfEmptyAsync();
+        await services.SeedStfcPlayersIfEmptyAsync();
         await services.SeedStfcTerritoriesIfEmptyAsync();
         await services.SeedGuildSettingsIfEmptyAsync();
     }
@@ -266,6 +267,45 @@ public static class ServiceCollectionExtensions
             Name = e.Name,
             ServerId = StfcAllianceSeedData.Server164Id,
         }));
+
+        await db.SaveChangesAsync();
+    }
+
+    // Seeds a one-time snapshot of server 164's player roster from StfcPlayerSeedData,
+    // each with an initial NameHistory row so a future re-sync has a baseline to diff
+    // against for rename detection. Checked per-server, same reasoning as
+    // SeedStfcAlliancesIfEmptyAsync. Must run after alliances are seeded — it resolves
+    // AllianceTag against already-seeded StfcAlliances, leaving AllianceId null for
+    // unaffiliated players or a tag that doesn't match a seeded alliance.
+    public static async Task SeedStfcPlayersIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.StfcPlayers.AnyAsync(p => p.ServerId == StfcPlayerSeedData.Server164Id))
+            return;
+
+        var alliancesByTag = await db.StfcAlliances
+            .Where(a => a.ServerId == StfcPlayerSeedData.Server164Id)
+            .ToDictionaryAsync(a => a.Tag);
+
+        var seededAt = DateTimeOffset.UtcNow;
+
+        foreach (var (externalId, name, allianceTag) in StfcPlayerSeedData.Server164Entries)
+        {
+            var alliance = allianceTag is not null ? alliancesByTag.GetValueOrDefault(allianceTag) : null;
+
+            var player = new StfcPlayer
+            {
+                ExternalId = externalId,
+                Name = name,
+                ServerId = StfcPlayerSeedData.Server164Id,
+                AllianceId = alliance?.Id,
+            };
+            player.NameHistory.Add(new StfcPlayerNameHistory { Name = name, ObservedAt = seededAt });
+
+            db.StfcPlayers.Add(player);
+        }
 
         await db.SaveChangesAsync();
     }

@@ -10,7 +10,11 @@ public class StfcPlayerConfiguration : IEntityTypeConfiguration<StfcPlayer>
     {
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Name).HasMaxLength(100).IsRequired();
-        builder.HasIndex(p => new { p.ServerId, p.Name }).IsUnique();
+
+        // ExternalId, not (ServerId, Name) — a player's Name is just their latest known
+        // name and can legitimately change (see StfcPlayerNameHistory), so it can't be
+        // part of a uniqueness constraint; ExternalId is the stable identity instead.
+        builder.HasIndex(p => p.ExternalId).IsUnique();
 
         builder.HasOne(p => p.Server)
             .WithMany(s => s.Players)
