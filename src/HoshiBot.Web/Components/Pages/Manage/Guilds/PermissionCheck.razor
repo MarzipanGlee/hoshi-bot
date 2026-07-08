@@ -28,6 +28,17 @@ else
         <div class="alert alert-warning">@discordDataError</div>
     }
 
+    <div class="alert @(botHasManageRoles ? "alert-info" : "alert-danger")">
+        <strong>Bot's highest role:</strong> @(botTopRoleName ?? "—") (position @botHighestRolePosition) ·
+        <strong>Manage Roles:</strong> @(botHasManageRoles ? "Yes" : "No — Fix actions will fail entirely")
+        <div class="mt-1">
+            Tip: for Hoshi Bot to reliably manage every role's channel permissions, place its role directly
+            below your top admin/owner role in Server Settings → Roles. Any role positioned above the bot's
+            role can't be fixed here — Discord requires a bot's own role to outrank a role before it can
+            manage that role's permissions.
+        </div>
+    </div>
+
     <h2>Expected Permissions</h2>
     <table class="table">
         <thead><tr><th>Channel</th><th>Role</th><th>Allow</th><th>Deny</th><th></th></tr></thead>
@@ -130,7 +141,14 @@ else
                         <td>
                             @if (!result.IsMatch)
                             {
-                                <button class="btn btn-sm btn-warning" @onclick="() => FixAsync(result)">Fix</button>
+                                @if (result.CanFix)
+                                {
+                                    <button class="btn btn-sm btn-warning" @onclick="() => FixAsync(result)">Fix</button>
+                                }
+                                else
+                                {
+                                    <span class="text-danger">⚠ @result.BlockReason</span>
+                                }
                             }
                         </td>
                     </tr>
@@ -149,7 +167,9 @@ else
         List<Permissions> MissingAllow,
         List<Permissions> ExtraAllow,
         List<Permissions> MissingDeny,
-        List<Permissions> ExtraDeny);
+        List<Permissions> ExtraDeny,
+        bool CanFix,
+        string? BlockReason);
 
     private static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
 
@@ -170,6 +190,12 @@ else
 
     private bool auditing;
     private List<AuditResult>? auditResults;
+
+    private Dictionary<ulong, Role> allRolesById = [];
+    private Permissions botPermissions;
+    private int botHighestRolePosition;
+    private string? botTopRoleName;
+    private bool botHasManageRoles => botPermissions.HasFlag(Permissions.Administrator) || botPermissions.HasFlag(Permissions.ManageRoles);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -218,10 +244,13 @@ else
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
                 return await BotRestClient.GetGuildRolesAsync(guildId);
             });
+            allRolesById = (allRoles ?? []).ToDictionary(r => r.Id);
             roles = (allRoles ?? [])
                 .Where(r => r.Id != guildId)
                 .OrderByDescending(r => r.RawPosition)
                 .ToList();
+
+            await LoadBotStatusAsync(guildId);
         }
         catch (RestException)
         {
@@ -229,6 +258,34 @@ else
             roles = [];
             discordDataError = "Could not load channels/roles from Discord (is the bot in this guild?)";
         }
+    }
+
+    // Discord computes a member's effective guild permissions as the OR of @everyone's
+    // permissions plus every explicit role they hold (RoleIds never includes @everyone
+    // itself, so it's added separately) — used here to know whether the bot can grant a
+    // given permission at all, and how high its own role sits in the hierarchy.
+    private async Task LoadBotStatusAsync(ulong guildId)
+    {
+        var botMember = await Cache.GetOrCreateAsync($"discord-bot-member:{guildId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            return await BotRestClient.GetCurrentUserGuildUserAsync(guildId);
+        });
+
+        var botRoles = (botMember?.RoleIds ?? [])
+            .Select(id => allRolesById.GetValueOrDefault(id))
+            .Where(r => r is not null)
+            .Select(r => r!)
+            .ToList();
+
+        if (allRolesById.TryGetValue(guildId, out var everyoneRole))
+            botRoles.Add(everyoneRole);
+
+        botPermissions = botRoles.Aggregate(default(Permissions), (acc, r) => acc | r.Permissions);
+
+        var topRole = botRoles.OrderByDescending(r => r.RawPosition).FirstOrDefault();
+        botHighestRolePosition = topRole?.RawPosition ?? 0;
+        botTopRoleName = topRole is { Id: var id } && id != guildId ? topRole.Name : "@everyone";
     }
 
     private static string ChannelLabel(IGuildChannel channel) => channel switch
@@ -362,7 +419,8 @@ else
                 var extraDeny = AllPermissions.Where(p => actualDeny.HasFlag(p) && !expectedDeny.HasFlag(p)).ToList();
 
                 var isMatch = missingAllow.Count == 0 && extraAllow.Count == 0 && missingDeny.Count == 0 && extraDeny.Count == 0;
-                results.Add(new AuditResult(expectation, isMatch, missingAllow, extraAllow, missingDeny, extraDeny));
+                var (canFix, blockReason) = isMatch ? (true, null) : EvaluateFixability(expectation);
+                results.Add(new AuditResult(expectation, isMatch, missingAllow, extraAllow, missingDeny, extraDeny, canFix, blockReason));
             }
 
             auditResults = results;
@@ -371,6 +429,30 @@ else
         {
             auditing = false;
         }
+    }
+
+    // Mirrors Discord's own rules for editing a channel permission overwrite: the bot
+    // needs Manage Roles at all, its own highest role must outrank the role being
+    // configured, and — unless it has Administrator — it can only Allow a permission it
+    // already holds itself. Any of these failing makes "Fix" a guaranteed 403, so it's
+    // checked here instead of just letting the API call fail.
+    private (bool CanFix, string? Reason) EvaluateFixability(ChannelPermissionExpectation expectation)
+    {
+        if (!botHasManageRoles)
+            return (false, "Bot lacks Manage Roles permission in this server.");
+
+        if (botPermissions.HasFlag(Permissions.Administrator))
+            return (true, null);
+
+        if (allRolesById.TryGetValue(expectation.RoleId, out var targetRole) && targetRole.RawPosition >= botHighestRolePosition)
+            return (false, $"Bot's role ({botTopRoleName}) doesn't outrank {targetRole.Name} — move the bot's role higher.");
+
+        var expectedAllow = (Permissions)expectation.Allow;
+        var ungrantable = AllPermissions.Where(p => expectedAllow.HasFlag(p) && !botPermissions.HasFlag(p)).ToList();
+        if (ungrantable.Count > 0)
+            return (false, $"Bot doesn't hold these permissions itself, so it can't grant them: {string.Join(", ", ungrantable)}.");
+
+        return (true, null);
     }
 
     private async Task FixAsync(AuditResult result)
