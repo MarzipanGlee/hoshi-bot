@@ -5,6 +5,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Large one-time seed snapshots: kept as embedded JSON, not C# array literals, so
+         they cost a file read + deserialize at startup instead of Roslyn compile time on
+         every build (StfcAllianceSeedData alone was ~10,000 lines of tuples). -->
+    <EmbeddedResource Include="Seeding\StfcAllianceSeedData.json" />
+    <EmbeddedResource Include="Seeding\StfcPlayerSeedData.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
