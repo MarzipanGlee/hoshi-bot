@@ -23,9 +23,11 @@ else
     </p>
 
     <QuickGrid Class="table" Items="context.StfcServers.Include(s => s.Region).Include(s => s.VeilGroup).OrderBy(s => s.Id)" Pagination="pagination">
-        @* DisplayName is a computed property, so sort by the real Id column instead. *@
-        <PropertyColumn Property="server => server.DisplayName" Title="Server" Sortable="true"
-            SortBy="@(GridSort<StfcServer>.ByAscending(s => s.Id))" />
+        @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
+           (that's TemplateColumn-only), so this sorts by the real Id column instead. *@
+        <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcServer>.ByAscending(s => s.Id))" Context="server">
+            @server.DisplayName
+        </TemplateColumn>
         <TemplateColumn Title="Veil Group" Context="server">
             @(server.VeilGroup?.Name ?? "Unassigned")
         </TemplateColumn>
