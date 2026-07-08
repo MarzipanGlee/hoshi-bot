@@ -116,11 +116,7 @@ app.MapGet("/invite", (IConfiguration config) =>
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-await app.Services.EnsureHoshiBotDatabaseCreatedIfSqliteAsync(builder.Configuration);
+await app.Services.SeedHoshiBotDatabaseAsync(builder.Configuration);
 await app.Services.SeedGlobalAdminsIfEmptyAsync(builder.Configuration);
-await app.Services.SeedStfcCatalogIfEmptyAsync();
-await app.Services.SeedStfcAlliancesIfEmptyAsync();
-await app.Services.SeedStfcTerritoriesIfEmptyAsync();
-await app.Services.SeedGuildSettingsIfEmptyAsync();
 
 await app.RunAsync();

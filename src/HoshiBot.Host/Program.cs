@@ -123,10 +123,6 @@ var host = builder.Build();
 
 host.AddModules(typeof(PingModule).Assembly);
 
-await host.Services.EnsureHoshiBotDatabaseCreatedIfSqliteAsync(builder.Configuration);
-await host.Services.SeedStfcCatalogIfEmptyAsync();
-await host.Services.SeedStfcAlliancesIfEmptyAsync();
-await host.Services.SeedStfcTerritoriesIfEmptyAsync();
-await host.Services.SeedGuildSettingsIfEmptyAsync();
+await host.Services.SeedHoshiBotDatabaseAsync(builder.Configuration);
 
 await host.RunAsync();

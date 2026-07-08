@@ -38,6 +38,19 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    // Runs every Seed*IfEmptyAsync that both host processes (HoshiBot.Host and
+    // HoshiBot.Web) need on startup, so adding a new seeder only means updating this one
+    // method instead of both Program.cs files. SeedGlobalAdminsIfEmptyAsync isn't
+    // included — it's web-admin-panel-only, called separately by HoshiBot.Web.
+    public static async Task SeedHoshiBotDatabaseAsync(this IServiceProvider services, IConfiguration configuration)
+    {
+        await services.EnsureHoshiBotDatabaseCreatedIfSqliteAsync(configuration);
+        await services.SeedStfcCatalogIfEmptyAsync();
+        await services.SeedStfcAlliancesIfEmptyAsync();
+        await services.SeedStfcTerritoriesIfEmptyAsync();
+        await services.SeedGuildSettingsIfEmptyAsync();
+    }
+
     // SQLite dev data is disposable, so it's created directly from the current model
     // instead of via the checked-in Postgres migrations (which stay the schema source
     // of truth, applied in production by HoshiBot.Migrator).
