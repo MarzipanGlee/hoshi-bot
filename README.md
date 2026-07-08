@@ -62,13 +62,29 @@ dotnet user-secrets set "Discord:ClientSecret" "<oauth-client-secret>" --project
 
 ## Production deployment
 
-`compose.yaml` runs three services: `bot` (HoshiBot.Host), `web` (HoshiBot.Web), and
-`postgres`. Both app services read secrets from environment variables — see
-`compose.yaml` for the full list (`DISCORD_TOKEN`, `POSTGRES_PASSWORD`,
-`PUBLIC_WEB_BASE_URL`, etc.).
+`compose.yaml` runs four services: `bot` (HoshiBot.Host), `web` (HoshiBot.Web), `migrator`
+(HoshiBot.Migrator, profile `migrate` — only runs on demand, not part of `up`), and
+`postgres`. Both app services read secrets from environment variables — see `compose.yaml`
+for the full list (`DISCORD_TOKEN`, `POSTGRES_PASSWORD`, `PUBLIC_WEB_BASE_URL`, etc.).
+
+### Redeploying
+
+From the repo checkout on the host:
+
+```bash
+git pull
+docker compose build
+docker compose --profile migrate run --rm migrator
+docker compose up -d
+```
+
+Order matters — `build` picks up the new code for all three app images, `migrator` applies
+any pending EF Core migrations against Postgres, and only then does `up -d` recreate
+`bot`/`web` so they start against the schema the new code expects, not the old one.
 
 Migrations are applied via `HoshiBot.Migrator`, not automatically by the bot/web
-processes:
+processes. The `docker compose` invocation above is the normal path; it can also be run
+directly (e.g. against prod from a dev machine, without a full redeploy):
 
 ```bash
 HOSHIBOT_CONNECTIONSTRING="Host=...;Database=hoshibot;Username=...;Password=..." \
