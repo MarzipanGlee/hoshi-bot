@@ -23,9 +23,11 @@ else
     </p>
 
     <QuickGrid Class="table" Items="context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
-        <PropertyColumn Property="alliance => alliance.Tag" />
-        <PropertyColumn Property="alliance => alliance.Name" />
-        <PropertyColumn Property="alliance => alliance.Server.DisplayName" Title="Server" />
+        <PropertyColumn Property="alliance => alliance.Tag" Sortable="true" />
+        <PropertyColumn Property="alliance => alliance.Name" Sortable="true" />
+        @* DisplayName is a computed property, so sort by the real ServerId column instead. *@
+        <PropertyColumn Property="alliance => alliance.Server.DisplayName" Title="Server" Sortable="true"
+            SortBy="@(GridSort<StfcAlliance>.ByAscending(a => a.ServerId))" />
 
         <TemplateColumn Context="alliance">
             <a href="@($"manage/stfc/alliances/edit?id={alliance.Id}")">Edit</a> |

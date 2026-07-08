@@ -23,9 +23,9 @@ else
     </p>
 
     <QuickGrid Class="table" Items="context.StfcVeilGroups.Include(v => v.Region).OrderBy(v => v.Name)">
-        <PropertyColumn Property="veilGroup => veilGroup.Id" />
-        <PropertyColumn Property="veilGroup => veilGroup.Name" />
-        <PropertyColumn Property="veilGroup => veilGroup.Region.Name" Title="Region" />
+        <PropertyColumn Property="veilGroup => veilGroup.Id" Sortable="true" />
+        <PropertyColumn Property="veilGroup => veilGroup.Name" Sortable="true" />
+        <PropertyColumn Property="veilGroup => veilGroup.Region.Name" Title="Region" Sortable="true" />
 
         <TemplateColumn Context="veilGroup">
             <a href="@($"manage/stfc/veil-groups/edit?id={veilGroup.Id}")">Edit</a> |

@@ -22,9 +22,14 @@ else
     @* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
        insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
     <QuickGrid Class="table" Items="context.StfcAllianceNameHistories.Include(h => h.StfcAlliance).ThenInclude(a => a.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
-        <PropertyColumn Property="h => h.StfcAlliance.Server.DisplayName" Title="Server" />
-        <PropertyColumn Property="h => h.Tag" />
-        <PropertyColumn Property="h => h.Name" />
+        @* DisplayName is a computed property (not a mapped column), so it needs an explicit
+           SortBy against the real ServerId column instead of relying on auto-derivation. *@
+        <PropertyColumn Property="h => h.StfcAlliance.Server.DisplayName" Title="Server" Sortable="true"
+            SortBy="@(GridSort<StfcAllianceNameHistory>.ByAscending(h => h.StfcAlliance.ServerId))" />
+        <PropertyColumn Property="h => h.Tag" Sortable="true" />
+        <PropertyColumn Property="h => h.Name" Sortable="true" />
+        @* Not sortable — ObservedAt is a DateTimeOffset, which SQLite's EF provider can't
+           translate in ORDER BY (see the initial-sort comment above). *@
         <PropertyColumn Property="h => h.ObservedAt" />
         <TemplateColumn Title="Current Alliance" Context="h">
             <a href="@($"manage/stfc/alliances/edit?id={h.StfcAllianceId}")">@h.StfcAlliance.Tag - @h.StfcAlliance.Name</a>

@@ -23,9 +23,9 @@ else
     </p>
 
     <QuickGrid Class="table" Items="context.StfcTerritories.OrderBy(t => t.Name)">
-        <PropertyColumn Property="territory => territory.Id" />
-        <PropertyColumn Property="territory => territory.Name" />
-        <PropertyColumn Property="territory => territory.Tier" />
+        <PropertyColumn Property="territory => territory.Id" Sortable="true" />
+        <PropertyColumn Property="territory => territory.Name" Sortable="true" />
+        <PropertyColumn Property="territory => territory.Tier" Sortable="true" />
         <TemplateColumn Title="Weekday" Context="territory">
             @(territory.Weekday?.ToString() ?? "Unknown")
         </TemplateColumn>

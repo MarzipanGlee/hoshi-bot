@@ -23,9 +23,9 @@ else
     </p>
 
     <QuickGrid Class="table" Items="context.StfcAllianceDiplomacies.Include(d => d.SourceAlliance).Include(d => d.TargetAlliance).OrderBy(d => d.SourceAlliance.Tag).ThenBy(d => d.TargetAlliance.Tag)">
-        <PropertyColumn Property="diplomacy => diplomacy.SourceAlliance.Tag" Title="Source" />
-        <PropertyColumn Property="diplomacy => diplomacy.TargetAlliance.Tag" Title="Target" />
-        <PropertyColumn Property="diplomacy => diplomacy.Status" />
+        <PropertyColumn Property="diplomacy => diplomacy.SourceAlliance.Tag" Title="Source" Sortable="true" />
+        <PropertyColumn Property="diplomacy => diplomacy.TargetAlliance.Tag" Title="Target" Sortable="true" />
+        <PropertyColumn Property="diplomacy => diplomacy.Status" Sortable="true" />
 
         <TemplateColumn Context="diplomacy">
             <a href="@($"manage/stfc/alliance-diplomacy/edit?id={diplomacy.Id}")">Edit</a> |

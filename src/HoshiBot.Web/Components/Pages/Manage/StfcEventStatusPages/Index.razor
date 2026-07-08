@@ -22,11 +22,13 @@ else
         Only "incursions" is currently acted on by IncursionNotifyJob; NotifiedEventStart is what it last announced.
     </p>
 
+    @* EventStart/EventEnd/UpdatedAt/NotifiedEventStart aren't sortable — they're
+       DateTimeOffset, which SQLite's EF provider can't translate in ORDER BY. *@
     <QuickGrid Class="table" Items="context.StfcEventStatuses.OrderBy(e => e.EventGroup)">
-        <PropertyColumn Property="status => status.EventGroup" />
+        <PropertyColumn Property="status => status.EventGroup" Sortable="true" />
         <PropertyColumn Property="status => status.EventStart" />
         <PropertyColumn Property="status => status.EventEnd" />
-        <PropertyColumn Property="status => status.Active" />
+        <PropertyColumn Property="status => status.Active" Sortable="true" />
         <PropertyColumn Property="status => status.UpdatedAt" />
         <PropertyColumn Property="status => status.NotifiedEventStart" Title="Notified Event Start" />
     </QuickGrid>

@@ -20,9 +20,9 @@ else
     <p>Synced daily from stfc.space by StfcSystemSyncService — read-only here, no manual edits (they'd just get overwritten on the next sync).</p>
 
     <QuickGrid Class="table" Items="context.StfcSystems.OrderBy(s => s.Number)" Pagination="pagination">
-        <PropertyColumn Property="system => system.Number" />
-        <PropertyColumn Property="system => system.Name" />
-        <PropertyColumn Title="Station Housing" Property="system => system.HasStationHousing" />
+        <PropertyColumn Property="system => system.Number" Sortable="true" />
+        <PropertyColumn Property="system => system.Name" Sortable="true" />
+        <PropertyColumn Title="Station Housing" Property="system => system.HasStationHousing" Sortable="true" />
     </QuickGrid>
 
     <Paginator State="pagination" />

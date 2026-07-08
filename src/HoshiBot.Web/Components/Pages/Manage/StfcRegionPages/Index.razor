@@ -23,8 +23,8 @@ else
     </p>
 
     <QuickGrid Class="table" Items="context.StfcRegions.OrderBy(r => r.Name)">
-        <PropertyColumn Property="region => region.Id" />
-        <PropertyColumn Property="region => region.Name" />
+        <PropertyColumn Property="region => region.Id" Sortable="true" />
+        <PropertyColumn Property="region => region.Name" Sortable="true" />
 
         <TemplateColumn Context="region">
             <a href="@($"manage/stfc/regions/edit?id={region.Id}")">Edit</a> |

@@ -23,12 +23,16 @@ else
     </p>
 
     <QuickGrid Class="table" Items="context.StfcServerStatuses.Include(s => s.StfcServer).ThenInclude(s => s.Region).OrderBy(s => s.StfcServerId)" Pagination="pagination">
-        <PropertyColumn Property="status => status.StfcServer.DisplayName" Title="Server" />
-        <PropertyColumn Property="status => status.Status" />
-        <PropertyColumn Property="status => status.Maintenance" />
+        @* DisplayName is a computed property, so sort by the real StfcServerId column instead. *@
+        <PropertyColumn Property="status => status.StfcServer.DisplayName" Title="Server" Sortable="true"
+            SortBy="@(GridSort<StfcServerStatus>.ByAscending(s => s.StfcServerId))" />
+        <PropertyColumn Property="status => status.Status" Sortable="true" />
+        <PropertyColumn Property="status => status.Maintenance" Sortable="true" />
+        @* Not sortable — UpdatedAt is a DateTimeOffset, which SQLite's EF provider can't
+           translate in ORDER BY. *@
         <PropertyColumn Property="status => status.UpdatedAt" />
-        <PropertyColumn Property="status => status.NotifiedStatus" Title="Notified Status" />
-        <PropertyColumn Property="status => status.NotifiedMaintenance" Title="Notified Maintenance" />
+        <PropertyColumn Property="status => status.NotifiedStatus" Title="Notified Status" Sortable="true" />
+        <PropertyColumn Property="status => status.NotifiedMaintenance" Title="Notified Maintenance" Sortable="true" />
     </QuickGrid>
 
     <Paginator State="pagination" />

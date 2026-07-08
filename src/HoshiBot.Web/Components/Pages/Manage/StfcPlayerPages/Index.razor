@@ -20,8 +20,10 @@ else
     <p>One-time seed snapshot, not a live sync — see StfcPlayerSeedData. Edits here are safe, but a future re-sync isn't built yet.</p>
 
     <QuickGrid Class="table" Items="context.StfcPlayers.Include(p => p.Server).ThenInclude(s => s.Region).Include(p => p.Alliance).OrderBy(p => p.ServerId).ThenBy(p => p.Name)" Pagination="pagination">
-        <PropertyColumn Property="player => player.Name" />
-        <PropertyColumn Property="player => player.Server.DisplayName" Title="Server" />
+        <PropertyColumn Property="player => player.Name" Sortable="true" />
+        @* DisplayName is a computed property, so sort by the real ServerId column instead. *@
+        <PropertyColumn Property="player => player.Server.DisplayName" Title="Server" Sortable="true"
+            SortBy="@(GridSort<StfcPlayer>.ByAscending(p => p.ServerId))" />
         <TemplateColumn Title="Alliance" Context="player">
             @(player.Alliance?.Tag ?? "—")
         </TemplateColumn>
