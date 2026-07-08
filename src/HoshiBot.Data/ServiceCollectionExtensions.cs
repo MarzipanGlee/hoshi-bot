@@ -233,6 +233,30 @@ public static class ServiceCollectionExtensions
         await db.SaveChangesAsync();
     }
 
+    // Seeds a one-time snapshot of server 164's alliance roster from StfcAllianceSeedData.
+    // Checked per-server (not table-wide like the other Seed*IfEmptyAsync methods) since
+    // this is a partial, single-server snapshot rather than a complete catalog — future
+    // per-server seed additions should stay independent of each other. Never overwrites
+    // alliances added/edited later via the admin UI. See StfcAllianceSeedData for why this
+    // isn't auto-regenerated like StfcCatalogSeedData/StfcTerritorySeedData.
+    public static async Task SeedStfcAlliancesIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.StfcAlliances.AnyAsync(a => a.ServerId == StfcAllianceSeedData.Server164Id))
+            return;
+
+        db.StfcAlliances.AddRange(StfcAllianceSeedData.Server164Entries.Select(e => new StfcAlliance
+        {
+            Tag = e.Tag,
+            Name = e.Name,
+            ServerId = StfcAllianceSeedData.Server164Id,
+        }));
+
+        await db.SaveChangesAsync();
+    }
+
     private static bool IsSqlite(IConfiguration configuration) =>
         string.Equals(configuration["Database:Provider"], "Sqlite", StringComparison.OrdinalIgnoreCase);
 }
