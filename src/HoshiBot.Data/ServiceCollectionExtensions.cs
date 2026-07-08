@@ -267,10 +267,11 @@ public static class ServiceCollectionExtensions
 
         var seededAt = DateTimeOffset.UtcNow;
 
-        foreach (var (tag, name) in StfcAllianceSeedData.Server164Entries)
+        foreach (var (externalId, tag, name) in StfcAllianceSeedData.Server164Entries)
         {
             var alliance = new StfcAlliance
             {
+                ExternalId = externalId,
                 Tag = tag,
                 Name = name,
                 ServerId = StfcAllianceSeedData.Server164Id,

@@ -9,6 +9,12 @@ public class StfcAlliance
 {
     public int Id { get; set; }
 
+    // The external stats site's stable alliance ID — lets a future re-sync match/update
+    // the same alliance instead of creating duplicates, since Tag/Name can both
+    // legitimately change (see NameHistory). Not a Discord/game-native ID, just this one
+    // source's. Long for the same reason as StfcPlayer.ExternalId: values exceed int.MaxValue.
+    public long ExternalId { get; set; }
+
     public required string Tag { get; set; }
 
     public required string Name { get; set; }
