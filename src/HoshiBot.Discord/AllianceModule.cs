@@ -26,7 +26,10 @@ public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureSer
         if (ourAlliance is null)
             return EphemeralReply.Of($"This guild doesn't manage an alliance tagged \"{ourAllianceTag}\". Ask an admin to link it via the web admin.");
 
-        var targetAlliance = await db.StfcAlliances.FirstOrDefaultAsync(a => a.Tag == targetAllianceTag);
+        // Scoped to our own alliance's server — diplomacy is always within the same
+        // server in STFC, and Tag alone isn't globally unique across the full catalog.
+        var targetAlliance = await db.StfcAlliances.FirstOrDefaultAsync(a =>
+            a.Tag == targetAllianceTag && a.ServerId == ourAlliance.ServerId);
         if (targetAlliance is null)
             return EphemeralReply.Of($"No alliance with tag \"{targetAllianceTag}\" found. Ask an admin to add it first (via the web admin).");
 

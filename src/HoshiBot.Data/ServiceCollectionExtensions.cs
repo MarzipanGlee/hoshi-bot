@@ -197,7 +197,9 @@ public static class ServiceCollectionExtensions
     // weekday/time schedule, and current ownership) from StfcTerritorySeedData. Only
     // seeds while no territory exists yet, so it never overwrites data corrected later.
     // Ownership rows are skipped (not created) for any alliance tag not yet known to
-    // StfcAlliances — alliance seeding is a separate concern.
+    // StfcAlliances on server 164 — alliance seeding is a separate concern. Must resolve
+    // scoped to server 164 (see StfcTerritorySeedData.Server164Id) now that StfcAlliances
+    // covers every server — a Tag alone is not globally unique.
     public static async Task SeedStfcTerritoriesIfEmptyAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -234,7 +236,8 @@ public static class ServiceCollectionExtensions
 
         foreach (var (zoneName, allianceTag) in StfcTerritorySeedData.Ownership)
         {
-            var alliance = await db.StfcAlliances.FirstOrDefaultAsync(a => a.Tag == allianceTag);
+            var alliance = await db.StfcAlliances.FirstOrDefaultAsync(a =>
+                a.Tag == allianceTag && a.ServerId == StfcTerritorySeedData.Server164Id);
             if (alliance is null)
                 continue;
 
@@ -249,32 +252,31 @@ public static class ServiceCollectionExtensions
         await db.SaveChangesAsync();
     }
 
-    // Seeds a one-time snapshot of server 164's alliance roster from StfcAllianceSeedData,
+    // Seeds a one-time snapshot of every server's alliance roster from StfcAllianceSeedData,
     // each with an initial NameHistory row so a future re-sync has a baseline to diff
-    // against for rename/re-tag detection. Checked per-server (not table-wide like the
-    // other Seed*IfEmptyAsync methods) since this is a partial, single-server snapshot
-    // rather than a complete catalog — future per-server seed additions should stay
-    // independent of each other. Never overwrites alliances added/edited later via the
-    // admin UI. See StfcAllianceSeedData for why this isn't auto-regenerated like
-    // StfcCatalogSeedData/StfcTerritorySeedData.
+    // against for rename/re-tag detection. Table-wide (unlike the old per-server check)
+    // since this snapshot already covers every known server, not just one. Must run after
+    // SeedStfcCatalogIfEmptyAsync — it FKs into StfcServers. Never overwrites alliances
+    // added/edited later via the admin UI. See StfcAllianceSeedData for why this isn't
+    // auto-regenerated like StfcCatalogSeedData/StfcTerritorySeedData.
     public static async Task SeedStfcAlliancesIfEmptyAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
 
-        if (await db.StfcAlliances.AnyAsync(a => a.ServerId == StfcAllianceSeedData.Server164Id))
+        if (await db.StfcAlliances.AnyAsync())
             return;
 
         var seededAt = DateTimeOffset.UtcNow;
 
-        foreach (var (externalId, tag, name) in StfcAllianceSeedData.Server164Entries)
+        foreach (var (externalId, serverId, tag, name) in StfcAllianceSeedData.Entries)
         {
             var alliance = new StfcAlliance
             {
                 ExternalId = externalId,
                 Tag = tag,
                 Name = name,
-                ServerId = StfcAllianceSeedData.Server164Id,
+                ServerId = serverId,
             };
             alliance.NameHistory.Add(new StfcAllianceNameHistory { Tag = tag, Name = name, ObservedAt = seededAt });
 

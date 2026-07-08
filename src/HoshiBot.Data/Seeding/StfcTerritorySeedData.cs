@@ -21,6 +21,11 @@ namespace HoshiBot.Data.Seeding;
 // one API territory id, with zero left over on either side.
 public static class StfcTerritorySeedData
 {
+    // This zone map and its Ownership snapshot are specific to server 164 — alliance tags
+    // in Ownership below must be resolved against this server only, since tags are only
+    // unique per-server and plenty are reused across the 113 known servers.
+    public const int Server164Id = 164;
+
     public static readonly (int Id, string Name, int Tier, DayOfWeek? Weekday, TimeOnly? CaptureTimeUtc, string[] Neighbours)[] Entries =
     [
         // Legacy day-0 (Sunday) group, Tier 1.
