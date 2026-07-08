@@ -159,6 +159,17 @@ alliances during the event, the opposing server's ID, and a temporary access-res
 channel group that only exists for the event window. Good fit for a reusable scheduled-event
 templating feature alongside the existing Quartz jobs in `HoshiBot.Discord/Scheduling/`.
 
+### Incursion advance-warning announcement (external API found, not built)
+
+An STFC stats site (`gilli.site`) exposes `/api/events` — one row per known recurring event
+type (`incursions`, `alliance_tournaments`, `sarris_invasions`, `flashpoint`) showing its most
+recent `event_start`/`event_end`/`active` state. Planned: poll it, and when `incursions`'
+`event_start` changes to a new future date not seen before, post a Discord announcement warning
+players ahead of time (ties into the "Cross-server events" item above). Two things unresolved
+before building: whether this API actually gets updated with advance notice at all (every row
+observed so far was a past, inactive event — needs watching over time to confirm), and whether
+to post through a new dedicated channel/setting or the existing Announcements pipeline.
+
 ### Applies to all server-type Discords (Server + Veil Group)
 
 - Per-channel default language, not just per-guild.
