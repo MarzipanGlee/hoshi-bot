@@ -76,9 +76,15 @@ a, .btn-link {
    aria-rowindex attribute (accessibility metadata) that placeholder rows lack — that's
    the reliable signal (see the aria-rowindex workaround in aspnetcore#57199's comments).
    visibility: hidden (not display: none) keeps the placeholder rows' layout space, which
-   is the actual point of the feature, while hiding their borders/backgrounds. */
+   is the actual point of the feature, while hiding their borders/backgrounds — except
+   Bootstrap's border-collapse means the border between a placeholder row and the real
+   row above it is a *shared* edge, and visibility: hidden on one side doesn't remove a
+   border the collapse resolution attributes to that edge. border-bottom-style: hidden
+   fixes that specifically: per the CSS border-conflict-resolution spec, "hidden" always
+   wins over any other style at a collapsed edge, regardless of which side declares it. */
 .quickgrid tbody tr:not([aria-rowindex]) {
     visibility: hidden;
+    border-bottom-style: hidden;
 }
 
 .blazor-error-boundary {
