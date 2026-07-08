@@ -91,7 +91,7 @@ public static class StfcTerritorySeedData
         (404484182, "Brellan", 3, DayOfWeek.Sunday, new TimeOnly(18, 0), ["Ber'Tho", "Bimasa", "Duportas"]),
 
         // New zone (2026-07-04), not in the legacy 55.
-        (2088113723, "Qoda", 4, DayOfWeek.Monday, new TimeOnly(19, 0), ["Framtid"]),
+        (2088113723, "Qoda", 4, DayOfWeek.Monday, new TimeOnly(19, 0), ["Framtid", "Nujord", "Duportas"]),
     ];
 
     public static readonly (string ZoneName, string AllianceTag)[] Ownership =
