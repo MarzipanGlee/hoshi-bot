@@ -99,6 +99,13 @@ messages, Setup Wizard). The following is unbuilt — a raw backlog, not a scope
 spec, several items depend on each other (e.g. the boarding wizard feeds nickname tagging;
 RoE alliance lists feed the diplomacy channel structure).
 
+### General features (all audiences, not built yet)
+
+- Manage polls — a general-purpose poll creation/management tool usable by any Discord
+  (Alliance, Server, Community), not tied to one audience. Could later become the underlying
+  mechanism for the Council/RoE/Mediation vote channels below, rather than a separate
+  implementation, but stands on its own as a feature regardless.
+
 ### Server & Veil Group Discords (new audience, not built yet)
 
 - Diplomacy group — a server-wide diplomacy construct (distinct from the existing per-alliance
