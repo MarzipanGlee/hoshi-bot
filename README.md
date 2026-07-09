@@ -134,6 +134,24 @@ RoE alliance lists feed the diplomacy channel structure).
   surface an active-rate-limit banner in the web admin backend, purely for operator visibility
   — not a correctness fix, since requests already succeed, just delayed.
 
+### Web admin UX (existing area, needs restructuring)
+
+- Settings (`Manage/Guilds/Settings.razor`) is one long page covering Features, Channels,
+  Roles, Territory Capture Zone Slot Roles, Rank Roles, Territory Capture, and Alert Channels
+  all at once — too much at once to navigate. Split into one page per feature area instead,
+  plus a small page for settings that are genuinely global (not tied to one feature). Every
+  setting needs an actual description of what it does and when/why you'd use it, not just a
+  bare label.
+- Dashboard should list every feature (not just "Your Guilds"/"STFC Catalog") with a direct
+  link to its own page, grouped by audience — Alliance / Server & Veil Group / Community —
+  mirroring the public landing page's existing three-way split.
+- Setup Wizard needs a rewrite, not just more steps bolted onto the current fixed sequence
+  (Welcome, Scope, Features, Core channels & roles, Admin access, Review & finish): ask which
+  audience(s) this guild serves via a switcher up front, and only show/enable the
+  audience-specific steps and dropdowns for audiences that are toggled on. One step per
+  feature, each with its own enable switcher plus a clear description of what enabling it
+  actually does — not one combined "Features" step.
+
 ### Server & Veil Group Discords (new audience, not built yet)
 
 - Diplomacy group — a server-wide diplomacy construct (distinct from the existing per-alliance
