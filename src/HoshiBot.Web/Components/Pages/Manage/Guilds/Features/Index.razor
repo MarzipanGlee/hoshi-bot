@@ -1,20 +1,15 @@
 @page "/manage/guilds/{GuildId}/features"
+@inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 @inject GuildFeatureService FeatureService
 @inject GuildFeatureSettingsService SettingsService
 @inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage Storage
 
 <PageTitle>Features</PageTitle>
 
-@if (authorized is null)
+@if (!Authorized)
 {
     <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to this guild.</p>
 }
 else
 {
@@ -70,11 +65,6 @@ else
 
     private const string HideInactiveStorageKey = "hoshibot.hideInactiveFeatures";
 
-    [Parameter] public string GuildId { get; set; } = "";
-
-    private ulong ParsedGuildId => ulong.Parse(GuildId);
-
-    private bool? authorized;
     private GuildAudience guildAudiences = GuildAudience.None;
     private HashSet<(GuildFeature Feature, GuildAudience Audience)> enabledFeatures = [];
     private HashSet<(GuildFeature Feature, GuildAudience Audience)> configuredFeatures = [];
@@ -85,14 +75,8 @@ else
             ? $"manage/guilds/{GuildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}"
             : $"manage/guilds/{GuildId}/features/{feature.Slug}";
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnAuthorizedParametersSetAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
-        authorized = result.Succeeded;
-        if (authorized != true)
-            return;
-
         var storedHideInactive = await Storage.GetAsync<bool>(HideInactiveStorageKey);
         if (storedHideInactive.Success)
             hideInactive = storedHideInactive.Value;

@@ -1,25 +1,19 @@
 @page "/manage/guilds/{GuildId}/setup"
+@inherits GuildAdminPageBase
 @using HoshiBot.Web.Services
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
 @using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 @inject RestClient BotRestClient
 @inject DiscordGuildDataService DiscordData
 @inject IMemoryCache Cache
-@inject NavigationManager Nav
 
 <PageTitle>Guild Setup Wizard</PageTitle>
 
-@if (authorized is null)
+@if (!Authorized)
 {
     <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to this guild.</p>
 }
 else
 {
@@ -199,11 +193,6 @@ else
         (5, "Review & finish"),
     ];
 
-    [Parameter] public string GuildId { get; set; } = "";
-
-    private ulong ParsedGuildId => ulong.Parse(GuildId);
-
-    private bool? authorized;
     private int step;
     private GuildSettings settings = new();
     private GuildAudience audiences;
@@ -225,17 +214,7 @@ else
     private int guildServerCount;
     private int guildVeilGroupCount;
 
-    protected override async Task OnParametersSetAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-        {
-            await LoadAsync();
-        }
-    }
+    protected override async Task OnAuthorizedParametersSetAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {

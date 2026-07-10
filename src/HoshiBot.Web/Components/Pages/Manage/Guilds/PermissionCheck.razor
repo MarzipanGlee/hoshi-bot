@@ -1,23 +1,18 @@
 @page "/manage/guilds/{GuildId}/permission-check"
+@inherits GuildAdminPageBase
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
 @using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 @inject RestClient BotRestClient
 @inject IMemoryCache Cache
 @inject IConfiguration Configuration
 
 <PageTitle>Permission Check</PageTitle>
 
-@if (authorized is null)
+@if (!Authorized)
 {
     <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to this guild.</p>
 }
 else
 {
@@ -174,11 +169,6 @@ else
 
     private static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
 
-    [Parameter] public string GuildId { get; set; } = "";
-
-    private ulong ParsedGuildId => ulong.Parse(GuildId);
-
-    private bool? authorized;
     private List<ChannelPermissionExpectation> expectations = [];
     private List<IGuildChannel> channels = [];
     private List<Role> roles = [];
@@ -198,17 +188,7 @@ else
     private string? botTopRoleName;
     private bool botHasManageRoles => botPermissions.HasFlag(Permissions.Administrator) || botPermissions.HasFlag(Permissions.ManageRoles);
 
-    protected override async Task OnParametersSetAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-        {
-            await LoadAsync();
-        }
-    }
+    protected override async Task OnAuthorizedParametersSetAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {

@@ -1,16 +1,11 @@
 @page "/manage/guilds/{GuildId}/settings"
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
+@inherits GuildAdminPageBase
 
 <PageTitle>Settings</PageTitle>
 
-@if (authorized is null)
+@if (!Authorized)
 {
     <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to this guild.</p>
 }
 else
 {
@@ -18,19 +13,4 @@ else
     <p>Settings not tied to one feature — per-feature channels/roles live on that feature's own page (see Features).</p>
 
     <SettingsEditor GuildId="ParsedGuildId" />
-}
-
-@code {
-    [Parameter] public string GuildId { get; set; } = "";
-
-    private ulong ParsedGuildId => ulong.Parse(GuildId);
-
-    private bool? authorized;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
-        authorized = result.Succeeded;
-    }
 }

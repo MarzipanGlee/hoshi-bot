@@ -1,17 +1,11 @@
 @page "/manage/guilds/{GuildId}/features/{FeatureSlug}/{AudienceSlug?}"
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject NavigationManager Nav
+@inherits GuildAdminPageBase
 
 <PageTitle>@(descriptor?.Title ?? "Feature Settings")</PageTitle>
 
-@if (authorized is null)
+@if (!Authorized)
 {
     <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to this guild.</p>
 }
 else if (descriptor is null)
 {
@@ -30,23 +24,15 @@ else
 }
 
 @code {
-    [Parameter] public string GuildId { get; set; } = "";
     [Parameter] public string FeatureSlug { get; set; } = "";
     [Parameter] public string? AudienceSlug { get; set; }
 
-    private ulong ParsedGuildId => ulong.Parse(GuildId);
-
-    private bool? authorized;
     private IFeatureModule? descriptor;
     private IDictionary<string, object>? editorParameters;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnAuthorizedParametersSetAsync()
     {
         editorParameters = null;
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
-        authorized = result.Succeeded;
 
         descriptor = FeatureCatalog.FindBySlug(FeatureSlug);
         if (descriptor is null)
@@ -54,9 +40,6 @@ else
             Nav.NotFound();
             return;
         }
-
-        if (authorized != true)
-            return;
 
         GuildAudience? resolvedAudience = null;
         if (descriptor.HasMultipleAudiences())

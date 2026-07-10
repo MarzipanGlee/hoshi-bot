@@ -1,18 +1,13 @@
 @page "/manage/guilds/{GuildId}"
+@inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 @inject GuildFeatureService FeatureService
 
 <PageTitle>@(guildName ?? "Guild")</PageTitle>
 
-@if (authorized is null)
+@if (!Authorized)
 {
     <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to this guild.</p>
 }
 else
 {
@@ -41,25 +36,14 @@ else
     private static readonly GuildAudience[] AudienceSections =
         [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 
-    [Parameter] public string GuildId { get; set; } = "";
-
-    private ulong ParsedGuildId => ulong.Parse(GuildId);
-
-    private bool? authorized;
     private string? guildName;
     private string audienceSummary = "Not configured yet";
     private bool setupComplete;
     private int enabledCount;
     private int totalCount;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnAuthorizedParametersSetAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
-        authorized = result.Succeeded;
-        if (authorized != true)
-            return;
-
         await using var db = await DbFactory.CreateDbContextAsync();
         guildName = await db.DiscordGuilds
             .Where(g => g.Id == ParsedGuildId)
