@@ -37,11 +37,16 @@ builder.Services.AddSingleton(new RestClient(new BotToken(builder.Configuration[
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    // Default LoginPath is "/Account/Login", which doesn't exist here — without this, a
-    // not-logged-in visitor hitting an [Authorize]'d /manage route on a fresh page load
-    // (as opposed to an in-app Blazor navigation, which goes through AuthorizeRouteView's
-    // NotAuthorized template instead) gets a 404 instead of landing on the home page.
-    .AddCookie(options => options.LoginPath = "/")
+    // Default LoginPath/AccessDeniedPath are "/Account/Login" and "/Account/AccessDenied",
+    // neither of which exist here — without this, a not-logged-in or logged-in-but-wrong-
+    // role visitor hitting an [Authorize]'d /manage route on a fresh page load (as opposed
+    // to an in-app Blazor navigation, which goes through AuthorizeRouteView's NotAuthorized
+    // template instead) gets a 404 instead of landing on the home page.
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/";
+        options.AccessDeniedPath = "/";
+    })
     .AddDiscord(options =>
     {
         options.ClientId = builder.Configuration["Discord:ClientId"]!;
@@ -50,7 +55,8 @@ builder.Services
         options.SaveTokens = true;
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("GlobalAdmin", policy => policy.Requirements.Add(new GlobalAdminRequirement()));
 builder.Services.AddScoped<IAuthorizationHandler, GuildAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, GlobalAdminHandler>();
 builder.Services.AddScoped<GuildFeatureService>();

@@ -1,52 +1,30 @@
 @page "/manage/stfc/veil-groups"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Veil Groups</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to the STFC catalog.</p>
-}
-else
-{
-    <h1>Veil Groups</h1>
+<h1>Veil Groups</h1>
 
-    <p>
-        <a href="manage/stfc/veil-groups/create">Create New</a>
-    </p>
+<p>
+    <a href="manage/stfc/veil-groups/create">Create New</a>
+</p>
 
-    <QuickGrid Class="table" Items="context.StfcVeilGroups.Include(v => v.Region).OrderBy(v => v.Name)">
-        <PropertyColumn Property="veilGroup => veilGroup.Id" Sortable="true" />
-        <PropertyColumn Property="veilGroup => veilGroup.Name" Sortable="true" />
-        <PropertyColumn Property="veilGroup => veilGroup.Region.Name" Title="Region" Sortable="true" />
+<QuickGrid Class="table" Items="context.StfcVeilGroups.Include(v => v.Region).OrderBy(v => v.Name)">
+    <PropertyColumn Property="veilGroup => veilGroup.Id" Sortable="true" />
+    <PropertyColumn Property="veilGroup => veilGroup.Name" Sortable="true" />
+    <PropertyColumn Property="veilGroup => veilGroup.Region.Name" Title="Region" Sortable="true" />
 
-        <TemplateColumn Context="veilGroup">
-            <a href="@($"manage/stfc/veil-groups/edit?id={veilGroup.Id}")">Edit</a> |
-            <a href="@($"manage/stfc/veil-groups/delete?id={veilGroup.Id}")">Delete</a>
-        </TemplateColumn>
-    </QuickGrid>
-}
+    <TemplateColumn Context="veilGroup">
+        <a href="@($"manage/stfc/veil-groups/edit?id={veilGroup.Id}")">Edit</a> |
+        <a href="@($"manage/stfc/veil-groups/delete?id={veilGroup.Id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
 
 @code {
-    private bool? authorized;
     private HoshiBotDbContext context = default!;
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            context = DbFactory.CreateDbContext();
-    }
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
 
     public async ValueTask DisposeAsync()
     {

@@ -1,58 +1,36 @@
 @page "/manage/stfc/territories"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Territories</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to the STFC catalog.</p>
-}
-else
-{
-    <h1>Territories</h1>
+<h1>Territories</h1>
 
-    <p>
-        <a href="manage/stfc/territories/create">Create New</a>
-    </p>
+<p>
+    <a href="manage/stfc/territories/create">Create New</a>
+</p>
 
-    <QuickGrid Class="table" Items="context.StfcTerritories.OrderBy(t => t.Name)">
-        <PropertyColumn Property="territory => territory.Id" Sortable="true" />
-        <PropertyColumn Property="territory => territory.Name" Sortable="true" />
-        <PropertyColumn Property="territory => territory.Tier" Sortable="true" />
-        <TemplateColumn Title="Weekday" Context="territory">
-            @(territory.Weekday?.ToString() ?? "Unknown")
-        </TemplateColumn>
-        <TemplateColumn Title="Capture Time (UTC)" Context="territory">
-            @(territory.CaptureTimeUtc?.ToString("HH:mm") ?? "Unknown")
-        </TemplateColumn>
+<QuickGrid Class="table" Items="context.StfcTerritories.OrderBy(t => t.Name)">
+    <PropertyColumn Property="territory => territory.Id" Sortable="true" />
+    <PropertyColumn Property="territory => territory.Name" Sortable="true" />
+    <PropertyColumn Property="territory => territory.Tier" Sortable="true" />
+    <TemplateColumn Title="Weekday" Context="territory">
+        @(territory.Weekday?.ToString() ?? "Unknown")
+    </TemplateColumn>
+    <TemplateColumn Title="Capture Time (UTC)" Context="territory">
+        @(territory.CaptureTimeUtc?.ToString("HH:mm") ?? "Unknown")
+    </TemplateColumn>
 
-        <TemplateColumn Context="territory">
-            <a href="@($"manage/stfc/territories/edit?id={territory.Id}")">Edit</a> |
-            <a href="@($"manage/stfc/territories/delete?id={territory.Id}")">Delete</a>
-        </TemplateColumn>
-    </QuickGrid>
-}
+    <TemplateColumn Context="territory">
+        <a href="@($"manage/stfc/territories/edit?id={territory.Id}")">Edit</a> |
+        <a href="@($"manage/stfc/territories/delete?id={territory.Id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
 
 @code {
-    private bool? authorized;
     private HoshiBotDbContext context = default!;
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            context = DbFactory.CreateDbContext();
-    }
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
 
     public async ValueTask DisposeAsync()
     {

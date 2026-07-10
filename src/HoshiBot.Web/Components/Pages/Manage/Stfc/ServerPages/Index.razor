@@ -1,60 +1,38 @@
 @page "/manage/stfc/servers"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Servers</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to the STFC catalog.</p>
-}
-else
-{
-    <h1>Servers</h1>
+<h1>Servers</h1>
 
-    <p>
-        <a href="manage/stfc/servers/create">Create New</a>
-    </p>
+<p>
+    <a href="manage/stfc/servers/create">Create New</a>
+</p>
 
-    <QuickGrid Class="table" Items="context.StfcServers.Include(s => s.Region).Include(s => s.VeilGroup).OrderBy(s => s.Id)" Pagination="pagination">
-        @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
-           (that's TemplateColumn-only), so this sorts by the real Id column instead. *@
-        <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcServer>.ByAscending(s => s.Id))" Context="server">
-            @server.DisplayName
-        </TemplateColumn>
-        <TemplateColumn Title="Veil Group" Context="server">
-            @(server.VeilGroup?.Name ?? "Unassigned")
-        </TemplateColumn>
+<QuickGrid Class="table" Items="context.StfcServers.Include(s => s.Region).Include(s => s.VeilGroup).OrderBy(s => s.Id)" Pagination="pagination">
+    @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
+       (that's TemplateColumn-only), so this sorts by the real Id column instead. *@
+    <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcServer>.ByAscending(s => s.Id))" Context="server">
+        @server.DisplayName
+    </TemplateColumn>
+    <TemplateColumn Title="Veil Group" Context="server">
+        @(server.VeilGroup?.Name ?? "Unassigned")
+    </TemplateColumn>
 
-        <TemplateColumn Context="server">
-            <a href="@($"manage/stfc/servers/edit?id={server.Id}")">Edit</a> |
-            <a href="@($"manage/stfc/servers/delete?id={server.Id}")">Delete</a>
-        </TemplateColumn>
-    </QuickGrid>
+    <TemplateColumn Context="server">
+        <a href="@($"manage/stfc/servers/edit?id={server.Id}")">Edit</a> |
+        <a href="@($"manage/stfc/servers/delete?id={server.Id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
 
-    <Paginator State="pagination" />
-}
+<Paginator State="pagination" />
 
 @code {
-    private bool? authorized;
     private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            context = DbFactory.CreateDbContext();
-    }
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
 
     public async ValueTask DisposeAsync()
     {

@@ -1,59 +1,37 @@
 @page "/manage/stfc/alliances"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Alliances</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to the STFC catalog.</p>
-}
-else
-{
-    <h1>Alliances</h1>
+<h1>Alliances</h1>
 
-    <p>
-        <a href="manage/stfc/alliances/create">Create New</a>
-    </p>
+<p>
+    <a href="manage/stfc/alliances/create">Create New</a>
+</p>
 
-    <QuickGrid Class="table" Items="context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
-        <PropertyColumn Property="alliance => alliance.Tag" Sortable="true" />
-        <PropertyColumn Property="alliance => alliance.Name" Sortable="true" />
-        @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
-           (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
-        <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcAlliance>.ByAscending(a => a.ServerId))" Context="alliance">
-            @alliance.Server.DisplayName
-        </TemplateColumn>
+<QuickGrid Class="table" Items="context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
+    <PropertyColumn Property="alliance => alliance.Tag" Sortable="true" />
+    <PropertyColumn Property="alliance => alliance.Name" Sortable="true" />
+    @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
+       (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
+    <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcAlliance>.ByAscending(a => a.ServerId))" Context="alliance">
+        @alliance.Server.DisplayName
+    </TemplateColumn>
 
-        <TemplateColumn Context="alliance">
-            <a href="@($"manage/stfc/alliances/edit?id={alliance.Id}")">Edit</a> |
-            <a href="@($"manage/stfc/alliances/delete?id={alliance.Id}")">Delete</a>
-        </TemplateColumn>
-    </QuickGrid>
+    <TemplateColumn Context="alliance">
+        <a href="@($"manage/stfc/alliances/edit?id={alliance.Id}")">Edit</a> |
+        <a href="@($"manage/stfc/alliances/delete?id={alliance.Id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
 
-    <Paginator State="pagination" />
-}
+<Paginator State="pagination" />
 
 @code {
-    private bool? authorized;
     private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            context = DbFactory.CreateDbContext();
-    }
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
 
     public async ValueTask DisposeAsync()
     {

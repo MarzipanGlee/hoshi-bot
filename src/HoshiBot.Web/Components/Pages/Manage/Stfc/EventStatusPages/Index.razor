@@ -1,52 +1,30 @@
 @page "/manage/stfc/event-status"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Event Status</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to the STFC catalog.</p>
-}
-else
-{
-    <h1>Event Status</h1>
-    <p>
-        One-time seed snapshot, not a live sync (see StfcEventStatusSeedData) — read-only here.
-        Only "incursions" is currently acted on by IncursionNotifyJob; NotifiedEventStart is what it last announced.
-    </p>
+<h1>Event Status</h1>
+<p>
+    One-time seed snapshot, not a live sync (see StfcEventStatusSeedData) — read-only here.
+    Only "incursions" is currently acted on by IncursionNotifyJob; NotifiedEventStart is what it last announced.
+</p>
 
-    @* EventStart/EventEnd/UpdatedAt/NotifiedEventStart aren't sortable — they're
-       DateTimeOffset, which SQLite's EF provider can't translate in ORDER BY. *@
-    <QuickGrid Class="table" Items="context.StfcEventStatuses.OrderBy(e => e.EventGroup)">
-        <PropertyColumn Property="status => status.EventGroup" Sortable="true" />
-        <PropertyColumn Property="status => status.EventStart" />
-        <PropertyColumn Property="status => status.EventEnd" />
-        <PropertyColumn Property="status => status.Active" Sortable="true" />
-        <PropertyColumn Property="status => status.UpdatedAt" />
-        <PropertyColumn Property="status => status.NotifiedEventStart" Title="Notified Event Start" />
-    </QuickGrid>
-}
+@* EventStart/EventEnd/UpdatedAt/NotifiedEventStart aren't sortable — they're
+   DateTimeOffset, which SQLite's EF provider can't translate in ORDER BY. *@
+<QuickGrid Class="table" Items="context.StfcEventStatuses.OrderBy(e => e.EventGroup)">
+    <PropertyColumn Property="status => status.EventGroup" Sortable="true" />
+    <PropertyColumn Property="status => status.EventStart" />
+    <PropertyColumn Property="status => status.EventEnd" />
+    <PropertyColumn Property="status => status.Active" Sortable="true" />
+    <PropertyColumn Property="status => status.UpdatedAt" />
+    <PropertyColumn Property="status => status.NotifiedEventStart" Title="Notified Event Start" />
+</QuickGrid>
 
 @code {
-    private bool? authorized;
     private HoshiBotDbContext context = default!;
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            context = DbFactory.CreateDbContext();
-    }
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
 
     public async ValueTask DisposeAsync()
     {

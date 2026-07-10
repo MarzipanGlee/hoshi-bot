@@ -1,59 +1,37 @@
 @page "/manage/stfc/alliance-name-history"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Alliance Name History</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to the STFC catalog.</p>
-}
-else
-{
-    <h1>Alliance Name History</h1>
-    <p>Read-only audit trail — one row per (Tag, Name) an alliance has been observed under. Most recent first.</p>
+<h1>Alliance Name History</h1>
+<p>Read-only audit trail — one row per (Tag, Name) an alliance has been observed under. Most recent first.</p>
 
-    @* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
-       insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
-    <QuickGrid Class="table" Items="context.StfcAllianceNameHistories.Include(h => h.StfcAlliance).ThenInclude(a => a.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
-        @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
-           (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
-        <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcAllianceNameHistory>.ByAscending(h => h.StfcAlliance.ServerId))" Context="h">
-            @h.StfcAlliance.Server.DisplayName
-        </TemplateColumn>
-        <PropertyColumn Property="h => h.Tag" Sortable="true" />
-        <PropertyColumn Property="h => h.Name" Sortable="true" />
-        @* Not sortable — ObservedAt is a DateTimeOffset, which SQLite's EF provider can't
-           translate in ORDER BY (see the initial-sort comment above). *@
-        <PropertyColumn Property="h => h.ObservedAt" />
-        <TemplateColumn Title="Current Alliance" Context="h">
-            <a href="@($"manage/stfc/alliances/edit?id={h.StfcAllianceId}")">@h.StfcAlliance.Tag - @h.StfcAlliance.Name</a>
-        </TemplateColumn>
-    </QuickGrid>
+@* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
+   insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
+<QuickGrid Class="table" Items="context.StfcAllianceNameHistories.Include(h => h.StfcAlliance).ThenInclude(a => a.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
+    @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
+       (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
+    <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcAllianceNameHistory>.ByAscending(h => h.StfcAlliance.ServerId))" Context="h">
+        @h.StfcAlliance.Server.DisplayName
+    </TemplateColumn>
+    <PropertyColumn Property="h => h.Tag" Sortable="true" />
+    <PropertyColumn Property="h => h.Name" Sortable="true" />
+    @* Not sortable — ObservedAt is a DateTimeOffset, which SQLite's EF provider can't
+       translate in ORDER BY (see the initial-sort comment above). *@
+    <PropertyColumn Property="h => h.ObservedAt" />
+    <TemplateColumn Title="Current Alliance" Context="h">
+        <a href="@($"manage/stfc/alliances/edit?id={h.StfcAllianceId}")">@h.StfcAlliance.Tag - @h.StfcAlliance.Name</a>
+    </TemplateColumn>
+</QuickGrid>
 
-    <Paginator State="pagination" />
-}
+<Paginator State="pagination" />
 
 @code {
-    private bool? authorized;
     private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            context = DbFactory.CreateDbContext();
-    }
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
 
     public async ValueTask DisposeAsync()
     {

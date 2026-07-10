@@ -1,57 +1,35 @@
 @page "/manage/stfc/player-name-history"
 @implements IAsyncDisposable
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Player Name History</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to the STFC catalog.</p>
-}
-else
-{
-    <h1>Player Name History</h1>
-    <p>Read-only audit trail — one row per name a player has been observed under. Most recent first.</p>
+<h1>Player Name History</h1>
+<p>Read-only audit trail — one row per name a player has been observed under. Most recent first.</p>
 
-    @* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
-       insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
-    <QuickGrid Class="table" Items="context.StfcPlayerNameHistories.Include(h => h.StfcPlayer).ThenInclude(p => p.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
-        @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
-           (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
-        <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcPlayerNameHistory>.ByAscending(h => h.StfcPlayer.ServerId))" Context="h">
-            @h.StfcPlayer.Server.DisplayName
-        </TemplateColumn>
-        <PropertyColumn Property="h => h.Name" Sortable="true" />
-        @* Not sortable — ObservedAt is a DateTimeOffset (see the initial-sort comment above). *@
-        <PropertyColumn Property="h => h.ObservedAt" />
-        <TemplateColumn Title="Current Player" Context="h">
-            <a href="@($"manage/stfc/players/edit?id={h.StfcPlayerId}")">@h.StfcPlayer.Name</a>
-        </TemplateColumn>
-    </QuickGrid>
+@* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
+   insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
+<QuickGrid Class="table" Items="context.StfcPlayerNameHistories.Include(h => h.StfcPlayer).ThenInclude(p => p.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
+    @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
+       (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
+    <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcPlayerNameHistory>.ByAscending(h => h.StfcPlayer.ServerId))" Context="h">
+        @h.StfcPlayer.Server.DisplayName
+    </TemplateColumn>
+    <PropertyColumn Property="h => h.Name" Sortable="true" />
+    @* Not sortable — ObservedAt is a DateTimeOffset (see the initial-sort comment above). *@
+    <PropertyColumn Property="h => h.ObservedAt" />
+    <TemplateColumn Title="Current Player" Context="h">
+        <a href="@($"manage/stfc/players/edit?id={h.StfcPlayerId}")">@h.StfcPlayer.Name</a>
+    </TemplateColumn>
+</QuickGrid>
 
-    <Paginator State="pagination" />
-}
+<Paginator State="pagination" />
 
 @code {
-    private bool? authorized;
     private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            context = DbFactory.CreateDbContext();
-    }
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
 
     public async ValueTask DisposeAsync()
     {
