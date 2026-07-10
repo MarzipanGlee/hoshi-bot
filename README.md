@@ -28,9 +28,9 @@ Copyright (C) 2026 MarzipanGlee. Licensed under the GNU Affero General Public Li
 — see [LICENSE](LICENSE) for the full text.
 
 Hoshi Bot is an unofficial, fan-made tool and is not affiliated with, endorsed, or sponsored
-by Scopely, CBS Studios Inc., or Paramount Pictures Corp. Game images, icons, and logos used
-by the bot and its web admin panel are the property of Scopely and used for identification
-purposes only.
+by Scopely Inc., CBS Studios Inc., or Paramount Pictures Corp. Game images, icons, and logos
+used by the bot and its web admin panel are the property of Scopely Inc. and used for
+identification purposes only.
 
 ## Local development
 
