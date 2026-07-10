@@ -27,4 +27,32 @@ public static class AudienceDisplay
         GuildAudience.Community => "oi-people",
         _ => "oi-tag",
     };
+
+    // Kebab-case route segment for a single audience flag — lets a multi-audience feature's
+    // settings route (manage/guilds/{id}/features/{slug}/{audience}) address one audience at
+    // a time instead of showing every audience stacked on one page.
+    public static string Slug(GuildAudience audience) => audience switch
+    {
+        GuildAudience.Alliance => "alliance",
+        GuildAudience.Server => "server",
+        GuildAudience.VeilGroup => "veil-group",
+        GuildAudience.Community => "community",
+        _ => "",
+    };
+
+    // Ordinal-ignore-case since this parses a route segment a user may have typed/bookmarked.
+    public static bool TryParseSlug(string? slug, out GuildAudience audience)
+    {
+        foreach (var candidate in Enum.GetValues<GuildAudience>())
+        {
+            if (candidate != GuildAudience.None && string.Equals(Slug(candidate), slug, StringComparison.OrdinalIgnoreCase))
+            {
+                audience = candidate;
+                return true;
+            }
+        }
+
+        audience = GuildAudience.None;
+        return false;
+    }
 }

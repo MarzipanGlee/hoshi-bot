@@ -8,32 +8,28 @@
     one-time seed, not a live sync — see StfcEventStatus for why.
 </p>
 
-@foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
-{
-    <div class="form-check form-switch mb-3">
-        <input type="checkbox" class="form-check-input" role="switch" checked="@enabled.GetValueOrDefault(audience)"
-               @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
-        <label class="form-check-label">Enabled for @AudienceDisplay.Labels(audience).First()</label>
-    </div>
-}
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Incursion" RelevantAudiences="RelevantAudiences" />
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Incursion" Audience="Audience" />
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
 
-    private static readonly GuildAudience RelevantAudiences = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Incursion);
-    private readonly Dictionary<GuildAudience, bool> enabled = new();
+    private bool enabled;
 
     protected override async Task OnInitializedAsync()
     {
-        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
-            enabled[audience] = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Incursion, audience);
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Incursion, Audience);
     }
 
-    private async Task ToggleAsync(GuildAudience audience, bool value)
+    private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Incursion, audience, value);
-        enabled[audience] = value;
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Incursion, Audience, value);
+        enabled = value;
     }
 }

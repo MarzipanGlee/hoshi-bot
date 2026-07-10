@@ -2,6 +2,7 @@
 @inject NavigationManager NavigationManager
 @inject CurrentGuildContext GuildContext
 @inject GuildFeatureService FeatureService
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -20,7 +21,7 @@
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item-top">
-                    <NavLink class="nav-link" href="manage/guilds">Your Guilds</NavLink>
+                    <NavLink class="nav-link" href="manage/guilds" Match="NavLinkMatch.All">Your Guilds</NavLink>
                 </div>
 
                 <NavMenuGroup Title="Alliance" Icon="oi-flag" Active="@(IsGroupActive(AllianceHrefs) || IsFeaturesGroupActive() || IsGuildScopedRouteActive("global-settings") || IsGuildScopedRouteActive("setup"))">
@@ -37,6 +38,9 @@
                         </div>
                         @foreach (var audience in FeatureAudienceSections)
                         {
+                            if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
+                                continue;
+
                             var features = FeatureCatalog.All
                                 .Where(f => f.RelevantAudiences().HasFlag(audience) && enabledFeatures.Contains((f.Feature, audience)))
                                 .ToList();
@@ -47,7 +51,7 @@
                                 @foreach (var feature in features)
                                 {
                                     <div class="nav-item px-3">
-                                        <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/features/{feature.Slug}")">
+                                        <NavLink class="nav-link" href="@FeatureHref(guildId, feature, audience)">
                                             @feature.Title
                                         </NavLink>
                                     </div>
@@ -119,6 +123,7 @@
     private bool collapseNavMenu = true;
     private string? currentUrl;
     private HashSet<(GuildFeature Feature, GuildAudience Audience)> enabledFeatures = [];
+    private GuildAudience guildAudiences = GuildAudience.None;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
@@ -133,8 +138,15 @@
     private async Task LoadEnabledFeaturesAsync()
     {
         enabledFeatures = [];
+        guildAudiences = GuildAudience.None;
         if (GuildContext.GuildId is not { } guildId)
             return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        guildAudiences = await db.GuildSettings
+            .Where(s => s.GuildId == guildId)
+            .Select(s => s.Audiences)
+            .FirstOrDefaultAsync();
 
         foreach (var feature in FeatureCatalog.All)
         {
@@ -174,6 +186,15 @@
         (currentUrl?.StartsWith(href + "/", StringComparison.OrdinalIgnoreCase) ?? false);
 
     private bool IsGroupActive(string[] hrefs) => Array.Exists(hrefs, IsActive);
+
+    // Multi-audience features get a distinct href per audience so only the sidebar entry
+    // matching the currently-open audience highlights as active — single-audience features
+    // never had this problem (only one relevant audience, only one link) and keep their
+    // existing 2-segment url unchanged.
+    private static string FeatureHref(ulong guildId, IFeatureModule feature, GuildAudience audience) =>
+        feature.HasMultipleAudiences()
+            ? $"manage/guilds/{guildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}"
+            : $"manage/guilds/{guildId}/features/{feature.Slug}";
 
     // Feature routes are guild-scoped (manage/guilds/{id}/features/{slug}) with a dynamic
     // id segment, so the static-hrefs-array approach IsGroupActive uses doesn't fit — a

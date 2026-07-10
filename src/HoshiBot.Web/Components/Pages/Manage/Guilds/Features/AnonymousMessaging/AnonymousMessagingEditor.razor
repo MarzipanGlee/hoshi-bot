@@ -4,55 +4,38 @@
 @inject GuildFeatureSettingsService SettingsService
 @inject GuildFeatureService FeatureService
 
-@foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
-{
-    var state = blocks[audience];
-    <h3 class="mt-4">@AudienceDisplay.Labels(audience).First()</h3>
-    <div class="form-check form-switch mb-3">
-        <input type="checkbox" class="form-check-input" role="switch" checked="@state.Enabled"
-               @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
-        <label class="form-check-label">Enabled</label>
-    </div>
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
 
-    <ChannelPicker Label="Anonymous Messages" Usage="Where anonymous messages submitted via the hub button are posted."
-        @bind-Value="state.ChannelInput" @bind-Value:after="() => SaveChannelAsync(audience)" Channels="channels" />
-}
+<ChannelPicker Label="Anonymous Messages" Usage="Where anonymous messages submitted via the hub button are posted."
+    @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
-
-    private static readonly GuildAudience RelevantAudiences = GuildFeatureAudiences.RelevantAudiences(GuildFeature.AnonymousMessaging);
-
-    private sealed class AudienceBlock
-    {
-        public bool Enabled { get; set; }
-        public string? ChannelInput { get; set; }
-    }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
 
     private List<IGuildChannel> channels = [];
-    private readonly Dictionary<GuildAudience, AudienceBlock> blocks = [];
+    private bool enabled;
+    private string? channelInput;
 
     protected override async Task OnInitializedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
-        {
-            blocks[audience] = new AudienceBlock
-            {
-                Enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, audience),
-                ChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, audience, AnonymousMessagingSettingKeys.Channel))?.ToString(),
-            };
-        }
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, Audience);
+        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, AnonymousMessagingSettingKeys.Channel))?.ToString();
     }
 
-    private async Task ToggleAsync(GuildAudience audience, bool enabled)
+    private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, audience, enabled);
-        blocks[audience].Enabled = enabled;
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, value);
+        enabled = value;
     }
 
-    private Task SaveChannelAsync(GuildAudience audience) =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, audience, AnonymousMessagingSettingKeys.Channel, ParseId(blocks[audience].ChannelInput));
+    private Task SaveChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, AnonymousMessagingSettingKeys.Channel, ParseId(channelInput));
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
 }

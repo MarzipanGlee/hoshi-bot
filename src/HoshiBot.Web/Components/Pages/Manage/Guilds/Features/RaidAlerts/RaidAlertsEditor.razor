@@ -14,7 +14,7 @@
 <ChannelPicker Label="Raid Reports" Usage="Where /raid reports are posted."
     @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" RelevantAudiences="GuildAudience.Alliance" />
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="audience" />
 
 @code {
     protected override GuildFeature Feature => GuildFeature.RaidAlerts;

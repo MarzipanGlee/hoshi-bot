@@ -52,6 +52,9 @@
 
         @foreach (var audience in AudienceSections)
         {
+            if (GuildContext.Guild is not null && guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
+                continue;
+
             var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
             if (hideInactive && GuildContext.Guild is not null)
                 features = features.Where(f => enabledFeatures.Contains((f.Feature, audience))).ToList();
@@ -80,7 +83,7 @@
                             </div>
                             @if (GuildContext.GuildId is { } guildId)
                             {
-                                <a class="btn btn-sm btn-outline-secondary" href="manage/guilds/@guildId/features/@feature.Slug">Configure</a>
+                                <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(guildId, feature, audience)">Configure</a>
                             }
                             else
                             {
@@ -124,11 +127,20 @@
 
     private const string HideInactiveStorageKey = "hoshibot.hideInactiveFeatures";
 
+    // Multi-audience features get a distinct href per audience so only the sidebar entry
+    // matching the currently-open audience highlights as active (see NavMenu.razor's
+    // identically-named helper) — single-audience features keep their existing url.
+    private static string FeatureHref(ulong guildId, IFeatureModule feature, GuildAudience audience) =>
+        feature.HasMultipleAudiences()
+            ? $"manage/guilds/{guildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}"
+            : $"manage/guilds/{guildId}/features/{feature.Slug}";
+
     private List<DiscordGuild>? accessibleGuilds;
     private List<DiscordGuild> needsSetupGuilds = [];
     private bool isGlobalAdmin;
     private HashSet<(GuildFeature Feature, GuildAudience Audience)> enabledFeatures = [];
     private HashSet<(GuildFeature Feature, GuildAudience Audience)> configuredFeatures = [];
+    private GuildAudience guildAudiences = GuildAudience.None;
     private bool hideInactive;
 
     protected override async Task OnInitializedAsync()
@@ -164,8 +176,15 @@
     {
         enabledFeatures = [];
         configuredFeatures = [];
+        guildAudiences = GuildAudience.None;
         if (GuildContext.GuildId is not { } guildId)
             return;
+
+        await using var settingsDb = await DbFactory.CreateDbContextAsync();
+        guildAudiences = await settingsDb.GuildSettings
+            .Where(s => s.GuildId == guildId)
+            .Select(s => s.Audiences)
+            .FirstOrDefaultAsync();
 
         var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
 

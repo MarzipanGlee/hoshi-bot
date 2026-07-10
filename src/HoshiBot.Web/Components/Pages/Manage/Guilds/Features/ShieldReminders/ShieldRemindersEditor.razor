@@ -14,7 +14,7 @@
 <ChannelPicker Label="Shield Reminder" Usage="Where /shield-reminder posts expiration warnings and the public expired-shield alert."
     @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" RelevantAudiences="GuildAudience.Alliance" />
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="audience" />
 
 @code {
     protected override GuildFeature Feature => GuildFeature.ShieldReminders;

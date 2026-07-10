@@ -7,17 +7,13 @@
 <h3>Alert Channels</h3>
 <p class="form-text">
     Each channel+role pair below gets a copy of every alert for this feature — add one per
-    channel/audience you want notified (e.g. one for officers, one for the general server).
+    channel you want notified (e.g. one for officers, one for the general server).
 </p>
 <table class="table">
     <thead>
         <tr>
             <th>Channel</th>
             <th>Role</th>
-            @if (ShowAudiencePicker)
-            {
-                <th>Audience</th>
-            }
             <th></th>
         </tr>
     </thead>
@@ -27,10 +23,6 @@
             <tr>
                 <td>@ChannelName(alertChannel.ChannelId)</td>
                 <td>@RoleName(alertChannel.RoleId)</td>
-                @if (ShowAudiencePicker)
-                {
-                    <td>@AudienceDisplay.Labels(alertChannel.Audience).FirstOrDefault("—")</td>
-                }
                 <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">Delete</button></td>
             </tr>
         }
@@ -51,36 +43,22 @@
             <option value="@role.Id">@role.Name</option>
         }
     </select>
-    @if (ShowAudiencePicker)
-    {
-        <select class="form-select d-inline-block w-auto" @bind="newAudienceInput">
-            @foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
-            {
-                <option value="@audience">@AudienceDisplay.Labels(audience).First()</option>
-            }
-        </select>
-    }
     <button type="submit" class="btn btn-primary">Add</button>
 </EditForm>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildAlertChannelKind Kind { get; set; }
-    [Parameter] public GuildAudience RelevantAudiences { get; set; } = GuildAudience.Alliance;
-
-    private bool ShowAudiencePicker => GuildFeatureAudiences.EnumerateFlags(RelevantAudiences).Take(2).Count() > 1;
-    private GuildAudience SingleAudience => GuildFeatureAudiences.EnumerateFlags(RelevantAudiences).First();
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
 
     private List<GuildAlertChannel> alertChannels = [];
     private List<IGuildChannel> channels = [];
     private List<Role> roles = [];
     private string? newChannelIdInput;
     private string? newRoleIdInput;
-    private GuildAudience newAudienceInput;
 
     protected override async Task OnInitializedAsync()
     {
-        newAudienceInput = GuildFeatureAudiences.EnumerateFlags(RelevantAudiences).FirstOrDefault();
         await LoadAsync();
     }
 
@@ -88,7 +66,7 @@
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         alertChannels = await db.GuildAlertChannels
-            .Where(c => c.GuildId == GuildId && c.Kind == Kind)
+            .Where(c => c.GuildId == GuildId && c.Kind == Kind && c.Audience == Audience)
             .AsNoTracking()
             .ToListAsync();
 
@@ -108,7 +86,7 @@
             Kind = Kind,
             ChannelId = channelId,
             RoleId = roleId,
-            Audience = ShowAudiencePicker ? newAudienceInput : SingleAudience,
+            Audience = Audience,
         });
         await db.SaveChangesAsync();
 

@@ -4,71 +4,54 @@
 @inject GuildFeatureSettingsService SettingsService
 @inject GuildFeatureService FeatureService
 
-@foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
-{
-    var state = blocks[audience];
-    <h3 class="mt-4">@AudienceDisplay.Labels(audience).First()</h3>
-    <div class="form-check form-switch mb-3">
-        <input type="checkbox" class="form-check-input" role="switch" checked="@state.Enabled"
-               @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
-        <label class="form-check-label">Enabled</label>
-    </div>
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
 
-    <ChannelPicker Label="Announcements" Usage="Where published announcements are posted."
-        @bind-Value="state.ChannelInput" @bind-Value:after="() => SaveChannelAsync(audience)" Channels="channels" />
+<ChannelPicker Label="Announcements" Usage="Where published announcements are posted."
+    @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <ChannelPicker Label="Announcements Reminders" Usage="A second channel that gets reminder pings for unread announcements."
-        @bind-Value="state.RemindersChannelInput" @bind-Value:after="() => SaveRemindersChannelAsync(audience)" Channels="channels" />
+<ChannelPicker Label="Announcements Reminders" Usage="A second channel that gets reminder pings for unread announcements."
+    @bind-Value="remindersChannelInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
 
-    <ChannelPicker Label="Announcements Draft" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
-        @bind-Value="state.DraftChannelInput" @bind-Value:after="() => SaveDraftChannelAsync(audience)" Channels="channels" />
-}
+<ChannelPicker Label="Announcements Draft" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
+    @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
-
-    private static readonly GuildAudience RelevantAudiences = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Announcements);
-
-    private sealed class AudienceBlock
-    {
-        public bool Enabled { get; set; }
-        public string? ChannelInput { get; set; }
-        public string? RemindersChannelInput { get; set; }
-        public string? DraftChannelInput { get; set; }
-    }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
 
     private List<IGuildChannel> channels = [];
-    private readonly Dictionary<GuildAudience, AudienceBlock> blocks = [];
+    private bool enabled;
+    private string? channelInput;
+    private string? remindersChannelInput;
+    private string? draftChannelInput;
 
     protected override async Task OnInitializedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
-        {
-            blocks[audience] = new AudienceBlock
-            {
-                Enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Announcements, audience),
-                ChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.Channel))?.ToString(),
-                RemindersChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.RemindersChannel))?.ToString(),
-                DraftChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.DraftChannel))?.ToString(),
-            };
-        }
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Announcements, Audience);
+        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.Channel))?.ToString();
+        remindersChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.RemindersChannel))?.ToString();
+        draftChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.DraftChannel))?.ToString();
     }
 
-    private async Task ToggleAsync(GuildAudience audience, bool enabled)
+    private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Announcements, audience, enabled);
-        blocks[audience].Enabled = enabled;
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Announcements, Audience, value);
+        enabled = value;
     }
 
-    private Task SaveChannelAsync(GuildAudience audience) =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.Channel, ParseId(blocks[audience].ChannelInput));
+    private Task SaveChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.Channel, ParseId(channelInput));
 
-    private Task SaveRemindersChannelAsync(GuildAudience audience) =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.RemindersChannel, ParseId(blocks[audience].RemindersChannelInput));
+    private Task SaveRemindersChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.RemindersChannel, ParseId(remindersChannelInput));
 
-    private Task SaveDraftChannelAsync(GuildAudience audience) =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.DraftChannel, ParseId(blocks[audience].DraftChannelInput));
+    private Task SaveDraftChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.DraftChannel, ParseId(draftChannelInput));
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
 }

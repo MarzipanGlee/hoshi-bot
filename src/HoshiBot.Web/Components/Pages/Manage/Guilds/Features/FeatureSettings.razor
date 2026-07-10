@@ -1,4 +1,4 @@
-@page "/manage/guilds/{GuildId}/features/{FeatureSlug}"
+@page "/manage/guilds/{GuildId}/features/{FeatureSlug}/{AudienceSlug?}"
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
@@ -17,17 +17,22 @@ else if (descriptor is null)
 {
     <p>Unknown feature "@FeatureSlug".</p>
 }
+else if (editorParameters is null)
+{
+    <p>Redirecting...</p>
+}
 else
 {
     <h1>@descriptor.Title</h1>
     <p>@descriptor.Description</p>
 
-    <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" />
+    <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" @key="@AudienceSlug" />
 }
 
 @code {
     [Parameter] public string GuildId { get; set; } = "";
     [Parameter] public string FeatureSlug { get; set; } = "";
+    [Parameter] public string? AudienceSlug { get; set; }
 
     private ulong ParsedGuildId => ulong.Parse(GuildId);
 
@@ -37,6 +42,8 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        editorParameters = null;
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
         authorized = result.Succeeded;
@@ -48,6 +55,25 @@ else
             return;
         }
 
+        if (authorized != true)
+            return;
+
+        GuildAudience? resolvedAudience = null;
+        if (descriptor.HasMultipleAudiences())
+        {
+            var relevant = descriptor.RelevantAudiences();
+            if (!AudienceDisplay.TryParseSlug(AudienceSlug, out var parsed) || !relevant.HasFlag(parsed))
+            {
+                var first = GuildFeatureAudiences.EnumerateFlags(relevant).First();
+                Nav.NavigateTo($"manage/guilds/{GuildId}/features/{FeatureSlug}/{AudienceDisplay.Slug(first)}", replace: true);
+                return;
+            }
+
+            resolvedAudience = parsed;
+        }
+
         editorParameters = new Dictionary<string, object> { ["GuildId"] = ParsedGuildId };
+        if (resolvedAudience is { } audience)
+            editorParameters["Audience"] = audience;
     }
 }
