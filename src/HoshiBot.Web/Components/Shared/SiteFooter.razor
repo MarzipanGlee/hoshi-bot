@@ -1,13 +1,16 @@
 <footer class="site-footer">
-    <p class="site-footer-disclaimer">
-        Hoshi Bot is an unofficial, fan-made tool and is not affiliated with, endorsed, or
-        sponsored by Scopely Inc., CBS Studios Inc., or Paramount Pictures Corp. Game images,
-        icons, and logos displayed on this site — including Hoshi Bot's own avatar — are the
-        property of Scopely Inc. and used for identification purposes only. &copy; 2026 Scopely Inc. TM &amp;
-        &copy; CBS Studios Inc. &copy; 2026 Paramount Pictures Corp. STAR TREK and related marks
-        and logos are trademarks of CBS Studios Inc. All rights reserved.
-    </p>
-    <hr class="site-footer-divider" />
+    @if (ShowDisclaimer)
+    {
+        <p class="site-footer-disclaimer">
+            Hoshi Bot is an unofficial, fan-made tool and is not affiliated with, endorsed, or
+            sponsored by Scopely Inc., CBS Studios Inc., or Paramount Pictures Corp. Game images,
+            icons, and logos displayed on this site — including Hoshi Bot's own avatar — are the
+            property of Scopely Inc. and used for identification purposes only. &copy; 2026 Scopely Inc. TM &amp;
+            &copy; CBS Studios Inc. &copy; 2026 Paramount Pictures Corp. STAR TREK and related marks
+            and logos are trademarks of CBS Studios Inc. All rights reserved.
+        </p>
+        <hr class="site-footer-divider" />
+    }
     <div class="site-footer-meta">
         <span>&copy; 2026 MarzipanGlee</span>
         <span class="site-footer-sep">&bull;</span>
@@ -25,6 +28,9 @@
 </footer>
 
 @code {
+    [Parameter]
+    public bool ShowDisclaimer { get; set; } = true;
+
     private static readonly string Version =
         typeof(SiteFooter).Assembly.GetName().Version?.ToString(3) ?? "dev";
 }
