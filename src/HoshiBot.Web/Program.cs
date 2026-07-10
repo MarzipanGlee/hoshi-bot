@@ -37,7 +37,11 @@ builder.Services.AddSingleton(new RestClient(new BotToken(builder.Configuration[
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie()
+    // Default LoginPath is "/Account/Login", which doesn't exist here — without this, a
+    // not-logged-in visitor hitting an [Authorize]'d /manage route on a fresh page load
+    // (as opposed to an in-app Blazor navigation, which goes through AuthorizeRouteView's
+    // NotAuthorized template instead) gets a 404 instead of landing on the home page.
+    .AddCookie(options => options.LoginPath = "/")
     .AddDiscord(options =>
     {
         options.ClientId = builder.Configuration["Discord:ClientId"]!;

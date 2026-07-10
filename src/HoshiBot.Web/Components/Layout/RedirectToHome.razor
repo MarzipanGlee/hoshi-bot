@@ -1,0 +1,9 @@
+@inject NavigationManager Nav
+
+@code {
+    // AuthorizeRouteView's NotAuthorized fallback for /manage routes — with a bare
+    // [Authorize] (no policy), this only fires for a not-logged-in visitor, never for an
+    // authenticated-but-wrong-role one (those are handled by each page's own
+    // GuildAdminRequirement/GlobalAdminRequirement check further down).
+    protected override void OnInitialized() => Nav.NavigateTo("/");
+}
