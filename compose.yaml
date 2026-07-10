@@ -2,7 +2,7 @@ services:
   bot:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.host
     environment:
       - DOTNET_ENVIRONMENT=Production
       - ConnectionStrings__HoshiBotDbContext=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
@@ -16,7 +16,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile.web
+      dockerfile: docker/Dockerfile.web
     environment:
       - DOTNET_ENVIRONMENT=Production
       - ConnectionStrings__HoshiBotDbContext=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
@@ -37,7 +37,7 @@ services:
   migrator:
     build:
       context: .
-      dockerfile: Dockerfile.migrator
+      dockerfile: docker/Dockerfile.migrator
     environment:
       - HOSHIBOT_CONNECTIONSTRING=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
     depends_on:
