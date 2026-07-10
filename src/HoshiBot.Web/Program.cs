@@ -77,6 +77,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// MapRazorComponents only registers endpoints for discovered @page routes — there's no
+// catch-all, so a URL matching none of them 404s at the routing layer itself, before the
+// Blazor Router ever runs (meaning Routes.razor's own <NotFound> template never fires for
+// a fresh browser navigation, only for in-app client-side navigation to a bad route within
+// an already-connected circuit). This re-executes the pipeline against a real page instead,
+// keeping the 404 status but rendering actual content.
+app.UseStatusCodePagesWithReExecute("/not-found");
+
 // Behind nginx, which terminates TLS and proxies over plain HTTP — without this, the app
 // thinks every request is HTTP, breaking HTTPS redirection and building OAuth redirect_uri
 // values as http:// instead of https://. KnownNetworks/KnownProxies are cleared because the
