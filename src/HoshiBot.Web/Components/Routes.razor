@@ -10,11 +10,7 @@
     <NotFound>
         <PageTitle>Not found</PageTitle>
         <LayoutView Layout="@typeof(Layout.LandingLayout)">
-            <div class="not-found-wrapper">
-                <div class="alert alert-warning" role="alert">
-                    Sorry, there's nothing at this address.
-                </div>
-            </div>
+            <NotFoundContent />
         </LayoutView>
     </NotFound>
 </Router>

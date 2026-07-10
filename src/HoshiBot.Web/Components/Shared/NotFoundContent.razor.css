@@ -1,0 +1,34 @@
+/* Visually dims the whole page like Blazor's own reconnect modal, but stays click-through
+   (pointer-events: none) so nav/footer links underneath keep working — this is a purely
+   cosmetic dim, not a blocking modal. */
+.not-found-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.not-found-wrapper {
+    position: relative;
+    z-index: 1001;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.not-found-card {
+    background: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.2);
+    padding: 2rem 2.5rem;
+    max-width: 480px;
+    text-align: center;
+    color: #212529;
+}
+
+.not-found-card p {
+    margin-bottom: 1rem;
+}
