@@ -1,0 +1,12 @@
+.not-found-wrapper {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.not-found-wrapper .alert {
+    max-width: 480px;
+    text-align: center;
+}
