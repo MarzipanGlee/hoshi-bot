@@ -1,0 +1,52 @@
+@using NetCord
+@using NetCord.Rest
+
+<div class="mb-2">
+    <label>@Label</label>
+    <select class="form-select" value="@Value" @onchange="OnChangeAsync">
+        <option value="">@PlaceholderText</option>
+        @if (IsUnknown)
+        {
+            <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
+        }
+        @foreach (var channel in Channels)
+        {
+            <option value="@channel.Id">@ChannelLabel(channel)</option>
+        }
+    </select>
+    @if (!string.IsNullOrWhiteSpace(Usage))
+    {
+        <div class="form-text">@Usage</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    // Rendered as a small explanatory line under the picker — this is where "good
+    // description per setting, usage must be explained" actually lands.
+    [Parameter] public string? Usage { get; set; }
+
+    [Parameter] public string PlaceholderText { get; set; } = "— none —";
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+
+    [Parameter, EditorRequired] public IReadOnlyList<IGuildChannel> Channels { get; set; } = [];
+
+    private bool IsUnknown =>
+        !string.IsNullOrEmpty(Value) && ulong.TryParse(Value, out var id) && !Channels.Any(c => c.Id == id);
+
+    private async Task OnChangeAsync(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString();
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private static string ChannelLabel(IGuildChannel channel) => channel switch
+    {
+        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        _ => $"# {channel.Name}",
+    };
+}

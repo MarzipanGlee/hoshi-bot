@@ -1,0 +1,38 @@
+@using HoshiBot.Web.Components.Pages.Manage.Guilds
+@inject GuildFeatureService FeatureService
+
+<p class="form-text">
+    Announces when a tracked STFC server (see this guild's Scope) goes up/down or in/out of
+    maintenance. Currently fed by a one-time seed, not a live sync — see
+    StfcServerStatus for why.
+</p>
+
+@foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
+{
+    <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" role="switch" checked="@enabled.GetValueOrDefault(audience)"
+               @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
+        <label class="form-check-label">Enabled for @AudienceDisplay.Labels(audience).First()</label>
+    </div>
+}
+
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.ServerStatus" RelevantAudiences="RelevantAudiences" />
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    private static readonly GuildAudience RelevantAudiences = GuildFeatureAudiences.RelevantAudiences(GuildFeature.ServerStatus);
+    private readonly Dictionary<GuildAudience, bool> enabled = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
+            enabled[audience] = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.ServerStatus, audience);
+    }
+
+    private async Task ToggleAsync(GuildAudience audience, bool value)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.ServerStatus, audience, value);
+        enabled[audience] = value;
+    }
+}

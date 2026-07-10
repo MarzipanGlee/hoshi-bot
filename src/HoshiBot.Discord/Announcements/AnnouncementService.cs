@@ -10,7 +10,7 @@ namespace HoshiBot.Discord.Announcements;
 // Core Announcements logic — creation via a message-command preview (see
 // AnnouncementMessageCommandModule) since staff need plain-message drafting for
 // attachments/length/template-reuse, not a modal (see the Phase 7 plan section for why).
-public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding)
+public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService)
 {
     public static ButtonProperties ReadButton(int announcementId, int count) =>
         new($"announcement-read:{announcementId}", $"Lesebestätigung ({count})", EmojiProperties.Standard("✅"), ButtonStyle.Secondary);
@@ -25,10 +25,12 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         return (content[..newlineIndex].Trim(), content[(newlineIndex + 1)..].Trim());
     }
 
-    public async Task<string> PublishAsync(ulong guildId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId)
+    public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId)
     {
         var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.AnnouncementsChannelId is not { } channelId)
+
+        var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.Channel);
+        if (channelId is not { } channelIdValue)
             return "Set the Announcements channel first (via the guild settings page).";
 
         var (title, body) = ParseDraft(draft.Content);
@@ -40,14 +42,14 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
                 .Where(r => r.GuildId == guildId && r.Kind == NotificationRoleKind.General)
                 .Select(r => (ulong?)r.DiscordRoleId)
                 .FirstOrDefaultAsync(),
-            AnnouncementSeverity.High => settings.WarningsRoleId,
+            AnnouncementSeverity.High => settings?.WarningsRoleId,
             _ => null,
         };
 
         // Direct (🟦 in legacy) skips the "im Auftrag von {role}" attribution entirely —
         // a direct bot announcement, not staff acting through the bot — so it's resolved
         // but simply not rendered as a field below.
-        var attribution = await ResolveAttributionAsync(guildId, settings.CommandStaffRoleId);
+        var attribution = await ResolveAttributionAsync(guildId, settings?.CommandStaffRoleId);
 
         var fields = new List<EmbedFieldProperties>
         {
@@ -92,7 +94,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         var content = mentionRoleId is { } roleId ? $"<@&{roleId}>" : null;
         var readButton = ReadButton(0, 0); // placeholder id, replaced after the row is created
 
-        var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
+        var message = await gatewayClient.Rest.SendMessageAsync(channelIdValue, new MessageProperties
         {
             Content = content,
             Embeds = [embed],
@@ -102,11 +104,12 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         var announcement = new Announcement
         {
             GuildId = guildId,
-            ChannelId = channelId,
+            ChannelId = channelIdValue,
             MessageId = message.Id,
             Title = title,
             Body = body,
             Severity = severity,
+            Audience = audience,
             MentionRoleId = mentionRoleId,
             Attribution = attribution,
             AttachmentUrls = attachmentUrls,
@@ -117,10 +120,10 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         await db.SaveChangesAsync();
 
         // The button's custom-id needs the real announcement Id — edit it in now that we have one.
-        await gatewayClient.Rest.ModifyMessageAsync(channelId, message.Id,
+        await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
             m => m.Components = [new ActionRowProperties([ReadButton(announcement.Id, 0)])]);
 
-        return $"Announcement published to <#{channelId}>.";
+        return $"Announcement published to <#{channelIdValue}>.";
     }
 
     public async Task<(bool WasNew, int Count)> MarkReadAsync(int announcementId, ulong guildId, ulong userId)

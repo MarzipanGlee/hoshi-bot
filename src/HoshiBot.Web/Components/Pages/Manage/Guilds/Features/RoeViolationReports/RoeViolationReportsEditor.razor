@@ -1,0 +1,32 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<ChannelPicker Label="RoE Violations" Usage="Where /report-roe-violation reports are posted."
+    @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.RoeViolationReports;
+
+    private GuildAudience audience;
+    private List<IGuildChannel> channels = [];
+    private string? channelIdInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        audience = GuildFeatureAudiences.SingleAudience(Feature);
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, RoeViolationReportsSettingKeys.Channel))?.ToString();
+    }
+
+    private Task SaveChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, RoeViolationReportsSettingKeys.Channel, ParseId(channelIdInput));
+}

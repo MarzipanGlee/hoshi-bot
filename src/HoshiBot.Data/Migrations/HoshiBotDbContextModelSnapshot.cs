@@ -172,6 +172,9 @@ namespace HoshiBot.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("Audience")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Body")
                         .IsRequired()
                         .HasColumnType("text");
@@ -346,6 +349,9 @@ namespace HoshiBot.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Audience")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("ChannelId")
                         .HasColumnType("numeric(20,0)");
 
@@ -398,13 +404,16 @@ namespace HoshiBot.Data.Migrations
                     b.ToTable("GuildAlliances");
                 });
 
-            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildDisabledFeature", b =>
+            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildEnabledFeature", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Audience")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Feature")
                         .HasColumnType("integer");
@@ -414,10 +423,77 @@ namespace HoshiBot.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GuildId", "Feature")
+                    b.HasIndex("GuildId", "Feature", "Audience")
                         .IsUnique();
 
-                    b.ToTable("GuildDisabledFeatures");
+                    b.ToTable("GuildEnabledFeatures");
+                });
+
+            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildFeatureSettingSnowflake", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Audience")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Feature")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId", "Feature", "Audience", "Key");
+
+                    b.HasIndex("GuildId", "Feature", "Audience", "Key", "Value")
+                        .IsUnique();
+
+                    b.ToTable("GuildFeatureSettingSnowflakes");
+                });
+
+            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildFeatureSettingText", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Audience")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Feature")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId", "Feature", "Audience", "Key")
+                        .IsUnique();
+
+                    b.ToTable("GuildFeatureSettingTexts");
                 });
 
             modelBuilder.Entity("HoshiBot.Domain.Entities.GuildMember", b =>
@@ -467,13 +543,7 @@ namespace HoshiBot.Data.Migrations
                     b.Property<decimal>("GuildId")
                         .HasColumnType("numeric(20,0)");
 
-                    b.Property<decimal?>("AbsencesReportChannelId")
-                        .HasColumnType("numeric(20,0)");
-
                     b.Property<decimal?>("AbsencesReportMessageId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("AbsencesReportStaffChannelId")
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("AbsencesReportStaffMessageId")
@@ -482,29 +552,11 @@ namespace HoshiBot.Data.Migrations
                     b.Property<decimal?>("AdminChannelId")
                         .HasColumnType("numeric(20,0)");
 
-                    b.Property<decimal?>("AdmiralRoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("AgentRoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("AlertsRoleId")
-                        .HasColumnType("numeric(20,0)");
-
                     b.Property<decimal?>("AllianceBoardingChannelId")
                         .HasColumnType("numeric(20,0)");
 
-                    b.Property<decimal?>("AnnouncementsChannelId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("AnnouncementsDraftChannelId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("AnnouncementsRemindersChannelId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("AnonymousMessagesChannelId")
-                        .HasColumnType("numeric(20,0)");
+                    b.Property<int>("Audiences")
+                        .HasColumnType("integer");
 
                     b.Property<decimal?>("BetaTesterRoleId")
                         .HasColumnType("numeric(20,0)");
@@ -527,19 +579,10 @@ namespace HoshiBot.Data.Migrations
                     b.Property<decimal?>("CommandStaffRoleId")
                         .HasColumnType("numeric(20,0)");
 
-                    b.Property<decimal?>("CommodoreRoleId")
-                        .HasColumnType("numeric(20,0)");
-
                     b.Property<decimal?>("CrewsRoleId")
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("DefaultChannelCategoryId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("DiplomacyChannelId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("DiplomatRoleId")
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("HoshiTesterRoleId")
@@ -551,15 +594,6 @@ namespace HoshiBot.Data.Migrations
                     b.Property<decimal?>("MemberRoleId")
                         .HasColumnType("numeric(20,0)");
 
-                    b.Property<decimal?>("OperativeRoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("PremierRoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("RaidReportsChannelId")
-                        .HasColumnType("numeric(20,0)");
-
                     b.Property<decimal?>("RemindersAlliesChannelId")
                         .HasColumnType("numeric(20,0)");
 
@@ -567,9 +601,6 @@ namespace HoshiBot.Data.Migrations
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("RemindersServicesChannelId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("RoeViolationsChannelId")
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("RulesDeChannelId")
@@ -581,15 +612,6 @@ namespace HoshiBot.Data.Migrations
                     b.Property<DateTimeOffset?>("SetupCompletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal?>("ShieldReminderChannelId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<string>("TerritoryCaptureInstructions")
-                        .HasColumnType("text");
-
-                    b.Property<decimal?>("TicketsChannelId")
-                        .HasColumnType("numeric(20,0)");
-
                     b.Property<decimal?>("UserLogChannelId")
                         .HasColumnType("numeric(20,0)");
 
@@ -597,21 +619,6 @@ namespace HoshiBot.Data.Migrations
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("WarningsRoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("ZoneSlot1RoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("ZoneSlot2RoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("ZoneSlot3RoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("ZoneSlot4RoleId")
-                        .HasColumnType("numeric(20,0)");
-
-                    b.Property<decimal?>("ZoneSlot5RoleId")
                         .HasColumnType("numeric(20,0)");
 
                     b.HasKey("GuildId");
@@ -1313,6 +1320,9 @@ namespace HoshiBot.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Audience")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("ClosedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1502,7 +1512,29 @@ namespace HoshiBot.Data.Migrations
                     b.Navigation("StfcAlliance");
                 });
 
-            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildDisabledFeature", b =>
+            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildEnabledFeature", b =>
+                {
+                    b.HasOne("HoshiBot.Domain.Entities.DiscordGuild", "Guild")
+                        .WithMany()
+                        .HasForeignKey("GuildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Guild");
+                });
+
+            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildFeatureSettingSnowflake", b =>
+                {
+                    b.HasOne("HoshiBot.Domain.Entities.DiscordGuild", "Guild")
+                        .WithMany()
+                        .HasForeignKey("GuildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Guild");
+                });
+
+            modelBuilder.Entity("HoshiBot.Domain.Entities.GuildFeatureSettingText", b =>
                 {
                     b.HasOne("HoshiBot.Domain.Entities.DiscordGuild", "Guild")
                         .WithMany()

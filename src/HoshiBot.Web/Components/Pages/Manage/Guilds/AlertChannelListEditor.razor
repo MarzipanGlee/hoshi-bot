@@ -1,0 +1,140 @@
+@using HoshiBot.Web.Services
+@using NetCord
+@using NetCord.Rest
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
+
+<h3>Alert Channels</h3>
+<p class="form-text">
+    Each channel+role pair below gets a copy of every alert for this feature — add one per
+    channel/audience you want notified (e.g. one for officers, one for the general server).
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Channel</th>
+            <th>Role</th>
+            @if (ShowAudiencePicker)
+            {
+                <th>Audience</th>
+            }
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var alertChannel in alertChannels)
+        {
+            <tr>
+                <td>@ChannelName(alertChannel.ChannelId)</td>
+                <td>@RoleName(alertChannel.RoleId)</td>
+                @if (ShowAudiencePicker)
+                {
+                    <td>@AudienceDisplay.Labels(alertChannel.Audience).FirstOrDefault("—")</td>
+                }
+                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">Delete</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+<EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync">
+    <select class="form-select d-inline-block w-auto" @bind="newChannelIdInput">
+        <option value="">— select channel —</option>
+        @foreach (var channel in channels)
+        {
+            <option value="@channel.Id">@ChannelLabel(channel)</option>
+        }
+    </select>
+    <select class="form-select d-inline-block w-auto" @bind="newRoleIdInput">
+        <option value="">— select role —</option>
+        @foreach (var role in roles)
+        {
+            <option value="@role.Id">@role.Name</option>
+        }
+    </select>
+    @if (ShowAudiencePicker)
+    {
+        <select class="form-select d-inline-block w-auto" @bind="newAudienceInput">
+            @foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
+            {
+                <option value="@audience">@AudienceDisplay.Labels(audience).First()</option>
+            }
+        </select>
+    }
+    <button type="submit" class="btn btn-primary">Add</button>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAlertChannelKind Kind { get; set; }
+    [Parameter] public GuildAudience RelevantAudiences { get; set; } = GuildAudience.Alliance;
+
+    private bool ShowAudiencePicker => GuildFeatureAudiences.EnumerateFlags(RelevantAudiences).Take(2).Count() > 1;
+    private GuildAudience SingleAudience => GuildFeatureAudiences.EnumerateFlags(RelevantAudiences).First();
+
+    private List<GuildAlertChannel> alertChannels = [];
+    private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
+    private string? newChannelIdInput;
+    private string? newRoleIdInput;
+    private GuildAudience newAudienceInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        newAudienceInput = GuildFeatureAudiences.EnumerateFlags(RelevantAudiences).FirstOrDefault();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        alertChannels = await db.GuildAlertChannels
+            .Where(c => c.GuildId == GuildId && c.Kind == Kind)
+            .AsNoTracking()
+            .ToListAsync();
+
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+    }
+
+    private async Task AddAlertChannelAsync()
+    {
+        if (!ulong.TryParse(newChannelIdInput, out var channelId) || !ulong.TryParse(newRoleIdInput, out var roleId))
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.GuildAlertChannels.Add(new GuildAlertChannel
+        {
+            GuildId = GuildId,
+            Kind = Kind,
+            ChannelId = channelId,
+            RoleId = roleId,
+            Audience = ShowAudiencePicker ? newAudienceInput : SingleAudience,
+        });
+        await db.SaveChangesAsync();
+
+        newChannelIdInput = null;
+        newRoleIdInput = null;
+        await LoadAsync();
+    }
+
+    private async Task DeleteAlertChannelAsync(GuildAlertChannel alertChannel)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.GuildAlertChannels.Remove(alertChannel);
+        await db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private string ChannelName(ulong id) =>
+        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+
+    private string RoleName(ulong id) =>
+        roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+
+    private static string ChannelLabel(IGuildChannel channel) => channel switch
+    {
+        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        _ => $"# {channel.Name}",
+    };
+}

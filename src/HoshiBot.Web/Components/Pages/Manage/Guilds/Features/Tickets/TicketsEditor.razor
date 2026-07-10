@@ -1,0 +1,58 @@
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+@inject GuildFeatureService FeatureService
+
+@foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
+{
+    var state = blocks[audience];
+    <h3 class="mt-4">@AudienceDisplay.Labels(audience).First()</h3>
+    <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" role="switch" checked="@state.Enabled"
+               @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
+        <label class="form-check-label">Enabled</label>
+    </div>
+
+    <ChannelPicker Label="Tickets" Usage="Parent channel every ticket thread gets created under. Staff visibility comes from this channel's own Discord permissions (Manage Threads), not from anything the bot manages."
+        @bind-Value="state.ChannelInput" @bind-Value:after="() => SaveChannelAsync(audience)" Channels="channels" />
+}
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    private static readonly GuildAudience RelevantAudiences = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Tickets);
+
+    private sealed class AudienceBlock
+    {
+        public bool Enabled { get; set; }
+        public string? ChannelInput { get; set; }
+    }
+
+    private List<IGuildChannel> channels = [];
+    private readonly Dictionary<GuildAudience, AudienceBlock> blocks = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
+        {
+            blocks[audience] = new AudienceBlock
+            {
+                Enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Tickets, audience),
+                ChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Tickets, audience, TicketsSettingKeys.Channel))?.ToString(),
+            };
+        }
+    }
+
+    private async Task ToggleAsync(GuildAudience audience, bool enabled)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Tickets, audience, enabled);
+        blocks[audience].Enabled = enabled;
+    }
+
+    private Task SaveChannelAsync(GuildAudience audience) =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Tickets, audience, TicketsSettingKeys.Channel, ParseId(blocks[audience].ChannelInput));
+
+    private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
+}

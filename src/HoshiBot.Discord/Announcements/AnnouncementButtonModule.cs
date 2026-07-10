@@ -13,24 +13,28 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     // All four Publish buttons and Cancel live on AnnouncementMessageCommandModule.Preview's
     // own ephemeral message, so ModifyMessage is safe here — never the public hub.
     [ComponentInteraction("announcement-publish-normal")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishNormal(ulong channelId, ulong messageId) =>
-        PublishAsync(channelId, messageId, AnnouncementSeverity.Normal);
+    public Task<InteractionCallbackProperties<MessageOptions>> PublishNormal(ulong channelId, ulong messageId, string audience) =>
+        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Normal);
 
     [ComponentInteraction("announcement-publish-elevated")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishElevated(ulong channelId, ulong messageId) =>
-        PublishAsync(channelId, messageId, AnnouncementSeverity.Elevated);
+    public Task<InteractionCallbackProperties<MessageOptions>> PublishElevated(ulong channelId, ulong messageId, string audience) =>
+        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Elevated);
 
     [ComponentInteraction("announcement-publish-high")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishHigh(ulong channelId, ulong messageId) =>
-        PublishAsync(channelId, messageId, AnnouncementSeverity.High);
+    public Task<InteractionCallbackProperties<MessageOptions>> PublishHigh(ulong channelId, ulong messageId, string audience) =>
+        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.High);
 
     [ComponentInteraction("announcement-publish-direct")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishDirect(ulong channelId, ulong messageId) =>
-        PublishAsync(channelId, messageId, AnnouncementSeverity.Direct);
+    public Task<InteractionCallbackProperties<MessageOptions>> PublishDirect(ulong channelId, ulong messageId, string audience) =>
+        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Direct);
 
     [ComponentInteraction("announcement-cancel")]
     public InteractionCallbackProperties<MessageOptions> Cancel() =>
         InteractionCallback.ModifyMessage(m => { m.Content = "Verworfen."; m.Embeds = []; m.Components = []; });
+
+    [ComponentInteraction("announcement-pick-audience")]
+    public InteractionCallbackProperties<MessageOptions> PickAudience(ulong channelId, ulong messageId, string audience) =>
+        InteractionCallback.ModifyMessage(BuildSeverityPromptModifier(channelId, messageId, Enum.Parse<GuildAudience>(audience)));
 
     [ComponentInteraction("announcement-read")]
     public async Task<InteractionMessageProperties> MarkRead(int announcementId)
@@ -51,9 +55,10 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         return EphemeralReply.Of(wasNew ? "Danke, deine Lesebestätigung wurde erfasst." : "Du hast diese Ankündigung bereits bestätigt.");
     }
 
-    private async Task<InteractionCallbackProperties<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, AnnouncementSeverity severity)
+    private async Task<InteractionCallbackProperties<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity)
     {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements))
+        var parsedAudience = Enum.Parse<GuildAudience>(audience);
+        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience))
         {
             var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements);
             return InteractionCallback.ModifyMessage(m => { m.Content = disabledMessage; m.Embeds = []; m.Components = []; });
@@ -63,7 +68,70 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         // which is far too small for a full announcement body) means an edit made
         // between preview and publish is naturally picked up.
         var draft = await gatewayClient.Rest.GetMessageAsync(channelId, messageId);
-        var result = await announcementService.PublishAsync(Context.Guild!.Id, draft, severity, Context.User.Id);
+        var result = await announcementService.PublishAsync(Context.Guild!.Id, parsedAudience, draft, severity, Context.User.Id);
         return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
     }
+
+    // Shared with AnnouncementMessageCommandModule.Preview, which needs the same prompts
+    // but isn't itself a ComponentInteractionModule (a different NetCord module base), so
+    // can't host the "announcement-pick-audience"/publish button handlers.
+    internal static InteractionMessageProperties BuildAudiencePrompt(RestMessage draft)
+    {
+        var idPart = $"{draft.ChannelId}:{draft.Id}";
+        var (title, body) = AnnouncementService.ParseDraft(draft.Content);
+
+        return new InteractionMessageProperties
+        {
+            Content = "Für welche Zielgruppe ist diese Ankündigung?",
+            Embeds = [BuildPreviewEmbed(title, body, draft)],
+            Flags = MessageFlags.Ephemeral,
+            Components =
+            [
+                new ActionRowProperties(GuildFeatureAudiences.EnumerateFlags(GuildFeatureAudiences.RelevantAudiences(GuildFeature.Announcements))
+                    .Select(a => new ButtonProperties($"announcement-pick-audience:{idPart}:{a}", GuildFeatureService.AudienceLabel(a), ButtonStyle.Primary))
+                    .Append(new ButtonProperties("announcement-cancel", "Abbrechen", ButtonStyle.Secondary))),
+            ],
+        };
+    }
+
+    internal static InteractionMessageProperties BuildSeverityPrompt(RestMessage draft, GuildAudience audience)
+    {
+        var idPart = $"{draft.ChannelId}:{draft.Id}:{audience}";
+        var (title, body) = AnnouncementService.ParseDraft(draft.Content);
+
+        return new InteractionMessageProperties
+        {
+            Content = "Vorschau — wähle die Alarmstufe zum Veröffentlichen, oder brich ab.",
+            Embeds = [BuildPreviewEmbed(title, body, draft)],
+            Flags = MessageFlags.Ephemeral,
+            Components = [BuildSeverityButtonRow(idPart)],
+        };
+    }
+
+    // PickAudience only has channelId/messageId (from its own custom-id), not the
+    // RestMessage draft BuildSeverityPrompt wants — re-fetching isn't worth it here since
+    // ModifyMessage's action just needs to replace the button row, not rebuild the embed.
+    private static Action<MessageOptions> BuildSeverityPromptModifier(ulong channelId, ulong messageId, GuildAudience audience) => m =>
+    {
+        m.Content = "Vorschau — wähle die Alarmstufe zum Veröffentlichen, oder brich ab.";
+        m.Components = [BuildSeverityButtonRow($"{channelId}:{messageId}:{audience}")];
+    };
+
+    private static ActionRowProperties BuildSeverityButtonRow(string idPart) => new(
+    [
+        new ButtonProperties($"announcement-publish-normal:{idPart}", "Normal", EmojiProperties.Standard("🟩"), ButtonStyle.Success),
+        new ButtonProperties($"announcement-publish-elevated:{idPart}", "Erhöht", EmojiProperties.Standard("🟨"), ButtonStyle.Primary),
+        new ButtonProperties($"announcement-publish-high:{idPart}", "Hoch", EmojiProperties.Standard("🟥"), ButtonStyle.Danger),
+        new ButtonProperties($"announcement-publish-direct:{idPart}", "Direkt", EmojiProperties.Standard("🟦"), ButtonStyle.Primary),
+        new ButtonProperties("announcement-cancel", "Abbrechen", ButtonStyle.Secondary),
+    ]);
+
+    private static EmbedProperties BuildPreviewEmbed(string title, string body, RestMessage draft) => new()
+    {
+        Title = string.IsNullOrWhiteSpace(title) ? "*(kein Titel)*" : title,
+        Description = string.IsNullOrWhiteSpace(body) ? "*(kein Text)*" : body,
+        Footer = draft.Attachments.Count > 0
+            ? new EmbedFooterProperties { Text = $"{draft.Attachments.Count} Anhang/Anhänge" }
+            : null,
+    };
 }

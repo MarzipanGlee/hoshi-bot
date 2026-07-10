@@ -1,4 +1,5 @@
 @page "/manage/guilds/{GuildId}/setup"
+@using HoshiBot.Web.Services
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
 @using NetCord.Rest
@@ -6,8 +7,8 @@
 @inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject RestClient BotRestClient
+@inject DiscordGuildDataService DiscordData
 @inject IMemoryCache Cache
-@inject GuildFeatureService FeatureService
 @inject NavigationManager Nav
 
 <PageTitle>Guild Setup Wizard</PageTitle>
@@ -23,45 +24,30 @@ else if (authorized == false)
 else
 {
     <h1>Setup Wizard</h1>
-    <p class="text-muted">Step @(step + 1) of @StepTitles.Length — @StepTitles[step]. Every step is optional; you can always adjust things later via Scope/Settings.</p>
+    <p class="text-muted">Step @DisplayStepNumber of @VisibleSteps.Count — @AllSteps[step].Title. Every step is optional; you can always adjust things later via Scope/Global Settings, or per-feature via the Dashboard.</p>
 
     @if (step == 0)
     {
         <h2>Welcome</h2>
-        <p>This wizard walks you through the essentials for a new guild: linking your alliance(s)/server(s), choosing which features to enable, setting a few core channels/roles, and making sure someone besides the server owner can manage the bot.</p>
-        <p>Nothing here is mandatory — skip anything and configure it later via the Scope/Settings pages.</p>
+        <p>This wizard walks you through the essentials for a new guild: which audience it serves, linking your alliance(s)/server(s), a few core channels/roles, and making sure someone besides the server owner can manage the bot.</p>
+        <p>Nothing here is mandatory — skip anything and configure it later. Turning individual features on/off now happens from the Dashboard, not this wizard.</p>
     }
     else if (step == 1)
+    {
+        <h2>Audience</h2>
+        <p>Which audience(s) this guild serves — drives which of this wizard's later steps are relevant, and how the Dashboard groups its feature cards. Doesn't restrict which features can be enabled.</p>
+        <AudienceEditor GuildId="ParsedGuildId" AudienceChanged="OnAudienceChanged" />
+    }
+    else if (step == 2)
     {
         <h2>Scope</h2>
         <p>Which shared alliances, servers, and veil groups this guild tracks.</p>
         <ScopeEditor GuildId="ParsedGuildId" />
     }
-    else if (step == 2)
-    {
-        <h2>Features</h2>
-        <p>Turn off anything this guild doesn't want to use — hides its Command Bridge button, blocks its slash commands, and pauses its background jobs.</p>
-        <table class="table">
-            <tbody>
-                @foreach (var feature in Enum.GetValues<GuildFeature>())
-                {
-                    <tr>
-                        <td>@GuildFeatureService.FeatureLabel(feature)</td>
-                        <td>
-                            <div class="form-check form-switch">
-                                <input type="checkbox" class="form-check-input" role="switch" checked="@(!disabledFeatures.Contains(feature))"
-                                       @onchange="e => ToggleFeature(feature, (bool)e.Value!)" />
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
     else if (step == 3)
     {
         <h2>Core channels &amp; roles</h2>
-        <p>A curated subset most features need right away — the full list (~30 more fields) is on the <a href="manage/guilds/@GuildId/settings">Settings page</a>, editable any time.</p>
+        <p>A curated subset most guilds need right away — the full list is on the <a href="manage/guilds/@GuildId/global-settings">Global Settings page</a>, editable any time.</p>
         <p>Leave any field below empty to have Hoshi Bot create it for you.</p>
 
         @if (discordDataError is not null)
@@ -179,10 +165,14 @@ else
     else if (step == 5)
     {
         <h2>Review &amp; finish</h2>
+        <p>Audience: <strong>@(audiences == GuildAudience.None ? "not set" : audiences.ToString())</strong></p>
         <p>Alliances/servers/veil groups linked: <strong>@(guildAllianceCount + guildServerCount + guildVeilGroupCount)</strong></p>
-        <p>Features disabled: <strong>@disabledFeatures.Count</strong> of @totalFeatureCount</p>
         <p>Admin roles configured: <strong>@guildAdminRoles.Count</strong></p>
-        <p>Anything left unset here just stays editable later via Scope/Settings — finishing doesn't require completing every step.</p>
+        <p>
+            Anything left unset here just stays editable later via Scope/Global Settings —
+            finishing doesn't require completing every step. Turning individual features
+            on/off, and their own channel/role settings, happens from the Dashboard.
+        </p>
         <button class="btn btn-success" @onclick="FinishAsync">Finish setup</button>
     }
 
@@ -191,7 +181,7 @@ else
         {
             <button class="btn btn-secondary" disabled="@creating" @onclick="Back">Back</button>
         }
-        @if (step < StepTitles.Length - 1)
+        @if (step < 5)
         {
             <button class="btn btn-primary" disabled="@creating" @onclick="Next">@(creating ? "Saving..." : "Next")</button>
         }
@@ -199,8 +189,15 @@ else
 }
 
 @code {
-    private static readonly string[] StepTitles = ["Welcome", "Scope", "Features", "Core channels & roles", "Admin access", "Review & finish"];
-    private static readonly int totalFeatureCount = Enum.GetValues<GuildFeature>().Length;
+    private static readonly (int Step, string Title)[] AllSteps =
+    [
+        (0, "Welcome"),
+        (1, "Audience"),
+        (2, "Scope"),
+        (3, "Core channels & roles"),
+        (4, "Admin access"),
+        (5, "Review & finish"),
+    ];
 
     [Parameter] public string GuildId { get; set; } = "";
 
@@ -209,7 +206,7 @@ else
     private bool? authorized;
     private int step;
     private GuildSettings settings = new();
-    private HashSet<GuildFeature> disabledFeatures = [];
+    private GuildAudience audiences;
     private List<GuildAdminRole> guildAdminRoles = [];
     private List<IGuildChannel> channels = [];
     private List<CategoryGuildChannel> categories = [];
@@ -247,7 +244,7 @@ else
         await using var db = await DbFactory.CreateDbContextAsync();
 
         settings = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == guildId) ?? new GuildSettings { GuildId = guildId };
-        disabledFeatures = await FeatureService.GetDisabledAsync(guildId);
+        audiences = settings.Audiences;
         guildAdminRoles = await db.GuildAdminRoles.Where(r => r.GuildId == guildId).AsNoTracking().ToListAsync();
 
         logChannelIdInput = settings.LogChannelId?.ToString();
@@ -263,47 +260,20 @@ else
         await LoadDiscordDataAsync();
     }
 
-    // Same 60s-cached channel/role fetch as Settings.razor's own copy — kept local rather
-    // than shared, since this wizard only ever needs the curated 4-field subset while
-    // Settings.razor drives ~30 fields off a generic Field[] array; a shared abstraction
-    // isn't worth it for this small a surface (see Settings.razor's own version for the
-    // full one, if this ever grows to need it).
     private async Task LoadDiscordDataAsync()
     {
         discordDataError = null;
         try
         {
             var guildId = ParsedGuildId;
-
-            var allChannels = await Cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-                return await BotRestClient.GetGuildChannelsAsync(guildId);
-            });
-            channels = (allChannels ?? [])
-                .Where(c => c is not CategoryGuildChannel)
-                .OrderBy(c => c.Position ?? int.MaxValue)
-                .ThenBy(c => c.Name)
-                .ToList();
-            categories = (allChannels ?? [])
-                .OfType<CategoryGuildChannel>()
-                .OrderBy(c => c.Position ?? int.MaxValue)
-                .ThenBy(c => c.Name)
-                .ToList();
-
-            var allRoles = await Cache.GetOrCreateAsync($"discord-guild-roles:{guildId}", async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-                return await BotRestClient.GetGuildRolesAsync(guildId);
-            });
-            roles = (allRoles ?? [])
-                .Where(r => r.Id != guildId)
-                .OrderByDescending(r => r.RawPosition)
-                .ToList();
+            channels = await DiscordData.GetChannelsAsync(guildId);
+            categories = await DiscordData.GetCategoriesAsync(guildId);
+            roles = await DiscordData.GetRolesAsync(guildId);
         }
         catch (RestException)
         {
             channels = [];
+            categories = [];
             roles = [];
             discordDataError = "Could not load channels/roles from Discord (is the bot in this guild?)";
         }
@@ -325,15 +295,16 @@ else
     private bool IsUnknownRole(string? current) =>
         !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !roles.Any(r => r.Id == id);
 
-    private async Task ToggleFeature(GuildFeature feature, bool enabled)
-    {
-        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, enabled);
+    private void OnAudienceChanged(GuildAudience newAudiences) => audiences = newAudiences;
 
-        if (enabled)
-            disabledFeatures.Remove(feature);
-        else
-            disabledFeatures.Add(feature);
-    }
+    // Scope has nothing to link for a guild that's Community-only by definition — skip it
+    // in that case. Any other audience (including "not decided yet") keeps it visible.
+    private bool SkipScope => audiences == GuildAudience.Community;
+
+    private IReadOnlyList<(int Step, string Title)> VisibleSteps =>
+        SkipScope ? AllSteps.Where(s => s.Step != 2).ToList() : AllSteps;
+
+    private int DisplayStepNumber => VisibleSteps.ToList().FindIndex(s => s.Step == step) + 1;
 
     // Any of the four fields left blank gets created on Discord instead of just being
     // saved as null — a new group/category first (or the selected existing one), then
@@ -393,8 +364,7 @@ else
 
             // Invalidate the 60s Discord-data cache so anything just created shows up
             // immediately here and on the Admin Access step's role dropdown.
-            Cache.Remove($"discord-guild-channels:{guildId}");
-            Cache.Remove($"discord-guild-roles:{guildId}");
+            DiscordData.InvalidateCache(guildId);
             await LoadDiscordDataAsync();
 
             return true;
@@ -442,6 +412,9 @@ else
         await db.SaveChangesAsync();
         newAdminRoleIdInput = null;
         guildAdminRoles = await db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
+        // GuildAdminHandler caches this list for 60s (discord-guild-admin-roles:{guildId})
+        // — invalidate so a newly-granted admin role takes effect immediately.
+        Cache.Remove($"discord-guild-admin-roles:{ParsedGuildId}");
     }
 
     private async Task DeleteAdminRoleAsync(GuildAdminRole adminRole)
@@ -450,6 +423,7 @@ else
         db.GuildAdminRoles.Remove(adminRole);
         await db.SaveChangesAsync();
         guildAdminRoles = await db.GuildAdminRoles.Where(r => r.GuildId == ParsedGuildId).AsNoTracking().ToListAsync();
+        Cache.Remove($"discord-guild-admin-roles:{ParsedGuildId}");
     }
 
     // The Core-settings step (3) has no separate Save button — leaving it in either
@@ -461,14 +435,24 @@ else
 
     private async Task Back()
     {
-        if (step > 0 && await LeaveCurrentStepAsync())
-            step--;
+        if (step <= 0 || !await LeaveCurrentStepAsync())
+            return;
+
+        var newStep = step - 1;
+        if (newStep == 2 && SkipScope)
+            newStep--;
+        step = newStep;
     }
 
     private async Task Next()
     {
-        if (step < StepTitles.Length - 1 && await LeaveCurrentStepAsync())
-            step++;
+        if (step >= 5 || !await LeaveCurrentStepAsync())
+            return;
+
+        var newStep = step + 1;
+        if (newStep == 2 && SkipScope)
+            newStep++;
+        step = newStep;
     }
 
     private async Task FinishAsync()

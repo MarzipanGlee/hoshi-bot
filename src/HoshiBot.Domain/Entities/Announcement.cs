@@ -21,6 +21,11 @@ public class Announcement
 
     public AnnouncementSeverity Severity { get; set; }
 
+    // Which audience this was published for — resolved at publish time from the draft
+    // channel it was created in (see AnnouncementMessageCommandModule). Audit/reporting
+    // only; doesn't affect delivery (already decided by the time this row is created).
+    public GuildAudience Audience { get; set; }
+
     // The role actually pinged at publish time (derived from Severity — see
     // AnnouncementService.ResolveMentionRoleAsync) — stored for audit even though it's
     // derived, since the underlying role mapping could change later.

@@ -1,0 +1,53 @@
+@page "/manage/guilds/{GuildId}/features/{FeatureSlug}"
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<PageTitle>@(descriptor?.Title ?? "Feature Settings")</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this guild.</p>
+}
+else if (descriptor is null)
+{
+    <p>Unknown feature "@FeatureSlug".</p>
+}
+else
+{
+    <h1>@descriptor.Title</h1>
+    <p>@descriptor.Description</p>
+
+    <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" />
+}
+
+@code {
+    [Parameter] public string GuildId { get; set; } = "";
+    [Parameter] public string FeatureSlug { get; set; } = "";
+
+    private ulong ParsedGuildId => ulong.Parse(GuildId);
+
+    private bool? authorized;
+    private IFeatureModule? descriptor;
+    private IDictionary<string, object>? editorParameters;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
+        authorized = result.Succeeded;
+
+        descriptor = FeatureCatalog.FindBySlug(FeatureSlug);
+        if (descriptor is null)
+        {
+            Nav.NotFound();
+            return;
+        }
+
+        editorParameters = new Dictionary<string, object> { ["GuildId"] = ParsedGuildId };
+    }
+}

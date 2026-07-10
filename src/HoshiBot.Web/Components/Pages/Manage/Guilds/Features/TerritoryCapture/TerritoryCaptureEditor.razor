@@ -1,0 +1,70 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<h3>Zone Slot Roles</h3>
+<p class="form-text">
+    One role per owned-zone-slot the alliance currently holds this week (the "Zone Slots:
+    N/5" cap shown in-game) — not days of the week. Slot N's role goes to every member with
+    an owned zone in that slot.
+</p>
+<RolePicker Label="Slot 1" @bind-Value="zoneSlot1Input" @bind-Value:after="SaveZoneSlot1Async" Roles="roles" />
+<RolePicker Label="Slot 2" @bind-Value="zoneSlot2Input" @bind-Value:after="SaveZoneSlot2Async" Roles="roles" />
+<RolePicker Label="Slot 3" @bind-Value="zoneSlot3Input" @bind-Value:after="SaveZoneSlot3Async" Roles="roles" />
+<RolePicker Label="Slot 4" @bind-Value="zoneSlot4Input" @bind-Value:after="SaveZoneSlot4Async" Roles="roles" />
+<RolePicker Label="Slot 5" @bind-Value="zoneSlot5Input" @bind-Value:after="SaveZoneSlot5Async" Roles="roles" />
+
+<h3 class="mt-4">Digest Instructions</h3>
+<div class="mb-3">
+    <label for="territoryCaptureInstructions" class="form-label">
+        Free-text "Anweisungen von {Command Staff}" section shown on the weekly/daily digest (e.g. attendance/armada expectations).
+    </label>
+    <textarea id="territoryCaptureInstructions" class="form-control" rows="4"
+              @bind="instructionsInput" @bind:after="SaveInstructionsAsync"></textarea>
+</div>
+
+<p class="form-text">Looking for the STFC rank roles (Admiral/Commodore/Premier/Operative/Agent)? They moved to <a href="@($"/manage/guilds/{GuildId}/global-settings")">Global Settings</a> — they're guild-wide designations, not specific to Territory Capture.</p>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.TerritoryCapture;
+
+    private GuildAudience audience;
+    private List<Role> roles = [];
+    private string? zoneSlot1Input;
+    private string? zoneSlot2Input;
+    private string? zoneSlot3Input;
+    private string? zoneSlot4Input;
+    private string? zoneSlot5Input;
+    private string? instructionsInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        audience = GuildFeatureAudiences.SingleAudience(Feature);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        zoneSlot1Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot1Role))?.ToString();
+        zoneSlot2Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot2Role))?.ToString();
+        zoneSlot3Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
+        zoneSlot4Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot4Role))?.ToString();
+        zoneSlot5Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
+        instructionsInput = await SettingsService.GetTextAsync(GuildId, Feature, audience, TerritoryCaptureSettingKeys.Instructions);
+    }
+
+    private Task<ulong?> Get(string key) => SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, key);
+    private Task Set(string key, string? input) => SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, key, ParseId(input));
+
+    private Task SaveZoneSlot1Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot1Role, zoneSlot1Input);
+    private Task SaveZoneSlot2Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot2Role, zoneSlot2Input);
+    private Task SaveZoneSlot3Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot3Role, zoneSlot3Input);
+    private Task SaveZoneSlot4Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot4Role, zoneSlot4Input);
+    private Task SaveZoneSlot5Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot5Role, zoneSlot5Input);
+    private Task SaveInstructionsAsync() =>
+        SettingsService.SetTextAsync(GuildId, Feature, audience, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
+}

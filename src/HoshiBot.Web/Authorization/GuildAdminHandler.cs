@@ -1,8 +1,6 @@
-using System.Net.Http.Headers;
 using System.Security.Claims;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using HoshiBot.Data;
+using HoshiBot.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -13,22 +11,22 @@ namespace HoshiBot.Web.Authorization;
 
 // Two-tier permission check, mirroring YAGPDB's web dashboard:
 //   1. Discord-native: the guild owner, or anyone with the "Manage Server" permission,
-//      per the *user's own* OAuth token (GET /users/@me/guilds).
+//      per the *user's own* OAuth token (GET /users/@me/guilds, via DiscordUserGuildsService).
 //   2. Allow-listed role fallback: if the guild has GuildAdminRole entries, grant access
 //      to members holding one of those roles, looked up via the *bot's* token.
+//
+// Deliberately depends on DiscordUserGuildsService, NOT GuildAccessService — the latter
+// needs IAuthorizationService, and an IAuthorizationHandler can never depend on that
+// (even transitively): building IAuthorizationService enumerates every registered
+// handler, so a handler needing it back is a circular dependency by construction.
 public class GuildAdminHandler(
     IHttpContextAccessor httpContextAccessor,
-    IHttpClientFactory httpClientFactory,
+    DiscordUserGuildsService discordUserGuildsService,
     IDbContextFactory<HoshiBotDbContext> dbFactory,
     IMemoryCache cache,
     RestClient botRestClient) : AuthorizationHandler<GuildAdminRequirement, ulong>
 {
     private const ulong ManageGuildPermission = 0x20;
-
-    private static readonly JsonSerializerOptions UserGuildsJsonOptions = new()
-    {
-        NumberHandling = JsonNumberHandling.AllowReadingFromString,
-    };
 
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context, GuildAdminRequirement requirement, ulong guildId)
@@ -42,33 +40,25 @@ public class GuildAdminHandler(
         if (accessToken is null || userIdClaim is null || !ulong.TryParse(userIdClaim, out var userId))
             return;
 
-        var userGuilds = await cache.GetOrCreateAsync($"discord-user-guilds:{userId}", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-
-            var client = httpClientFactory.CreateClient("DiscordUserApi");
-            using var request = new HttpRequestMessage(HttpMethod.Get, "users/@me/guilds");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-            using var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-
-            return await response.Content.ReadFromJsonAsync<List<DiscordUserGuild>>(UserGuildsJsonOptions);
-        });
-
-        var userGuild = userGuilds?.FirstOrDefault(g => g.Id == guildId);
+        var userGuilds = await discordUserGuildsService.GetUserDiscordGuildsAsync(accessToken, userId);
+        var userGuild = userGuilds.FirstOrDefault(g => g.Id == guildId);
         if (userGuild is not null && (userGuild.Owner || (userGuild.Permissions & ManageGuildPermission) != 0))
         {
             context.Succeed(requirement);
             return;
         }
 
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var allowedRoleIds = await db.GuildAdminRoles
-            .Where(r => r.GuildId == guildId)
-            .Select(r => r.DiscordRoleId)
-            .ToListAsync();
+        var allowedRoleIds = await cache.GetOrCreateAsync($"discord-guild-admin-roles:{guildId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            await using var db = await dbFactory.CreateDbContextAsync();
+            return await db.GuildAdminRoles
+                .Where(r => r.GuildId == guildId)
+                .Select(r => r.DiscordRoleId)
+                .ToListAsync();
+        });
 
-        if (allowedRoleIds.Count == 0)
+        if (allowedRoleIds is null || allowedRoleIds.Count == 0)
             return;
 
         var memberRoleIds = await cache.GetOrCreateAsync($"discord-member-roles:{guildId}:{userId}", async entry =>

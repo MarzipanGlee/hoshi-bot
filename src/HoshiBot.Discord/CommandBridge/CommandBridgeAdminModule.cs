@@ -12,8 +12,12 @@ namespace HoshiBot.Discord.CommandBridge;
 // that's the real entry point for members (matching the legacy bot's actual UX), rather
 // than slash commands. Re-run whenever new buttons are added in a later phase, or after
 // toggling a feature (via the guild settings page) so the hub reflects the current set.
-public class CommandBridgeAdminModule(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureService featureService)
-    : ApplicationCommandModule<ApplicationCommandContext>
+public class CommandBridgeAdminModule(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    EmbedBranding embedBranding,
+    GuildFeatureService featureService,
+    GuildFeatureSettingsService settingsService) : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("post-command-bridge", "Post or refresh the Command Bridge hub message",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
@@ -57,9 +61,15 @@ public class CommandBridgeAdminModule(HoshiBotDbContext db, GatewayClient gatewa
         if (!disabled.Contains(GuildFeature.Absences))
             row2.Add(new ButtonProperties("absence-manage", "Abwesenheiten verwalten", EmojiProperties.Standard("⛺"), ButtonStyle.Primary));
 
-        var row3 = new List<ButtonProperties>();
-        if (!disabled.Contains(GuildFeature.Tickets) || !disabled.Contains(GuildFeature.AnonymousMessaging))
-            row3.Add(new ButtonProperties("contact-command-staff", "Führungsstab kontaktieren", EmojiProperties.Standard("📮"), ButtonStyle.Primary));
+        // "Configured" for this button = has a channel set AND is enabled for that
+        // audience — a guild with 2+ audiences gets one button per configured audience
+        // instead of one generic button, so members pick the right one directly rather
+        // than being asked again in ContactCommandStaffPrompt.
+        var contactAudiences = await GetConfiguredContactAudiencesAsync(guildId);
+        var row3 = contactAudiences.Select(audience => new ButtonProperties(
+            $"contact-command-staff:{audience}",
+            contactAudiences.Count > 1 ? $"Führungsstab kontaktieren ({GuildFeatureService.AudienceLabel(audience)})" : "Führungsstab kontaktieren",
+            EmojiProperties.Standard("📮"), ButtonStyle.Primary)).ToList();
 
         var components = new[] { row1, row2, row3 }
             .Where(row => row.Count > 0)
@@ -93,5 +103,24 @@ public class CommandBridgeAdminModule(HoshiBotDbContext db, GatewayClient gatewa
         await db.SaveChangesAsync();
 
         return EphemeralReply.Of("Command Bridge hub message posted.");
+    }
+
+    private async Task<List<GuildAudience>> GetConfiguredContactAudiencesAsync(ulong guildId)
+    {
+        var relevant = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Tickets); // same set as AnonymousMessaging
+        var result = new List<GuildAudience>();
+
+        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(relevant))
+        {
+            var ticketsReady = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, audience)
+                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, TicketsSettingKeys.Channel) is not null;
+            var anonymousReady = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, audience)
+                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AnonymousMessaging, audience, AnonymousMessagingSettingKeys.Channel) is not null;
+
+            if (ticketsReady || anonymousReady)
+                result.Add(audience);
+        }
+
+        return result;
     }
 }

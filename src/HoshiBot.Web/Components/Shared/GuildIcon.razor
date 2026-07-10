@@ -1,0 +1,26 @@
+@if (IconHash is not null)
+{
+    @* Plain HTML onerror (not Blazor's @@onerror), deliberately — a Blazor Server @@onerror
+       binding needs an active SignalR circuit to invoke the C# handler, but a fast-failing
+       image (DNS failure, immediate block) can error out before the circuit has even
+       connected, silently dropping the fallback. Inline JS runs immediately, no circuit
+       required, and works during static prerendering too. *@
+    <img src="https://cdn.discordapp.com/icons/@(GuildId)/@(IconHash).png" alt="" class="@CssClass"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='';" />
+    @* Inline style, not the `hidden` attribute — `.guild-icon-placeholder`'s own
+       `display: flex` class rule would otherwise beat `[hidden]`'s `display: none` in the
+       cascade, since both are equal-specificity attribute/class selectors and author
+       styles win over the UA stylesheet regardless of source order. *@
+    <div class="@CssClass guild-icon-placeholder" style="display:none">@Name[..1]</div>
+}
+else
+{
+    <div class="@CssClass guild-icon-placeholder">@Name[..1]</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter] public string? IconHash { get; set; }
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter] public string CssClass { get; set; } = "guild-icon";
+}

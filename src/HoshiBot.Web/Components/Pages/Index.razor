@@ -28,90 +28,46 @@
 </section>
 
 <section class="features">
-    <h2>For Alliance Discords</h2>
-    <p class="features-intro">Everything your alliance leadership needs to run day-to-day operations.</p>
-    <div class="feature-grid">
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-calendar" aria-hidden="true"></span></div>
-            <h3>Absences</h3>
-            <p>A simple button/modal flow to report absences, with visibility controls and automatic reporting.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-bell" aria-hidden="true"></span></div>
-            <h3>Shield &amp; Raid Alerts</h3>
-            <p>Get pinged before shields drop or raids land, with configurable warning windows per member.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-target" aria-hidden="true"></span></div>
-            <h3>Territory Capture</h3>
-            <p>Zone slot signups, rank roles, and daily/weekly digests keep your TC squad organized.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-warning" aria-hidden="true"></span></div>
-            <h3>RoE Violations</h3>
-            <p>Report and track Rules of Engagement violations with a structured review flow.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-comment-square" aria-hidden="true"></span></div>
-            <h3>Tickets</h3>
-            <p>A built-in support ticket system so members can reach your team without cluttering channels.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-bullhorn" aria-hidden="true"></span></div>
-            <h3>Announcements</h3>
-            <p>Post rich announcements with read receipts, so you know who's actually seen the news.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-flag" aria-hidden="true"></span></div>
-            <h3>Diplomacy &amp; Alliances</h3>
-            <p>Track diplomacy status and coalitions across every alliance your server deals with.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-chat" aria-hidden="true"></span></div>
-            <h3>Anonymous Messages</h3>
-            <p>Let members raise concerns anonymously, without losing moderator accountability.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-wrench" aria-hidden="true"></span></div>
-            <h3>Setup Wizard</h3>
-            <p>Get a new server configured in minutes with a guided, step-by-step setup flow.</p>
-        </div>
+    <h2>Built for Every Kind of STFC Discord</h2>
+    <p class="features-intro">Jump to what matters for your Discord.</p>
+    <div class="audience-overview-grid">
+        @foreach (var audience in AudienceSections)
+        {
+            <a class="audience-overview-card" href="#audience-@audience">
+                <div class="feature-icon"><span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span></div>
+                <h3>@AudienceDisplay.Labels(audience).First()</h3>
+                <p>@Tagline(audience)</p>
+            </a>
+        }
     </div>
 </section>
 
-<section class="features features-alt">
-    <h2>For Server &amp; Veil Group Discords</h2>
-    <p class="features-intro">
-        Running a Discord for a whole STFC server or veil group instead of a single alliance?
-        Hoshi Bot keeps membership organized across everyone in it.
-    </p>
-    <div class="feature-grid feature-grid-3">
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-loop-circular" aria-hidden="true"></span></div>
-            <h3>Member Name &amp; Role Sync</h3>
-            <p>Keep Discord nicknames and roles in sync with in-game commander names, automatically.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-account-login" aria-hidden="true"></span></div>
-            <h3>Member Onboarding</h3>
-            <p>A guided welcome flow gets new members oriented before they touch the rest of the server.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon"><span class="oi oi-inbox" aria-hidden="true"></span></div>
-            <h3>Ticketing</h3>
-            <p>The same built-in support ticket system alliances use, scaled up for a whole server or veil group.</p>
-        </div>
-    </div>
-</section>
+@foreach (var audience in AudienceSections)
+{
+    var cards = FeatureCatalog.All
+        .Where(f => f.RelevantAudiences().HasFlag(audience))
+        .Select(f => (f.Icon, f.Title, f.Description))
+        .Concat(ExtraCards.GetValueOrDefault(audience, []))
+        .ToList();
 
-<section class="features">
-    <h2>For Community Discords</h2>
-    <p class="features-intro">
-        Not tied to one alliance, server, or veil group? Hoshi Bot's announcements, tickets, and
-        anonymous messages work just as well for general STFC community and fan Discords —
-        with more community-focused features on the way.
-    </p>
-</section>
+    <section id="audience-@audience" class="features">
+        <h2>For @(AudienceDisplay.Labels(audience).First()) Discords</h2>
+        <p class="features-intro">@Intro(audience)</p>
+        @if (cards.Count > 0)
+        {
+            <div class="feature-grid">
+                @foreach (var card in cards)
+                {
+                    <div class="feature-card">
+                        <div class="feature-icon"><span class="oi @card.Icon" aria-hidden="true"></span></div>
+                        <h3>@card.Title</h3>
+                        <p>@card.Description</p>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
 
 <section class="cta">
     <div class="cta-inner">
@@ -120,3 +76,49 @@
         <a class="btn btn-light btn-lg" href="invite">Add to Discord</a>
     </div>
 </section>
+
+@code {
+    private static readonly GuildAudience[] AudienceSections =
+        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
+
+    // Real bot capabilities that aren't IFeatureModule entries — Setup Wizard is a one-time
+    // guided flow, not a toggleable feature; nickname/role sync and onboarding are
+    // guild-level settings, not their own admin page. Kept here so the page can still
+    // advertise them without pretending they're feature modules.
+    private static readonly Dictionary<GuildAudience, (string Icon, string Title, string Description)[]> ExtraCards = new()
+    {
+        [GuildAudience.Alliance] =
+        [
+            ("oi-wrench", "Setup Wizard", "Get a new server configured in minutes with a guided, step-by-step setup flow."),
+        ],
+        [GuildAudience.Server] =
+        [
+            ("oi-loop-circular", "Member Name & Role Sync", "Keep Discord nicknames and roles in sync with in-game commander names, automatically."),
+            ("oi-account-login", "Member Onboarding", "A guided welcome flow gets new members oriented before they touch the rest of the server."),
+        ],
+        [GuildAudience.VeilGroup] =
+        [
+            ("oi-loop-circular", "Member Name & Role Sync", "Keep Discord nicknames and roles in sync with in-game commander names, automatically."),
+            ("oi-account-login", "Member Onboarding", "A guided welcome flow gets new members oriented before they touch the rest of the server."),
+        ],
+        [GuildAudience.Community] = [],
+    };
+
+    private static string Tagline(GuildAudience audience) => audience switch
+    {
+        GuildAudience.Alliance => "Run day-to-day alliance operations.",
+        GuildAudience.Server => "Organize a whole STFC server.",
+        GuildAudience.VeilGroup => "Coordinate across a veil group.",
+        GuildAudience.Community => "Support a general STFC community.",
+        _ => "",
+    };
+
+    private static string Intro(GuildAudience audience) => audience switch
+    {
+        GuildAudience.Alliance => "Everything your alliance leadership needs to run day-to-day operations.",
+        GuildAudience.Server => "Running a Discord for a whole STFC server? Hoshi Bot keeps membership organized across everyone in it.",
+        GuildAudience.VeilGroup => "Running a Discord for a veil group spanning multiple servers? Hoshi Bot keeps membership organized across everyone in it.",
+        GuildAudience.Community => "Not tied to one alliance, server, or veil group? Hoshi Bot's announcements, tickets, and anonymous messages work just as well for general STFC community and fan Discords.",
+        _ => "",
+    };
+}

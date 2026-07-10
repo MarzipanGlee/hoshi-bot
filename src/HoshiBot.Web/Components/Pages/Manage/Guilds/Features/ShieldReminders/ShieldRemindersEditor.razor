@@ -1,0 +1,39 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Components.Pages.Manage.Guilds
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<ChannelPicker Label="Shield Reminder" Usage="Where /shield-reminder posts expiration warnings and the public expired-shield alert."
+    @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" RelevantAudiences="GuildAudience.Alliance" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.ShieldReminders;
+
+    // Not read by any Discord-side consumer today (shield warnings post via the
+    // AlertChannelListEditor list below, GuildAlertChannelKind.Shield) — key stays local.
+    private const string ChannelKey = "Channel";
+
+    private GuildAudience audience;
+    private List<IGuildChannel> channels = [];
+    private string? channelIdInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        audience = GuildFeatureAudiences.SingleAudience(Feature);
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, ChannelKey))?.ToString();
+    }
+
+    private Task SaveChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, ChannelKey, ParseId(channelIdInput));
+}

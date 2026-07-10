@@ -14,7 +14,12 @@ namespace HoshiBot.Discord.Absences;
 // same "save first, act on the saved row by ID" idea AlertService.ReportRaidAsync's
 // "Beenden" button already uses. Delete has no draft step — picking a target from the
 // StringMenu list is itself a deliberate one-shot gesture, unlike a freeform modal.
-public class AbsenceService(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
+public class AbsenceService(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    NotificationDispatcher dispatcher,
+    EmbedBranding embedBranding,
+    GuildFeatureSettingsService settingsService)
 {
     private static readonly TimeSpan DraftTtl = TimeSpan.FromMinutes(15);
 
@@ -247,15 +252,19 @@ public class AbsenceService(HoshiBotDbContext db, GatewayClient gatewayClient, N
         var active = rows.Where(a => a.StartsAt <= now).ToList();
         var upcoming = rows.Where(a => a.StartsAt > now).ToList();
 
-        if (settings.AbsencesReportChannelId is { } publicChannelId)
+        var publicChannelId = await settingsService.GetSnowflakeAsync(
+            guildId, GuildFeature.Absences, GuildAudience.Alliance, AbsencesSettingKeys.ReportChannel);
+        if (publicChannelId is { } publicChannelIdValue)
         {
-            settings.AbsencesReportMessageId = await PostOrEditAsync(guildId, publicChannelId, settings.AbsencesReportMessageId,
+            settings.AbsencesReportMessageId = await PostOrEditAsync(guildId, publicChannelIdValue, settings.AbsencesReportMessageId,
                 await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: false), "die öffentliche Abwesenheiten-Übersicht");
         }
 
-        if (settings.AbsencesReportStaffChannelId is { } staffChannelId)
+        var staffChannelId = await settingsService.GetSnowflakeAsync(
+            guildId, GuildFeature.Absences, GuildAudience.Alliance, AbsencesSettingKeys.ReportStaffChannel);
+        if (staffChannelId is { } staffChannelIdValue)
         {
-            settings.AbsencesReportStaffMessageId = await PostOrEditAsync(guildId, staffChannelId, settings.AbsencesReportStaffMessageId,
+            settings.AbsencesReportStaffMessageId = await PostOrEditAsync(guildId, staffChannelIdValue, settings.AbsencesReportStaffMessageId,
                 await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: true), "die Führungsstab-Abwesenheiten-Übersicht");
         }
 

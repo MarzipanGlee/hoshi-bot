@@ -15,4 +15,6 @@ public enum GuildFeature
     Absences,
     AlertsOptIn,
     Diplomacy,
+    ServerStatus,
+    Incursion,
 }

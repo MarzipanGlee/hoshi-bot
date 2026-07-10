@@ -1,0 +1,32 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<RolePicker Label="Alerts" Usage="Role members opt into via the hub's 'manage alerts' button, to receive raid/shield pings."
+    @bind-Value="roleIdInput" @bind-Value:after="SaveRoleAsync" Roles="roles" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.AlertsOptIn;
+
+    private GuildAudience audience;
+    private List<Role> roles = [];
+    private string? roleIdInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        audience = GuildFeatureAudiences.SingleAudience(Feature);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        roleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, AlertsOptInSettingKeys.Role))?.ToString();
+    }
+
+    private Task SaveRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AlertsOptInSettingKeys.Role, ParseId(roleIdInput));
+}

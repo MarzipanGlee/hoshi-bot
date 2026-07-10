@@ -50,6 +50,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthorizationHandler, GuildAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, GlobalAdminHandler>();
 builder.Services.AddScoped<GuildFeatureService>();
+builder.Services.AddScoped<GuildFeatureSettingsService>();
+builder.Services.AddScoped<GuildAccessService>();
+builder.Services.AddScoped<DiscordUserGuildsService>();
+builder.Services.AddScoped<DiscordGuildDataService>();
+builder.Services.AddScoped<CurrentGuildContext>();
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtection:KeyPath"] ?? "keys"));
@@ -102,7 +107,7 @@ app.MapPost("/logout", async (HttpContext http) =>
 // categories from the Setup Wizard), ManageNicknames (nickname sync), ManageMessages
 // (pinning the weekly TC digest), ManageThreads (closing/removing threads), EmbedLinks
 // (digest/report embeds), SendMessages/ViewChannel (posting at all).
-app.MapGet("/invite", (IConfiguration config) =>
+app.MapGet("/invite", (IConfiguration config, ulong? guildId) =>
 {
     const Permissions botPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.EmbedLinks |
         Permissions.ManageMessages | Permissions.ManageThreads | Permissions.ManageRoles | Permissions.ManageNicknames |
@@ -110,6 +115,11 @@ app.MapGet("/invite", (IConfiguration config) =>
 
     var clientId = config["Discord:ClientId"];
     var url = $"https://discord.com/oauth2/authorize?client_id={clientId}&permissions={(ulong)botPermissions}&scope=bot%20applications.commands";
+    // guildId pre-selects the target server in Discord's own consent screen, mirroring the
+    // "+ install" affordance on Discord's native server list — used by the guild-picker
+    // page (Guilds/Index.razor) for guilds the user manages but the bot hasn't joined yet.
+    if (guildId is not null)
+        url += $"&guild_id={guildId}&disable_guild_select=true";
     return Results.Redirect(url);
 });
 

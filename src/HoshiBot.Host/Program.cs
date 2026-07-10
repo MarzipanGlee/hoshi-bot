@@ -42,6 +42,7 @@ builder.Services.AddScoped<AbsenceService>();
 builder.Services.AddScoped<AnonymousMessageService>();
 builder.Services.AddScoped<PendingModalInputService>();
 builder.Services.AddScoped<GuildFeatureService>();
+builder.Services.AddScoped<GuildFeatureSettingsService>();
 
 builder.Services.AddQuartz(quartz =>
 {

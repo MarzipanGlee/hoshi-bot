@@ -7,5 +7,7 @@ namespace HoshiBot.Web.Authorization;
 // in Discord's API (they exceed safe JS integer precision), hence AllowReadingFromString.
 public record DiscordUserGuild(
     [property: JsonPropertyName("id")] ulong Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("icon")] string? IconHash,
     [property: JsonPropertyName("owner")] bool Owner,
     [property: JsonPropertyName("permissions")] ulong Permissions);

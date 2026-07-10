@@ -1,0 +1,20 @@
+using HoshiBot.Data;
+using HoshiBot.Domain.Entities;
+
+namespace HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RoeViolationReports;
+
+public class RoeViolationReportsFeature : IFeatureModule
+{
+    public GuildFeature Feature => GuildFeature.RoeViolationReports;
+    public string Slug => "roe-violation-reports";
+    public string Title => "RoE Violation Reports";
+
+    public string Description =>
+        "Members can report a suspected Rules of Engagement violation for staff to review.";
+
+    public string Icon => "oi-ban";
+    public Type EditorComponentType => typeof(RoeViolationReportsEditor);
+
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context) =>
+        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, RoeViolationReportsSettingKeys.Channel) is not null;
+}

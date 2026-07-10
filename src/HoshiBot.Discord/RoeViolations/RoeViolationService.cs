@@ -11,7 +11,12 @@ namespace HoshiBot.Discord.RoeViolations;
 
 // Real thread creation from scratch, mirroring TicketService's shape exactly (same
 // permission-catch-and-notify-admin pattern via NotificationDispatcher).
-public class RoeViolationService(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
+public class RoeViolationService(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    NotificationDispatcher dispatcher,
+    EmbedBranding embedBranding,
+    GuildFeatureSettingsService settingsService)
 {
     private const string VictimInstructions =
         "Bitte prüfe zuerst Folgendes, bevor der Fall weiterverfolgt wird:\n" +
@@ -75,8 +80,9 @@ public class RoeViolationService(HoshiBotDbContext db, GatewayClient gatewayClie
     public async Task<string> CreateReportAsync(ulong guildId, ulong reporterId, string attackerTag, string attackerName,
         string defenderTag, string defenderName, ulong? attackerDiscordUserId, bool reporterIsVictim)
     {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.RoeViolationsChannelId is not { } channelId)
+        var channelIdResult = await settingsService.GetSnowflakeAsync(
+            guildId, GuildFeature.RoeViolationReports, GuildAudience.Alliance, RoeViolationReportsSettingKeys.Channel);
+        if (channelIdResult is not { } channelId)
             return "Der RoE-Verstoss-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 
         var report = new RoeViolationReport
@@ -152,8 +158,9 @@ public class RoeViolationService(HoshiBotDbContext db, GatewayClient gatewayClie
         if (callerId != report.ReportedByDiscordUserId)
             return "Nur die meldende Person kann dies bestätigen.";
 
-        var settings = await db.GuildSettings.FindAsync(report.GuildId);
-        var mention = settings?.DiplomatRoleId is { } roleId ? $"<@&{roleId}>" : null;
+        var diplomatRoleId = await settingsService.GetSnowflakeAsync(
+            report.GuildId, GuildFeature.Diplomacy, GuildAudience.Alliance, DiplomacySettingKeys.DiplomatRole);
+        var mention = diplomatRoleId is { } roleId ? $"<@&{roleId}>" : null;
 
         try
         {

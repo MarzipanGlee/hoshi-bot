@@ -1,0 +1,102 @@
+@implements IDisposable
+@using Microsoft.AspNetCore.Authentication
+@inject CurrentGuildContext GuildContext
+@inject DiscordUserGuildsService DiscordUserGuilds
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IHttpContextAccessor HttpContextAccessor
+
+<div class="guild-selector">
+    <button type="button" class="guild-selector-toggle" @onclick="ToggleOpen">
+        @if (currentGuild is not null)
+        {
+            <GuildIcon GuildId="currentGuild.Id" IconHash="@currentGuild.IconHash" Name="@currentGuild.Name" CssClass="guild-selector-icon" />
+            <span class="guild-selector-name">@currentGuild.Name</span>
+        }
+        else
+        {
+            <span class="guild-selector-name guild-selector-placeholder">Select a guild…</span>
+        }
+        <span class="oi oi-chevron-bottom guild-selector-caret" aria-hidden="true"></span>
+    </button>
+
+    @if (isOpen)
+    {
+        <div class="guild-selector-backdrop" @onclick="Close"></div>
+        <div class="guild-selector-menu">
+            @if (installedGuilds.Count == 0 && notInstalledGuilds.Count == 0)
+            {
+                <div class="guild-selector-empty">Loading…</div>
+            }
+            @foreach (var guild in installedGuilds)
+            {
+                <button type="button" class="guild-selector-item @(guild.Id == GuildContext.GuildId ? "guild-selector-item-active" : "")"
+                        @onclick="() => SelectAsync(guild.Id)">
+                    <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name" CssClass="guild-selector-icon" />
+                    <span>@guild.Name</span>
+                </button>
+            }
+            @if (notInstalledGuilds.Count > 0)
+            {
+                <div class="guild-selector-divider">Bot not added yet</div>
+                @foreach (var guild in notInstalledGuilds)
+                {
+                    <a class="guild-selector-item guild-selector-item-install" href="invite?guildId=@guild.Id" target="_blank" rel="noopener">
+                        <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name" CssClass="guild-selector-icon" />
+                        <span>@guild.Name</span>
+                        <span class="guild-selector-plus" aria-hidden="true">+</span>
+                    </a>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<UserManagedGuild> installedGuilds = [];
+    private List<UserManagedGuild> notInstalledGuilds = [];
+    private UserManagedGuild? currentGuild;
+    private bool isOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        GuildContext.Changed += OnContextChanged;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+            return;
+
+        var httpContext = HttpContextAccessor.HttpContext;
+        var accessToken = httpContext is null ? null : await httpContext.GetTokenAsync("access_token");
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (accessToken is null || userIdClaim is null || !ulong.TryParse(userIdClaim, out var userId))
+            return;
+
+        var guilds = await DiscordUserGuilds.GetUserManagedGuildsAsync(accessToken, userId);
+        installedGuilds = guilds.Where(g => g.BotInstalled).ToList();
+        notInstalledGuilds = guilds.Where(g => !g.BotInstalled).ToList();
+        UpdateCurrentGuild();
+    }
+
+    private void UpdateCurrentGuild() =>
+        currentGuild = installedGuilds.FirstOrDefault(g => g.Id == GuildContext.GuildId);
+
+    private void OnContextChanged() => InvokeAsync(() =>
+    {
+        UpdateCurrentGuild();
+        StateHasChanged();
+    });
+
+    private void ToggleOpen() => isOpen = !isOpen;
+
+    private void Close() => isOpen = false;
+
+    private async Task SelectAsync(ulong guildId)
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        await GuildContext.SetAsync(guildId, authState.User);
+        isOpen = false;
+    }
+
+    public void Dispose() => GuildContext.Changed -= OnContextChanged;
+}

@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject CurrentGuildContext GuildContext
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Hoshi Bot Admin</PageTitle>
 
@@ -13,6 +15,7 @@
             <AuthorizeView>
                 <Authorized>
                     <div class="topbar-actions">
+                        <GuildSelector />
                         <span class="topbar-user">
                             @{ var avatarUrl = GetAvatarUrl(context.User); }
                             @if (avatarUrl is not null)
@@ -38,6 +41,16 @@
 </div>
 
 @code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+            await GuildContext.InitializeAsync(authState.User);
+    }
+
     private static string? GetAvatarUrl(ClaimsPrincipal user)
     {
         var id = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;

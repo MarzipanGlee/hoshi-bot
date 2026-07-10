@@ -1,7 +1,8 @@
 namespace HoshiBot.Domain.Entities;
 
-// A private thread under GuildSettings.RoeViolationsChannelId, one per reported RoE
-// violation. Attacker/defender tag+name are stored as plain strings — the "other side"
+// A private thread under the guild's RoeViolationReports channel (see
+// GuildFeatureSettingsService), one per reported RoE violation. Attacker/defender
+// tag+name are stored as plain strings — the "other side"
 // (the party not identified via a real Discord user-select) may not even be a member of
 // this guild, matching legacy exactly. Closing archives+locks the thread in place, same
 // as Ticket — no transcript needed.

@@ -15,9 +15,11 @@ public class AbsenceReportRefreshJob(HoshiBotDbContext db, AbsenceService absenc
     {
         await absenceService.SweepStaleDraftsAsync();
 
-        var guildIds = await db.GuildSettings
-            .Where(s => s.AbsencesReportChannelId != null || s.AbsencesReportStaffChannelId != null)
+        var guildIds = await db.GuildFeatureSettingSnowflakes
+            .Where(s => s.Feature == GuildFeature.Absences &&
+                (s.Key == AbsencesSettingKeys.ReportChannel || s.Key == AbsencesSettingKeys.ReportStaffChannel))
             .Select(s => s.GuildId)
+            .Distinct()
             .ToListAsync();
 
         foreach (var guildId in guildIds)

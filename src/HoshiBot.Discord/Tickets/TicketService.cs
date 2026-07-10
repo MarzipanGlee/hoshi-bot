@@ -12,7 +12,12 @@ namespace HoshiBot.Discord.Tickets;
 // Real thread creation/permissioning from scratch — unlike everything ported so far,
 // legacy's Tickets is YAGPDB's own first-party plugin (createTicket/exec "Ticket Close"),
 // not a custom Command; there's no built-in equivalent to lean on here.
-public class TicketService(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
+public class TicketService(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    NotificationDispatcher dispatcher,
+    EmbedBranding embedBranding,
+    GuildFeatureSettingsService settingsService)
 {
     private const string WelcomeMessageFormat =
         "Willkommen Commander {0}!\n\nBitte beschreibe den Grund für die Eröffnung dieses Tickets und füge alle relevanten Informationen bei, wie z. B. Beweise, weitere Commander usw.";
@@ -23,10 +28,10 @@ public class TicketService(HoshiBotDbContext db, GatewayClient gatewayClient, No
     public static UserMenuProperties AddCommanderMenu(int ticketId) =>
         new($"ticket-add-commander:{ticketId}") { Placeholder = "Commander zum Ticket hinzufügen" };
 
-    public async Task<string> OpenTicketAsync(ulong guildId, ulong openedByUserId, string openerName, string subject)
+    public async Task<string> OpenTicketAsync(ulong guildId, GuildAudience audience, ulong openedByUserId, string openerName, string subject)
     {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.TicketsChannelId is not { } channelId)
+        var channelIdResult = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, TicketsSettingKeys.Channel);
+        if (channelIdResult is not { } channelId)
             return "Der Tickets-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 
         var ticket = new Ticket
@@ -34,6 +39,7 @@ public class TicketService(HoshiBotDbContext db, GatewayClient gatewayClient, No
             GuildId = guildId,
             Subject = subject,
             OpenedByDiscordUserId = openedByUserId,
+            Audience = audience,
             Status = TicketStatus.Open,
             CreatedAt = DateTimeOffset.UtcNow,
         };

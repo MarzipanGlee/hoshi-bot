@@ -1,0 +1,198 @@
+@using HoshiBot.Web.Services
+@using NetCord
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<h2>Audience</h2>
+<p class="form-text">Which audience(s) this guild serves — drives the Setup Wizard's relevant steps and the Dashboard's feature grouping. Doesn't restrict which features can be enabled.</p>
+<AudienceEditor GuildId="GuildId" />
+
+<h2 class="mt-4">Channels</h2>
+<ChannelPicker Label="Log" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
+<ChannelPicker Label="Admin" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
+<ChannelPicker Label="User Log" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
+<ChannelPicker Label="Alliance Boarding" Usage="Where new-member boarding happens." @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="SaveAllianceBoardingChannelAsync" Channels="channels" />
+<ChannelPicker Label="Command Bridge" Usage="Where the Command Bridge hub message (staff action buttons) is posted." @bind-Value="commandBridgeChannelIdInput" @bind-Value:after="SaveCommandBridgeChannelAsync" Channels="channels" />
+<ChannelPicker Label="Reminders" Usage="General reminders channel." @bind-Value="remindersChannelIdInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
+<ChannelPicker Label="Reminders (Allies)" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="SaveRemindersAlliesChannelAsync" Channels="channels" />
+<ChannelPicker Label="Reminders (Services)" @bind-Value="remindersServicesChannelIdInput" @bind-Value:after="SaveRemindersServicesChannelAsync" Channels="channels" />
+<ChannelPicker Label="Rules (DE)" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="SaveRulesDeChannelAsync" Channels="channels" />
+<ChannelPicker Label="Rules (EN)" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="SaveRulesEnChannelAsync" Channels="channels" />
+<ChannelPicker Label="User Notifications" Usage="General user-facing notifications, not tied to one feature." @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="SaveUserNotificationsChannelAsync" Channels="channels" />
+<ChannelPicker Label="Bot Support" Usage="Where server admins can ask for help with the bot itself." @bind-Value="botSupportChannelIdInput" @bind-Value:after="SaveBotSupportChannelAsync" Channels="channels" />
+<ChannelPicker Label="Command Staff Jobs" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="SaveCommandStaffJobsChannelAsync" Channels="channels" />
+<ChannelPicker Label="Default Channel Category" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
+
+<h2 class="mt-4">Roles</h2>
+<RolePicker Label="Member" Usage="This guild's general membership role." @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+<RolePicker Label="Command Staff" Usage="Leadership/staff role — gates several admin-only bot actions." @bind-Value="commandStaffRoleIdInput" @bind-Value:after="SaveCommandStaffRoleAsync" Roles="roles" />
+<RolePicker Label="Boarding" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
+<RolePicker Label="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
+<RolePicker Label="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
+<RolePicker Label="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
+<RolePicker Label="Warnings" @bind-Value="warningsRoleIdInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
+
+<h2 class="mt-4">Rank Roles</h2>
+<p class="form-text">STFC's fixed 5-rank list — guild-wide designations, not specific to any one feature. Not consumed by any bot logic yet; set now, picked up once that lands.</p>
+<div class="d-flex align-items-center gap-2">
+    <img src="images/ranks/admiral.png" alt="" width="32" height="32" />
+    <div class="flex-grow-1">
+        <RolePicker Label="Admiral" @bind-Value="admiralInput" @bind-Value:after="SaveAdmiralAsync" Roles="roles" />
+    </div>
+</div>
+<div class="d-flex align-items-center gap-2">
+    <img src="images/ranks/commodore.png" alt="" width="32" height="32" />
+    <div class="flex-grow-1">
+        <RolePicker Label="Commodore" @bind-Value="commodoreInput" @bind-Value:after="SaveCommodoreAsync" Roles="roles" />
+    </div>
+</div>
+<div class="d-flex align-items-center gap-2">
+    <img src="images/ranks/premier.png" alt="" width="32" height="32" />
+    <div class="flex-grow-1">
+        <RolePicker Label="Premier" @bind-Value="premierInput" @bind-Value:after="SavePremierAsync" Roles="roles" />
+    </div>
+</div>
+<div class="d-flex align-items-center gap-2">
+    <img src="images/ranks/operative.png" alt="" width="32" height="32" />
+    <div class="flex-grow-1">
+        <RolePicker Label="Operative" @bind-Value="operativeInput" @bind-Value:after="SaveOperativeAsync" Roles="roles" />
+    </div>
+</div>
+<div class="d-flex align-items-center gap-2">
+    <img src="images/ranks/agent.png" alt="" width="32" height="32" />
+    <div class="flex-grow-1">
+        <RolePicker Label="Agent" @bind-Value="agentInput" @bind-Value:after="SaveAgentAsync" Roles="roles" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    private GuildSettings settings = new();
+    private List<IGuildChannel> channels = [];
+    private List<CategoryGuildChannel> categories = [];
+    private List<Role> roles = [];
+
+    private string? logChannelIdInput;
+    private string? adminChannelIdInput;
+    private string? userLogChannelIdInput;
+    private string? allianceBoardingChannelIdInput;
+    private string? commandBridgeChannelIdInput;
+    private string? remindersChannelIdInput;
+    private string? remindersAlliesChannelIdInput;
+    private string? remindersServicesChannelIdInput;
+    private string? rulesDeChannelIdInput;
+    private string? rulesEnChannelIdInput;
+    private string? userNotificationsChannelIdInput;
+    private string? botSupportChannelIdInput;
+    private string? commandStaffJobsChannelIdInput;
+    private string? defaultChannelCategoryIdInput;
+    private string? memberRoleIdInput;
+    private string? commandStaffRoleIdInput;
+    private string? boardingRoleIdInput;
+    private string? crewsRoleIdInput;
+    private string? betaTesterRoleIdInput;
+    private string? hoshiTesterRoleIdInput;
+    private string? warningsRoleIdInput;
+
+    // Rank roles live in the generic per-feature settings store (tagged under
+    // TerritoryCapture/Alliance for historical reasons — they moved here from the
+    // Territory Capture page since they're guild-wide, not feature-specific), not on the
+    // flat GuildSettings entity like everything else on this page.
+    private readonly GuildAudience rankRoleAudience = GuildFeatureAudiences.SingleAudience(GuildFeature.TerritoryCapture);
+    private string? admiralInput;
+    private string? commodoreInput;
+    private string? premierInput;
+    private string? operativeInput;
+    private string? agentInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId)
+            ?? new GuildSettings { GuildId = GuildId };
+
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        categories = await DiscordData.GetCategoriesAsync(GuildId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+
+        logChannelIdInput = settings.LogChannelId?.ToString();
+        adminChannelIdInput = settings.AdminChannelId?.ToString();
+        userLogChannelIdInput = settings.UserLogChannelId?.ToString();
+        allianceBoardingChannelIdInput = settings.AllianceBoardingChannelId?.ToString();
+        commandBridgeChannelIdInput = settings.CommandBridgeChannelId?.ToString();
+        remindersChannelIdInput = settings.RemindersChannelId?.ToString();
+        remindersAlliesChannelIdInput = settings.RemindersAlliesChannelId?.ToString();
+        remindersServicesChannelIdInput = settings.RemindersServicesChannelId?.ToString();
+        rulesDeChannelIdInput = settings.RulesDeChannelId?.ToString();
+        rulesEnChannelIdInput = settings.RulesEnChannelId?.ToString();
+        userNotificationsChannelIdInput = settings.UserNotificationsChannelId?.ToString();
+        botSupportChannelIdInput = settings.BotSupportChannelId?.ToString();
+        commandStaffJobsChannelIdInput = settings.CommandStaffJobsChannelId?.ToString();
+        defaultChannelCategoryIdInput = settings.DefaultChannelCategoryId?.ToString();
+        memberRoleIdInput = settings.MemberRoleId?.ToString();
+        commandStaffRoleIdInput = settings.CommandStaffRoleId?.ToString();
+        boardingRoleIdInput = settings.BoardingRoleId?.ToString();
+        crewsRoleIdInput = settings.CrewsRoleId?.ToString();
+        betaTesterRoleIdInput = settings.BetaTesterRoleId?.ToString();
+        hoshiTesterRoleIdInput = settings.HoshiTesterRoleId?.ToString();
+        warningsRoleIdInput = settings.WarningsRoleId?.ToString();
+
+        admiralInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.AdmiralRole))?.ToString();
+        commodoreInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.CommodoreRole))?.ToString();
+        premierInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.PremierRole))?.ToString();
+        operativeInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.OperativeRole))?.ToString();
+        agentInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.AgentRole))?.ToString();
+    }
+
+    private Task<ulong?> GetRankRoleAsync(string key) =>
+        SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.TerritoryCapture, rankRoleAudience, key);
+
+    private Task SetRankRoleAsync(string key, string? input) =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.TerritoryCapture, rankRoleAudience, key, ParseId(input));
+
+    private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
+
+    private async Task SaveAsync(Action<GuildSettings> apply)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == GuildId);
+        if (existing is null)
+        {
+            existing = new GuildSettings { GuildId = GuildId };
+            db.GuildSettings.Add(existing);
+        }
+
+        apply(existing);
+        await db.SaveChangesAsync();
+    }
+
+    private Task SaveLogChannelAsync() => SaveAsync(s => s.LogChannelId = ParseId(logChannelIdInput));
+    private Task SaveAdminChannelAsync() => SaveAsync(s => s.AdminChannelId = ParseId(adminChannelIdInput));
+    private Task SaveUserLogChannelAsync() => SaveAsync(s => s.UserLogChannelId = ParseId(userLogChannelIdInput));
+    private Task SaveAllianceBoardingChannelAsync() => SaveAsync(s => s.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput));
+    private Task SaveCommandBridgeChannelAsync() => SaveAsync(s => s.CommandBridgeChannelId = ParseId(commandBridgeChannelIdInput));
+    private Task SaveRemindersChannelAsync() => SaveAsync(s => s.RemindersChannelId = ParseId(remindersChannelIdInput));
+    private Task SaveRemindersAlliesChannelAsync() => SaveAsync(s => s.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput));
+    private Task SaveRemindersServicesChannelAsync() => SaveAsync(s => s.RemindersServicesChannelId = ParseId(remindersServicesChannelIdInput));
+    private Task SaveRulesDeChannelAsync() => SaveAsync(s => s.RulesDeChannelId = ParseId(rulesDeChannelIdInput));
+    private Task SaveRulesEnChannelAsync() => SaveAsync(s => s.RulesEnChannelId = ParseId(rulesEnChannelIdInput));
+    private Task SaveUserNotificationsChannelAsync() => SaveAsync(s => s.UserNotificationsChannelId = ParseId(userNotificationsChannelIdInput));
+    private Task SaveBotSupportChannelAsync() => SaveAsync(s => s.BotSupportChannelId = ParseId(botSupportChannelIdInput));
+    private Task SaveCommandStaffJobsChannelAsync() => SaveAsync(s => s.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput));
+    private Task SaveDefaultChannelCategoryAsync() => SaveAsync(s => s.DefaultChannelCategoryId = ParseId(defaultChannelCategoryIdInput));
+    private Task SaveMemberRoleAsync() => SaveAsync(s => s.MemberRoleId = ParseId(memberRoleIdInput));
+    private Task SaveCommandStaffRoleAsync() => SaveAsync(s => s.CommandStaffRoleId = ParseId(commandStaffRoleIdInput));
+    private Task SaveBoardingRoleAsync() => SaveAsync(s => s.BoardingRoleId = ParseId(boardingRoleIdInput));
+    private Task SaveCrewsRoleAsync() => SaveAsync(s => s.CrewsRoleId = ParseId(crewsRoleIdInput));
+    private Task SaveBetaTesterRoleAsync() => SaveAsync(s => s.BetaTesterRoleId = ParseId(betaTesterRoleIdInput));
+    private Task SaveHoshiTesterRoleAsync() => SaveAsync(s => s.HoshiTesterRoleId = ParseId(hoshiTesterRoleIdInput));
+    private Task SaveWarningsRoleAsync() => SaveAsync(s => s.WarningsRoleId = ParseId(warningsRoleIdInput));
+
+    private Task SaveAdmiralAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.AdmiralRole, admiralInput);
+    private Task SaveCommodoreAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.CommodoreRole, commodoreInput);
+    private Task SavePremierAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.PremierRole, premierInput);
+    private Task SaveOperativeAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.OperativeRole, operativeInput);
+    private Task SaveAgentAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.AgentRole, agentInput);
+}

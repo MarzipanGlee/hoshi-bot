@@ -13,7 +13,12 @@ namespace HoshiBot.Discord;
 // Core Territory Capture digest logic shared by the weekly and daily Quartz jobs, and by
 // TerritoryCaptureRoleSyncJob (which needs the same "this week's owned zones, in slot
 // order" computation to assign zone-slot roles).
-public class TerritoryCaptureDigestService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureService featureService)
+public class TerritoryCaptureDigestService(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    EmbedBranding embedBranding,
+    GuildFeatureService featureService,
+    GuildFeatureSettingsService settingsService)
 {
     public async Task SendWeeklyDigestsAsync()
     {
@@ -55,7 +60,9 @@ public class TerritoryCaptureDigestService(HoshiBotDbContext db, GatewayClient g
             if (settings?.RemindersChannelId is not { } channelId)
                 continue;
 
-            var mentionRoleId = settings.GetZoneSlotRoleId(tomorrowSlots[0].SlotIndex);
+            var mentionRoleId = await settingsService.GetSnowflakeAsync(
+                guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance,
+                TerritoryCaptureSettingKeys.ZoneSlotRole(tomorrowSlots[0].SlotIndex));
 
             var known = tomorrowSlots.Select(s => (s.Territory, s.Start, s.End)).ToList();
             await SendDigestAsync(guildId, channelId, "Morgige Gebietsübernahmen", known, [], mentionRoleId, pin: false);
@@ -118,8 +125,6 @@ public class TerritoryCaptureDigestService(HoshiBotDbContext db, GatewayClient g
         List<(StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
         ulong? mentionRoleId, bool pin)
     {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-
         var table = new StringBuilder();
         table.AppendLine("```");
         table.AppendLine($"{"#",-3}{"Zone",-12}{"Tier",-5}{"Nachbarn",-24}{"Tag",-5}{"Zeit",-16}");
@@ -154,12 +159,14 @@ public class TerritoryCaptureDigestService(HoshiBotDbContext db, GatewayClient g
             Footer = embedBranding.BuildFooter(guildId),
         };
 
-        if (!string.IsNullOrWhiteSpace(settings?.TerritoryCaptureInstructions))
+        var instructions = await settingsService.GetTextAsync(
+            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, TerritoryCaptureSettingKeys.Instructions);
+        if (!string.IsNullOrWhiteSpace(instructions))
         {
             embed.Fields = embed.Fields.Append(new EmbedFieldProperties
             {
                 Name = "Anweisungen von LF-Führungsstab",
-                Value = settings.TerritoryCaptureInstructions,
+                Value = instructions,
             });
         }
 

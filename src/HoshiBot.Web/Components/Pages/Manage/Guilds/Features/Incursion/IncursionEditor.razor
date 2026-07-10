@@ -1,0 +1,39 @@
+@using HoshiBot.Web.Components.Pages.Manage.Guilds
+@inject GuildFeatureService FeatureService
+
+<p class="form-text">
+    Advance-warning announcement when a new Incursion event is scheduled. Not scoped to a
+    specific server — every guild tracking any server (see Scope) is notified, since
+    Incursions aren't currently known to be server/region-specific. Currently fed by a
+    one-time seed, not a live sync — see StfcEventStatus for why.
+</p>
+
+@foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
+{
+    <div class="form-check form-switch mb-3">
+        <input type="checkbox" class="form-check-input" role="switch" checked="@enabled.GetValueOrDefault(audience)"
+               @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
+        <label class="form-check-label">Enabled for @AudienceDisplay.Labels(audience).First()</label>
+    </div>
+}
+
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Incursion" RelevantAudiences="RelevantAudiences" />
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    private static readonly GuildAudience RelevantAudiences = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Incursion);
+    private readonly Dictionary<GuildAudience, bool> enabled = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(RelevantAudiences))
+            enabled[audience] = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Incursion, audience);
+    }
+
+    private async Task ToggleAsync(GuildAudience audience, bool value)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Incursion, audience, value);
+        enabled[audience] = value;
+    }
+}

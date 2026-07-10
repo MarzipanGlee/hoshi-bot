@@ -60,6 +60,30 @@
     color: white;
 }
 
+/* A flat top-level item sits directly in the sidebar with no px-3 wrapper (unlike a
+   .nav-item nested inside a NavMenuGroup) -- give it the same width:100% + padding box
+   model as .nav-group-toggle so the active/hover background spans edge-to-edge instead of
+   being inset by an extra px-3 on top of the link's own padding. */
+    .nav-item-top ::deep a {
+        color: #d7d7d7;
+        border-radius: 4px;
+        height: 3rem;
+        padding: 0 1rem;
+        display: flex;
+        align-items: center;
+        line-height: 3rem;
+    }
+
+    .nav-item-top ::deep a.active {
+        background-color: rgba(255,255,255,0.25);
+        color: white;
+    }
+
+    .nav-item-top ::deep a:hover {
+        background-color: rgba(255,255,255,0.1);
+        color: white;
+    }
+
 @media (min-width: 641px) {
     .navbar-toggler {
         display: none;

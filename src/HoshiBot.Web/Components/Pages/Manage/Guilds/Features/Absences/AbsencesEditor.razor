@@ -1,0 +1,40 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<ChannelPicker Label="Absences Report" Usage="Where the public, kept-updated absence report is posted."
+    @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
+
+<ChannelPicker Label="Absences Report (Staff)" Usage="A second copy of the report, for a staff-only channel."
+    @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.Absences;
+
+    private GuildAudience audience;
+    private List<IGuildChannel> channels = [];
+    private string? reportChannelIdInput;
+    private string? staffChannelIdInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        audience = GuildFeatureAudiences.SingleAudience(Feature);
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        reportChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportChannel))?.ToString();
+        staffChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportStaffChannel))?.ToString();
+    }
+
+    private Task SaveReportChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportChannel, ParseId(reportChannelIdInput));
+
+    private Task SaveStaffChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportStaffChannel, ParseId(staffChannelIdInput));
+}

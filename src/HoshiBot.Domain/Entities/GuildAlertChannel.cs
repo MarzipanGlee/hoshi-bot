@@ -16,4 +16,9 @@ public class GuildAlertChannel
     public ulong ChannelId { get; set; }
 
     public ulong RoleId { get; set; }
+
+    // Which audience this specific channel serves — RaidAlerts/ShieldReminders rows are
+    // always Alliance (their only relevant audience); ServerStatus/Incursion rows are a
+    // genuine per-row admin choice.
+    public GuildAudience Audience { get; set; }
 }

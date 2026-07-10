@@ -1,0 +1,42 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-check form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<ChannelPicker Label="Diplomacy" Usage="Where diplomacy status changes (/set-diplomacy) are announced."
+    @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+
+<RolePicker Label="Diplomat" Usage="Role for members who can run /set-diplomacy for this guild's alliance."
+    @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.Diplomacy;
+
+    private GuildAudience audience;
+    private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
+    private string? channelIdInput;
+    private string? diplomatRoleIdInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        audience = GuildFeatureAudiences.SingleAudience(Feature);
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.Channel))?.ToString();
+        diplomatRoleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.DiplomatRole))?.ToString();
+    }
+
+    private Task SaveChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.Channel, ParseId(channelIdInput));
+
+    private Task SaveDiplomatRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.DiplomatRole, ParseId(diplomatRoleIdInput));
+}

@@ -1,0 +1,9 @@
+.guild-icon-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(5, 39, 103);
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+}

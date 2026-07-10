@@ -187,8 +187,35 @@ public static class ServiceCollectionExtensions
 
         db.GuildSettings.Add(GuildSettingsSeedData.CreateSettings());
 
+        // Raid/Shield alert channels are an Alliance-only feature — the only audience this
+        // seeded guild uses (see GuildSettingsSeedData's doc comment).
         db.GuildAlertChannels.AddRange(GuildSettingsSeedData.AlertChannels.Select(c =>
-            new GuildAlertChannel { GuildId = GuildSettingsSeedData.GuildId, Kind = c.Kind, ChannelId = c.ChannelId, RoleId = c.RoleId }));
+            new GuildAlertChannel
+            {
+                GuildId = GuildSettingsSeedData.GuildId,
+                Kind = c.Kind,
+                ChannelId = c.ChannelId,
+                RoleId = c.RoleId,
+                Audience = GuildAudience.Alliance,
+            }));
+
+        db.GuildFeatureSettingSnowflakes.AddRange(GuildSettingsSeedData.SnowflakeSettings.Select(s =>
+            new GuildFeatureSettingSnowflake
+            {
+                GuildId = GuildSettingsSeedData.GuildId,
+                Feature = s.Feature,
+                Audience = GuildAudience.Alliance,
+                Key = s.Key,
+                Value = s.Value,
+            }));
+
+        db.GuildEnabledFeatures.AddRange(GuildSettingsSeedData.EnabledFeatures.Select(feature =>
+            new GuildEnabledFeature
+            {
+                GuildId = GuildSettingsSeedData.GuildId,
+                Feature = feature,
+                Audience = GuildFeatureAudiences.HasMultipleAudiences(feature) ? GuildAudience.Alliance : GuildFeatureAudiences.RelevantAudiences(feature),
+            }));
 
         await db.SaveChangesAsync();
     }

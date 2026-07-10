@@ -13,7 +13,8 @@ namespace HoshiBot.Discord.Scheduling;
 // since there's currently no finer signal to filter on. Revisit once api.stfc.pro
 // clarifies whether Incursions are global or per-region. Same one-time-seed situation
 // as ServerStatusNotifyJob (see there for why).
-public class IncursionNotifyJob(HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
+public class IncursionNotifyJob(
+    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
 {
     private const string IncursionEventGroup = "incursions";
 
@@ -41,7 +42,8 @@ public class IncursionNotifyJob(HoshiBotDbContext db, NotificationDispatcher dis
                 Author = await embedBranding.BuildAuthorAsync(guildId),
                 Footer = embedBranding.BuildFooter(guildId),
             };
-            await dispatcher.SendPublicAsync(guildId, GuildAlertChannelKind.Incursion, content, embed: embed);
+            await dispatcher.SendPublicToEnabledAudiencesAsync(
+                guildId, GuildAlertChannelKind.Incursion, GuildFeature.Incursion, content, embed: embed);
         }
 
         incursion.NotifiedEventStart = incursion.EventStart;

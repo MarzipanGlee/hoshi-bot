@@ -81,7 +81,11 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<PendingModalInput> PendingModalInputs => Set<PendingModalInput>();
 
-    public DbSet<GuildDisabledFeature> GuildDisabledFeatures => Set<GuildDisabledFeature>();
+    public DbSet<GuildEnabledFeature> GuildEnabledFeatures => Set<GuildEnabledFeature>();
+
+    public DbSet<GuildFeatureSettingSnowflake> GuildFeatureSettingSnowflakes => Set<GuildFeatureSettingSnowflake>();
+
+    public DbSet<GuildFeatureSettingText> GuildFeatureSettingTexts => Set<GuildFeatureSettingText>();
 
     public DbSet<ChannelPermissionExpectation> ChannelPermissionExpectations => Set<ChannelPermissionExpectation>();
 

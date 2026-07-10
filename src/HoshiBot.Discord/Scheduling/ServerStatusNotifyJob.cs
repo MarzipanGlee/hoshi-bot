@@ -14,7 +14,8 @@ namespace HoshiBot.Discord.Scheduling;
 // (StfcServerStatusSeedData), not a live sync — stfc.pro's robots.txt disallows
 // automated /api/ access, so nothing populates new observed values yet. This job is
 // still correct once that data starts flowing from api.stfc.pro.
-public class ServerStatusNotifyJob(HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
+public class ServerStatusNotifyJob(
+    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
@@ -48,7 +49,8 @@ public class ServerStatusNotifyJob(HoshiBotDbContext db, NotificationDispatcher 
                     Author = await embedBranding.BuildAuthorAsync(guildId),
                     Footer = embedBranding.BuildFooter(guildId),
                 };
-                await dispatcher.SendPublicAsync(guildId, GuildAlertChannelKind.ServerStatus, content, embed: embed);
+                await dispatcher.SendPublicToEnabledAudiencesAsync(
+                    guildId, GuildAlertChannelKind.ServerStatus, GuildFeature.ServerStatus, content, embed: embed);
             }
 
             status.NotifiedStatus = status.Status;

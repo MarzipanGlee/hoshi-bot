@@ -1,0 +1,65 @@
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<div class="form-check">
+    <input type="checkbox" class="form-check-input" id="audienceAlliance" checked="@Alliance"
+           @onchange="e => ToggleAsync(GuildAudience.Alliance, (bool)e.Value!)" />
+    <label class="form-check-label" for="audienceAlliance">Alliance — this guild is a single alliance's own Discord.</label>
+</div>
+<div class="form-check">
+    <input type="checkbox" class="form-check-input" id="audienceServer" checked="@Server"
+           @onchange="e => ToggleAsync(GuildAudience.Server, (bool)e.Value!)" />
+    <label class="form-check-label" for="audienceServer">Server — this guild serves a whole STFC server.</label>
+</div>
+<div class="form-check">
+    <input type="checkbox" class="form-check-input" id="audienceVeilGroup" checked="@VeilGroup"
+           @onchange="e => ToggleAsync(GuildAudience.VeilGroup, (bool)e.Value!)" />
+    <label class="form-check-label" for="audienceVeilGroup">Veil Group — this guild serves a veil group (a coalition of servers).</label>
+</div>
+<div class="form-check">
+    <input type="checkbox" class="form-check-input" id="audienceCommunity" checked="@Community"
+           @onchange="e => ToggleAsync(GuildAudience.Community, (bool)e.Value!)" />
+    <label class="form-check-label" for="audienceCommunity">Community — a general Discord not tied to one alliance or server.</label>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    // Fires after every toggle saves — lets an embedding page (the Setup Wizard) react
+    // immediately, e.g. recomputing which later steps are relevant.
+    [Parameter] public EventCallback<GuildAudience> AudienceChanged { get; set; }
+
+    private GuildAudience audiences;
+
+    private bool Alliance => audiences.HasFlag(GuildAudience.Alliance);
+    private bool Server => audiences.HasFlag(GuildAudience.Server);
+    private bool VeilGroup => audiences.HasFlag(GuildAudience.VeilGroup);
+    private bool Community => audiences.HasFlag(GuildAudience.Community);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId);
+        audiences = settings?.Audiences ?? GuildAudience.None;
+    }
+
+    private async Task ToggleAsync(GuildAudience flag, bool enabled)
+    {
+        audiences = enabled ? audiences | flag : audiences & ~flag;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == GuildId);
+        if (existing is null)
+        {
+            existing = new GuildSettings { GuildId = GuildId };
+            db.GuildSettings.Add(existing);
+        }
+
+        existing.Audiences = audiences;
+        await db.SaveChangesAsync();
+
+        await AudienceChanged.InvokeAsync(audiences);
+    }
+}

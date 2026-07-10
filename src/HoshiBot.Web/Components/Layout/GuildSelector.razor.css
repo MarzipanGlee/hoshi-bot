@@ -1,0 +1,130 @@
+.guild-selector {
+    position: relative;
+}
+
+.guild-selector-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 14rem;
+    background: #fff;
+    border: 1px solid #d6d5d5;
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+}
+
+.guild-selector-toggle ::deep .guild-selector-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+}
+
+.guild-selector-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.guild-selector-placeholder {
+    color: #8a8a92;
+}
+
+.guild-selector-caret {
+    margin-left: auto;
+    font-size: 0.6rem;
+    color: #8a8a92;
+    flex-shrink: 0;
+}
+
+.guild-selector-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+}
+
+.guild-selector-menu {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    z-index: 11;
+    min-width: 16rem;
+    max-height: 20rem;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d6d5d5;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    padding: 0.35rem;
+}
+
+.guild-selector-empty {
+    padding: 0.5rem 0.75rem;
+    color: #8a8a92;
+    font-size: 0.85rem;
+}
+
+.guild-selector-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    background: none;
+    border: none;
+    border-radius: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.guild-selector-item:hover {
+    background: #f0f0f3;
+}
+
+.guild-selector-item-active {
+    background: #eef1fb;
+    font-weight: 600;
+}
+
+.guild-selector-item ::deep .guild-selector-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+}
+
+.guild-selector-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.guild-selector-item-install {
+    opacity: 0.85;
+}
+
+.guild-selector-plus {
+    margin-left: auto;
+    color: rgb(5, 39, 103);
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.guild-selector-divider {
+    margin: 0.35rem 0.25rem 0.15rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid #e5e5e8;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #8a8a92;
+}

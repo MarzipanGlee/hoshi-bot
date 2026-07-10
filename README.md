@@ -134,23 +134,18 @@ RoE alliance lists feed the diplomacy channel structure).
   surface an active-rate-limit banner in the web admin backend, purely for operator visibility
   — not a correctness fix, since requests already succeed, just delayed.
 
-### Web admin UX (existing area, needs restructuring)
+### Web admin UX (done)
 
-- Settings (`Manage/Guilds/Settings.razor`) is one long page covering Features, Channels,
-  Roles, Territory Capture Zone Slot Roles, Rank Roles, Territory Capture, and Alert Channels
-  all at once — too much at once to navigate. Split into one page per feature area instead,
-  plus a small page for settings that are genuinely global (not tied to one feature). Every
-  setting needs an actual description of what it does and when/why you'd use it, not just a
-  bare label.
-- Dashboard should list every feature (not just "Your Guilds"/"STFC Catalog") with a direct
-  link to its own page, grouped by audience — Alliance / Server & Veil Group / Community —
-  mirroring the public landing page's existing three-way split.
-- Setup Wizard needs a rewrite, not just more steps bolted onto the current fixed sequence
-  (Welcome, Scope, Features, Core channels & roles, Admin access, Review & finish): ask which
-  audience(s) this guild serves via a switcher up front, and only show/enable the
-  audience-specific steps and dropdowns for audiences that are toggled on. One step per
-  feature, each with its own enable switcher plus a clear description of what enabling it
-  actually does — not one combined "Features" step.
+Settings is now one page per feature (`Components/Pages/Manage/Guilds/Features/`) plus a
+Global Settings page for what's genuinely guild-wide, each setting with a real description.
+The Dashboard lists every feature grouped by audience (Alliance / Server & Veil Group /
+Community) with an inline enable switch and a Configure link per card, independently
+toggleable per audience for the 5 features that serve more than one. The Setup Wizard asks
+which audience(s) a guild serves up front and skips the Scope step for Community-only
+guilds; per-feature enabling now happens from the Dashboard instead of a wizard step. Every
+feature's settings (channel/role IDs, and TerritoryCapture's instructions text) live in a
+generic per-(guild, feature, audience, key) store (`GuildFeatureSettingsService`) instead of
+flat `GuildSettings` columns — see that service's doc comment for the shape.
 
 ### Server & Veil Group Discords (new audience, not built yet)
 
@@ -251,6 +246,22 @@ hierarchy — Discord bots can only manage roles/nicknames positioned below thei
 It failed with a cryptic error rather than a clear one. **Hoshi Bot's boarding/tag-claiming
 implementation must detect this failure mode explicitly and surface a clear error to mods**,
 not fail silently/cryptically.
+
+### Guild removal cleanup (engineering, not previously scoped)
+
+No handler exists yet for the bot losing access to a guild — `GuildSyncHandler`
+(`HoshiBot.Host`) only handles the gateway's guild-create event (join/reconnect), with no
+symmetric handler for the bot being kicked, banned, leaving, or the guild being deleted
+outright. Discord's own gateway event doesn't distinguish "bot removed" from "guild
+deleted" — both surface identically; the only thing to filter out is the event's
+`unavailable: true` case, which means a temporary Discord-side outage, not real removal.
+Every per-guild entity built so far already cascade-deletes from `DiscordGuilds`, so the
+DB-level cleanup mechanism already exists — what's missing is the trigger. Main open design
+question before building: delete immediately on the event (simple, but loses all config if
+the bot is kicked and re-invited by accident within minutes), or a grace-period soft-delete
+(mark a `PendingRemovalAt` timestamp, a cleanup job finalizes the delete after N days,
+cancelled if the guild-create event fires again first) — safer, but adds a new sweep job
+and a cancel-path to get right.
 
 ### Community Discords (new audience, no concrete feature set yet)
 

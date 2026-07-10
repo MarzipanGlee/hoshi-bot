@@ -10,8 +10,8 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Keeps each guild's configured zone-slot roles (GuildSettings.ZoneSlot1RoleId..
-// ZoneSlot5RoleId — the alliance's "Zone Slots: N/5" cap, not a day of the week) in sync:
+// Keeps each guild's configured zone-slot roles (TerritoryCaptureSettingKeys.ZoneSlotRole,
+// slots 1-5 — the alliance's "Zone Slots: N/5" cap, not a day of the week) in sync:
 // slot N's role goes to every guild member who has no Absence overlapping that slot's zone
 // window this week (mirrors legacy's update-tc-roles.yag "take role, TC does not exist" /
 // absence-overlap branches). Reuses TerritoryCaptureDigestService's slot computation so
@@ -21,20 +21,19 @@ public class TerritoryCaptureRoleSyncJob(
     TerritoryCaptureDigestService digestService,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
+    GuildFeatureSettingsService settingsService,
     ILogger<TerritoryCaptureRoleSyncJob> logger) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
         var weekStart = TerritoryCaptureScheduler.GetWeekStart(DateTimeOffset.UtcNow);
 
-        var guildSettingsList = await db.GuildSettings
-            .Where(s => s.ZoneSlot1RoleId != null || s.ZoneSlot2RoleId != null || s.ZoneSlot3RoleId != null
-                || s.ZoneSlot4RoleId != null || s.ZoneSlot5RoleId != null)
-            .ToListAsync();
+        // Same guild set TerritoryCaptureDigestService.GetEligibleGuildIdsAsync uses — TC
+        // only matters for guilds managing an alliance/territory ownership.
+        var guildIds = await db.GuildAlliances.Select(ga => ga.GuildId).Distinct().ToListAsync();
 
-        foreach (var settings in guildSettingsList)
+        foreach (var guildId in guildIds)
         {
-            var guildId = settings.GuildId;
             if (!await featureService.IsEnabledAsync(guildId, GuildFeature.TerritoryCapture))
                 continue;
 
@@ -49,7 +48,9 @@ public class TerritoryCaptureRoleSyncJob(
 
             for (var slotIndex = 1; slotIndex <= 5; slotIndex++)
             {
-                if (settings.GetZoneSlotRoleId(slotIndex) is not { } roleId)
+                var slotRoleId = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, TerritoryCaptureSettingKeys.ZoneSlotRole(slotIndex));
+                if (slotRoleId is not { } roleId)
                     continue;
 
                 var hasSlot = slotsByIndex.TryGetValue(slotIndex, out var slot);

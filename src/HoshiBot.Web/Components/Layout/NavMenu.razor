@@ -1,5 +1,7 @@
 @implements IDisposable
 @inject NavigationManager NavigationManager
+@inject CurrentGuildContext GuildContext
+@inject GuildFeatureService FeatureService
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -15,17 +17,44 @@
 
 <div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
     <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="manage/dashboard">
-                <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
-            </NavLink>
-        </div>
         <AuthorizeView>
             <Authorized>
-                <NavMenuGroup Title="Guilds" Icon="oi-list-rich" Active="@IsGroupActive(GuildsHrefs)">
+                <div class="nav-item-top">
+                    <NavLink class="nav-link" href="manage/guilds">Your Guilds</NavLink>
+                </div>
+
+                <NavMenuGroup Title="Alliance" Icon="oi-flag" Active="@(IsGroupActive(AllianceHrefs) || IsFeaturesGroupActive() || IsGuildScopedRouteActive("global-settings") || IsGuildScopedRouteActive("setup"))">
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/guilds">Your Guilds</NavLink>
+                        <NavLink class="nav-link" href="manage/dashboard">Dashboard</NavLink>
                     </div>
+                    @if (GuildContext.GuildId is { } guildId)
+                    {
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/global-settings")">Settings</NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/setup")">Setup</NavLink>
+                        </div>
+                        @foreach (var audience in FeatureAudienceSections)
+                        {
+                            var features = FeatureCatalog.All
+                                .Where(f => f.RelevantAudiences().HasFlag(audience) && enabledFeatures.Contains((f.Feature, audience)))
+                                .ToList();
+                            if (features.Count == 0)
+                                continue;
+
+                            <NavMenuGroup Title="@($"{AudienceDisplay.Labels(audience).First()} Features")" Icon="oi-puzzle-piece" Active="@features.Any(f => IsFeatureActive(f.Slug))">
+                                @foreach (var feature in features)
+                                {
+                                    <div class="nav-item px-3">
+                                        <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/features/{feature.Slug}")">
+                                            @feature.Title
+                                        </NavLink>
+                                    </div>
+                                }
+                            </NavMenuGroup>
+                        }
+                    }
                 </NavMenuGroup>
 
                 <NavMenuGroup Title="STFC Catalog" Icon="oi-globe" Active="@IsGroupActive(CatalogHrefs)">
@@ -78,28 +107,61 @@
 </div>
 
 @code {
-    private static readonly string[] GuildsHrefs = ["manage/guilds"];
+    private static readonly string[] AllianceHrefs = ["manage/dashboard"];
     private static readonly string[] CatalogHrefs =
         ["manage/stfc/regions", "manage/stfc/veil-groups", "manage/stfc/servers", "manage/stfc/alliances", "manage/stfc/alliance-diplomacy",
          "manage/stfc/alliance-name-history", "manage/stfc/players", "manage/stfc/player-name-history", "manage/stfc/systems",
          "manage/stfc/territories", "manage/stfc/server-status", "manage/stfc/event-status"];
     private static readonly string[] AdministrationHrefs = ["manage/global-admins"];
+    private static readonly GuildAudience[] FeatureAudienceSections =
+        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 
     private bool collapseNavMenu = true;
     private string? currentUrl;
+    private HashSet<(GuildFeature Feature, GuildAudience Audience)> enabledFeatures = [];
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
+        GuildContext.Changed += OnGuildContextChanged;
+        await LoadEnabledFeaturesAsync();
     }
 
+    private async Task LoadEnabledFeaturesAsync()
+    {
+        enabledFeatures = [];
+        if (GuildContext.GuildId is not { } guildId)
+            return;
+
+        foreach (var feature in FeatureCatalog.All)
+        {
+            var audiences = await FeatureService.GetEnabledAudiencesAsync(guildId, feature.Feature);
+            foreach (var audience in audiences)
+                enabledFeatures.Add((feature.Feature, audience));
+        }
+    }
+
+    private void OnGuildContextChanged() => InvokeAsync(async () =>
+    {
+        await LoadEnabledFeaturesAsync();
+        StateHasChanged();
+    });
+
+    // Also refreshes on every navigation (not just guild switches) — the most practical way
+    // to pick up a feature toggled on/off from the Dashboard without a dedicated event bus
+    // between the two components, since navigating away from the Dashboard after a toggle
+    // is the common path.
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
+        _ = InvokeAsync(async () =>
+        {
+            await LoadEnabledFeaturesAsync();
+            StateHasChanged();
+        });
     }
 
     private void ToggleNavMenu()
@@ -113,8 +175,25 @@
 
     private bool IsGroupActive(string[] hrefs) => Array.Exists(hrefs, IsActive);
 
+    // Feature routes are guild-scoped (manage/guilds/{id}/features/{slug}) with a dynamic
+    // id segment, so the static-hrefs-array approach IsGroupActive uses doesn't fit — a
+    // plain substring check on the slug is enough (slugs are distinctive), consistent with
+    // this codebase's low-ceremony style elsewhere.
+    private bool IsFeatureActive(string slug) =>
+        currentUrl?.Contains($"/features/{slug}", StringComparison.OrdinalIgnoreCase) ?? false;
+
+    private bool IsFeaturesGroupActive() =>
+        currentUrl?.Contains("/features/", StringComparison.OrdinalIgnoreCase) ?? false;
+
+    // Settings/Setup routes are guild-scoped (manage/guilds/{id}/setup) with a dynamic id
+    // segment, same reasoning as IsFeatureActive above — a substring check on the trailing
+    // segment is enough.
+    private bool IsGuildScopedRouteActive(string segment) =>
+        currentUrl?.Contains($"/{segment}", StringComparison.OrdinalIgnoreCase) ?? false;
+
     public void Dispose()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
+        GuildContext.Changed -= OnGuildContextChanged;
     }
 }

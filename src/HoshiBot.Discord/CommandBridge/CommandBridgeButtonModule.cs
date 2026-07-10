@@ -128,28 +128,31 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         return InteractionCallback.ModifyMessage(m => { m.Content = "Abgebrochen."; m.Embeds = []; m.Components = []; });
     }
 
-    // The hub only has one "Führungsstab kontaktieren" button — this intermediate step
+    // The hub has one "Führungsstab kontaktieren" button per configured audience (see
+    // CommandBridgeAdminModule.GetConfiguredContactAudiencesAsync) — this intermediate step
     // explains the two options (matching legacy's own two-step flow exactly) before the
-    // actual ticket-open/anonymous-message buttons below. Only offers whichever of the
-    // two is actually enabled — the hub button itself is hidden entirely if neither is.
+    // actual ticket-open/anonymous-message buttons below, now scoped to whichever audience
+    // the member clicked. Only offers whichever of the two is actually enabled for that
+    // audience — the hub button itself is hidden entirely if neither is.
     [ComponentInteraction("contact-command-staff")]
-    public async Task<InteractionMessageProperties> ContactCommandStaffPrompt()
+    public async Task<InteractionMessageProperties> ContactCommandStaffPrompt(string audience)
     {
         var guildId = Context.Guild!.Id;
-        var ticketsEnabled = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets);
-        var anonymousEnabled = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging);
+        var parsedAudience = Enum.Parse<GuildAudience>(audience);
+        var ticketsEnabled = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, parsedAudience);
+        var anonymousEnabled = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, parsedAudience);
 
         var lines = new List<string>();
         var buttons = new List<ButtonProperties>();
         if (ticketsEnabled)
         {
             lines.Add("- **Ticket öffnen** - damit kannst Du mit dem Führungsstab aktiv kommunizieren, Dir kann auch geantwortet werden.");
-            buttons.Add(new ButtonProperties("ticket-open", "Ticket öffnen", EmojiProperties.Standard("🎟️"), ButtonStyle.Primary));
+            buttons.Add(new ButtonProperties($"ticket-open:{audience}", "Ticket öffnen", EmojiProperties.Standard("🎟️"), ButtonStyle.Primary));
         }
         if (anonymousEnabled)
         {
             lines.Add("- **Anonyme Nachricht** - Deine Nachricht wird dem Führungsstab anonym weitergeleitet, der Führungsstab kann Dir nicht antworten.");
-            buttons.Add(new ButtonProperties("anonymous-message", "Anonyme Nachricht", EmojiProperties.Standard("📮"), ButtonStyle.Primary));
+            buttons.Add(new ButtonProperties($"anonymous-message:{audience}", "Anonyme Nachricht", EmojiProperties.Standard("📮"), ButtonStyle.Primary));
         }
 
         if (buttons.Count == 0)
@@ -162,12 +165,13 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     }
 
     [ComponentInteraction("ticket-open")]
-    public async Task<InteractionCallbackProperties> OpenTicketPrompt()
+    public async Task<InteractionCallbackProperties> OpenTicketPrompt(string audience)
     {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets))
+        var parsedAudience = Enum.Parse<GuildAudience>(audience);
+        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets, parsedAudience))
             return InteractionCallback.Message(EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.Tickets)));
 
-        return InteractionCallback.Modal(new ModalProperties("ticket-open-modal", "Ticket öffnen",
+        return InteractionCallback.Modal(new ModalProperties($"ticket-open-modal:{audience}", "Ticket öffnen",
         [
             new LabelProperties("Betreff",
                 new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = "Kurzen Betreff eingeben", MaxLength = 50, Required = true }),
@@ -262,12 +266,13 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         EphemeralEmbedModifyAsync("Wähle den Commander, der den Verstoss begangen hat.", [new UserMenuProperties("roe-violation-other-target")]);
 
     [ComponentInteraction("anonymous-message")]
-    public async Task<InteractionCallbackProperties> AnonymousMessagePrompt()
+    public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)
     {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging))
+        var parsedAudience = Enum.Parse<GuildAudience>(audience);
+        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging, parsedAudience))
             return InteractionCallback.Message(EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging)));
 
-        return InteractionCallback.Modal(new ModalProperties("anonymous-message-modal", "Anonyme Nachricht",
+        return InteractionCallback.Modal(new ModalProperties($"anonymous-message-modal:{audience}", "Anonyme Nachricht",
         [
             new LabelProperties("Betreff",
                 new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = "Kurzen Betreff eingeben", MaxLength = 100, Required = true }),

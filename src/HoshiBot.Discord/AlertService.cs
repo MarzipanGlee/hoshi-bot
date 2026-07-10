@@ -13,7 +13,12 @@ namespace HoshiBot.Discord;
 // Core raid/shield-reminder logic shared between the slash commands (AlertModule) and
 // the Command Bridge button/modal flow (CommandBridgeModule) — both are valid entry
 // points to the same operations.
-public class AlertService(HoshiBotDbContext db, NotificationDispatcher dispatcher, GatewayClient gatewayClient, EmbedBranding embedBranding)
+public class AlertService(
+    HoshiBotDbContext db,
+    NotificationDispatcher dispatcher,
+    GatewayClient gatewayClient,
+    EmbedBranding embedBranding,
+    GuildFeatureSettingsService settingsService)
 {
     // Buttons can be clicked from a DM (no NetCord Guild context there), so the guild ID
     // travels in the custom_id itself rather than relying on Context.Guild.
@@ -269,30 +274,30 @@ public class AlertService(HoshiBotDbContext db, NotificationDispatcher dispatche
         return "Shield reminder removed.";
     }
 
-    // "Alarme verwalten" — legacy just adds/removes a single role (GuildSettings.AlertsRoleId)
+    // "Alarme verwalten" — legacy just adds/removes a single role (AlertsOptInSettingKeys.Role)
     // on the caller, no persistence beyond that. Null return means the role isn't configured.
     public async Task<bool?> HasAlertsRoleAsync(ulong guildId, ulong userId)
     {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.AlertsRoleId is not { } roleId)
+        var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, AlertsOptInSettingKeys.Role);
+        if (roleId is null)
             return null;
 
         var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
-        return guildUser.RoleIds.Contains(roleId);
+        return guildUser.RoleIds.Contains(roleId.Value);
     }
 
     public async Task<string> SetAlertsOptInAsync(ulong guildId, ulong userId, bool optIn)
     {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.AlertsRoleId is not { } roleId)
+        var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, AlertsOptInSettingKeys.Role);
+        if (roleId is not { } roleIdValue)
             return "Die Alarme-Rolle ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 
         try
         {
             if (optIn)
-                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, userId, roleId);
+                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, userId, roleIdValue);
             else
-                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, userId, roleId);
+                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, userId, roleIdValue);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {

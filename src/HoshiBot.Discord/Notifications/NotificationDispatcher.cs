@@ -11,7 +11,12 @@ namespace HoshiBot.Discord.Notifications;
 
 // Shared public/DM notification fan-out for Alerts and Shield Reminders (and, per the
 // original plan, reusable as-is by later phases like territory capture/announcements).
-public class NotificationDispatcher(HoshiBotDbContext db, GatewayClient gatewayClient, ILogger<NotificationDispatcher> logger, EmbedBranding embedBranding)
+public class NotificationDispatcher(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    ILogger<NotificationDispatcher> logger,
+    EmbedBranding embedBranding,
+    GuildFeatureService featureService)
 {
     public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicAsync(ulong guildId, GuildAlertChannelKind kind, string content,
         ButtonProperties? terminateButton = null, EmbedProperties? embed = null)
@@ -20,6 +25,32 @@ public class NotificationDispatcher(HoshiBotDbContext db, GatewayClient gatewayC
             .Where(c => c.GuildId == guildId && c.Kind == kind)
             .ToListAsync();
 
+        return await SendToChannelsAsync(guildId, channels, content, terminateButton, embed);
+    }
+
+    // Same as SendPublicAsync, but gates per-row instead of once per guild: only sends to
+    // channels whose own tagged Audience is enabled for feature. Used by
+    // ServerStatus/Incursion, whose GuildAlertChannel rows can span multiple audiences for
+    // the same guild — disabling the feature for one audience must not silence channels
+    // tagged for a different audience the guild also serves.
+    public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicToEnabledAudiencesAsync(
+        ulong guildId, GuildAlertChannelKind kind, GuildFeature feature, string content,
+        ButtonProperties? terminateButton = null, EmbedProperties? embed = null)
+    {
+        var channels = await db.GuildAlertChannels
+            .Where(c => c.GuildId == guildId && c.Kind == kind)
+            .ToListAsync();
+
+        var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, feature);
+        var eligible = channels.Where(c => enabledAudiences.Contains(c.Audience)).ToList();
+
+        return await SendToChannelsAsync(guildId, eligible, content, terminateButton, embed);
+    }
+
+    private async Task<List<(ulong ChannelId, ulong? MessageId)>> SendToChannelsAsync(
+        ulong guildId, List<GuildAlertChannel> channels, string content,
+        ButtonProperties? terminateButton, EmbedProperties? embed)
+    {
         var results = new List<(ulong, ulong?)>();
 
         foreach (var channel in channels)

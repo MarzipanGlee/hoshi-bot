@@ -1,52 +1,65 @@
 @page "/manage/guilds"
+@using Microsoft.AspNetCore.Authentication
+@inject DiscordUserGuildsService DiscordUserGuilds
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IHttpContextAccessor HttpContextAccessor
+@inject CurrentGuildContext GuildContext
+@inject NavigationManager Nav
 
 <PageTitle>Your Guilds</PageTitle>
 
 <AuthorizeView>
     <Authorized>
         <h1>Your Guilds</h1>
-        @if (accessibleGuilds is null)
+
+        @if (guilds is null)
         {
             <p>Loading...</p>
         }
-        else if (accessibleGuilds.Count == 0)
+        else if (guilds.Count == 0)
         {
-            <p>You don't have admin access to any guild Hoshi Bot manages.</p>
+            <p>No guilds found where you're the owner or have the Manage Server permission.</p>
         }
         else
         {
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Guild</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var guild in accessibleGuilds)
-                    {
-                        <tr>
-                            <td>@guild.Name</td>
-                            <td>
-                                @if (!setupCompleteGuildIds.Contains(guild.Id))
+            <div class="guild-picker-grid">
+                @foreach (var guild in guilds)
+                {
+                    <div class="guild-card @(guild.BotInstalled ? "" : "guild-card-not-installed")"
+                         @onclick="() => OpenAsync(guild)">
+                        <div class="guild-card-header">
+                            <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name" CssClass="guild-card-icon" />
+                            <div class="guild-card-title">
+                                <h2>@guild.Name</h2>
+                                @if (audiencesByGuildId.TryGetValue(guild.Id, out var audience) && audience != GuildAudience.None)
+                                {
+                                    @foreach (var label in AudienceDisplay.Labels(audience))
+                                    {
+                                        <span class="badge bg-secondary">@label</span>
+                                    }
+                                }
+                                @if (guild.BotInstalled && !setupCompleteGuildIds.Contains(guild.Id))
                                 {
                                     <span class="badge bg-warning text-dark">needs setup</span>
                                 }
-                            </td>
-                            <td>
-                                <a href="manage/guilds/@guild.Id/setup">Setup Wizard</a> |
-                                <a href="manage/guilds/@guild.Id/scope">Scope</a> |
-                                <a href="manage/guilds/@guild.Id/settings">Settings</a> |
-                                <a href="manage/guilds/@guild.Id/permission-check">Permission Check</a>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                            </div>
+                        </div>
+
+                        @if (!guild.BotInstalled)
+                        {
+                            <a class="btn btn-outline-primary btn-sm" href="invite?guildId=@guild.Id" target="_blank" rel="noopener">+ Install bot</a>
+                        }
+                        else
+                        {
+                            <div class="guild-card-actions">
+                                <a class="btn btn-outline-secondary btn-sm" href="manage/guilds/@guild.Id/global-settings" @onclick:stopPropagation="true">Global Settings</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="manage/guilds/@guild.Id/setup" @onclick:stopPropagation="true">Setup Wizard</a>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
         }
     </Authorized>
     <NotAuthorized>
@@ -55,7 +68,8 @@
 </AuthorizeView>
 
 @code {
-    private List<DiscordGuild>? accessibleGuilds;
+    private List<UserManagedGuild>? guilds;
+    private Dictionary<ulong, GuildAudience> audiencesByGuildId = [];
     private HashSet<ulong> setupCompleteGuildIds = [];
 
     protected override async Task OnInitializedAsync()
@@ -65,21 +79,33 @@
         if (user.Identity?.IsAuthenticated != true)
             return;
 
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var allGuilds = await db.DiscordGuilds.AsNoTracking().ToListAsync();
-        var accessible = new List<DiscordGuild>();
-        foreach (var guild in allGuilds)
+        var httpContext = HttpContextAccessor.HttpContext;
+        var accessToken = httpContext is null ? null : await httpContext.GetTokenAsync("access_token");
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (accessToken is null || userIdClaim is null || !ulong.TryParse(userIdClaim, out var userId))
         {
-            var result = await AuthorizationService.AuthorizeAsync(user, guild.Id, new GuildAdminRequirement());
-            if (result.Succeeded)
-                accessible.Add(guild);
+            guilds = [];
+            return;
         }
 
-        accessibleGuilds = accessible;
+        guilds = await DiscordUserGuilds.GetUserManagedGuildsAsync(accessToken, userId);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        audiencesByGuildId = await db.GuildSettings.AsNoTracking().ToDictionaryAsync(s => s.GuildId, s => s.Audiences);
         setupCompleteGuildIds = (await db.GuildSettings
             .Where(s => s.SetupCompletedAt != null)
             .Select(s => s.GuildId)
             .ToListAsync())
             .ToHashSet();
+    }
+
+    private async Task OpenAsync(UserManagedGuild guild)
+    {
+        if (!guild.BotInstalled)
+            return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        await GuildContext.SetAsync(guild.Id, authState.User);
+        Nav.NavigateTo("manage/dashboard");
     }
 }

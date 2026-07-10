@@ -3,43 +3,106 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Data;
 
-// Presence of a GuildDisabledFeature row means "off" — see that entity for why absence
-// means enabled by default. Used both to gate feature entry points and to filter which
+// Presence of a GuildEnabledFeature row means "on" for that guild+audience — absence means
+// disabled (the default). Used both to gate feature entry points and to filter which
 // Command Bridge hub buttons get posted for a guild.
+//
+// Single-audience features (7 of 12) have only one possible Audience value
+// (GuildFeatureAudiences.SingleAudience) — the guild-wide overloads below are exactly
+// equivalent to the audience-explicit ones for those. For the 5 multi-audience features
+// (Announcements/Tickets/AnonymousMessaging/ServerStatus/Incursion), the guild-wide
+// overloads are a transitional shim ("enabled if ANY relevant audience is on" / "set every
+// relevant audience at once") preserving today's one-shared-switch behavior for call sites
+// that haven't yet been upgraded to call the audience-explicit overloads directly — see the
+// per-audience settings plan's phased build sequence.
 public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
 {
-    public async Task<bool> IsEnabledAsync(ulong guildId, GuildFeature feature)
+    public async Task<bool> IsEnabledAsync(ulong guildId, GuildFeature feature, GuildAudience audience)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
-        return !await db.GuildDisabledFeatures.AnyAsync(f => f.GuildId == guildId && f.Feature == feature);
+        return await db.GuildEnabledFeatures.AnyAsync(f => f.GuildId == guildId && f.Feature == feature && f.Audience == audience);
     }
 
+    public async Task<bool> IsEnabledAsync(ulong guildId, GuildFeature feature)
+    {
+        var relevant = GuildFeatureAudiences.RelevantAudiences(feature);
+        var enabled = await GetEnabledAudiencesAsync(guildId, feature);
+        return GuildFeatureAudiences.EnumerateFlags(relevant).Any(enabled.Contains);
+    }
+
+    public async Task<HashSet<GuildAudience>> GetEnabledAudiencesAsync(ulong guildId, GuildFeature feature)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return (await db.GuildEnabledFeatures
+            .Where(f => f.GuildId == guildId && f.Feature == feature)
+            .Select(f => f.Audience)
+            .ToListAsync())
+            .ToHashSet();
+    }
+
+    // Guild-wide bulk fetch — which of the 12 GuildFeature values are OFF for this guild
+    // (i.e. not enabled for any of their relevant audiences). Transitional shim for
+    // call sites not yet upgraded to be audience-aware (e.g. CommandBridge hub filtering
+    // before its own phased pass); mirrors the old GuildDisabledFeature-backed method this
+    // replaces.
     public async Task<HashSet<GuildFeature>> GetDisabledAsync(ulong guildId)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
-        return (await db.GuildDisabledFeatures.Where(f => f.GuildId == guildId).Select(f => f.Feature).ToListAsync()).ToHashSet();
+        var enabledByFeature = (await db.GuildEnabledFeatures
+            .Where(f => f.GuildId == guildId)
+            .Select(f => new { f.Feature, f.Audience })
+            .ToListAsync())
+            .GroupBy(f => f.Feature)
+            .ToDictionary(g => g.Key, g => g.Select(f => f.Audience).ToHashSet());
+
+        var disabled = new HashSet<GuildFeature>();
+        foreach (var feature in Enum.GetValues<GuildFeature>())
+        {
+            var relevant = GuildFeatureAudiences.RelevantAudiences(feature);
+            var enabledAudiences = enabledByFeature.GetValueOrDefault(feature, []);
+            if (!GuildFeatureAudiences.EnumerateFlags(relevant).Any(enabledAudiences.Contains))
+                disabled.Add(feature);
+        }
+
+        return disabled;
     }
 
-    public async Task SetEnabledAsync(ulong guildId, GuildFeature feature, bool enabled)
+    public async Task SetEnabledAsync(ulong guildId, GuildFeature feature, GuildAudience audience, bool enabled)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
-        var existing = await db.GuildDisabledFeatures.FirstOrDefaultAsync(f => f.GuildId == guildId && f.Feature == feature);
+        var existing = await db.GuildEnabledFeatures.FirstOrDefaultAsync(f => f.GuildId == guildId && f.Feature == feature && f.Audience == audience);
 
         if (enabled)
         {
-            if (existing is not null)
-                db.GuildDisabledFeatures.Remove(existing);
+            if (existing is null)
+                db.GuildEnabledFeatures.Add(new GuildEnabledFeature { GuildId = guildId, Feature = feature, Audience = audience });
         }
-        else if (existing is null)
+        else if (existing is not null)
         {
-            db.GuildDisabledFeatures.Add(new GuildDisabledFeature { GuildId = guildId, Feature = feature });
+            db.GuildEnabledFeatures.Remove(existing);
         }
 
         await db.SaveChangesAsync();
     }
 
+    public async Task SetEnabledAsync(ulong guildId, GuildFeature feature, bool enabled)
+    {
+        var relevant = GuildFeatureAudiences.RelevantAudiences(feature);
+        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(relevant))
+            await SetEnabledAsync(guildId, feature, audience, enabled);
+    }
+
     public static string DisabledMessage(GuildFeature feature) =>
         $"Diese Funktion ({FeatureLabel(feature)}) ist auf diesem Server deaktiviert.";
+
+    public static string AudienceLabel(GuildAudience audience) => audience switch
+    {
+        GuildAudience.Alliance => "Allianz",
+        GuildAudience.Server => "Server",
+        GuildAudience.VeilGroup => "Veil-Gruppe",
+        GuildAudience.Community => "Community",
+        _ => audience.ToString(),
+    };
 
     public static string FeatureLabel(GuildFeature feature) => feature switch
     {
@@ -53,6 +116,8 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         GuildFeature.Absences => "Abwesenheiten verwalten",
         GuildFeature.AlertsOptIn => "Alarme verwalten",
         GuildFeature.Diplomacy => "Diplomatie",
+        GuildFeature.ServerStatus => "Serverstatus",
+        GuildFeature.Incursion => "Incursion-Ankündigungen",
         _ => feature.ToString(),
     };
 }

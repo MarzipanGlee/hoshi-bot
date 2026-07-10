@@ -1,0 +1,44 @@
+@using NetCord
+
+<div class="mb-2">
+    <label>@Label</label>
+    <select class="form-select" value="@Value" @onchange="OnChangeAsync">
+        <option value="">@PlaceholderText</option>
+        @if (IsUnknown)
+        {
+            <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
+        }
+        @foreach (var role in Roles)
+        {
+            <option value="@role.Id">@role.Name</option>
+        }
+    </select>
+    @if (!string.IsNullOrWhiteSpace(Usage))
+    {
+        <div class="form-text">@Usage</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    // Rendered as a small explanatory line under the picker — this is where "good
+    // description per setting, usage must be explained" actually lands.
+    [Parameter] public string? Usage { get; set; }
+
+    [Parameter] public string PlaceholderText { get; set; } = "— none —";
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+
+    [Parameter, EditorRequired] public IReadOnlyList<Role> Roles { get; set; } = [];
+
+    private bool IsUnknown =>
+        !string.IsNullOrEmpty(Value) && ulong.TryParse(Value, out var id) && !Roles.Any(r => r.Id == id);
+
+    private async Task OnChangeAsync(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString();
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
