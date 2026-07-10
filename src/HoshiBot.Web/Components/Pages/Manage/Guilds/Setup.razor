@@ -24,18 +24,18 @@ else if (authorized == false)
 else
 {
     <h1>Setup Wizard</h1>
-    <p class="text-muted">Step @DisplayStepNumber of @VisibleSteps.Count — @AllSteps[step].Title. Every step is optional; you can always adjust things later via Scope/Global Settings, or per-feature via the Dashboard.</p>
+    <p class="text-muted">Step @DisplayStepNumber of @VisibleSteps.Count — @AllSteps[step].Title. Every step is optional; you can always adjust things later via Scope/Settings, or per-feature via Features.</p>
 
     @if (step == 0)
     {
         <h2>Welcome</h2>
         <p>This wizard walks you through the essentials for a new guild: which audience it serves, linking your alliance(s)/server(s), a few core channels/roles, and making sure someone besides the server owner can manage the bot.</p>
-        <p>Nothing here is mandatory — skip anything and configure it later. Turning individual features on/off now happens from the Dashboard, not this wizard.</p>
+        <p>Nothing here is mandatory — skip anything and configure it later. Turning individual features on/off now happens from Features, not this wizard.</p>
     }
     else if (step == 1)
     {
         <h2>Audience</h2>
-        <p>Which audience(s) this guild serves — drives which of this wizard's later steps are relevant, and how the Dashboard groups its feature cards. Doesn't restrict which features can be enabled.</p>
+        <p>Which audience(s) this guild serves — drives which of this wizard's later steps are relevant, and how the Features page groups its feature cards. Doesn't restrict which features can be enabled.</p>
         <AudienceEditor GuildId="ParsedGuildId" AudienceChanged="OnAudienceChanged" />
     }
     else if (step == 2)
@@ -47,7 +47,7 @@ else
     else if (step == 3)
     {
         <h2>Core channels &amp; roles</h2>
-        <p>A curated subset most guilds need right away — the full list is on the <a href="manage/guilds/@GuildId/global-settings">Global Settings page</a>, editable any time.</p>
+        <p>A curated subset most guilds need right away — the full list is on the <a href="manage/guilds/@GuildId/settings">Settings page</a>, editable any time.</p>
         <p>Leave any field below empty to have Hoshi Bot create it for you.</p>
 
         @if (discordDataError is not null)
@@ -169,9 +169,9 @@ else
         <p>Alliances/servers/veil groups linked: <strong>@(guildAllianceCount + guildServerCount + guildVeilGroupCount)</strong></p>
         <p>Admin roles configured: <strong>@guildAdminRoles.Count</strong></p>
         <p>
-            Anything left unset here just stays editable later via Scope/Global Settings —
+            Anything left unset here just stays editable later via Scope/Settings —
             finishing doesn't require completing every step. Turning individual features
-            on/off, and their own channel/role settings, happens from the Dashboard.
+            on/off, and their own channel/role settings, happens from Features.
         </p>
         <button class="btn btn-success" @onclick="FinishAsync">Finish setup</button>
     }
@@ -468,6 +468,6 @@ else
         existing.SetupCompletedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();
 
-        Nav.NavigateTo("manage/guilds");
+        Nav.NavigateTo($"manage/guilds/{ParsedGuildId}");
     }
 }

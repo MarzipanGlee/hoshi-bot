@@ -1,0 +1,144 @@
+@page "/manage/guilds/{GuildId}/features"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject GuildFeatureService FeatureService
+@inject GuildFeatureSettingsService SettingsService
+@inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage Storage
+
+<PageTitle>Features</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this guild.</p>
+}
+else
+{
+    <div class="feature-section-header">
+        <h1>Features</h1>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="hideInactive" role="switch"
+                   checked="@hideInactive" @onchange="ToggleHideInactiveAsync" />
+            <label class="form-check-label" for="hideInactive">Hide inactive features</label>
+        </div>
+    </div>
+
+    @foreach (var audience in AudienceSections)
+    {
+        if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
+            continue;
+
+        var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
+        if (hideInactive)
+            features = features.Where(f => enabledFeatures.Contains((f.Feature, audience))).ToList();
+
+        if (features.Count == 0)
+            continue;
+
+        <h3 class="feature-section-title">@AudienceDisplay.Labels(audience).First()</h3>
+        <div class="feature-grid">
+            @foreach (var feature in features)
+            {
+                var enabled = enabledFeatures.Contains((feature.Feature, audience));
+                var configured = enabled && configuredFeatures.Contains((feature.Feature, audience));
+                var cardClass = !enabled ? "feature-card-disabled"
+                    : configured ? "feature-card-enabled"
+                    : "feature-card-needs-config";
+                <div class="feature-card @cardClass">
+                    <h4><span class="oi @feature.Icon" aria-hidden="true"></span> @feature.Title</h4>
+                    <p>@feature.Description</p>
+                    <div class="feature-card-footer">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" checked="@enabled"
+                                   @onchange="e => ToggleFeatureAsync(feature.Feature, audience, (bool)e.Value!)" />
+                        </div>
+                        <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(feature, audience)">Configure</a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private static readonly GuildAudience[] AudienceSections =
+        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
+
+    private const string HideInactiveStorageKey = "hoshibot.hideInactiveFeatures";
+
+    [Parameter] public string GuildId { get; set; } = "";
+
+    private ulong ParsedGuildId => ulong.Parse(GuildId);
+
+    private bool? authorized;
+    private GuildAudience guildAudiences = GuildAudience.None;
+    private HashSet<(GuildFeature Feature, GuildAudience Audience)> enabledFeatures = [];
+    private HashSet<(GuildFeature Feature, GuildAudience Audience)> configuredFeatures = [];
+    private bool hideInactive;
+
+    private string FeatureHref(IFeatureModule feature, GuildAudience audience) =>
+        feature.HasMultipleAudiences()
+            ? $"manage/guilds/{GuildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}"
+            : $"manage/guilds/{GuildId}/features/{feature.Slug}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
+        authorized = result.Succeeded;
+        if (authorized != true)
+            return;
+
+        var storedHideInactive = await Storage.GetAsync<bool>(HideInactiveStorageKey);
+        if (storedHideInactive.Success)
+            hideInactive = storedHideInactive.Value;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        guildAudiences = await db.GuildSettings
+            .Where(s => s.GuildId == ParsedGuildId)
+            .Select(s => s.Audiences)
+            .FirstOrDefaultAsync();
+
+        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
+        enabledFeatures = [];
+        configuredFeatures = [];
+        foreach (var feature in FeatureCatalog.All)
+        {
+            var audiences = await FeatureService.GetEnabledAudiencesAsync(ParsedGuildId, feature.Feature);
+            foreach (var audience in audiences)
+            {
+                enabledFeatures.Add((feature.Feature, audience));
+                if (await feature.IsConfiguredAsync(ParsedGuildId, audience, context))
+                    configuredFeatures.Add((feature.Feature, audience));
+            }
+        }
+    }
+
+    private async Task ToggleFeatureAsync(GuildFeature feature, GuildAudience audience, bool enabled)
+    {
+        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, audience, enabled);
+        if (enabled)
+        {
+            enabledFeatures.Add((feature, audience));
+
+            var module = FeatureCatalog.All.First(f => f.Feature == feature);
+            var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
+            if (await module.IsConfiguredAsync(ParsedGuildId, audience, context))
+                configuredFeatures.Add((feature, audience));
+        }
+        else
+        {
+            enabledFeatures.Remove((feature, audience));
+        }
+    }
+
+    private async Task ToggleHideInactiveAsync(ChangeEventArgs e)
+    {
+        hideInactive = (bool)e.Value!;
+        await Storage.SetAsync(HideInactiveStorageKey, hideInactive);
+    }
+}

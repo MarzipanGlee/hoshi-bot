@@ -44,6 +44,7 @@
         ["delete"] = "Delete",
         ["settings"] = "Settings",
         ["setup"] = "Setup",
+        ["features"] = "Features",
         ["scope"] = "Scope",
         ["permission-check"] = "Permission Check",
     };
@@ -68,28 +69,36 @@
         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var result = new List<(string, string?)> { ("Home", "/") };
 
-        if (segments.Length >= 2 && segments[0] == "manage")
+        if (segments.Length >= 1 && segments[0] == "manage")
         {
-            if (segments[1] == "guilds")
-            {
-                result.Add(("Guilds", "manage/guilds"));
+            result.Add(("Manage", "manage"));
 
-                if (segments.Length >= 4 && ulong.TryParse(segments[2], out var guildId))
+            if (segments.Length >= 2 && segments[1] == "guilds")
+            {
+                if (segments.Length >= 3 && ulong.TryParse(segments[2], out var guildId))
                 {
                     await using var db = await DbFactory.CreateDbContextAsync();
                     var guildName = await db.DiscordGuilds
                         .Where(g => g.Id == guildId)
                         .Select(g => g.Name)
                         .FirstOrDefaultAsync() ?? segments[2];
-                    result.Add((guildName, null));
+                    result.Add((guildName, $"manage/guilds/{guildId}"));
 
-                    if (CrudLabels.TryGetValue(segments[3], out var pageLabel))
+                    if (segments.Length >= 4 && CrudLabels.TryGetValue(segments[3], out var pageLabel))
                     {
-                        result.Add((pageLabel, null));
+                        var isFeatures = segments[3] == "features";
+                        var hasFeatureSlug = isFeatures && segments.Length >= 5;
+                        result.Add((pageLabel, hasFeatureSlug ? $"manage/guilds/{guildId}/features" : null));
+
+                        if (hasFeatureSlug)
+                        {
+                            var feature = FeatureCatalog.FindBySlug(segments[4]);
+                            result.Add((feature?.Title ?? segments[4], null));
+                        }
                     }
                 }
             }
-            else if (segments[1] == "stfc")
+            else if (segments.Length >= 2 && segments[1] == "stfc")
             {
                 var catalogSection = segments.Length >= 3
                     ? Array.Find(StfcCatalogSections, s => s.Segment == segments[2])
@@ -105,16 +114,13 @@
                     }
                 }
             }
-            else
+            else if (segments.Length >= 2 && segments[1] == "bot")
             {
-                if (segments[1] == "global-admins")
+                result.Add(("Bot", null));
+
+                if (segments.Length >= 3 && segments[2] == "global-admins")
                 {
-                    result.Add(("Administration", null));
                     result.Add(("Global Admins", null));
-                }
-                else if (segments[1] == "dashboard")
-                {
-                    result.Add(("Dashboard", null));
                 }
             }
         }

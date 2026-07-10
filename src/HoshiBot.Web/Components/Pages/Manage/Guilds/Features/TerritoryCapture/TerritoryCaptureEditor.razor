@@ -31,8 +31,6 @@
               @bind="instructionsInput" @bind:after="SaveInstructionsAsync"></textarea>
 </div>
 
-<p class="form-text">Looking for the STFC rank roles (Admiral/Commodore/Premier/Operative/Agent)? They moved to <a href="@($"/manage/guilds/{GuildId}/global-settings")">Global Settings</a> — they're guild-wide designations, not specific to Territory Capture.</p>
-
 @code {
     protected override GuildFeature Feature => GuildFeature.TerritoryCapture;
 

@@ -1,111 +1,102 @@
-@page "/manage/guilds"
-@using Microsoft.AspNetCore.Authentication
-@inject DiscordUserGuildsService DiscordUserGuilds
+@page "/manage/guilds/{GuildId}"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject IAuthorizationService AuthorizationService
 @inject AuthenticationStateProvider AuthStateProvider
-@inject IHttpContextAccessor HttpContextAccessor
-@inject CurrentGuildContext GuildContext
-@inject NavigationManager Nav
+@inject GuildFeatureService FeatureService
 
-<PageTitle>Your Guilds</PageTitle>
+<PageTitle>@(guildName ?? "Guild")</PageTitle>
 
-<AuthorizeView>
-    <Authorized>
-        <h1>Your Guilds</h1>
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this guild.</p>
+}
+else
+{
+    <h1>@guildName</h1>
 
-        @if (guilds is null)
-        {
-            <p>Loading...</p>
-        }
-        else if (guilds.Count == 0)
-        {
-            <p>No guilds found where you're the owner or have the Manage Server permission.</p>
-        }
-        else
-        {
-            <div class="guild-picker-grid">
-                @foreach (var guild in guilds)
-                {
-                    <div class="guild-card @(guild.BotInstalled ? "" : "guild-card-not-installed")"
-                         @onclick="() => OpenAsync(guild)">
-                        <div class="guild-card-header">
-                            <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name" CssClass="guild-card-icon" />
-                            <div class="guild-card-title">
-                                <h2>@guild.Name</h2>
-                                @if (audiencesByGuildId.TryGetValue(guild.Id, out var audience) && audience != GuildAudience.None)
-                                {
-                                    @foreach (var label in AudienceDisplay.Labels(audience))
-                                    {
-                                        <span class="badge bg-secondary">@label</span>
-                                    }
-                                }
-                                @if (guild.BotInstalled && !setupCompleteGuildIds.Contains(guild.Id))
-                                {
-                                    <span class="badge bg-warning text-dark">needs setup</span>
-                                }
-                            </div>
-                        </div>
-
-                        @if (!guild.BotInstalled)
-                        {
-                            <a class="btn btn-outline-primary btn-sm" href="invite?guildId=@guild.Id" target="_blank" rel="noopener">+ Install bot</a>
-                        }
-                        else
-                        {
-                            <div class="guild-card-actions">
-                                <a class="btn btn-outline-secondary btn-sm" href="manage/guilds/@guild.Id/global-settings" @onclick:stopPropagation="true">Global Settings</a>
-                                <a class="btn btn-outline-secondary btn-sm" href="manage/guilds/@guild.Id/setup" @onclick:stopPropagation="true">Setup Wizard</a>
-                            </div>
-                        }
-                    </div>
-                }
-            </div>
-        }
-    </Authorized>
-    <NotAuthorized>
-        <p><a href="login?returnUrl=%2Fmanage%2Fguilds">Log in with Discord</a> to manage your guilds.</p>
-    </NotAuthorized>
-</AuthorizeView>
+    <div class="dashboard-grid">
+        <a class="dashboard-card" href="manage/guilds/@GuildId/features">
+            <span class="oi oi-puzzle-piece" aria-hidden="true"></span>
+            <h2>Features</h2>
+            <p>@enabledCount/@totalCount enabled</p>
+        </a>
+        <a class="dashboard-card" href="manage/guilds/@GuildId/settings">
+            <span class="oi oi-cog" aria-hidden="true"></span>
+            <h2>Settings</h2>
+            <p>@audienceSummary</p>
+        </a>
+        <a class="dashboard-card" href="manage/guilds/@GuildId/setup">
+            <span class="oi oi-list-rich" aria-hidden="true"></span>
+            <h2>Setup Wizard</h2>
+            <p>@(setupComplete ? "Setup complete" : "Needs setup")</p>
+        </a>
+    </div>
+}
 
 @code {
-    private List<UserManagedGuild>? guilds;
-    private Dictionary<ulong, GuildAudience> audiencesByGuildId = [];
-    private HashSet<ulong> setupCompleteGuildIds = [];
+    private static readonly GuildAudience[] AudienceSections =
+        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 
-    protected override async Task OnInitializedAsync()
+    [Parameter] public string GuildId { get; set; } = "";
+
+    private ulong ParsedGuildId => ulong.Parse(GuildId);
+
+    private bool? authorized;
+    private string? guildName;
+    private string audienceSummary = "Not configured yet";
+    private bool setupComplete;
+    private int enabledCount;
+    private int totalCount;
+
+    protected override async Task OnParametersSetAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity?.IsAuthenticated != true)
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, ParsedGuildId, new GuildAdminRequirement());
+        authorized = result.Succeeded;
+        if (authorized != true)
             return;
-
-        var httpContext = HttpContextAccessor.HttpContext;
-        var accessToken = httpContext is null ? null : await httpContext.GetTokenAsync("access_token");
-        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (accessToken is null || userIdClaim is null || !ulong.TryParse(userIdClaim, out var userId))
-        {
-            guilds = [];
-            return;
-        }
-
-        guilds = await DiscordUserGuilds.GetUserManagedGuildsAsync(accessToken, userId);
 
         await using var db = await DbFactory.CreateDbContextAsync();
-        audiencesByGuildId = await db.GuildSettings.AsNoTracking().ToDictionaryAsync(s => s.GuildId, s => s.Audiences);
-        setupCompleteGuildIds = (await db.GuildSettings
-            .Where(s => s.SetupCompletedAt != null)
-            .Select(s => s.GuildId)
-            .ToListAsync())
-            .ToHashSet();
-    }
+        guildName = await db.DiscordGuilds
+            .Where(g => g.Id == ParsedGuildId)
+            .Select(g => g.Name)
+            .FirstOrDefaultAsync();
 
-    private async Task OpenAsync(UserManagedGuild guild)
-    {
-        if (!guild.BotInstalled)
-            return;
+        var settings = await db.GuildSettings.Where(s => s.GuildId == ParsedGuildId).FirstOrDefaultAsync();
+        var guildAudiences = settings?.Audiences ?? GuildAudience.None;
+        setupComplete = settings?.SetupCompletedAt is not null;
+        audienceSummary = guildAudiences == GuildAudience.None
+            ? "Not configured yet"
+            : string.Join(", ", AudienceDisplay.Labels(guildAudiences));
 
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        await GuildContext.SetAsync(guild.Id, authState.User);
-        Nav.NavigateTo("manage/dashboard");
+        var enabledFeatures = new HashSet<(GuildFeature Feature, GuildAudience Audience)>();
+        foreach (var feature in FeatureCatalog.All)
+        {
+            var audiences = await FeatureService.GetEnabledAudiencesAsync(ParsedGuildId, feature.Feature);
+            foreach (var audience in audiences)
+                enabledFeatures.Add((feature.Feature, audience));
+        }
+
+        enabledCount = 0;
+        totalCount = 0;
+        foreach (var audience in AudienceSections)
+        {
+            if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
+                continue;
+
+            foreach (var feature in FeatureCatalog.All)
+            {
+                if (!feature.RelevantAudiences().HasFlag(audience))
+                    continue;
+
+                totalCount++;
+                if (enabledFeatures.Contains((feature.Feature, audience)))
+                    enabledCount++;
+            }
+        }
     }
 }

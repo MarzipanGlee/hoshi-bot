@@ -16,9 +16,9 @@ public static class AudienceDisplay
             yield return "Community";
     }
 
-    // Open Iconic class for a single audience flag — shared between the Dashboard's section
-    // headers and the public landing page's audience overview cards, so both stay in sync
-    // if an icon ever changes.
+    // Open Iconic class for a single audience flag — shared between the Features page's
+    // section headers and the public landing page's audience overview cards, so both stay
+    // in sync if an icon ever changes.
     public static string Icon(GuildAudience audience) => audience switch
     {
         GuildAudience.Alliance => "oi-flag",

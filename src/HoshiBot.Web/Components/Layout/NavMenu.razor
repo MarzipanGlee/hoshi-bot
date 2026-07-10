@@ -21,17 +21,22 @@
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item-top">
-                    <NavLink class="nav-link" href="manage/guilds" Match="NavLinkMatch.All">Your Guilds</NavLink>
+                    <NavLink class="nav-link" href="manage" Match="NavLinkMatch.All">
+                        <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
+                    </NavLink>
                 </div>
 
-                <NavMenuGroup Title="Alliance" Icon="oi-flag" Active="@(IsGroupActive(AllianceHrefs) || IsFeaturesGroupActive() || IsGuildScopedRouteActive("global-settings") || IsGuildScopedRouteActive("setup"))">
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/dashboard">Dashboard</NavLink>
-                    </div>
+                <NavMenuGroup Title="Guild" Icon="oi-flag" Active="@IsAnyGuildScopedRouteActive()">
                     @if (GuildContext.GuildId is { } guildId)
                     {
                         <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/global-settings")">Settings</NavLink>
+                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}")" Match="NavLinkMatch.All">Overview</NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/features")" Match="NavLinkMatch.All">Features</NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/settings")">Settings</NavLink>
                         </div>
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/setup")">Setup</NavLink>
@@ -100,9 +105,9 @@
                     </div>
                 </NavMenuGroup>
 
-                <NavMenuGroup Title="Administration" Icon="oi-shield" Active="@IsGroupActive(AdministrationHrefs)">
+                <NavMenuGroup Title="Bot" Icon="oi-shield" Active="@IsGroupActive(BotHrefs)">
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/global-admins">Global Admins</NavLink>
+                        <NavLink class="nav-link" href="manage/bot/global-admins">Global Admins</NavLink>
                     </div>
                 </NavMenuGroup>
             </Authorized>
@@ -111,12 +116,11 @@
 </div>
 
 @code {
-    private static readonly string[] AllianceHrefs = ["manage/dashboard"];
     private static readonly string[] CatalogHrefs =
         ["manage/stfc/regions", "manage/stfc/veil-groups", "manage/stfc/servers", "manage/stfc/alliances", "manage/stfc/alliance-diplomacy",
          "manage/stfc/alliance-name-history", "manage/stfc/players", "manage/stfc/player-name-history", "manage/stfc/systems",
          "manage/stfc/territories", "manage/stfc/server-status", "manage/stfc/event-status"];
-    private static readonly string[] AdministrationHrefs = ["manage/global-admins"];
+    private static readonly string[] BotHrefs = ["manage/bot/global-admins"];
     private static readonly GuildAudience[] FeatureAudienceSections =
         [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 
@@ -163,8 +167,8 @@
     });
 
     // Also refreshes on every navigation (not just guild switches) — the most practical way
-    // to pick up a feature toggled on/off from the Dashboard without a dedicated event bus
-    // between the two components, since navigating away from the Dashboard after a toggle
+    // to pick up a feature toggled on/off from the Features page without a dedicated event
+    // bus between the two components, since navigating away from Features after a toggle
     // is the common path.
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
@@ -203,14 +207,11 @@
     private bool IsFeatureActive(string slug) =>
         currentUrl?.Contains($"/features/{slug}", StringComparison.OrdinalIgnoreCase) ?? false;
 
-    private bool IsFeaturesGroupActive() =>
-        currentUrl?.Contains("/features/", StringComparison.OrdinalIgnoreCase) ?? false;
-
-    // Settings/Setup routes are guild-scoped (manage/guilds/{id}/setup) with a dynamic id
-    // segment, same reasoning as IsFeatureActive above — a substring check on the trailing
-    // segment is enough.
-    private bool IsGuildScopedRouteActive(string segment) =>
-        currentUrl?.Contains($"/{segment}", StringComparison.OrdinalIgnoreCase) ?? false;
+    // Every page under a specific guild (Overview, Settings, Setup, Features, and each
+    // feature's own settings sub-page) shares the manage/guilds/{id}/... prefix, so this one
+    // check keeps the Guild group expanded on all of them without needing a per-page check.
+    private bool IsAnyGuildScopedRouteActive() =>
+        currentUrl?.StartsWith("manage/guilds/", StringComparison.OrdinalIgnoreCase) ?? false;
 
     public void Dispose()
     {

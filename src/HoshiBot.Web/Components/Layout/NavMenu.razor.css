@@ -63,7 +63,13 @@
 /* A flat top-level item sits directly in the sidebar with no px-3 wrapper (unlike a
    .nav-item nested inside a NavMenuGroup) -- give it the same width:100% + padding box
    model as .nav-group-toggle so the active/hover background spans edge-to-edge instead of
-   being inset by an extra px-3 on top of the link's own padding. */
+   being inset by an extra px-3 on top of the link's own padding. Also matches
+   .nav-group-toggle's font weight/casing so it reads as a peer of the groups below it,
+   not a smaller/plainer link. */
+.nav-item-top {
+    margin-top: 1rem;
+}
+
     .nav-item-top ::deep a {
         color: #d7d7d7;
         border-radius: 4px;
@@ -71,7 +77,11 @@
         padding: 0 1rem;
         display: flex;
         align-items: center;
+        gap: 0.5rem;
         line-height: 2.25rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
 
     .nav-item-top ::deep a.active {

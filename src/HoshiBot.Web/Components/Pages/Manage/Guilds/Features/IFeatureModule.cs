@@ -6,8 +6,8 @@ namespace HoshiBot.Web.Components.Pages.Manage.Guilds.Features;
 
 // One implementation per GuildFeature, each living in its own Features/{Name}/ subfolder
 // alongside its editor component — the single source of truth consumed by the feature
-// route shell (FeatureSettings.razor), the Dashboard's audience-grouped card grid, and the
-// sidebar's Features nav group. RelevantAudiences/HasMultipleAudiences are NOT declared
+// route shell (FeatureSettings.razor), the Features page's audience-grouped card grid, and
+// the sidebar's Features nav group. RelevantAudiences/HasMultipleAudiences are NOT declared
 // here — see the extension methods below; they're computed from GuildFeatureAudiences
 // (HoshiBot.Domain), the single source of truth also shared with GuildFeatureService/
 // HoshiBot.Discord, so the two never drift apart.
@@ -27,7 +27,7 @@ public interface IFeatureModule
         context.FeatureService.IsEnabledAsync(guildId, Feature, audience);
 
     // Whether this feature's required settings are actually present for guildId+audience —
-    // the Dashboard's yellow "enabled but not configured" state. Unlike IsEnabledAsync,
+    // the Features page's yellow "enabled but not configured" state. Unlike IsEnabledAsync,
     // this genuinely varies per feature (different settings shapes), so every module
     // implements its own — no default body.
     Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context);
