@@ -1,5 +1,5 @@
 .nav-group {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.15rem;
 }
 
 /* Pure CSS checkbox/label toggle -- no interactive circuit needed, works on static SSR pages too
@@ -15,8 +15,8 @@
     align-items: center;
     gap: 0.5rem;
     width: 100%;
-    min-height: 2.75rem;
-    padding: 0.5rem 1rem;
+    min-height: 2.25rem;
+    padding: 0.4rem 1rem;
     color: #d7d7d7;
     font-size: 0.9rem;
     font-weight: 600;
