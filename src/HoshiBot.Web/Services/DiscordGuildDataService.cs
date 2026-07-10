@@ -5,9 +5,9 @@ using NetCord.Rest;
 namespace HoshiBot.Web.Services;
 
 // Shared, 60s-cached fetch of a guild's live Discord channels/roles — was copy-pasted
-// across Settings.razor, Setup.razor, and ScopeEditor.razor with the same cache keys; this
-// is that logic in one place instead of three. Every page that needs a channel/role picker
-// depends on this now.
+// across Settings.razor, SetupWizard.razor, and ScopeEditor.razor with the same cache keys;
+// this is that logic in one place instead of three. Every page that needs a channel/role
+// picker depends on this now.
 public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cache)
 {
     public async Task<List<IGuildChannel>> GetChannelsAsync(ulong guildId)

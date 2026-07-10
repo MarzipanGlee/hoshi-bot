@@ -160,9 +160,9 @@
         await LoadDiscordRolesAsync();
     }
 
-    // Same 60s-cached role fetch/cache key Settings.razor and Setup.razor use — kept
+    // Same 60s-cached role fetch/cache key Settings.razor and SetupWizard.razor use — kept
     // local rather than shared, matching the same "not worth a shared abstraction for a
-    // small surface" call made for Setup.razor's own copy.
+    // small surface" call made for SetupWizard.razor's own copy.
     private async Task LoadDiscordRolesAsync()
     {
         discordDataError = null;
