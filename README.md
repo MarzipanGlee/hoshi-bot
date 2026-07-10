@@ -79,7 +79,7 @@ for the full list (`DISCORD_TOKEN`, `POSTGRES_PASSWORD`, `PUBLIC_WEB_BASE_URL`, 
 
 ### Redeploying
 
-From the repo checkout on the host:
+From the repo checkout on the host, run `./deploy.sh` — or the equivalent steps by hand:
 
 ```bash
 git pull
