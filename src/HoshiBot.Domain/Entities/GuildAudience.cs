@@ -1,6 +1,6 @@
 namespace HoshiBot.Domain.Entities;
 
-// UX filtering only — decides what the Setup Wizard and Dashboard show by default, never
+// UX filtering only — decides what the Setup Wizard and Features page show by default, never
 // blocks a GuildFeature from being enabled regardless of audience. A guild can be any
 // combination (e.g. an alliance that also tracks a whole server), so this is a flags enum,
 // not a mutually-exclusive choice. None means "hasn't been set yet" — treated the same as
