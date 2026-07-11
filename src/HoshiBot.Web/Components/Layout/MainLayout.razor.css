@@ -103,8 +103,23 @@
         flex-direction: row;
     }
 
+    /* Flex items default to min-width:auto, so main won't shrink below its content's
+       intrinsic width — a page with a wide row of cards (e.g. Features) could then force
+       .page wider than the viewport instead of wrapping, pushing the fixed-width sidebar
+       partly off-screen. This lets main (and its own flex-column content) shrink to fit
+       the space actually left over once the sidebar's 250px is accounted for. */
+    main {
+        min-width: 0;
+    }
+
     .sidebar {
         width: 250px;
+        /* Flex items default to flex-shrink:1 — without this, an oversized sibling (main,
+           when its content is wider than the space left over) makes the flexbox algorithm
+           shrink BOTH items to fit, squeezing the sidebar below its 250px instead of only
+           main giving way. This is what was actually seen: the sidebar rendering far
+           narrower than 250px, not main overflowing past it. */
+        flex-shrink: 0;
         height: 100vh;
         position: sticky;
         top: 0;
