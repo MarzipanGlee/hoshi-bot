@@ -10,8 +10,12 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="Anonymous Messages" Usage="Where anonymous messages submitted via the hub button are posted."
-    @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Anonymous Messages">
+        <ChannelPicker Label="Anonymous Messages" ShowLabel="false" Usage="Where anonymous messages submitted via the hub button are posted."
+            @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+</div>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }

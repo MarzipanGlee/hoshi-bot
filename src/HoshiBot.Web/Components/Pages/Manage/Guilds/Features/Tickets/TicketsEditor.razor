@@ -10,8 +10,12 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="Tickets" Usage="Parent channel every ticket thread gets created under. Staff visibility comes from this channel's own Discord permissions (Manage Threads), not from anything the bot manages."
-    @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Tickets">
+        <ChannelPicker Label="Tickets" ShowLabel="false" Usage="Parent channel every ticket thread gets created under. Staff visibility comes from this channel's own Discord permissions (Manage Threads), not from anything the bot manages."
+            @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+</div>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }

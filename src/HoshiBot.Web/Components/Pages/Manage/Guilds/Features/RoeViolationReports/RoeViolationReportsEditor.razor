@@ -10,8 +10,12 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="RoE Violations" Usage="Where /report-roe-violation reports are posted."
-    @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="RoE Violations">
+        <ChannelPicker Label="RoE Violations" ShowLabel="false" Usage="Where /report-roe-violation reports are posted."
+            @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+</div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.RoeViolationReports;

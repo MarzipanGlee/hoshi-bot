@@ -2,7 +2,10 @@
 @using NetCord.Rest
 
 <div class="mb-2">
-    <label>@Label</label>
+    @if (ShowLabel)
+    {
+        <label>@Label</label>
+    }
     <select class="form-select" value="@Value" @onchange="OnChangeAsync">
         <option value="">@PlaceholderText</option>
         @if (IsUnknown)
@@ -22,6 +25,9 @@
 
 @code {
     [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    // Off when a caller renders its own header for Label instead (e.g. a card header).
+    [Parameter] public bool ShowLabel { get; set; } = true;
 
     // Rendered as a small explanatory line under the picker — this is where "good
     // description per setting, usage must be explained" actually lands.

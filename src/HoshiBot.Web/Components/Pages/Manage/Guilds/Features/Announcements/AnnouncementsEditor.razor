@@ -10,14 +10,22 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="Announcements" Usage="Where published announcements are posted."
-    @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Announcements">
+        <ChannelPicker Label="Announcements" ShowLabel="false" Usage="Where published announcements are posted."
+            @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
 
-<ChannelPicker Label="Announcements Reminders" Usage="A second channel that gets reminder pings for unread announcements."
-    @bind-Value="remindersChannelInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
+    <SettingsCard Title="Announcements Reminders">
+        <ChannelPicker Label="Announcements Reminders" ShowLabel="false" Usage="A second channel that gets reminder pings for unread announcements."
+            @bind-Value="remindersChannelInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
+    </SettingsCard>
 
-<ChannelPicker Label="Announcements Draft" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
-    @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
+    <SettingsCard Title="Announcements Draft">
+        <ChannelPicker Label="Announcements Draft" ShowLabel="false" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
+            @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
+    </SettingsCard>
+</div>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }

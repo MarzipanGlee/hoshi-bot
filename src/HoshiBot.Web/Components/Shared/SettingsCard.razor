@@ -1,0 +1,23 @@
+<div class="col-sm-6 col-lg-4 col-xl-3">
+    <div class="card h-100">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="card-header"><strong>@Title</strong></div>
+        }
+        <div class="card-body d-flex flex-column gap-3">
+            @ChildContent
+        </div>
+    </div>
+</div>
+
+@code {
+    // Groups one logical section of a feature editor's settings (e.g. "Zone Slot Roles") in
+    // its own grid card, same col/card shape as RankRoles/OpsLevelRoles' per-tier cards — every
+    // feature editor uses this instead of its own bespoke wrapper, so the Features pages read
+    // consistently regardless of how many settings a given feature has. Callers must wrap one
+    // or more SettingsCards in a `<div class="row g-3 mt-1">`, same as those two features do —
+    // the col class here only lays out correctly with that row ancestor present.
+    [Parameter] public string? Title { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,6 +1,7 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
 @using NetCord
+@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 
@@ -10,11 +11,22 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="Diplomacy" Usage="Where diplomacy status changes (/set-diplomacy) are announced."
-    @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
 
-<RolePicker Label="Diplomat" Usage="Role for members who can run /set-diplomacy for this guild's alliance."
-    @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Diplomacy">
+        <ChannelPicker Label="Diplomacy" ShowLabel="false" Usage="Where diplomacy status changes (/set-diplomacy) are announced."
+            @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+
+    <SettingsCard Title="Diplomat">
+        <RolePicker Label="Diplomat" ShowLabel="false" Usage="Role for members who can run /set-diplomacy for this guild's alliance." CreateRoleName="Diplomat"
+            @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+    </SettingsCard>
+</div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.Diplomacy;
@@ -24,6 +36,7 @@
     private List<Role> roles = [];
     private string? channelIdInput;
     private string? diplomatRoleIdInput;
+    private string? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -37,6 +50,21 @@
     private Task SaveChannelAsync() =>
         SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.Channel, ParseId(channelIdInput));
 
-    private Task SaveDiplomatRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.DiplomatRole, ParseId(diplomatRoleIdInput));
+    private async Task SaveDiplomatRoleAsync()
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, "Diplomat");
+            diplomatRoleIdInput = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.DiplomatRole, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (diplomatRoleIdInput == RolePicker.CreateSentinel)
+                diplomatRoleIdInput = null;
+        }
+    }
 }

@@ -1,6 +1,7 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
 @using NetCord
+@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 
@@ -10,25 +11,32 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<h3>Zone Slot Roles</h3>
-<p class="form-text">
-    One role per owned-zone-slot the alliance currently holds this week (the "Zone Slots:
-    N/5" cap shown in-game) — not days of the week. Slot N's role goes to every member with
-    an owned zone in that slot.
-</p>
-<RolePicker Label="Slot 1" @bind-Value="zoneSlot1Input" @bind-Value:after="SaveZoneSlot1Async" Roles="roles" />
-<RolePicker Label="Slot 2" @bind-Value="zoneSlot2Input" @bind-Value:after="SaveZoneSlot2Async" Roles="roles" />
-<RolePicker Label="Slot 3" @bind-Value="zoneSlot3Input" @bind-Value:after="SaveZoneSlot3Async" Roles="roles" />
-<RolePicker Label="Slot 4" @bind-Value="zoneSlot4Input" @bind-Value:after="SaveZoneSlot4Async" Roles="roles" />
-<RolePicker Label="Slot 5" @bind-Value="zoneSlot5Input" @bind-Value:after="SaveZoneSlot5Async" Roles="roles" />
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
 
-<h3 class="mt-4">Digest Instructions</h3>
-<div class="mb-3">
-    <label for="territoryCaptureInstructions" class="form-label">
-        Free-text "Anweisungen von {Command Staff}" section shown on the weekly/daily digest (e.g. attendance/armada expectations).
-    </label>
-    <textarea id="territoryCaptureInstructions" class="form-control" rows="4"
-              @bind="instructionsInput" @bind:after="SaveInstructionsAsync"></textarea>
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Zone Slot Roles">
+        <p class="form-text mb-0">
+            One role per owned-zone-slot the alliance currently holds this week (the "Zone Slots:
+            N/5" cap shown in-game) — not days of the week. Slot N's role goes to every member with
+            an owned zone in that slot.
+        </p>
+        <RolePicker Label="Slot 1" CreateRoleName="Slot 1" @bind-Value="zoneSlot1Input" @bind-Value:after="SaveZoneSlot1Async" Roles="roles" />
+        <RolePicker Label="Slot 2" CreateRoleName="Slot 2" @bind-Value="zoneSlot2Input" @bind-Value:after="SaveZoneSlot2Async" Roles="roles" />
+        <RolePicker Label="Slot 3" CreateRoleName="Slot 3" @bind-Value="zoneSlot3Input" @bind-Value:after="SaveZoneSlot3Async" Roles="roles" />
+        <RolePicker Label="Slot 4" CreateRoleName="Slot 4" @bind-Value="zoneSlot4Input" @bind-Value:after="SaveZoneSlot4Async" Roles="roles" />
+        <RolePicker Label="Slot 5" CreateRoleName="Slot 5" @bind-Value="zoneSlot5Input" @bind-Value:after="SaveZoneSlot5Async" Roles="roles" />
+    </SettingsCard>
+
+    <SettingsCard Title="Digest Instructions">
+        <label for="territoryCaptureInstructions" class="form-label">
+            Free-text "Anweisungen von {Command Staff}" section shown on the weekly/daily digest (e.g. attendance/armada expectations).
+        </label>
+        <textarea id="territoryCaptureInstructions" class="form-control" rows="4"
+                  @bind="instructionsInput" @bind:after="SaveInstructionsAsync"></textarea>
+    </SettingsCard>
 </div>
 
 @code {
@@ -42,6 +50,7 @@
     private string? zoneSlot4Input;
     private string? zoneSlot5Input;
     private string? instructionsInput;
+    private string? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -56,13 +65,31 @@
     }
 
     private Task<ulong?> Get(string key) => SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, key);
-    private Task Set(string key, string? input) => SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, key, ParseId(input));
 
-    private Task SaveZoneSlot1Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot1Role, zoneSlot1Input);
-    private Task SaveZoneSlot2Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot2Role, zoneSlot2Input);
-    private Task SaveZoneSlot3Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot3Role, zoneSlot3Input);
-    private Task SaveZoneSlot4Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot4Role, zoneSlot4Input);
-    private Task SaveZoneSlot5Async() => Set(TerritoryCaptureSettingKeys.ZoneSlot5Role, zoneSlot5Input);
+    private async Task SaveZoneSlotAsync(string key, Action<string?> setInput, string? currentInput, string slotName)
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, slotName);
+            setInput(roleId?.ToString());
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, key, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (currentInput == RolePicker.CreateSentinel)
+                setInput(null);
+        }
+    }
+
+    private Task SaveZoneSlot1Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot1Role, v => zoneSlot1Input = v, zoneSlot1Input, "Slot 1");
+    private Task SaveZoneSlot2Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot2Role, v => zoneSlot2Input = v, zoneSlot2Input, "Slot 2");
+    private Task SaveZoneSlot3Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot3Role, v => zoneSlot3Input = v, zoneSlot3Input, "Slot 3");
+    private Task SaveZoneSlot4Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot4Role, v => zoneSlot4Input = v, zoneSlot4Input, "Slot 4");
+    private Task SaveZoneSlot5Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role, v => zoneSlot5Input = v, zoneSlot5Input, "Slot 5");
+
     private Task SaveInstructionsAsync() =>
         SettingsService.SetTextAsync(GuildId, Feature, audience, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
 }

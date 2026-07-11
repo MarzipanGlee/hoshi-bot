@@ -11,8 +11,12 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="Shield Reminder" Usage="Where /shield-reminder posts expiration warnings and the public expired-shield alert."
-    @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Shield Reminder">
+        <ChannelPicker Label="Shield Reminder" ShowLabel="false" Usage="Where /shield-reminder posts expiration warnings and the public expired-shield alert."
+            @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+</div>
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="audience" />
 

@@ -1,3 +1,4 @@
+using HoshiBot.Web.Components.Shared;
 using Microsoft.Extensions.Caching.Memory;
 using NetCord;
 using NetCord.Rest;
@@ -52,6 +53,25 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
             .Where(r => r.Id != guildId)
             .OrderByDescending(r => r.RawPosition)
             .ToList();
+    }
+
+    // Resolves a RolePicker's raw input to a role ID for the common "one role, no color/
+    // mentionable" case — reuses an existing role by ID unchanged, or creates a new one named
+    // defaultName when the picker's create option was chosen (RolePicker.CreateSentinel). Any
+    // other input (a genuinely blank selection) returns null, clearing the setting — unlike
+    // RankRoles/OpsLevelRoles, most single-role settings are optional and have no color/
+    // mentionable inputs of their own, so those two features keep their own richer
+    // EnsureRoleAsync instead of using this one.
+    public async Task<ulong?> EnsureRoleAsync(ulong guildId, string? currentInput, string defaultName)
+    {
+        if (currentInput == RolePicker.CreateSentinel)
+        {
+            var created = await botRestClient.CreateGuildRoleAsync(guildId, new RoleProperties { Name = defaultName });
+            InvalidateCache(guildId);
+            return created.Id;
+        }
+
+        return ulong.TryParse(currentInput, out var id) ? id : null;
     }
 
     // Called after creating a channel/role on Discord so the next read reflects it

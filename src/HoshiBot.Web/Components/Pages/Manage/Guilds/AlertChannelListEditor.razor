@@ -4,47 +4,50 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-<h3>Alert Channels</h3>
-<p class="form-text">
-    Each channel+role pair below gets a copy of every alert for this feature — add one per
-    channel you want notified (e.g. one for officers, one for the general server).
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>Channel</th>
-            <th>Role</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var alertChannel in alertChannels)
-        {
-            <tr>
-                <td>@ChannelName(alertChannel.ChannelId)</td>
-                <td>@RoleName(alertChannel.RoleId)</td>
-                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">Delete</button></td>
-            </tr>
-        }
-    </tbody>
-</table>
-<EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync">
-    <select class="form-select d-inline-block w-auto" @bind="newChannelIdInput">
-        <option value="">— select channel —</option>
-        @foreach (var channel in channels)
-        {
-            <option value="@channel.Id">@ChannelLabel(channel)</option>
-        }
-    </select>
-    <select class="form-select d-inline-block w-auto" @bind="newRoleIdInput">
-        <option value="">— select role —</option>
-        @foreach (var role in roles)
-        {
-            <option value="@role.Id">@role.Name</option>
-        }
-    </select>
-    <button type="submit" class="btn btn-primary">Add</button>
-</EditForm>
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Alert Channels">
+        <p class="form-text mb-0">
+            Each channel+role pair below gets a copy of every alert for this feature — add one per
+            channel you want notified (e.g. one for officers, one for the general server).
+        </p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Channel</th>
+                    <th>Role</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var alertChannel in alertChannels)
+                {
+                    <tr>
+                        <td>@ChannelName(alertChannel.ChannelId)</td>
+                        <td>@RoleName(alertChannel.RoleId)</td>
+                        <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">Delete</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync">
+            <select class="form-select d-inline-block w-auto" @bind="newChannelIdInput">
+                <option value="">— select channel —</option>
+                @foreach (var channel in channels)
+                {
+                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                }
+            </select>
+            <select class="form-select d-inline-block w-auto" @bind="newRoleIdInput">
+                <option value="">— select role —</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@role.Name</option>
+                }
+            </select>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </EditForm>
+    </SettingsCard>
+</div>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }

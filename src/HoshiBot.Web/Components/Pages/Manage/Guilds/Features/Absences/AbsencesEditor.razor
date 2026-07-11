@@ -10,11 +10,17 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="Absences Report" Usage="Where the public, kept-updated absence report is posted."
-    @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Absences Report">
+        <ChannelPicker Label="Absences Report" ShowLabel="false" Usage="Where the public, kept-updated absence report is posted."
+            @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
+    </SettingsCard>
 
-<ChannelPicker Label="Absences Report (Staff)" Usage="A second copy of the report, for a staff-only channel."
-    @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
+    <SettingsCard Title="Absences Report (Staff)">
+        <ChannelPicker Label="Absences Report (Staff)" ShowLabel="false" Usage="A second copy of the report, for a staff-only channel."
+            @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
+    </SettingsCard>
+</div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.Absences;

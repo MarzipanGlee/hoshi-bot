@@ -1,6 +1,7 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
 @using NetCord
+@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 
@@ -10,8 +11,17 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<RolePicker Label="Alerts" Usage="Role members opt into via the hub's 'manage alerts' button, to receive raid/shield pings."
-    @bind-Value="roleIdInput" @bind-Value:after="SaveRoleAsync" Roles="roles" />
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
+
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Alerts">
+        <RolePicker Label="Alerts" ShowLabel="false" Usage="Role members opt into via the hub's 'manage alerts' button, to receive raid/shield pings." CreateRoleName="Alerts"
+            @bind-Value="roleIdInput" @bind-Value:after="SaveRoleAsync" Roles="roles" />
+    </SettingsCard>
+</div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.AlertsOptIn;
@@ -19,6 +29,7 @@
     private GuildAudience audience;
     private List<Role> roles = [];
     private string? roleIdInput;
+    private string? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -27,6 +38,21 @@
         roleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, AlertsOptInSettingKeys.Role))?.ToString();
     }
 
-    private Task SaveRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AlertsOptInSettingKeys.Role, ParseId(roleIdInput));
+    private async Task SaveRoleAsync()
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, roleIdInput, "Alerts");
+            roleIdInput = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AlertsOptInSettingKeys.Role, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (roleIdInput == RolePicker.CreateSentinel)
+                roleIdInput = null;
+        }
+    }
 }

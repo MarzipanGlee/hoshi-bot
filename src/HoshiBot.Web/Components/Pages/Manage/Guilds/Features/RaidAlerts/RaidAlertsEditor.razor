@@ -11,8 +11,12 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<ChannelPicker Label="Raid Reports" Usage="Where /raid reports are posted."
-    @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+<div class="row g-3 mt-1">
+    <SettingsCard Title="Raid Reports">
+        <ChannelPicker Label="Raid Reports" ShowLabel="false" Usage="Where /raid reports are posted."
+            @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+</div>
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="audience" />
 
