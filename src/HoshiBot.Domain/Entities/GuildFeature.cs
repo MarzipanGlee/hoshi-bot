@@ -18,4 +18,5 @@ public enum GuildFeature
     ServerStatus,
     Incursion,
     RankRoles,
+    OpsLevelRoles,
 }

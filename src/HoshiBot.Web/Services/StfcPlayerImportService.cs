@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore;
 namespace HoshiBot.Web.Services;
 
 // One entry from an external player-data feed (see Manage/Stfc/PlayerPages/Import.razor for
-// where these come from) — deliberately just the 4 fields the upsert actually needs, not a
+// where these come from) — deliberately just the fields the upsert actually needs, not a
 // 1:1 mirror of the feed's much larger per-player payload.
-public record StfcPlayerImportEntry(long ExternalId, string? Name, string? AllianceTag, int Server, int RankId);
+public record StfcPlayerImportEntry(long ExternalId, string? Name, string? AllianceTag, int Server, int RankId, int Level);
 
 public record StfcPlayerImportResult(int Added, int Updated, int Renamed, int Mismatched, int InvalidRank, int MissingName);
 
@@ -75,6 +75,7 @@ public class StfcPlayerImportService(IDbContextFactory<HoshiBotDbContext> dbFact
                 existing.AllianceId = alliance?.Id;
                 if (rank is not null)
                     existing.Rank = rank;
+                existing.OpsLevel = entry.Level;
 
                 updated++;
             }
@@ -87,6 +88,7 @@ public class StfcPlayerImportService(IDbContextFactory<HoshiBotDbContext> dbFact
                     ServerId = serverId,
                     AllianceId = alliance?.Id,
                     Rank = rank,
+                    OpsLevel = entry.Level,
                 };
                 player.NameHistory.Add(new StfcPlayerNameHistory { Name = entry.Name, ObservedAt = seenAt });
 

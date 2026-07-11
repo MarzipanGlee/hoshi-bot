@@ -87,3 +87,28 @@ public static class RankRolesSettingKeys
         _ => throw new ArgumentOutOfRangeException(nameof(rank), rank, "Unknown STFC rank."),
     };
 }
+
+public static class OpsLevelRolesSettingKeys
+{
+    public const string G1Role = "G1Role";
+    public const string G2Role = "G2Role";
+    public const string G3Role = "G3Role";
+    public const string G4Role = "G4Role";
+    public const string G5Role = "G5Role";
+    public const string G6Role = "G6Role";
+    public const string G7Role = "G7Role";
+
+    // Lets the sync job go straight from a player's derived Ops group to the one key that
+    // applies, instead of a switch at every call site.
+    public static string RoleForGroup(StfcOpsGroup group) => group switch
+    {
+        StfcOpsGroup.G1 => G1Role,
+        StfcOpsGroup.G2 => G2Role,
+        StfcOpsGroup.G3 => G3Role,
+        StfcOpsGroup.G4 => G4Role,
+        StfcOpsGroup.G5 => G5Role,
+        StfcOpsGroup.G6 => G6Role,
+        StfcOpsGroup.G7 => G7Role,
+        _ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unknown Ops group."),
+    };
+}

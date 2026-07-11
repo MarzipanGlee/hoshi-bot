@@ -1,0 +1,200 @@
+@using HoshiBot.Web.Services
+@using NetCord
+@using NetCord.Rest
+
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+@inject GuildFeatureService FeatureService
+@inject RestClient BotRestClient
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
+
+<div class="row g-3 mt-1">
+    @foreach (var state in groupStates)
+    {
+        <div class="col-sm-6 col-lg-4 col-xl-3" @key="state">
+            <div class="card h-100">
+                <div class="card-header">
+                    <strong>@state.DefaultName</strong>
+                    <span class="text-secondary ms-1">(@state.RangeLabel)</span>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    <RolePicker Label="@state.DefaultName" ShowLabel="false" PlaceholderText="@($"— create {state.DefaultName} —")"
+                                @bind-Value="state.RoleId" @bind-Value:after="() => OnRoleChangedAsync(state)" Roles="roles" />
+                    <RoleColorMentionableInputs @bind-ColorValue="state.Color" @bind-ColorValue:after="() => SaveGroupRoleAsync(state)"
+                                                 MentionableValue="state.Mentionable" MentionableValueChanged="m => OnMentionableChangedAsync(state, m)" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+
+    // Groups an Ops tier's identity (name/setting key) with its 3 pieces of live state
+    // (role, color, mentionable) — same state-bag pattern as RankRolesEditor's RankRoleState,
+    // replacing what would otherwise be 21 near-duplicate fields/methods (7 tiers × 3
+    // concerns) with one state class, a handful of shared handlers, and a @foreach over 7
+    // instances.
+    private class OpsGroupState
+    {
+        public required string DefaultName;
+        public required string RangeLabel;
+        public required string SettingKey;
+        public string? RoleId;
+        public string? Color;
+        public bool Mentionable;
+    }
+
+    private readonly List<OpsGroupState> groupStates =
+    [
+        new() { DefaultName = "G1", RangeLabel = "1-9", SettingKey = OpsLevelRolesSettingKeys.G1Role },
+        new() { DefaultName = "G2", RangeLabel = "10-19", SettingKey = OpsLevelRolesSettingKeys.G2Role },
+        new() { DefaultName = "G3", RangeLabel = "20-39", SettingKey = OpsLevelRolesSettingKeys.G3Role },
+        new() { DefaultName = "G4", RangeLabel = "40-50", SettingKey = OpsLevelRolesSettingKeys.G4Role },
+        new() { DefaultName = "G5", RangeLabel = "51-60", SettingKey = OpsLevelRolesSettingKeys.G5Role },
+        new() { DefaultName = "G6", RangeLabel = "61-70", SettingKey = OpsLevelRolesSettingKeys.G6Role },
+        new() { DefaultName = "G7", RangeLabel = "71-80", SettingKey = OpsLevelRolesSettingKeys.G7Role },
+    ];
+
+    private List<Role> roles = [];
+    private bool enabled;
+    private string? createRoleError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.OpsLevelRoles, Audience);
+
+        foreach (var state in groupStates)
+            await LoadGroupRoleAsync(state);
+    }
+
+    // Falls back to an existing role literally named after the tier (e.g. "G1") when
+    // nothing's configured yet — without this, picking a guild that already has these roles
+    // from an earlier manual setup left every picker on "create new", and saving then tried
+    // (and failed) to create a role Discord already had.
+    private async Task LoadGroupRoleAsync(OpsGroupState state)
+    {
+        state.RoleId = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, state.SettingKey))?.ToString()
+            ?? roles.FirstOrDefault(r => r.Name == state.DefaultName)?.Id.ToString();
+        ApplyRoleDisplayState(state);
+    }
+
+    // Reflects the currently-selected role's real color/mentionable in the UI (or Discord's
+    // own new-role defaults for "create new") — keeps the picker honest about what saving
+    // will actually apply, rather than showing stale state left over from a previous selection.
+    private void ApplyRoleDisplayState(OpsGroupState state)
+    {
+        if (ulong.TryParse(state.RoleId, out var id) && roles.FirstOrDefault(r => r.Id == id) is { } role)
+        {
+            state.Color = ToHex(role.Colors.PrimaryColor);
+            state.Mentionable = role.Mentionable;
+        }
+        else
+        {
+            state.Color = null;
+            state.Mentionable = false;
+        }
+    }
+
+    private async Task ToggleAsync(bool value)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, value);
+        enabled = value;
+    }
+
+    private Task OnRoleChangedAsync(OpsGroupState state)
+    {
+        ApplyRoleDisplayState(state);
+        return SaveGroupRoleAsync(state);
+    }
+
+    private Task OnMentionableChangedAsync(OpsGroupState state, bool mentionable)
+    {
+        state.Mentionable = mentionable;
+        return SaveGroupRoleAsync(state);
+    }
+
+    // A blank selection creates a new role instead of just saving null — named after the
+    // tier so it's clear at a glance what it's for. Color/mentionable always apply, whether
+    // that means setting them on a freshly created role or updating an already-selected one.
+    private async Task SaveGroupRoleAsync(OpsGroupState state)
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await EnsureRoleAsync(state.RoleId, state.DefaultName, state.Color, state.Mentionable);
+            state.RoleId = roleId?.ToString();
+            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, state.SettingKey, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+        }
+    }
+
+    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName, string? colorInput, bool mentionable)
+    {
+        var desiredColor = ToColor(colorInput);
+
+        if (ulong.TryParse(currentInput, out var existingId))
+        {
+            var existingRole = roles.FirstOrDefault(r => r.Id == existingId);
+            if (existingRole is not null &&
+                (existingRole.Colors.PrimaryColor.RawValue != desiredColor.RawValue || existingRole.Mentionable != mentionable))
+            {
+                await BotRestClient.ModifyGuildRoleAsync(GuildId, existingId, props =>
+                {
+                    props.Colors = new RoleColorsProperties(desiredColor);
+                    props.Mentionable = mentionable;
+                });
+                DiscordData.InvalidateCache(GuildId);
+                roles = await DiscordData.GetRolesAsync(GuildId);
+            }
+
+            return existingId;
+        }
+
+        var created = await BotRestClient.CreateGuildRoleAsync(GuildId, new RoleProperties
+        {
+            Name = defaultName,
+            Colors = new RoleColorsProperties(desiredColor),
+            Mentionable = mentionable,
+        });
+        DiscordData.InvalidateCache(GuildId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        return created.Id;
+    }
+
+    // null = Discord's own "Default" (raw color value 0) — can't just omit Colors when
+    // modifying an existing role, since Discord's API treats an omitted field as "leave
+    // unchanged," not "clear", so resetting to Default needs this explicit raw-0 value.
+    private static NetCord.Color ToColor(string? colorInput)
+    {
+        if (colorInput is null)
+            return new NetCord.Color(0);
+
+        var hex = colorInput.TrimStart('#');
+        // The picker may report an 8-digit RRGGBBAA (opacity support is on to make its
+        // Swatches list render at all) — Discord role colors have no alpha, only the first
+        // 6 digits matter.
+        if (hex.Length > 6)
+            hex = hex[..6];
+
+        return new NetCord.Color(Convert.ToInt32(hex, 16));
+    }
+
+    private static string ToHex(NetCord.Color color) => $"#{color.RawValue:X6}";
+}

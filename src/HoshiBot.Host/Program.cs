@@ -106,6 +106,12 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(rankRoleSyncJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
 
+    var opsLevelRoleSyncJobKey = new JobKey(nameof(OpsLevelRoleSyncJob));
+    quartz.AddJob<OpsLevelRoleSyncJob>(opsLevelRoleSyncJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(opsLevelRoleSyncJobKey)
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+
     var announcementCounterRefreshJobKey = new JobKey(nameof(AnnouncementCounterRefreshJob));
     quartz.AddJob<AnnouncementCounterRefreshJob>(announcementCounterRefreshJobKey)
         .AddTrigger(trigger => trigger

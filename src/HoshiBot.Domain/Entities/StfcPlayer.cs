@@ -22,6 +22,10 @@ public class StfcPlayer
     // Null for unranked/unaffiliated players, or ones never seen by an import yet.
     public StfcPlayerRank? Rank { get; set; }
 
+    // The raw 1-80 STFC Ops Level stat, not the derived G1-G7 group — see
+    // StfcOpsGroupExtensions.FromLevel. Null for players never seen by an import yet.
+    public int? OpsLevel { get; set; }
+
     public ICollection<UserPlayer> UserLinks { get; set; } = [];
 
     public ICollection<StfcPlayerNameHistory> NameHistory { get; set; } = [];

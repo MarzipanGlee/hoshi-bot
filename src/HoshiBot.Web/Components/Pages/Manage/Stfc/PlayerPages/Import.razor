@@ -131,7 +131,7 @@
         var page = await JsonSerializer.DeserializeAsync<PlayersPage>(jsonStream);
 
         return (page?.Players ?? [])
-            .Select(p => new StfcPlayerImportEntry(p.Data.PlayerId, p.Data.Name, p.Data.Tag, p.Data.Server, p.Data.RankId))
+            .Select(p => new StfcPlayerImportEntry(p.Data.PlayerId, p.Data.Name, p.Data.Tag, p.Data.Server, p.Data.RankId, p.Data.Level))
             .ToList();
     }
 
@@ -142,5 +142,6 @@
         [property: JsonPropertyName("name")] string? Name,
         [property: JsonPropertyName("tag")] string? Tag,
         [property: JsonPropertyName("server")] int Server,
-        [property: JsonPropertyName("rankid")] int RankId);
+        [property: JsonPropertyName("rankid")] int RankId,
+        [property: JsonPropertyName("level")] int Level);
 }
