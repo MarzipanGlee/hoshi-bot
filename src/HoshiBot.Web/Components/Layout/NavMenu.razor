@@ -16,7 +16,7 @@
     </div>
 </div>
 
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+<div class="@NavMenuCssClass">
     <nav class="flex-column">
         <AuthorizeView>
             <Authorized>
@@ -170,9 +170,20 @@
     // to pick up a feature toggled on/off from the Features page without a dedicated event
     // bus between the two components, since navigating away from Features after a toggle
     // is the common path.
+    //
+    // Also closes the mobile flyout here, deterministically, instead of the previous
+    // "@onclick on the wrapping div" hack: that fired on ANY click bubbling up from inside
+    // it (including a NavMenuGroup's checkbox/label toggle, which dispatches two click
+    // events per interaction and so happened to cancel itself out) and just *toggled* the
+    // collapsed flag — meaning a single nav-link click at desktop width (where the CSS
+    // override hides the effect either way) silently flipped the flag with no visible
+    // feedback, and that invisible drift only became apparent later after resizing down to
+    // mobile, where the flag's actual value (now possibly "open") took effect for real.
+    // Unconditionally setting it true on a genuine navigation is immune to that drift.
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        collapseNavMenu = true;
         _ = InvokeAsync(async () =>
         {
             await LoadEnabledFeaturesAsync();

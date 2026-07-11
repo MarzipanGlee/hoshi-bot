@@ -1,0 +1,35 @@
+/* Bootstrap's own float+negative-margin trick for .form-check normally indents a wrapped
+   second line under the label text (not under the checkbox) — but these checkboxes have
+   noticeably longer labels than a typical form-check, and something in this app's combined
+   Bootstrap/BootstrapBlazor CSS isn't reliably reproducing that indent for them (wrapped
+   text lands back under the checkbox). A plain flex row sidesteps that entirely: the
+   checkbox is a fixed-size flex item, the label is a flex:1 item, so wrapped lines stay in
+   the label's own column regardless of what either bundle's .form-check rules do. */
+.form-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding-left: 0;
+    margin-bottom: 0.5rem;
+}
+
+.form-check .form-check-input {
+    margin: 0.2rem 0 0 0;
+    flex-shrink: 0;
+}
+
+.form-check-label {
+    flex: 1;
+    /* A flex:1 item won't shrink below its content's intrinsic width by default (min-width:
+       auto), so without this it just overflows/truncates instead of wrapping once the row
+       gets narrow — min-width: 0 is what actually lets it shrink and wrap normally. */
+    min-width: 0;
+    /* !important because some other loaded stylesheet sets white-space/overflow/
+       text-overflow on .form-check-label at a specificity or load order this scoped rule
+       doesn't otherwise beat (likely BootstrapBlazor's own compact-list default) — these
+       checkboxes deliberately need to wrap, unlike whatever that other rule is tuned for. */
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: break-word;
+}

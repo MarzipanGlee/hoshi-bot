@@ -1,7 +1,13 @@
 @using NetCord
 
 <div class="mb-2">
-    <label>@Label</label>
+    <label>
+        @Label
+        @if (IconSrc is not null)
+        {
+            <img src="@IconSrc" alt="" class="role-picker-icon" />
+        }
+    </label>
     <select class="form-select" value="@Value" @onchange="OnChangeAsync">
         <option value="">@PlaceholderText</option>
         @if (IsUnknown)
@@ -21,6 +27,10 @@
 
 @code {
     [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    // Rendered inline after the label text — used by rank-role pickers to pair each rank
+    // with its own icon, right next to the title it belongs to (not floating separately).
+    [Parameter] public string? IconSrc { get; set; }
 
     // Rendered as a small explanatory line under the picker — this is where "good
     // description per setting, usage must be explained" actually lands.

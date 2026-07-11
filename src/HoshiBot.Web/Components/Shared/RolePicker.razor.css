@@ -1,0 +1,16 @@
+/* display: inline-flex + align-items: center on the label (rather than relying on the
+   image's own vertical-align, which lines up against the text's font metrics and looks
+   subtly off) guarantees the icon centers against the actual text line-box regardless of
+   font/size. Harmless when there's no icon — a label with a single text child looks
+   identical whether it's inline or inline-flex. */
+label {
+    display: inline-flex;
+    align-items: center;
+}
+
+.role-picker-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    object-fit: contain;
+    margin-left: 0.4rem;
+}

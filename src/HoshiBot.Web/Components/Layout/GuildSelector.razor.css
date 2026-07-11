@@ -128,3 +128,11 @@
     letter-spacing: 0.03em;
     color: #8a8a92;
 }
+
+/* Matches MainLayout.razor.css's top-row compacting threshold — not the sidebar's own
+   641px collapse breakpoint, see that file for why. */
+@media (max-width: 900px) {
+    .guild-selector-toggle {
+        max-width: 8.5rem;
+    }
+}

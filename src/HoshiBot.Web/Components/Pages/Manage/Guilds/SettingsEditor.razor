@@ -35,36 +35,11 @@
 
 <h2 class="mt-4">Rank Roles</h2>
 <p class="form-text">STFC's fixed 5-rank list — guild-wide designations, not specific to any one feature. Not consumed by any bot logic yet; set now, picked up once that lands.</p>
-<div class="d-flex align-items-center gap-2">
-    <img src="images/ranks/admiral.png" alt="" width="32" height="32" />
-    <div class="flex-grow-1">
-        <RolePicker Label="Admiral" @bind-Value="admiralInput" @bind-Value:after="SaveAdmiralAsync" Roles="roles" />
-    </div>
-</div>
-<div class="d-flex align-items-center gap-2">
-    <img src="images/ranks/commodore.png" alt="" width="32" height="32" />
-    <div class="flex-grow-1">
-        <RolePicker Label="Commodore" @bind-Value="commodoreInput" @bind-Value:after="SaveCommodoreAsync" Roles="roles" />
-    </div>
-</div>
-<div class="d-flex align-items-center gap-2">
-    <img src="images/ranks/premier.png" alt="" width="32" height="32" />
-    <div class="flex-grow-1">
-        <RolePicker Label="Premier" @bind-Value="premierInput" @bind-Value:after="SavePremierAsync" Roles="roles" />
-    </div>
-</div>
-<div class="d-flex align-items-center gap-2">
-    <img src="images/ranks/operative.png" alt="" width="32" height="32" />
-    <div class="flex-grow-1">
-        <RolePicker Label="Operative" @bind-Value="operativeInput" @bind-Value:after="SaveOperativeAsync" Roles="roles" />
-    </div>
-</div>
-<div class="d-flex align-items-center gap-2">
-    <img src="images/ranks/agent.png" alt="" width="32" height="32" />
-    <div class="flex-grow-1">
-        <RolePicker Label="Agent" @bind-Value="agentInput" @bind-Value:after="SaveAgentAsync" Roles="roles" />
-    </div>
-</div>
+<RolePicker Label="Admiral" IconSrc="images/ranks/admiral.png" @bind-Value="admiralInput" @bind-Value:after="SaveAdmiralAsync" Roles="roles" />
+<RolePicker Label="Commodore" IconSrc="images/ranks/commodore.png" @bind-Value="commodoreInput" @bind-Value:after="SaveCommodoreAsync" Roles="roles" />
+<RolePicker Label="Premier" IconSrc="images/ranks/premier.png" @bind-Value="premierInput" @bind-Value:after="SavePremierAsync" Roles="roles" />
+<RolePicker Label="Operative" IconSrc="images/ranks/operative.png" @bind-Value="operativeInput" @bind-Value:after="SaveOperativeAsync" Roles="roles" />
+<RolePicker Label="Agent" IconSrc="images/ranks/agent.png" @bind-Value="agentInput" @bind-Value:after="SaveAgentAsync" Roles="roles" />
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }

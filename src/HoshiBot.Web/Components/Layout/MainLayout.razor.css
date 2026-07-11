@@ -19,13 +19,35 @@ main {
     background-color: #f7f7f7;
     border-bottom: 1px solid #d6d5d5;
     justify-content: space-between;
-    height: 3.5rem;
+    height: auto;
+    min-height: 3.5rem;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    row-gap: 0.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
 }
 
+/* Always a single scrollable line rather than Bootstrap's own default internal wrapping,
+   which (once the row runs out of horizontal room) breaks items onto their own lines and
+   can strand the first crumb alone — harmless at full desktop width since it never needs
+   to actually scroll there. */
 .top-row ::deep .breadcrumb {
     margin-bottom: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.top-row ::deep .breadcrumb::-webkit-scrollbar {
+    display: none;
+}
+
+.top-row ::deep .breadcrumb-item {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .top-row ::deep .breadcrumb-item.active {
@@ -54,9 +76,65 @@ main {
     object-fit: cover;
 }
 
+.topbar-avatar-fallback {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background-color: #e5e5e8;
+    color: #8a8a92;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.topbar-logout-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.topbar-logout-icon {
+    display: none;
+}
+
 .content {
     padding-bottom: 1.5rem;
     flex: 1;
+}
+
+/* NOT the same threshold as the sidebar's own 641px collapse breakpoint below — the
+   sidebar becomes permanently visible (not hamburger-collapsed) starting at 641px, but its
+   fixed 250px width eats into the top row's available space at exactly the point that
+   space gets tightest, so a top-row cramped at, say, 660-700px still has a fully-expanded
+   sidebar next to it. Everything here is losing information (hidden username, icon-only
+   logout, a tighter guild-selector cap) so it's deliberately a much wider cutoff than the
+   sidebar's own — only the lossless wrap/scroll behavior above applies unconditionally. */
+@media (max-width: 900px) {
+    .topbar-actions {
+        gap: 0.5rem;
+    }
+
+    .topbar-user-name {
+        display: none;
+    }
+
+    .topbar-avatar-fallback {
+        display: inline-flex;
+    }
+
+    .topbar-logout-text {
+        display: none;
+    }
+
+    .topbar-logout-icon {
+        display: inline-block;
+    }
+
+    .topbar-logout-btn {
+        padding: 0.25rem 0.5rem;
+    }
 }
 
 @media (min-width: 641px) {
