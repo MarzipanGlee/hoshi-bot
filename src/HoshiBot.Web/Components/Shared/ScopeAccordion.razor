@@ -1,19 +1,21 @@
-<Collapse IsAccordion="true">
+<Collapse IsAccordion="true" OnCollapseChanged="OnItemCollapseChanged">
     <CollapseItems>
         @foreach (var audience in ScopeAudiences)
         {
             if (Audiences != GuildAudience.None && !Audiences.HasFlag(audience))
                 continue;
 
-            <CollapseItem @key="audience">
-                <HeaderTemplate>
-                    <span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span>
-                    @AudienceDisplay.Labels(audience).First()
-                </HeaderTemplate>
-                <ChildContent>
-                    <ScopeEditor GuildId="GuildId" Audience="audience" />
-                </ChildContent>
-            </CollapseItem>
+            <div id="@($"scope-{AudienceDisplay.Slug(audience)}")">
+                <CollapseItem @key="audience" Text="@audience.ToString()" IsCollapsed="@(expandedAudience != audience)">
+                    <HeaderTemplate>
+                        <span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span>
+                        @AudienceDisplay.Labels(audience).First()
+                    </HeaderTemplate>
+                    <ChildContent>
+                        <ScopeEditor GuildId="GuildId" Audience="audience" />
+                    </ChildContent>
+                </CollapseItem>
+            </div>
         }
     </CollapseItems>
 </Collapse>
@@ -25,4 +27,42 @@
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
     [Parameter] public GuildAudience Audiences { get; set; }
+
+    // Null means "nothing forced open" — each CollapseItem's IsCollapsed then only reflects
+    // the user's own clicks (tracked back into this field via OnItemCollapseChanged below),
+    // matching the accordion's normal single-open-at-a-time behavior.
+    private GuildAudience? expandedAudience;
+
+    // Lets an embedding page's "Configure" button (AudienceEditor) open the matching
+    // section — called via @ref, since IsCollapsed is a one-way BootstrapBlazor parameter
+    // with no built-in two-way binding, so this is the one place that's allowed to drive it.
+    public void Expand(GuildAudience audience)
+    {
+        expandedAudience = audience;
+        StateHasChanged();
+    }
+
+    // Keeps expandedAudience in sync with genuine user clicks on any header — without this,
+    // this component's own IsCollapsed binding would fight the accordion's internal toggle
+    // logic (re-asserting the last Expand()-ed audience on every unrelated re-render).
+    private Task OnItemCollapseChanged(CollapseItem item)
+    {
+        if (!Enum.TryParse<GuildAudience>(item.Text, out var audience))
+            return Task.CompletedTask;
+
+        // Conditional on the close branch (rather than unconditionally clearing) so this
+        // stays correct regardless of whether the library fires the newly-opened item's
+        // event before or after the previously-open item's close event.
+        if (item.IsCollapsed)
+        {
+            if (expandedAudience == audience)
+                expandedAudience = null;
+        }
+        else
+        {
+            expandedAudience = audience;
+        }
+
+        return Task.CompletedTask;
+    }
 }

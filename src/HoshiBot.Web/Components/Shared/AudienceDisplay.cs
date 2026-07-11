@@ -16,6 +16,16 @@ public static class AudienceDisplay
             yield return "Community";
     }
 
+    // Shared between AudienceEditor's cards and (formerly) the plain-checkbox labels it replaced.
+    public static string Description(GuildAudience audience) => audience switch
+    {
+        GuildAudience.Alliance => "This guild is a single alliance's own Discord.",
+        GuildAudience.Server => "This guild serves a whole STFC server.",
+        GuildAudience.VeilGroup => "This guild serves a veil group (a coalition of servers).",
+        GuildAudience.Community => "A general Discord not tied to one alliance or server.",
+        _ => "",
+    };
+
     // Open Iconic class for a single audience flag — shared between the Features page's
     // section headers and the public landing page's audience overview cards, so both stay
     // in sync if an icon ever changes.

@@ -168,6 +168,12 @@ the existing pickers (`RolePicker`, `ChannelPicker`, the Stfc catalog CRUD forms
 etc.) for replacement with BootstrapBlazor equivalents for consistency — not urgent, no
 functional gap, a quality-of-life pass for later.
 
+Once every guild page (`Components/Pages/Manage/Guilds/**`) has been through this pass,
+also revisit the Guild Overview page (`Guilds/Index.razor`, route `/manage/guilds/{id}`) —
+it wasn't in scope for the Audience/Scope rework and hasn't been checked against the
+BootstrapBlazor-first convention or against whatever UI patterns fall out of the other
+pages' passes.
+
 ### Server & Veil Group Discords (new audience, not built yet)
 
 - Diplomacy group — a server-wide diplomacy construct (distinct from the existing per-alliance
