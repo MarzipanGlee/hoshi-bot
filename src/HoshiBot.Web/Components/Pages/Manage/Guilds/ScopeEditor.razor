@@ -40,23 +40,25 @@
         </tbody>
     </table>
 
-    <div class="d-flex gap-2 align-items-end flex-wrap scope-add-card">
-        <div>
-            <label class="form-label">Region</label>
-            <Select TValue="string" Items="regionItems" @bind-Value="allianceRegionIdInput" @bind-Value:after="OnAllianceRegionChangedAsync" PlaceHolder="Select region..." />
-        </div>
-        <div>
-            <label class="form-label">Server</label>
-            <Select TValue="string" Items="allianceServerItems" @bind-Value="allianceServerIdInput" @bind-Value:after="OnAllianceServerChangedAsync"
-                    ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(allianceRegionIdInput is null)" />
-        </div>
-        <div>
-            <label class="form-label">Alliance</label>
-            <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceIdInput" @bind-Value:after="OnAllianceChanged"
-                    ShowSearch="true" PlaceHolder="Select alliance..." IsDisabled="@(allianceServerIdInput is null)" />
-        </div>
-        <div>
-            <button class="btn btn-primary" disabled="@creatingRole" @onclick="AddGuildAlliance">@(creatingRole ? "Creating..." : "Add")</button>
+    <div class="card mt-3">
+        <div class="card-body d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Region</label>
+                <Select TValue="string" Items="regionItems" @bind-Value="allianceRegionIdInput" @bind-Value:after="OnAllianceRegionChangedAsync" PlaceHolder="Select region..." />
+            </div>
+            <div>
+                <label class="form-label">Server</label>
+                <Select TValue="string" Items="allianceServerItems" @bind-Value="allianceServerIdInput" @bind-Value:after="OnAllianceServerChangedAsync"
+                        ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(allianceRegionIdInput is null)" />
+            </div>
+            <div>
+                <label class="form-label">Alliance</label>
+                <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceIdInput" @bind-Value:after="OnAllianceChanged"
+                        ShowSearch="true" PlaceHolder="Select alliance..." IsDisabled="@(allianceServerIdInput is null)" />
+            </div>
+            <div>
+                <button class="btn btn-primary" disabled="@creatingRole" @onclick="AddGuildAlliance">@(creatingRole ? "Creating..." : "Add")</button>
+            </div>
         </div>
     </div>
     <div class="row g-3 mt-1">
@@ -108,18 +110,20 @@ else if (Audience == GuildAudience.Server)
         </tbody>
     </table>
 
-    <div class="d-flex gap-2 align-items-end flex-wrap scope-add-card">
-        <div>
-            <label class="form-label">Region</label>
-            <Select TValue="string" Items="regionItems" @bind-Value="serverRegionIdInput" @bind-Value:after="OnServerRegionChangedAsync" PlaceHolder="Select region..." />
-        </div>
-        <div>
-            <label class="form-label">Server</label>
-            <Select TValue="string" Items="serverScopeServerItems" @bind-Value="selectedServerIdInput"
-                    ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(serverRegionIdInput is null)" />
-        </div>
-        <div>
-            <button class="btn btn-primary" @onclick="AddGuildServer">Add</button>
+    <div class="card mt-3">
+        <div class="card-body d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Region</label>
+                <Select TValue="string" Items="regionItems" @bind-Value="serverRegionIdInput" @bind-Value:after="OnServerRegionChangedAsync" PlaceHolder="Select region..." />
+            </div>
+            <div>
+                <label class="form-label">Server</label>
+                <Select TValue="string" Items="serverScopeServerItems" @bind-Value="selectedServerIdInput"
+                        ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(serverRegionIdInput is null)" />
+            </div>
+            <div>
+                <button class="btn btn-primary" @onclick="AddGuildServer">Add</button>
+            </div>
         </div>
     </div>
 }
@@ -139,17 +143,19 @@ else if (Audience == GuildAudience.VeilGroup)
         </tbody>
     </table>
 
-    <div class="d-flex gap-2 align-items-end flex-wrap scope-add-card">
-        <div>
-            <label class="form-label">Region</label>
-            <Select TValue="string" Items="regionItems" @bind-Value="veilGroupRegionIdInput" @bind-Value:after="OnVeilGroupRegionChangedAsync" PlaceHolder="Select region..." />
-        </div>
-        <div>
-            <label class="form-label">Veil Group</label>
-            <Select TValue="string" Items="veilGroupItems" @bind-Value="selectedVeilGroupIdInput" PlaceHolder="Select veil group..." IsDisabled="@(veilGroupRegionIdInput is null)" />
-        </div>
-        <div>
-            <button class="btn btn-primary" @onclick="AddGuildVeilGroup">Add</button>
+    <div class="card mt-3">
+        <div class="card-body d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Region</label>
+                <Select TValue="string" Items="regionItems" @bind-Value="veilGroupRegionIdInput" @bind-Value:after="OnVeilGroupRegionChangedAsync" PlaceHolder="Select region..." />
+            </div>
+            <div>
+                <label class="form-label">Veil Group</label>
+                <Select TValue="string" Items="veilGroupItems" @bind-Value="selectedVeilGroupIdInput" PlaceHolder="Select veil group..." IsDisabled="@(veilGroupRegionIdInput is null)" />
+            </div>
+            <div>
+                <button class="btn btn-primary" @onclick="AddGuildVeilGroup">Add</button>
+            </div>
         </div>
     </div>
 }

@@ -1,9 +1,7 @@
+/* display:flex stays plain CSS, not Bootstrap's d-flex (!important) — this element's
+   display toggles via an inline style (image-load-fallback show/hide), and an !important
+   class would permanently win over that plain inline toggle. */
 .guild-icon-placeholder {
     display: flex;
-    align-items: center;
-    justify-content: center;
     background: rgb(5, 39, 103);
-    color: #fff;
-    font-weight: 600;
-    text-transform: uppercase;
 }

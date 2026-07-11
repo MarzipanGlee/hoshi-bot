@@ -1,12 +1,6 @@
+/* Not Bootstrap's d-flex/flex-column utilities (those are !important, which would
+   permanently win over the min-width:641px override below switching this to a row). */
 .page {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-main {
-    flex: 1;
     display: flex;
     flex-direction: column;
 }
@@ -18,25 +12,17 @@ main {
 .top-row {
     background-color: #f7f7f7;
     border-bottom: 1px solid #d6d5d5;
-    justify-content: space-between;
-    height: auto;
     min-height: 3.5rem;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
     row-gap: 0.5rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
 }
 
 /* Always a single scrollable line rather than Bootstrap's own default internal wrapping,
    which (once the row runs out of horizontal room) breaks items onto their own lines and
    can strand the first crumb alone — harmless at full desktop width since it never needs
-   to actually scroll there. */
+   to actually scroll there. flex-nowrap/overflow-x-auto/flex-shrink-0/text-nowrap live
+   directly on PageBreadcrumb's own markup as utility classes; only the scrollbar-hiding
+   trio below (no Bootstrap utility equivalent) stays here. */
 .top-row ::deep .breadcrumb {
-    margin-bottom: 0;
-    flex-wrap: nowrap;
-    overflow-x: auto;
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
@@ -45,63 +31,38 @@ main {
     display: none;
 }
 
-.top-row ::deep .breadcrumb-item {
-    flex-shrink: 0;
-    white-space: nowrap;
-}
-
-.top-row ::deep .breadcrumb-item.active {
-    color: #212529;
-}
-
+/* Not Bootstrap's gap-* utilities (those are !important, which would permanently win over
+   the narrower-width override below) — this value needs to change responsively. */
 .topbar-actions {
-    display: flex;
-    align-items: center;
     gap: 1rem;
-    flex-shrink: 0;
 }
 
 .topbar-user {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
     color: #5a5a63;
-    white-space: nowrap;
 }
 
 .topbar-avatar {
     width: 1.75rem;
     height: 1.75rem;
-    border-radius: 50%;
-    object-fit: cover;
 }
 
+/* display:none/inline-flex toggles responsively below — not Bootstrap's d-none (!important,
+   would permanently win over the narrower-width override). */
 .topbar-avatar-fallback {
     display: none;
-    align-items: center;
-    justify-content: center;
     width: 1.75rem;
     height: 1.75rem;
-    border-radius: 50%;
     background-color: #e5e5e8;
     color: #8a8a92;
     font-size: 0.9rem;
-    flex-shrink: 0;
 }
 
 .topbar-logout-btn {
-    display: inline-flex;
-    align-items: center;
     gap: 0.35rem;
 }
 
 .topbar-logout-icon {
     display: none;
-}
-
-.content {
-    padding-bottom: 1.5rem;
-    flex: 1;
 }
 
 /* NOT the same threshold as the sidebar's own 641px collapse breakpoint below — the

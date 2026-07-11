@@ -4,32 +4,32 @@
 
 <PageTitle>Hoshi Bot Admin</PageTitle>
 
-<div class="page">
+<div class="page position-relative min-vh-100">
     <div class="sidebar">
         <NavMenu />
     </div>
 
-    <main>
-        <div class="top-row px-4">
+    <main class="flex-grow-1 d-flex flex-column">
+        <div class="top-row px-4 d-flex flex-wrap align-items-center justify-content-between py-2">
             <PageBreadcrumb />
             <AuthorizeView>
                 <Authorized>
-                    <div class="topbar-actions">
+                    <div class="topbar-actions d-flex align-items-center flex-shrink-0">
                         <GuildSelector />
-                        <span class="topbar-user" title="@context.User.Identity?.Name">
+                        <span class="topbar-user d-flex align-items-center gap-2 text-nowrap" title="@context.User.Identity?.Name">
                             @{ var avatarUrl = GetAvatarUrl(context.User); }
                             @if (avatarUrl is not null)
                             {
-                                <img src="@avatarUrl" alt="" class="topbar-avatar" />
+                                <img src="@avatarUrl" alt="" class="topbar-avatar rounded-circle object-fit-cover" />
                             }
                             else
                             {
-                                <span class="oi oi-person topbar-avatar-fallback" aria-hidden="true"></span>
+                                <span class="oi oi-person topbar-avatar-fallback align-items-center justify-content-center rounded-circle flex-shrink-0" aria-hidden="true"></span>
                             }
                             <span class="topbar-user-name">@context.User.Identity?.Name</span>
                         </span>
                         <form method="post" action="logout" data-enhance="false">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary topbar-logout-btn" aria-label="Log out">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary topbar-logout-btn d-inline-flex align-items-center" aria-label="Log out">
                                 <span class="oi oi-account-logout topbar-logout-icon" aria-hidden="true"></span>
                                 <span class="topbar-logout-text">Log out</span>
                             </button>
@@ -39,7 +39,7 @@
             </AuthorizeView>
         </div>
 
-        <article class="content px-4">
+        <article class="px-4 pb-4 flex-grow-1">
             <BootstrapBlazorRoot>
                 @Body
             </BootstrapBlazorRoot>

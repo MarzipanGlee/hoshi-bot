@@ -11,19 +11,12 @@
 }
 
 .nav-group-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
     min-height: 2.25rem;
     padding: 0.4rem 1rem;
     color: #d7d7d7;
     font-size: 0.9rem;
-    font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.03em;
     cursor: pointer;
-    border-radius: 4px;
 }
 
     /* NavMenu.razor.css sets a matching width on .oi for its own top-level links, but
@@ -40,17 +33,7 @@
         color: white;
     }
 
-.nav-group-toggle-active {
-    color: white;
-}
-
-.nav-group-label {
-    flex: 1;
-    text-align: left;
-}
-
 .nav-group-chevron {
-    display: inline-block;
     font-size: 0.7rem;
     transition: transform 0.15s ease-in-out;
 }
@@ -68,7 +51,6 @@
 }
 
 .nav-group-items ::deep .nav-item {
-    padding-left: 1.5rem;
     font-size: 0.85rem;
 }
 

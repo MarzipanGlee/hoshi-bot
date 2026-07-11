@@ -5,45 +5,48 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
 
-<div class="guild-selector">
-    <button type="button" class="guild-selector-toggle" @onclick="ToggleOpen">
+<div class="guild-selector position-relative">
+    <button type="button" class="guild-selector-toggle d-flex align-items-center gap-2 bg-white rounded-3" @onclick="ToggleOpen">
         @if (currentGuild is not null)
         {
-            <GuildIcon GuildId="currentGuild.Id" IconHash="@currentGuild.IconHash" Name="@currentGuild.Name" CssClass="guild-selector-icon" />
-            <span class="guild-selector-name">@currentGuild.Name</span>
+            <GuildIcon GuildId="currentGuild.Id" IconHash="@currentGuild.IconHash" Name="@currentGuild.Name"
+                       CssClass="guild-selector-icon rounded-circle object-fit-cover flex-shrink-0" Style="width:1.5rem;height:1.5rem;font-size:0.75rem;" />
+            <span class="guild-selector-name text-truncate">@currentGuild.Name</span>
         }
         else
         {
-            <span class="guild-selector-name guild-selector-placeholder">Select a guild…</span>
+            <span class="guild-selector-name guild-selector-placeholder text-truncate">Select a guild…</span>
         }
-        <span class="oi oi-chevron-bottom guild-selector-caret" aria-hidden="true"></span>
+        <span class="oi oi-chevron-bottom guild-selector-caret ms-auto flex-shrink-0" aria-hidden="true"></span>
     </button>
 
     @if (isOpen)
     {
-        <div class="guild-selector-backdrop" @onclick="Close"></div>
-        <div class="guild-selector-menu">
+        <div class="guild-selector-backdrop position-fixed top-0 start-0 end-0 bottom-0" @onclick="Close"></div>
+        <div class="guild-selector-menu position-absolute start-0 overflow-y-auto bg-white rounded-3 shadow">
             @if (installedGuilds.Count == 0 && notInstalledGuilds.Count == 0)
             {
                 <div class="guild-selector-empty">Loading…</div>
             }
             @foreach (var guild in installedGuilds)
             {
-                <button type="button" class="guild-selector-item @(guild.Id == GuildContext.GuildId ? "guild-selector-item-active" : "")"
+                <button type="button" class="guild-selector-item w-100 border-0 text-start text-decoration-none d-flex align-items-center @(guild.Id == GuildContext.GuildId ? "guild-selector-item-active fw-semibold" : "")"
                         @onclick="() => SelectAsync(guild.Id)">
-                    <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name" CssClass="guild-selector-icon" />
-                    <span>@guild.Name</span>
+                    <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name"
+                               CssClass="guild-selector-icon rounded-circle object-fit-cover flex-shrink-0" Style="width:1.75rem;height:1.75rem;font-size:0.8rem;" />
+                    <span class="text-truncate">@guild.Name</span>
                 </button>
             }
             @if (notInstalledGuilds.Count > 0)
             {
-                <div class="guild-selector-divider">Bot not added yet</div>
+                <div class="guild-selector-divider text-uppercase">Bot not added yet</div>
                 @foreach (var guild in notInstalledGuilds)
                 {
-                    <a class="guild-selector-item guild-selector-item-install" href="invite?guildId=@guild.Id" target="_blank" rel="noopener">
-                        <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name" CssClass="guild-selector-icon" />
-                        <span>@guild.Name</span>
-                        <span class="guild-selector-plus" aria-hidden="true">+</span>
+                    <a class="guild-selector-item guild-selector-item-install w-100 border-0 text-start text-decoration-none d-flex align-items-center" href="invite?guildId=@guild.Id" target="_blank" rel="noopener">
+                        <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name"
+                                   CssClass="guild-selector-icon rounded-circle object-fit-cover flex-shrink-0" Style="width:1.75rem;height:1.75rem;font-size:0.8rem;" />
+                        <span class="text-truncate">@guild.Name</span>
+                        <span class="guild-selector-plus ms-auto flex-shrink-0 fw-bold" aria-hidden="true">+</span>
                     </a>
                 }
             }

@@ -78,16 +78,16 @@ else
     </div>
 
     <table class="table table-sm permission-grid">
-        <thead><tr><th>Permission</th><th>Neutral</th><th>Allow</th><th>Deny</th></tr></thead>
+        <thead><tr><th>Permission</th><th class="text-center">Neutral</th><th class="text-center">Allow</th><th class="text-center">Deny</th></tr></thead>
         <tbody>
             @foreach (var permission in AllPermissions)
             {
                 var current = permission;
                 <tr>
                     <td>@current</td>
-                    <td><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Neutral)" @onchange="() => SetState(current, PermissionState.Neutral)" /></td>
-                    <td><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Allow)" @onchange="() => SetState(current, PermissionState.Allow)" /></td>
-                    <td><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Deny)" @onchange="() => SetState(current, PermissionState.Deny)" /></td>
+                    <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Neutral)" @onchange="() => SetState(current, PermissionState.Neutral)" /></td>
+                    <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Allow)" @onchange="() => SetState(current, PermissionState.Allow)" /></td>
+                    <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Deny)" @onchange="() => SetState(current, PermissionState.Deny)" /></td>
                 </tr>
             }
         </tbody>

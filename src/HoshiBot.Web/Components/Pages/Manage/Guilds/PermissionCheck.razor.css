@@ -4,6 +4,5 @@
 
     .permission-grid th:not(:first-child),
     .permission-grid td:not(:first-child) {
-        text-align: center;
         width: 5rem;
     }

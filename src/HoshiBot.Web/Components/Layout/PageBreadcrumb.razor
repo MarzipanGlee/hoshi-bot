@@ -3,18 +3,18 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <nav aria-label="breadcrumb">
-    <ol class="breadcrumb mb-0">
+    <ol class="breadcrumb mb-0 flex-nowrap overflow-x-auto">
         @for (var i = 0; i < items.Count; i++)
         {
             var item = items[i];
             var isLast = i == items.Count - 1;
             @if (isLast || item.Href is null)
             {
-                <li class="breadcrumb-item active" aria-current="page">@item.Text</li>
+                <li class="breadcrumb-item active flex-shrink-0 text-nowrap" aria-current="page">@item.Text</li>
             }
             else
             {
-                <li class="breadcrumb-item"><a href="@item.Href">@item.Text</a></li>
+                <li class="breadcrumb-item flex-shrink-0 text-nowrap"><a href="@item.Href">@item.Text</a></li>
             }
         }
     </ol>

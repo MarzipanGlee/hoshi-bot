@@ -1,7 +1,6 @@
 .site-footer {
     border-top: 1px solid #e5e5e8;
     padding: 1.5rem 1.5rem 2rem;
-    text-align: center;
 }
 
 .site-footer-disclaimer {
@@ -13,17 +12,10 @@
 
 .site-footer-divider {
     max-width: 52rem;
-    margin: 1rem auto;
-    border: none;
     border-top: 1px solid #e5e5e8;
 }
 
 .site-footer-meta {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
     color: #5a5a63;
     font-size: 0.85rem;
 }
@@ -35,7 +27,6 @@
 .site-footer-discord-btn {
     background: rgb(5, 39, 103);
     color: white;
-    border: none;
 }
 
     .site-footer-discord-btn:hover {
@@ -44,8 +35,6 @@
     }
 
 .site-footer-github-link {
-    display: inline-flex;
-    align-items: center;
     color: #5a5a63;
 }
 

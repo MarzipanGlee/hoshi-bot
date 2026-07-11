@@ -3,22 +3,29 @@
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
-<div class="feature-grid">
+<div class="row g-3">
     @foreach (var audience in AudienceCards)
     {
         var enabled = audiences.HasFlag(audience);
-        <div class="feature-card @(enabled ? "feature-card-enabled" : "feature-card-disabled")">
-            <h4><span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span> @AudienceDisplay.Labels(audience).First()</h4>
-            <p>@AudienceDisplay.Description(audience)</p>
-            <div class="feature-card-footer">
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input" type="checkbox" role="switch" checked="@enabled"
-                           @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
+        <div class="col-sm-6 col-lg-3">
+            <div class="card h-100 border-start border-4 @(enabled ? "border-success" : "border-danger")">
+                <div class="card-body d-flex flex-column">
+                    <h4 class="fs-6 fw-semibold mb-2">
+                        <span class="oi @AudienceDisplay.Icon(audience)" style="font-size:0.85rem;color:#5a5a63;margin-right:0.35rem;" aria-hidden="true"></span>
+                        @AudienceDisplay.Labels(audience).First()
+                    </h4>
+                    <p class="flex-grow-1" style="color:#5a5a63;font-size:0.9rem;">@AudienceDisplay.Description(audience)</p>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" checked="@enabled"
+                                   @onchange="e => ToggleAsync(audience, (bool)e.Value!)" />
+                        </div>
+                        @if (ShowConfigureButton && enabled && audience != GuildAudience.Community)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OnConfigure.InvokeAsync(audience)">Configure</button>
+                        }
+                    </div>
                 </div>
-                @if (ShowConfigureButton && enabled && audience != GuildAudience.Community)
-                {
-                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OnConfigure.InvokeAsync(audience)">Configure</button>
-                }
             </div>
         </div>
     }

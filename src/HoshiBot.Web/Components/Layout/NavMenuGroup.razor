@@ -1,9 +1,9 @@
 <div class="nav-group">
     <input type="checkbox" id="@_checkboxId" class="nav-group-toggle-checkbox" checked="@(InitiallyExpanded || Active)" />
-    <label for="@_checkboxId" class="nav-group-toggle @(Active ? "nav-group-toggle-active" : "")">
+    <label for="@_checkboxId" class="nav-group-toggle rounded-1 d-flex align-items-center gap-2 w-100 fw-semibold text-uppercase @(Active ? "nav-group-toggle-active text-white" : "")">
         <span class="oi @Icon" aria-hidden="true"></span>
-        <span class="nav-group-label">@Title</span>
-        <span class="nav-group-chevron" aria-hidden="true">&#9656;</span>
+        <span class="nav-group-label flex-grow-1 text-start">@Title</span>
+        <span class="nav-group-chevron d-inline-block" aria-hidden="true">&#9656;</span>
     </label>
     <div class="nav-group-items">
         @ChildContent

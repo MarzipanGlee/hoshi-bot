@@ -6,11 +6,11 @@
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">
-            <img src="favicon.png" alt="" class="navbar-brand-icon" />
+        <a class="navbar-brand d-flex align-items-center" href="">
+            <img src="favicon.png" alt="" class="navbar-brand-icon rounded-circle object-fit-cover" />
             Hoshi Bot
         </a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+        <button title="Navigation menu" class="navbar-toggler bg-white bg-opacity-10" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
     </div>
@@ -20,29 +20,29 @@
     <nav class="flex-column">
         <AuthorizeView>
             <Authorized>
-                <div class="nav-item-top">
-                    <NavLink class="nav-link" href="manage" Match="NavLinkMatch.All">
-                        <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
+                <div class="nav-item-top mt-3">
+                    <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3 fw-semibold text-uppercase" href="manage" Match="NavLinkMatch.All">
+                        <span class="oi oi-dashboard align-text-top" aria-hidden="true"></span> Dashboard
                     </NavLink>
                 </div>
 
                 <NavMenuGroup Title="Guild" Icon="oi-flag" Active="@IsAnyGuildScopedRouteActive()">
                     @if (GuildContext.GuildId is { } guildId)
                     {
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}")" Match="NavLinkMatch.All">Overview</NavLink>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}")" Match="NavLinkMatch.All">Overview</NavLink>
                         </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/audience")">Audience</NavLink>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/audience")">Audience</NavLink>
                         </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/features")" Match="NavLinkMatch.All">Features</NavLink>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/features")" Match="NavLinkMatch.All">Features</NavLink>
                         </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/settings")">Settings</NavLink>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/settings")">Settings</NavLink>
                         </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="@($"manage/guilds/{guildId}/setup-wizard")">Setup Wizard</NavLink>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/setup-wizard")">Setup Wizard</NavLink>
                         </div>
                         @foreach (var audience in FeatureAudienceSections)
                         {
@@ -58,8 +58,8 @@
                             <NavMenuGroup Title="@($"{AudienceDisplay.Labels(audience).First()} Features")" Icon="oi-puzzle-piece" Active="@features.Any(f => IsFeatureActive(f.Slug))">
                                 @foreach (var feature in features)
                                 {
-                                    <div class="nav-item px-3">
-                                        <NavLink class="nav-link" href="@FeatureHref(guildId, feature, audience)">
+                                    <div class="nav-item px-3 ps-4">
+                                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@FeatureHref(guildId, feature, audience)">
                                             @feature.Title
                                         </NavLink>
                                     </div>
@@ -70,47 +70,47 @@
                 </NavMenuGroup>
 
                 <NavMenuGroup Title="STFC Catalog" Icon="oi-globe" Active="@IsGroupActive(CatalogHrefs)">
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/regions">Regions</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/regions">Regions</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/veil-groups">Veil Groups</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/veil-groups">Veil Groups</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/servers">Servers</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/servers">Servers</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/alliances">Alliances</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/alliances">Alliances</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/alliance-diplomacy">Diplomacy</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/alliance-diplomacy">Diplomacy</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/alliance-name-history">Alliance Name History</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/alliance-name-history">Alliance Name History</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/players">Players</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/players">Players</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/player-name-history">Player Name History</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/player-name-history">Player Name History</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/systems">Systems</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/systems">Systems</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/territories">Territories</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/territories">Territories</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/server-status">Server Status</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/server-status">Server Status</NavLink>
                     </div>
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/stfc/event-status">Event Status</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/event-status">Event Status</NavLink>
                     </div>
                 </NavMenuGroup>
 
                 <NavMenuGroup Title="Bot" Icon="oi-shield" Active="@IsGroupActive(BotHrefs)">
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="manage/bot/global-admins">Global Admins</NavLink>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/bot/global-admins">Global Admins</NavLink>
                     </div>
                 </NavMenuGroup>
             </Authorized>

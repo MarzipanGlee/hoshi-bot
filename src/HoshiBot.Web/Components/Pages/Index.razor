@@ -30,14 +30,18 @@
 <section class="features">
     <h2>Built for Every Kind of STFC Discord</h2>
     <p class="features-intro">Jump to what matters for your Discord.</p>
-    <div class="audience-overview-grid">
+    <div class="row g-4">
         @foreach (var audience in AudienceSections)
         {
-            <a class="audience-overview-card" href="#audience-@audience">
-                <div class="feature-icon"><span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span></div>
-                <h3>@AudienceDisplay.Labels(audience).First()</h3>
-                <p>@Tagline(audience)</p>
-            </a>
+            <div class="col-12 col-md-6 col-lg-3">
+                <a class="card h-100 text-decoration-none text-body text-center" href="#audience-@audience">
+                    <div class="card-body">
+                        <div class="feature-icon mx-auto"><span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span></div>
+                        <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.35rem;">@AudienceDisplay.Labels(audience).First()</h3>
+                        <p class="mb-0" style="color:#5a5a63;font-size:0.9rem;">@Tagline(audience)</p>
+                    </div>
+                </a>
+            </div>
         }
     </div>
 </section>
@@ -55,13 +59,17 @@
         <p class="features-intro">@Intro(audience)</p>
         @if (cards.Count > 0)
         {
-            <div class="feature-grid">
+            <div class="row g-4">
                 @foreach (var card in cards)
                 {
-                    <div class="feature-card">
-                        <div class="feature-icon"><span class="oi @card.Icon" aria-hidden="true"></span></div>
-                        <h3>@card.Title</h3>
-                        <p>@card.Description</p>
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="feature-icon"><span class="oi @card.Icon" aria-hidden="true"></span></div>
+                                <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@card.Title</h3>
+                                <p class="mb-0" style="color:#5a5a63;">@card.Description</p>
+                            </div>
+                        </div>
                     </div>
                 }
             </div>

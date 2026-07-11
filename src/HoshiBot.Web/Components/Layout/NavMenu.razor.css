@@ -1,7 +1,3 @@
-.navbar-toggler {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
 .top-row {
     height: 3.5rem;
     background-color: rgba(0,0,0,0.4);
@@ -9,22 +5,17 @@
 
 .navbar-brand {
     font-size: 1.1rem;
-    display: flex;
-    align-items: center;
     gap: 0.6rem;
 }
 
 .navbar-brand-icon {
     height: 1.75rem;
     width: 1.75rem;
-    border-radius: 50%;
-    object-fit: cover;
 }
 
 .oi {
     width: 2rem;
     font-size: 1.1rem;
-    vertical-align: text-top;
     top: -2px;
 }
 
@@ -43,10 +34,7 @@
 
     .nav-item ::deep a {
         color: #d7d7d7;
-        border-radius: 4px;
         min-height: 2.25rem;
-        display: flex;
-        align-items: center;
         line-height: 1.3;
     }
 
@@ -66,21 +54,10 @@
    being inset by an extra px-3 on top of the link's own padding. Also matches
    .nav-group-toggle's font weight/casing so it reads as a peer of the groups below it,
    not a smaller/plainer link. */
-.nav-item-top {
-    margin-top: 1rem;
-}
-
     .nav-item-top ::deep a {
         color: #d7d7d7;
-        border-radius: 4px;
         height: 2.25rem;
-        padding: 0 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
         line-height: 2.25rem;
-        font-weight: 600;
-        text-transform: uppercase;
         letter-spacing: 0.03em;
     }
 

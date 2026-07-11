@@ -36,59 +36,73 @@
         }
         else
         {
-            <div class="guild-picker-grid">
+            <div class="row g-3 mt-1">
                 @foreach (var guild in guilds)
                 {
-                    <div class="guild-card @(guild.BotInstalled ? "" : "guild-card-not-installed")"
-                         @onclick="() => OpenAsync(guild)">
-                        <div class="guild-card-header">
-                            <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name" CssClass="guild-card-icon" />
-                            <div class="guild-card-title">
-                                <h2>@guild.Name</h2>
-                                @if (audiencesByGuildId.TryGetValue(guild.Id, out var audience) && audience != GuildAudience.None)
-                                {
-                                    @foreach (var label in AudienceDisplay.Labels(audience))
+                    <div class="col-sm-6 col-lg-4 col-xl-3">
+                        <div class="card h-100 @(guild.BotInstalled ? "" : "opacity-75")"
+                             style="@(guild.BotInstalled ? "cursor:pointer;" : "")"
+                             @onclick="() => OpenAsync(guild)">
+                            <div class="card-header d-flex align-items-center gap-3">
+                                <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name"
+                                           CssClass="rounded-circle object-fit-cover flex-shrink-0" Style="width:3rem;height:3rem;font-size:1.25rem;" />
+                                <div>
+                                    <h2 class="fs-6 fw-semibold mb-1">@guild.Name</h2>
+                                    @if (audiencesByGuildId.TryGetValue(guild.Id, out var audience) && audience != GuildAudience.None)
                                     {
-                                        <span class="badge bg-secondary">@label</span>
+                                        @foreach (var label in AudienceDisplay.Labels(audience))
+                                        {
+                                            <span class="badge bg-secondary me-1">@label</span>
+                                        }
                                     }
-                                }
-                                @if (guild.BotInstalled && !setupCompleteGuildIds.Contains(guild.Id))
+                                    @if (guild.BotInstalled && !setupCompleteGuildIds.Contains(guild.Id))
+                                    {
+                                        <span class="badge bg-warning text-dark">needs setup</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="card-footer">
+                                @if (!guild.BotInstalled)
                                 {
-                                    <span class="badge bg-warning text-dark">needs setup</span>
+                                    <a class="btn btn-outline-primary btn-sm" href="invite?guildId=@guild.Id" target="_blank" rel="noopener" @onclick:stopPropagation="true">+ Install bot</a>
+                                }
+                                else
+                                {
+                                    <div class="d-flex gap-2">
+                                        <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guilds/@guild.Id/features" @onclick:stopPropagation="true">Features</a>
+                                        <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guilds/@guild.Id/settings" @onclick:stopPropagation="true">Settings</a>
+                                        <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guilds/@guild.Id/setup-wizard" @onclick:stopPropagation="true">Setup Wizard</a>
+                                    </div>
                                 }
                             </div>
                         </div>
-
-                        @if (!guild.BotInstalled)
-                        {
-                            <a class="btn btn-outline-primary btn-sm guild-card-install" href="invite?guildId=@guild.Id" target="_blank" rel="noopener">+ Install bot</a>
-                        }
-                        else
-                        {
-                            <div class="guild-card-actions">
-                                <a class="btn btn-outline-secondary btn-sm" href="manage/guilds/@guild.Id/features" @onclick:stopPropagation="true">Features</a>
-                                <a class="btn btn-outline-secondary btn-sm" href="manage/guilds/@guild.Id/settings" @onclick:stopPropagation="true">Settings</a>
-                                <a class="btn btn-outline-secondary btn-sm" href="manage/guilds/@guild.Id/setup-wizard" @onclick:stopPropagation="true">Setup Wizard</a>
-                            </div>
-                        }
                     </div>
                 }
             </div>
         }
 
-        <div class="dashboard-grid dashboard-grid-secondary">
-            <a class="dashboard-card" href="manage/stfc/regions">
-                <span class="oi oi-globe" aria-hidden="true"></span>
-                <h2>STFC Catalog</h2>
-                <p>Regions, servers, alliances, and territories</p>
-            </a>
+        <div class="row g-3 mt-4">
+            <div class="col-sm-6 col-lg-3">
+                <a class="card h-100 text-decoration-none text-body" href="manage/stfc/regions">
+                    <div class="card-body">
+                        <span class="oi oi-globe fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                        <h2 class="fs-6 fw-semibold mt-2 mb-1">STFC Catalog</h2>
+                        <p class="mb-0" style="color:#5a5a63;">Regions, servers, alliances, and territories</p>
+                    </div>
+                </a>
+            </div>
             @if (isGlobalAdmin)
             {
-                <a class="dashboard-card" href="manage/bot/global-admins">
-                    <span class="oi oi-shield" aria-hidden="true"></span>
-                    <h2>Bot</h2>
-                    <p>Manage global admin access</p>
-                </a>
+                <div class="col-sm-6 col-lg-3">
+                    <a class="card h-100 text-decoration-none text-body" href="manage/bot/global-admins">
+                        <div class="card-body">
+                            <span class="oi oi-shield fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                            <h2 class="fs-6 fw-semibold mt-2 mb-1">Bot</h2>
+                            <p class="mb-0" style="color:#5a5a63;">Manage global admin access</p>
+                        </div>
+                    </a>
+                </div>
             }
         </div>
     </Authorized>

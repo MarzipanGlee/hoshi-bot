@@ -5,17 +5,17 @@
        image (DNS failure, immediate block) can error out before the circuit has even
        connected, silently dropping the fallback. Inline JS runs immediately, no circuit
        required, and works during static prerendering too. *@
-    <img src="https://cdn.discordapp.com/icons/@(GuildId)/@(IconHash).png" alt="" class="@CssClass"
+    <img src="https://cdn.discordapp.com/icons/@(GuildId)/@(IconHash).png" alt="" class="@CssClass" style="@Style"
          onerror="this.style.display='none'; this.nextElementSibling.style.display='';" />
     @* Inline style, not the `hidden` attribute — `.guild-icon-placeholder`'s own
        `display: flex` class rule would otherwise beat `[hidden]`'s `display: none` in the
        cascade, since both are equal-specificity attribute/class selectors and author
        styles win over the UA stylesheet regardless of source order. *@
-    <div class="@CssClass guild-icon-placeholder" style="display:none">@Name[..1]</div>
+    <div class="@CssClass guild-icon-placeholder align-items-center justify-content-center text-white fw-semibold text-uppercase" style="display:none;@Style">@Name[..1]</div>
 }
 else
 {
-    <div class="@CssClass guild-icon-placeholder">@Name[..1]</div>
+    <div class="@CssClass guild-icon-placeholder align-items-center justify-content-center text-white fw-semibold text-uppercase" style="@Style">@Name[..1]</div>
 }
 
 @code {
@@ -23,4 +23,9 @@ else
     [Parameter] public string? IconHash { get; set; }
     [Parameter, EditorRequired] public string Name { get; set; } = "";
     [Parameter] public string CssClass { get; set; } = "guild-icon";
+
+    // Callers pass exact pixel/rem sizing here (e.g. "width:3rem;height:3rem;font-size:1.25rem;")
+    // — no Bootstrap utility reproduces an arbitrary icon size, so this is the one narrow bit
+    // of true icon-shape styling left inline instead of a dedicated CSS class/file.
+    [Parameter] public string? Style { get; set; }
 }
