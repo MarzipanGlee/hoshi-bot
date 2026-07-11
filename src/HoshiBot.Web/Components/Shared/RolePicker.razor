@@ -12,7 +12,18 @@
         </label>
     }
     <select class="form-select" value="@Value" @onchange="OnChangeAsync">
-        <option value="">@PlaceholderText</option>
+        @if (CreateRoleName is not null)
+        {
+            <option value="">— choose a role —</option>
+            @if (!RoleWithCreateNameExists)
+            {
+                <option value="@CreateSentinel">— create "@CreateRoleName" role —</option>
+            }
+        }
+        else
+        {
+            <option value="">@PlaceholderText</option>
+        }
         @if (IsUnknown)
         {
             <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
@@ -44,10 +55,24 @@
 
     [Parameter] public string PlaceholderText { get; set; } = "— none —";
 
+    // When set, the blank option means "create a new role named this" (an action) rather than
+    // "no role assigned" (a valid end state) — so it gets its own sentinel value, separate from
+    // the genuinely-blank "— choose a role —" placeholder shown until a real choice is made.
+    // Without this split, a picker that starts blank already has "create" pre-selected (same
+    // value=""), so <select>'s change event — which only fires on an actual value change —
+    // never fires on that first click, and no role ever gets created. The create option is
+    // hidden entirely once a role by this exact name already exists, since picking it then
+    // would just make a same-named duplicate instead of reusing the one already there.
+    [Parameter] public string? CreateRoleName { get; set; }
+
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
 
     [Parameter, EditorRequired] public IReadOnlyList<Role> Roles { get; set; } = [];
+
+    public const string CreateSentinel = "__create__";
+
+    private bool RoleWithCreateNameExists => Roles.Any(r => r.Name == CreateRoleName);
 
     private bool IsUnknown =>
         !string.IsNullOrEmpty(Value) && ulong.TryParse(Value, out var id) && !Roles.Any(r => r.Id == id);

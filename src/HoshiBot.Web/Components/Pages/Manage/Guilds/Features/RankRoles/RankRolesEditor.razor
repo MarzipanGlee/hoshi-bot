@@ -28,7 +28,7 @@
                     <strong>@state.DefaultName</strong>
                 </div>
                 <div class="card-body d-flex flex-column gap-3">
-                    <RolePicker Label="@state.DefaultName" ShowLabel="false" PlaceholderText="@($"— create {state.DefaultName} —")"
+                    <RolePicker Label="@state.DefaultName" ShowLabel="false" CreateRoleName="@state.DefaultName"
                                 @bind-Value="state.RoleId" @bind-Value:after="() => OnRoleChangedAsync(state)" Roles="roles" />
                     <RoleColorMentionableInputs @bind-ColorValue="state.Color" @bind-ColorValue:after="() => SaveRankRoleAsync(state)"
                                                  MentionableValue="state.Mentionable" MentionableValueChanged="m => OnMentionableChangedAsync(state, m)" />
@@ -138,6 +138,10 @@
         catch (RestException)
         {
             createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            // Only reset a failed *creation* back to blank — a failed *modify* of an already-
+            // selected existing role should keep that selection, not silently drop it.
+            if (state.RoleId == RolePicker.CreateSentinel)
+                state.RoleId = null;
         }
     }
 
