@@ -2,7 +2,6 @@
 @using NetCord
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <h2>Channels</h2>
 <ChannelPicker Label="Log" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
@@ -28,14 +27,6 @@
 <RolePicker Label="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
 <RolePicker Label="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
 <RolePicker Label="Warnings" @bind-Value="warningsRoleIdInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
-
-<h2 class="mt-4">Rank Roles</h2>
-<p class="form-text">STFC's fixed 5-rank list — guild-wide designations, not specific to any one feature. Not consumed by any bot logic yet; set now, picked up once that lands.</p>
-<RolePicker Label="Admiral" IconSrc="images/ranks/admiral.png" @bind-Value="admiralInput" @bind-Value:after="SaveAdmiralAsync" Roles="roles" />
-<RolePicker Label="Commodore" IconSrc="images/ranks/commodore.png" @bind-Value="commodoreInput" @bind-Value:after="SaveCommodoreAsync" Roles="roles" />
-<RolePicker Label="Premier" IconSrc="images/ranks/premier.png" @bind-Value="premierInput" @bind-Value:after="SavePremierAsync" Roles="roles" />
-<RolePicker Label="Operative" IconSrc="images/ranks/operative.png" @bind-Value="operativeInput" @bind-Value:after="SaveOperativeAsync" Roles="roles" />
-<RolePicker Label="Agent" IconSrc="images/ranks/agent.png" @bind-Value="agentInput" @bind-Value:after="SaveAgentAsync" Roles="roles" />
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
@@ -66,17 +57,6 @@
     private string? betaTesterRoleIdInput;
     private string? hoshiTesterRoleIdInput;
     private string? warningsRoleIdInput;
-
-    // Rank roles live in the generic per-feature settings store (tagged under
-    // TerritoryCapture/Alliance for historical reasons — they moved here from the
-    // Territory Capture page since they're guild-wide, not feature-specific), not on the
-    // flat GuildSettings entity like everything else on this page.
-    private readonly GuildAudience rankRoleAudience = GuildFeatureAudiences.SingleAudience(GuildFeature.TerritoryCapture);
-    private string? admiralInput;
-    private string? commodoreInput;
-    private string? premierInput;
-    private string? operativeInput;
-    private string? agentInput;
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,19 +89,7 @@
         betaTesterRoleIdInput = settings.BetaTesterRoleId?.ToString();
         hoshiTesterRoleIdInput = settings.HoshiTesterRoleId?.ToString();
         warningsRoleIdInput = settings.WarningsRoleId?.ToString();
-
-        admiralInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.AdmiralRole))?.ToString();
-        commodoreInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.CommodoreRole))?.ToString();
-        premierInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.PremierRole))?.ToString();
-        operativeInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.OperativeRole))?.ToString();
-        agentInput = (await GetRankRoleAsync(TerritoryCaptureSettingKeys.AgentRole))?.ToString();
     }
-
-    private Task<ulong?> GetRankRoleAsync(string key) =>
-        SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.TerritoryCapture, rankRoleAudience, key);
-
-    private Task SetRankRoleAsync(string key, string? input) =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.TerritoryCapture, rankRoleAudience, key, ParseId(input));
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
 
@@ -160,10 +128,4 @@
     private Task SaveBetaTesterRoleAsync() => SaveAsync(s => s.BetaTesterRoleId = ParseId(betaTesterRoleIdInput));
     private Task SaveHoshiTesterRoleAsync() => SaveAsync(s => s.HoshiTesterRoleId = ParseId(hoshiTesterRoleIdInput));
     private Task SaveWarningsRoleAsync() => SaveAsync(s => s.WarningsRoleId = ParseId(warningsRoleIdInput));
-
-    private Task SaveAdmiralAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.AdmiralRole, admiralInput);
-    private Task SaveCommodoreAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.CommodoreRole, commodoreInput);
-    private Task SavePremierAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.PremierRole, premierInput);
-    private Task SaveOperativeAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.OperativeRole, operativeInput);
-    private Task SaveAgentAsync() => SetRankRoleAsync(TerritoryCaptureSettingKeys.AgentRole, agentInput);
 }

@@ -5,6 +5,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AnonymousMessaging;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Diplomacy;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Incursion;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RaidAlerts;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RankRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RoeViolationReports;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.ServerStatus;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.ShieldReminders;
@@ -34,6 +35,7 @@ public static class FeatureCatalog
         new RaidAlertsFeature(),
         new ServerStatusFeature(),
         new IncursionFeature(),
+        new RankRolesFeature(),
     ];
 
     public static IFeatureModule? FindBySlug(string slug) =>

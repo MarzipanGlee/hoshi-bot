@@ -7,10 +7,10 @@ namespace HoshiBot.Data;
 // disabled (the default). Used both to gate feature entry points and to filter which
 // Command Bridge hub buttons get posted for a guild.
 //
-// Single-audience features (7 of 12) have only one possible Audience value
+// Single-audience features (7 of 13) have only one possible Audience value
 // (GuildFeatureAudiences.SingleAudience) — the guild-wide overloads below are exactly
-// equivalent to the audience-explicit ones for those. For the 5 multi-audience features
-// (Announcements/Tickets/AnonymousMessaging/ServerStatus/Incursion), the guild-wide
+// equivalent to the audience-explicit ones for those. For the 6 multi-audience features
+// (Announcements/Tickets/AnonymousMessaging/ServerStatus/Incursion/RankRoles), the guild-wide
 // overloads are a transitional shim ("enabled if ANY relevant audience is on" / "set every
 // relevant audience at once") preserving today's one-shared-switch behavior for call sites
 // that haven't yet been upgraded to call the audience-explicit overloads directly — see the
@@ -118,6 +118,7 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         GuildFeature.Diplomacy => "Diplomatie",
         GuildFeature.ServerStatus => "Serverstatus",
         GuildFeature.Incursion => "Incursion-Ankündigungen",
+        GuildFeature.RankRoles => "Rangrollen",
         _ => feature.ToString(),
     };
 }

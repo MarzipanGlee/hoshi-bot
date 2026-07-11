@@ -1,0 +1,54 @@
+<div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+    <button type="button" class="btn btn-sm @(ColorValue is null ? "btn-primary active" : "btn-outline-primary")"
+            aria-pressed="@(ColorValue is null ? "true" : "false")"
+            title="Default (no custom color)" @onclick="SelectDefaultAsync">
+        Default
+    </button>
+
+    @if (ShowColor)
+    {
+        <ColorPicker TValue="string" @bind-Value="ColorPickerValue" IsSupportOpacity="true" Swatches="Swatches" />
+    }
+
+    @if (ShowMentionable)
+    {
+        <div class="form-switch mb-0 w-100">
+            <input type="checkbox" class="form-check-input" role="switch" checked="@MentionableValue"
+                   @onchange="e => MentionableValueChanged.InvokeAsync((bool)e.Value!)" />
+            <label class="form-check-label">Allow anyone to @@mention this role</label>
+        </div>
+    }
+</div>
+
+@code {
+    // null = Discord's own "Default" (no custom color, raw value 0) — distinct from any real
+    // hex string, including "#000000" (real black), so it can't be confused with a literal
+    // color choice.
+    [Parameter] public string? ColorValue { get; set; }
+    [Parameter] public EventCallback<string?> ColorValueChanged { get; set; }
+    [Parameter] public bool ShowColor { get; set; } = true;
+
+    [Parameter] public bool MentionableValue { get; set; }
+    [Parameter] public EventCallback<bool> MentionableValueChanged { get; set; }
+    [Parameter] public bool ShowMentionable { get; set; } = true;
+
+    // Discord's own default role-color swatch grid (2 rows of 10) — the picker's own custom
+    // color slot covers "any other color", defaulting to black until changed.
+    private static readonly List<string> Swatches =
+    [
+        "#1ABC9C", "#2ECC71", "#3498DB", "#9B59B6", "#E91E63",
+        "#F1C40F", "#E67E22", "#E74C3C", "#95A5A6", "#607D8B",
+        "#11806A", "#1F8B4C", "#206694", "#71368A", "#AD1457",
+        "#C27C0E", "#A84300", "#992D22", "#979C9F", "#546E7A",
+    ];
+
+    private Task SelectDefaultAsync() => ColorValueChanged.InvokeAsync(null);
+
+    // ColorPicker requires a non-null hex string; the "Default" sentinel (null) maps to black
+    // here purely for the picker's own display — it doesn't affect the real ColorValue.
+    private string ColorPickerValue
+    {
+        get => ColorValue ?? "#000000";
+        set => _ = ColorValueChanged.InvokeAsync(value);
+    }
+}

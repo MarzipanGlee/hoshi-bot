@@ -63,7 +63,7 @@ public static class GuildSettingsSeedData
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot3Role, 1275019101265465427),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot4Role, 1275019200196509706),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot5Role, 1275019288314380413),
-        (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.CommodoreRole, 1255229709546033294),
+        (GuildFeature.RankRoles, RankRolesSettingKeys.CommodoreRole, 1255229709546033294),
     ];
 
     public static readonly (GuildAlertChannelKind Kind, ulong ChannelId, ulong RoleId)[] AlertChannels =

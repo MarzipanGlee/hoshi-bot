@@ -17,4 +17,5 @@ public enum GuildFeature
     Diplomacy,
     ServerStatus,
     Incursion,
+    RankRoles,
 }

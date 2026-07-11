@@ -1,0 +1,146 @@
+@page "/manage/stfc/players/import"
+@using System.IO.Compression
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using HoshiBot.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject StfcPlayerImportService ImportService
+
+<PageTitle>Import Players</PageTitle>
+
+<h1>Import Players</h1>
+<p>Upload one or more player-data files for a single server (paginated JSON exports from an external stats site — gzipped or plain). Existing players are matched by their external ID and updated in place; new ones are added.</p>
+
+<div class="d-flex gap-2 align-items-end flex-wrap mb-3">
+    <div>
+        <label class="form-label">Region</label>
+        <Select TValue="string" Items="regionItems" @bind-Value="regionIdInput" @bind-Value:after="OnRegionChangedAsync" PlaceHolder="Select region..." />
+    </div>
+    <div>
+        <label class="form-label">Server</label>
+        <Select TValue="string" Items="serverItems" @bind-Value="serverIdInput" ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(regionIdInput is null)" />
+    </div>
+</div>
+
+<ButtonUpload TValue="string" IsMultiple="true" Accept=".json,.gz" IsDisabled="@(serverIdInput is null || importing)"
+              BrowserButtonText="Choose files..." OnAllFileUploaded="OnAllFileUploadedAsync" />
+
+@if (importing)
+{
+    <p class="mt-3">Importing...</p>
+}
+
+@if (error is not null)
+{
+    <p class="text-danger mt-3">@error</p>
+}
+
+@if (result is not null)
+{
+    <p class="mt-3">
+        Added @result.Added, updated @result.Updated (@result.Renamed renamed). Skipped @result.Mismatched
+        (wrong server), @result.InvalidRank (invalid rank), @result.MissingName (missing name).
+    </p>
+}
+
+@code {
+    private List<SelectedItem> regionItems = [];
+    private List<SelectedItem> serverItems = [];
+    private string? regionIdInput;
+    private string? serverIdInput;
+    private bool importing;
+    private string? error;
+    private StfcPlayerImportResult? result;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var regions = await db.StfcRegions.OrderBy(r => r.Id).AsNoTracking().ToListAsync();
+        regionItems = regions.Select(r => new SelectedItem(r.Id.ToString(), r.Name)).ToList();
+    }
+
+    private async Task OnRegionChangedAsync()
+    {
+        serverIdInput = null;
+        serverItems = [];
+
+        if (!int.TryParse(regionIdInput, out var regionId))
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var servers = await db.StfcServers
+            .Where(s => s.RegionId == regionId)
+            .OrderBy(s => s.Id)
+            .AsNoTracking()
+            .ToListAsync();
+        serverItems = servers.Select(s => new SelectedItem(s.Id.ToString(), s.DisplayName)).ToList();
+    }
+
+    private async Task OnAllFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
+    {
+        error = null;
+        result = null;
+
+        if (!int.TryParse(serverIdInput, out var serverId))
+        {
+            error = "Pick a server first.";
+            StateHasChanged();
+            return;
+        }
+
+        importing = true;
+        StateHasChanged();
+        try
+        {
+            var entries = new List<StfcPlayerImportEntry>();
+            foreach (var file in files)
+            {
+                if (file.File is null)
+                    continue;
+
+                entries.AddRange(await ParseFileAsync(file.File));
+            }
+
+            result = await ImportService.ImportAsync(serverId, entries);
+        }
+        catch (Exception ex)
+        {
+            error = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            importing = false;
+            StateHasChanged();
+        }
+    }
+
+    // Real feed files (e.g. data/players_164*) have no file extension and no declared
+    // content-type — sniffing the gzip magic number is the only reliable signal.
+    private static async Task<List<StfcPlayerImportEntry>> ParseFileAsync(IBrowserFile file)
+    {
+        await using var raw = file.OpenReadStream(maxAllowedSize: 20_000_000);
+        var buffered = new MemoryStream();
+        await raw.CopyToAsync(buffered);
+        buffered.Position = 0;
+
+        var isGzip = buffered.Length >= 2 && buffered.ReadByte() == 0x1F && buffered.ReadByte() == 0x8B;
+        buffered.Position = 0;
+
+        await using Stream jsonStream = isGzip ? new GZipStream(buffered, CompressionMode.Decompress) : buffered;
+        var page = await JsonSerializer.DeserializeAsync<PlayersPage>(jsonStream);
+
+        return (page?.Players ?? [])
+            .Select(p => new StfcPlayerImportEntry(p.Data.PlayerId, p.Data.Name, p.Data.Tag, p.Data.Server, p.Data.RankId))
+            .ToList();
+    }
+
+    private record PlayersPage([property: JsonPropertyName("players")] List<PlayerEntry> Players);
+    private record PlayerEntry([property: JsonPropertyName("data")] PlayerData Data);
+    private record PlayerData(
+        [property: JsonPropertyName("playerid")] long PlayerId,
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("tag")] string? Tag,
+        [property: JsonPropertyName("server")] int Server,
+        [property: JsonPropertyName("rankid")] int RankId);
+}

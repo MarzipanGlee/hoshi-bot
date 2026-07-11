@@ -1,0 +1,196 @@
+@using HoshiBot.Web.Services
+@using NetCord
+@using NetCord.Rest
+
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+@inject GuildFeatureService FeatureService
+@inject RestClient BotRestClient
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
+
+<div class="row g-3 mt-1">
+    @foreach (var state in rankStates)
+    {
+        <div class="col-sm-6 col-lg-4 col-xl-3" @key="state">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <img src="@($"images/ranks/{state.DefaultName.ToLowerInvariant()}.png")" alt="" style="width:1.5rem;height:1.5rem;object-fit:contain;" />
+                    <strong>@state.DefaultName</strong>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    <RolePicker Label="@state.DefaultName" ShowLabel="false" PlaceholderText="@($"— create {state.DefaultName} —")"
+                                @bind-Value="state.RoleId" @bind-Value:after="() => OnRoleChangedAsync(state)" Roles="roles" />
+                    <RoleColorMentionableInputs @bind-ColorValue="state.Color" @bind-ColorValue:after="() => SaveRankRoleAsync(state)"
+                                                 MentionableValue="state.Mentionable" MentionableValueChanged="m => OnMentionableChangedAsync(state, m)" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+
+    // Groups a rank's identity (name/setting key) with its 3 pieces of live state (role,
+    // color, mentionable) — replaces what would otherwise be 15 near-duplicate fields/methods
+    // (5 ranks × 3 concerns) with one state class, a handful of shared handlers, and a
+    // @foreach over 5 instances.
+    private class RankRoleState
+    {
+        public required string DefaultName;
+        public required string SettingKey;
+        public string? RoleId;
+        public string? Color;
+        public bool Mentionable;
+    }
+
+    private readonly List<RankRoleState> rankStates =
+    [
+        new() { DefaultName = "Admiral", SettingKey = RankRolesSettingKeys.AdmiralRole },
+        new() { DefaultName = "Commodore", SettingKey = RankRolesSettingKeys.CommodoreRole },
+        new() { DefaultName = "Premier", SettingKey = RankRolesSettingKeys.PremierRole },
+        new() { DefaultName = "Operative", SettingKey = RankRolesSettingKeys.OperativeRole },
+        new() { DefaultName = "Agent", SettingKey = RankRolesSettingKeys.AgentRole },
+    ];
+
+    private List<Role> roles = [];
+    private bool enabled;
+    private string? createRoleError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.RankRoles, Audience);
+
+        foreach (var state in rankStates)
+            await LoadRankRoleAsync(state);
+    }
+
+    // Falls back to an existing role literally named after the rank (e.g. "Admiral") when
+    // nothing's configured yet — without this, picking a guild that already has these roles
+    // from an earlier manual setup left every picker on "create new", and saving then tried
+    // (and failed) to create a role Discord already had.
+    private async Task LoadRankRoleAsync(RankRoleState state)
+    {
+        state.RoleId = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, state.SettingKey))?.ToString()
+            ?? roles.FirstOrDefault(r => r.Name == state.DefaultName)?.Id.ToString();
+        ApplyRoleDisplayState(state);
+    }
+
+    // Reflects the currently-selected role's real color/mentionable in the UI (or Discord's
+    // own new-role defaults for "create new") — keeps the picker honest about what saving
+    // will actually apply, rather than showing stale state left over from a previous selection.
+    private void ApplyRoleDisplayState(RankRoleState state)
+    {
+        if (ulong.TryParse(state.RoleId, out var id) && roles.FirstOrDefault(r => r.Id == id) is { } role)
+        {
+            state.Color = ToHex(role.Colors.PrimaryColor);
+            state.Mentionable = role.Mentionable;
+        }
+        else
+        {
+            state.Color = null;
+            state.Mentionable = false;
+        }
+    }
+
+    private async Task ToggleAsync(bool value)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.RankRoles, Audience, value);
+        enabled = value;
+    }
+
+    private Task OnRoleChangedAsync(RankRoleState state)
+    {
+        ApplyRoleDisplayState(state);
+        return SaveRankRoleAsync(state);
+    }
+
+    private Task OnMentionableChangedAsync(RankRoleState state, bool mentionable)
+    {
+        state.Mentionable = mentionable;
+        return SaveRankRoleAsync(state);
+    }
+
+    // A blank selection creates a new role instead of just saving null — named after the rank
+    // so it's clear at a glance what it's for. Color/mentionable always apply, whether that
+    // means setting them on a freshly created role or updating an already-selected one.
+    private async Task SaveRankRoleAsync(RankRoleState state)
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await EnsureRoleAsync(state.RoleId, state.DefaultName, state.Color, state.Mentionable);
+            state.RoleId = roleId?.ToString();
+            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, state.SettingKey, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+        }
+    }
+
+    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName, string? colorInput, bool mentionable)
+    {
+        var desiredColor = ToColor(colorInput);
+
+        if (ulong.TryParse(currentInput, out var existingId))
+        {
+            var existingRole = roles.FirstOrDefault(r => r.Id == existingId);
+            if (existingRole is not null &&
+                (existingRole.Colors.PrimaryColor.RawValue != desiredColor.RawValue || existingRole.Mentionable != mentionable))
+            {
+                await BotRestClient.ModifyGuildRoleAsync(GuildId, existingId, props =>
+                {
+                    props.Colors = new RoleColorsProperties(desiredColor);
+                    props.Mentionable = mentionable;
+                });
+                DiscordData.InvalidateCache(GuildId);
+                roles = await DiscordData.GetRolesAsync(GuildId);
+            }
+
+            return existingId;
+        }
+
+        var created = await BotRestClient.CreateGuildRoleAsync(GuildId, new RoleProperties
+        {
+            Name = defaultName,
+            Colors = new RoleColorsProperties(desiredColor),
+            Mentionable = mentionable,
+        });
+        DiscordData.InvalidateCache(GuildId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        return created.Id;
+    }
+
+    // null = Discord's own "Default" (raw color value 0) — can't just omit Colors when
+    // modifying an existing role, since Discord's API treats an omitted field as "leave
+    // unchanged," not "clear", so resetting to Default needs this explicit raw-0 value.
+    private static NetCord.Color ToColor(string? colorInput)
+    {
+        if (colorInput is null)
+            return new NetCord.Color(0);
+
+        var hex = colorInput.TrimStart('#');
+        // The picker may report an 8-digit RRGGBBAA (opacity support is on to make its
+        // Swatches list render at all) — Discord role colors have no alpha, only the first
+        // 6 digits matter.
+        if (hex.Length > 6)
+            hex = hex[..6];
+
+        return new NetCord.Color(Convert.ToInt32(hex, 16));
+    }
+
+    private static string ToHex(NetCord.Color color) => $"#{color.RawValue:X6}";
+}

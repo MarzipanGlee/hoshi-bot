@@ -56,19 +56,39 @@
                     ShowSearch="true" PlaceHolder="Select alliance..." IsDisabled="@(allianceServerIdInput is null)" />
         </div>
         <div>
-            <label class="form-label">Member Role</label>
-            <Select TValue="string" Items="memberRoleItems" @bind-Value="memberRoleIdInput" />
-        </div>
-        <div>
-            <label class="form-label">Officer Role</label>
-            <Select TValue="string" Items="officerRoleItems" @bind-Value="officerRoleIdInput" />
-        </div>
-        <div>
-            <label class="form-label">Diplomat Role</label>
-            <Select TValue="string" Items="diplomatRoleItems" @bind-Value="diplomatRoleIdInput" />
-        </div>
-        <div>
             <button class="btn btn-primary" disabled="@creatingRole" @onclick="AddGuildAlliance">@(creatingRole ? "Creating..." : "Add")</button>
+        </div>
+    </div>
+    <div class="row g-3 mt-1">
+        <div class="col-sm-6 col-lg-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-header"><strong>Member Role</strong></div>
+                <div class="card-body d-flex flex-column gap-3">
+                    <Select TValue="string" Items="memberRoleItems" @bind-Value="memberRoleIdInput" @bind-Value:after="() => OnAllianceRoleChanged(memberRoleIdInput, v => memberColorInput = v, v => memberMentionableInput = v)" />
+                    <RoleColorMentionableInputs @bind-ColorValue="memberColorInput"
+                                                 MentionableValue="memberMentionableInput" MentionableValueChanged="v => memberMentionableInput = v" />
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-header"><strong>Officer Role</strong></div>
+                <div class="card-body d-flex flex-column gap-3">
+                    <Select TValue="string" Items="officerRoleItems" @bind-Value="officerRoleIdInput" @bind-Value:after="() => OnAllianceRoleChanged(officerRoleIdInput, v => officerColorInput = v, v => officerMentionableInput = v)" />
+                    <RoleColorMentionableInputs @bind-ColorValue="officerColorInput"
+                                                 MentionableValue="officerMentionableInput" MentionableValueChanged="v => officerMentionableInput = v" />
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-header"><strong>Diplomat Role</strong></div>
+                <div class="card-body d-flex flex-column gap-3">
+                    <Select TValue="string" Items="diplomatRoleItems" @bind-Value="diplomatRoleIdInput" @bind-Value:after="() => OnAllianceRoleChanged(diplomatRoleIdInput, v => diplomatColorInput = v, v => diplomatMentionableInput = v)" />
+                    <RoleColorMentionableInputs @bind-ColorValue="diplomatColorInput"
+                                                 MentionableValue="diplomatMentionableInput" MentionableValueChanged="v => diplomatMentionableInput = v" />
+                </div>
+            </div>
         </div>
     </div>
 }
@@ -165,6 +185,12 @@ else if (Audience == GuildAudience.VeilGroup)
     private string? memberRoleIdInput;
     private string? officerRoleIdInput;
     private string? diplomatRoleIdInput;
+    private string? memberColorInput;
+    private string? officerColorInput;
+    private string? diplomatColorInput;
+    private bool memberMentionableInput;
+    private bool officerMentionableInput;
+    private bool diplomatMentionableInput;
     private string? discordDataError;
     private string? createRoleError;
     private bool creatingRole;
@@ -325,11 +351,36 @@ else if (Audience == GuildAudience.VeilGroup)
         memberRoleIdInput = FindDefaultRoleId(tag, "Member");
         officerRoleIdInput = FindDefaultRoleId(tag, "Officer");
         diplomatRoleIdInput = FindDefaultRoleId(tag, "Diplomat");
+
+        ApplyRoleColorMentionableDisplay(memberRoleIdInput, v => memberColorInput = v, v => memberMentionableInput = v);
+        ApplyRoleColorMentionableDisplay(officerRoleIdInput, v => officerColorInput = v, v => officerMentionableInput = v);
+        ApplyRoleColorMentionableDisplay(diplomatRoleIdInput, v => diplomatColorInput = v, v => diplomatMentionableInput = v);
     }
 
     private string FindDefaultRoleId(string? tag, string roleType) =>
         (tag is null ? null : roles.FirstOrDefault(r => r.Name == $"{tag}-{roleType}")?.Id.ToString())
             ?? CreateNewRoleSentinel;
+
+    // Fires when the admin manually changes one of the Member/Officer/Diplomat selects (as
+    // opposed to ResetMemberOfficerDiplomatItems's own auto-resolution) — reflects whichever
+    // role is now selected so the color/mentionable inputs stay honest about what Add will
+    // actually apply, instead of showing stale state from the previous selection.
+    private void OnAllianceRoleChanged(string? roleIdInput, Action<string?> setColor, Action<bool> setMentionable) =>
+        ApplyRoleColorMentionableDisplay(roleIdInput, setColor, setMentionable);
+
+    private void ApplyRoleColorMentionableDisplay(string? roleIdInput, Action<string?> setColor, Action<bool> setMentionable)
+    {
+        if (ulong.TryParse(roleIdInput, out var id) && roles.FirstOrDefault(r => r.Id == id) is { } role)
+        {
+            setColor(ToHex(role.Colors.PrimaryColor));
+            setMentionable(role.Mentionable);
+        }
+        else
+        {
+            setColor(null);
+            setMentionable(false);
+        }
+    }
 
     // A blank Member/Officer/Diplomat selection creates a new role instead of just
     // saving null — named after the alliance tag so multiple linked alliances don't end
@@ -349,9 +400,9 @@ else if (Audience == GuildAudience.VeilGroup)
             {
                 GuildId = GuildId,
                 StfcAllianceId = allianceId,
-                MemberRoleId = await EnsureRoleAsync(memberRoleIdInput, $"{tag}-Member"),
-                OfficerRoleId = await EnsureRoleAsync(officerRoleIdInput, $"{tag}-Officer"),
-                DiplomatRoleId = await EnsureRoleAsync(diplomatRoleIdInput, $"{tag}-Diplomat"),
+                MemberRoleId = await EnsureRoleAsync(memberRoleIdInput, $"{tag}-Member", memberColorInput, memberMentionableInput),
+                OfficerRoleId = await EnsureRoleAsync(officerRoleIdInput, $"{tag}-Officer", officerColorInput, officerMentionableInput),
+                DiplomatRoleId = await EnsureRoleAsync(diplomatRoleIdInput, $"{tag}-Diplomat", diplomatColorInput, diplomatMentionableInput),
             };
 
             await using (var db = await DbFactory.CreateDbContextAsync())
@@ -379,14 +430,55 @@ else if (Audience == GuildAudience.VeilGroup)
         }
     }
 
-    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName)
+    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName, string? colorInput, bool mentionable)
     {
-        if (ulong.TryParse(currentInput, out var existingId))
-            return existingId;
+        var desiredColor = ToColor(colorInput);
 
-        var created = await BotRestClient.CreateGuildRoleAsync(GuildId, new RoleProperties { Name = defaultName });
+        if (ulong.TryParse(currentInput, out var existingId))
+        {
+            var existingRole = roles.FirstOrDefault(r => r.Id == existingId);
+            if (existingRole is not null &&
+                (existingRole.Colors.PrimaryColor.RawValue != desiredColor.RawValue || existingRole.Mentionable != mentionable))
+            {
+                await BotRestClient.ModifyGuildRoleAsync(GuildId, existingId, props =>
+                {
+                    props.Colors = new RoleColorsProperties(desiredColor);
+                    props.Mentionable = mentionable;
+                });
+                Cache.Remove($"discord-guild-roles:{GuildId}");
+            }
+
+            return existingId;
+        }
+
+        var created = await BotRestClient.CreateGuildRoleAsync(GuildId, new RoleProperties
+        {
+            Name = defaultName,
+            Colors = new RoleColorsProperties(desiredColor),
+            Mentionable = mentionable,
+        });
         return created.Id;
     }
+
+    // null = Discord's own "Default" (raw color value 0) — can't just omit Colors when
+    // modifying an existing role, since Discord's API treats an omitted field as "leave
+    // unchanged," not "clear", so resetting to Default needs this explicit raw-0 value.
+    private static NetCord.Color ToColor(string? colorInput)
+    {
+        if (colorInput is null)
+            return new NetCord.Color(0);
+
+        var hex = colorInput.TrimStart('#');
+        // The picker may report an 8-digit RRGGBBAA (opacity support is on to make its
+        // Swatches list render at all) — Discord role colors have no alpha, only the first
+        // 6 digits matter.
+        if (hex.Length > 6)
+            hex = hex[..6];
+
+        return new NetCord.Color(Convert.ToInt32(hex, 16));
+    }
+
+    private static string ToHex(NetCord.Color color) => $"#{color.RawValue:X6}";
 
     private async Task DeleteGuildAlliance(GuildAlliance link)
     {

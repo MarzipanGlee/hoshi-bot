@@ -1,3 +1,5 @@
+using HoshiBot.Domain.Entities;
+
 namespace HoshiBot.Data;
 
 // Key string constants for GuildFeatureSettingsService, shared between the Web editor that
@@ -50,11 +52,6 @@ public static class TerritoryCaptureSettingKeys
     public const string ZoneSlot3Role = "ZoneSlot3Role";
     public const string ZoneSlot4Role = "ZoneSlot4Role";
     public const string ZoneSlot5Role = "ZoneSlot5Role";
-    public const string AdmiralRole = "AdmiralRole";
-    public const string CommodoreRole = "CommodoreRole";
-    public const string PremierRole = "PremierRole";
-    public const string OperativeRole = "OperativeRole";
-    public const string AgentRole = "AgentRole";
     public const string Instructions = "Instructions";
 
     // Mirrors GuildSettings.GetZoneSlotRoleId's old slot-number indexing (1-5), now backed
@@ -67,5 +64,26 @@ public static class TerritoryCaptureSettingKeys
         4 => ZoneSlot4Role,
         5 => ZoneSlot5Role,
         _ => throw new ArgumentOutOfRangeException(nameof(slotIndex), slotIndex, "Zone slot index must be 1-5."),
+    };
+}
+
+public static class RankRolesSettingKeys
+{
+    public const string AdmiralRole = "AdmiralRole";
+    public const string CommodoreRole = "CommodoreRole";
+    public const string PremierRole = "PremierRole";
+    public const string OperativeRole = "OperativeRole";
+    public const string AgentRole = "AgentRole";
+
+    // Lets the sync job go straight from a player's Rank to the one key that applies,
+    // instead of a switch at every call site.
+    public static string RoleForRank(StfcPlayerRank rank) => rank switch
+    {
+        StfcPlayerRank.Admiral => AdmiralRole,
+        StfcPlayerRank.Commodore => CommodoreRole,
+        StfcPlayerRank.Premier => PremierRole,
+        StfcPlayerRank.Operative => OperativeRole,
+        StfcPlayerRank.Agent => AgentRole,
+        _ => throw new ArgumentOutOfRangeException(nameof(rank), rank, "Unknown STFC rank."),
     };
 }

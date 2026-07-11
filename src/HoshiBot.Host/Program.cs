@@ -100,6 +100,12 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(territoryCaptureRoleSyncJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
 
+    var rankRoleSyncJobKey = new JobKey(nameof(RankRoleSyncJob));
+    quartz.AddJob<RankRoleSyncJob>(rankRoleSyncJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(rankRoleSyncJobKey)
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+
     var announcementCounterRefreshJobKey = new JobKey(nameof(AnnouncementCounterRefreshJob));
     quartz.AddJob<AnnouncementCounterRefreshJob>(announcementCounterRefreshJobKey)
         .AddTrigger(trigger => trigger

@@ -20,13 +20,14 @@ public static class GuildFeatureAudiences
         GuildFeature.Announcements => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.Tickets => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.AnonymousMessaging => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        GuildFeature.RankRoles => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         _ => GuildAudience.None,
     };
 
     public static bool HasMultipleAudiences(GuildFeature feature) =>
         EnumerateFlags(RelevantAudiences(feature)).Take(2).Count() > 1;
 
-    // The one fixed audience for a single-audience feature. Throws for the 5 features with
+    // The one fixed audience for a single-audience feature. Throws for the 6 features with
     // more than one relevant audience — those require an explicit audience from the
     // caller; there is no safe default to fall back to.
     public static GuildAudience SingleAudience(GuildFeature feature)

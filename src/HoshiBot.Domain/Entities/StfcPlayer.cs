@@ -19,6 +19,9 @@ public class StfcPlayer
 
     public StfcAlliance? Alliance { get; set; }
 
+    // Null for unranked/unaffiliated players, or ones never seen by an import yet.
+    public StfcPlayerRank? Rank { get; set; }
+
     public ICollection<UserPlayer> UserLinks { get; set; } = [];
 
     public ICollection<StfcPlayerNameHistory> NameHistory { get; set; } = [];

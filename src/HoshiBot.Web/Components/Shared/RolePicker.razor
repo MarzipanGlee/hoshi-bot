@@ -1,13 +1,16 @@
 @using NetCord
 
 <div class="mb-2">
-    <label>
-        @Label
-        @if (IconSrc is not null)
-        {
-            <img src="@IconSrc" alt="" class="role-picker-icon" />
-        }
-    </label>
+    @if (ShowLabel)
+    {
+        <label>
+            @Label
+            @if (IconSrc is not null)
+            {
+                <img src="@IconSrc" alt="" class="role-picker-icon" />
+            }
+        </label>
+    }
     <select class="form-select" value="@Value" @onchange="OnChangeAsync">
         <option value="">@PlaceholderText</option>
         @if (IsUnknown)
@@ -27,6 +30,9 @@
 
 @code {
     [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    // Off when a caller renders its own header for Label/IconSrc instead (e.g. a card header).
+    [Parameter] public bool ShowLabel { get; set; } = true;
 
     // Rendered inline after the label text — used by rank-role pickers to pair each rank
     // with its own icon, right next to the title it belongs to (not floating separately).

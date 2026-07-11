@@ -5,7 +5,7 @@
 <PageTitle>Players</PageTitle>
 
 <h1>Players</h1>
-<p>One-time seed snapshot, not a live sync — see StfcPlayerSeedData. Edits here are safe, but a future re-sync isn't built yet.</p>
+<p>One-time seed snapshot, not a live sync by default — see StfcPlayerSeedData. Use <a href="manage/stfc/players/import">Import</a> to bring in a fresh roster (incl. rank) for a server.</p>
 
 <QuickGrid Class="table" Items="context.StfcPlayers.Include(p => p.Server).ThenInclude(s => s.Region).Include(p => p.Alliance).OrderBy(p => p.ServerId).ThenBy(p => p.Name)" Pagination="pagination">
     <PropertyColumn Property="player => player.Name" Sortable="true" />
@@ -16,6 +16,9 @@
     </TemplateColumn>
     <TemplateColumn Title="Alliance" Context="player">
         @(player.Alliance?.Tag ?? "—")
+    </TemplateColumn>
+    <TemplateColumn Title="Rank" Sortable="true" SortBy="@(GridSort<StfcPlayer>.ByAscending(p => p.Rank))" Context="player">
+        @(player.Rank?.ToString() ?? "—")
     </TemplateColumn>
 
     <TemplateColumn Context="player">

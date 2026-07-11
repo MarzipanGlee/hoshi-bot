@@ -64,6 +64,7 @@ builder.Services.AddScoped<GuildFeatureSettingsService>();
 builder.Services.AddScoped<GuildAccessService>();
 builder.Services.AddScoped<DiscordUserGuildsService>();
 builder.Services.AddScoped<DiscordGuildDataService>();
+builder.Services.AddScoped<StfcPlayerImportService>();
 builder.Services.AddScoped<CurrentGuildContext>();
 
 builder.Services.AddDataProtection()

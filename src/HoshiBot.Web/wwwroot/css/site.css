@@ -22,15 +22,6 @@ a, .btn-link {
     padding-top: 1.1rem;
 }
 
-/* Bootstrap's .form-select otherwise stretches to fill its container (width: 100% by
-   default) — fine inside a narrow form, but most of this app's dropdowns (channel/role
-   pickers, rank roles, etc.) sit directly in the full-width content column and end up
-   spanning nearly the whole page on a wide screen. A dropdown never needs to be that wide
-   to show its selected value. */
-.form-select {
-    max-width: 200px;
-}
-
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
