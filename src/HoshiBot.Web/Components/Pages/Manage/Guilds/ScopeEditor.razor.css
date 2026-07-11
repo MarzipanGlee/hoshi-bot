@@ -1,0 +1,9 @@
+/* Separates the "add a new link" row from the history table above it — was previously
+   just a small margin-top, which read as part of the table rather than a distinct action. */
+.scope-add-card {
+    background: #f7f7f9;
+    border: 1px solid #e5e5e8;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1.25rem;
+}

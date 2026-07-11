@@ -4,11 +4,7 @@
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 
-<h2>Audience</h2>
-<p class="form-text">Which audience(s) this guild serves — drives the Setup Wizard's relevant steps and how the Features page groups its cards. Doesn't restrict which features can be enabled.</p>
-<AudienceEditor GuildId="GuildId" />
-
-<h2 class="mt-4">Channels</h2>
+<h2>Channels</h2>
 <ChannelPicker Label="Log" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
 <ChannelPicker Label="Admin" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
 <ChannelPicker Label="User Log" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />

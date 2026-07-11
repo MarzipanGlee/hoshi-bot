@@ -157,6 +157,17 @@ feature's settings (channel/role IDs, and TerritoryCapture's instructions text) 
 generic per-(guild, feature, audience, key) store (`GuildFeatureSettingsService`) instead of
 flat `GuildSettings` columns — see that service's doc comment for the shape.
 
+### Web admin UX — audit plain-HTML pickers against BootstrapBlazor (engineering, not previously scoped)
+
+Every dropdown/input across `Components/Pages/Manage/**` and `Components/Shared/*Picker.razor`
+is plain HTML (`<select class="form-select">`, `<InputSelect>`) — BootstrapBlazor is an
+installed dependency (its bundle already loaded in `App.razor`) that went unused until the
+Guild Audience page's cascading region/server/alliance pickers became its first real
+consumer (`<Select>` with `ShowSearch`, `<Collapse>` for the per-audience accordion). Review
+the existing pickers (`RolePicker`, `ChannelPicker`, the Stfc catalog CRUD forms' selects,
+etc.) for replacement with BootstrapBlazor equivalents for consistency — not urgent, no
+functional gap, a quality-of-life pass for later.
+
 ### Server & Veil Group Discords (new audience, not built yet)
 
 - Diplomacy group — a server-wide diplomacy construct (distinct from the existing per-alliance

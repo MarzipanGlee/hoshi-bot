@@ -1,0 +1,34 @@
+@page "/manage/guilds/{GuildId}/audience"
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Audience</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else
+{
+    <h1>Audience</h1>
+    <p>Which audience(s) this guild serves — drives the Setup Wizard's relevant steps and how the Features page groups its cards. Doesn't restrict which features can be enabled.</p>
+
+    <AudienceEditor GuildId="ParsedGuildId" AudienceChanged="OnAudienceChanged" />
+
+    <ScopeAccordion GuildId="ParsedGuildId" Audiences="audiences" />
+}
+
+@code {
+    private GuildAudience audiences;
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        audiences = await db.GuildSettings
+            .Where(s => s.GuildId == ParsedGuildId)
+            .Select(s => s.Audiences)
+            .FirstOrDefaultAsync();
+    }
+
+    private void OnAudienceChanged(GuildAudience newAudiences) => audiences = newAudiences;
+}

@@ -79,3 +79,8 @@ labels, error messages) — English is fine for code, comments, and the Web admi
   button or the job.
 - Run `dotnet format --verify-no-changes` before committing — there's no CI here yet, so
   this is the only formatting check in place.
+- **HoshiBot.Web UI: prefer BootstrapBlazor components over hand-rolled HTML.** The package
+  is already referenced and its bundle already loaded in `App.razor` — when building new UI,
+  reach for its components first (`<Select>`/`<AutoComplete>` instead of a plain
+  `<select>`, `<Collapse>` instead of a hand-rolled checkbox/label toggle, etc.) rather than
+  writing the plain-HTML equivalent from scratch.

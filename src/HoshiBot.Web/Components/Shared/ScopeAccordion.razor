@@ -1,0 +1,28 @@
+<Collapse IsAccordion="true">
+    <CollapseItems>
+        @foreach (var audience in ScopeAudiences)
+        {
+            if (Audiences != GuildAudience.None && !Audiences.HasFlag(audience))
+                continue;
+
+            <CollapseItem @key="audience">
+                <HeaderTemplate>
+                    <span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span>
+                    @AudienceDisplay.Labels(audience).First()
+                </HeaderTemplate>
+                <ChildContent>
+                    <ScopeEditor GuildId="GuildId" Audience="audience" />
+                </ChildContent>
+            </CollapseItem>
+        }
+    </CollapseItems>
+</Collapse>
+
+@code {
+    private static readonly GuildAudience[] ScopeAudiences =
+        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup];
+
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    [Parameter] public GuildAudience Audiences { get; set; }
+}

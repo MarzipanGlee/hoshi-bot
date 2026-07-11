@@ -5,139 +5,163 @@
 @inject RestClient BotRestClient
 @inject IMemoryCache Cache
 
-<h2>Linked Alliances (role mappings)</h2>
-@if (discordDataError is not null)
+@if (Audience == GuildAudience.Alliance)
 {
-    <p class="text-danger">@discordDataError</p>
+    <h2>Linked Alliances (role mappings)</h2>
+    @if (discordDataError is not null)
+    {
+        <p class="text-danger">@discordDataError</p>
+    }
+    @if (createRoleError is not null)
+    {
+        <p class="text-danger">@createRoleError</p>
+    }
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Alliance</th>
+                <th>Member Role</th>
+                <th>Officer Role</th>
+                <th>Diplomat Role</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var link in guildAlliances)
+            {
+                <tr>
+                    <td>@allianceTagsById.GetValueOrDefault(link.StfcAllianceId)</td>
+                    <td>@RoleName(link.MemberRoleId)</td>
+                    <td>@RoleName(link.OfficerRoleId)</td>
+                    <td>@RoleName(link.DiplomatRoleId)</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="d-flex gap-2 align-items-end flex-wrap scope-add-card">
+        <div>
+            <label class="form-label">Region</label>
+            <Select TValue="string" Items="regionItems" @bind-Value="allianceRegionIdInput" @bind-Value:after="OnAllianceRegionChangedAsync" PlaceHolder="Select region..." />
+        </div>
+        <div>
+            <label class="form-label">Server</label>
+            <Select TValue="string" Items="allianceServerItems" @bind-Value="allianceServerIdInput" @bind-Value:after="OnAllianceServerChangedAsync"
+                    ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(allianceRegionIdInput is null)" />
+        </div>
+        <div>
+            <label class="form-label">Alliance</label>
+            <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceIdInput" @bind-Value:after="OnAllianceChanged"
+                    ShowSearch="true" PlaceHolder="Select alliance..." IsDisabled="@(allianceServerIdInput is null)" />
+        </div>
+        <div>
+            <label class="form-label">Member Role</label>
+            <Select TValue="string" Items="memberRoleItems" @bind-Value="memberRoleIdInput" />
+        </div>
+        <div>
+            <label class="form-label">Officer Role</label>
+            <Select TValue="string" Items="officerRoleItems" @bind-Value="officerRoleIdInput" />
+        </div>
+        <div>
+            <label class="form-label">Diplomat Role</label>
+            <Select TValue="string" Items="diplomatRoleItems" @bind-Value="diplomatRoleIdInput" />
+        </div>
+        <div>
+            <button class="btn btn-primary" disabled="@creatingRole" @onclick="AddGuildAlliance">@(creatingRole ? "Creating..." : "Add")</button>
+        </div>
+    </div>
 }
-@if (createRoleError is not null)
+else if (Audience == GuildAudience.Server)
 {
-    <p class="text-danger">@createRoleError</p>
+    <h2>Linked Servers</h2>
+    <table class="table">
+        <thead><tr><th>Server</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var link in guildServers)
+            {
+                <tr>
+                    <td>@serverNamesById.GetValueOrDefault(link.StfcServerId)</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildServer(link)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="d-flex gap-2 align-items-end flex-wrap scope-add-card">
+        <div>
+            <label class="form-label">Region</label>
+            <Select TValue="string" Items="regionItems" @bind-Value="serverRegionIdInput" @bind-Value:after="OnServerRegionChangedAsync" PlaceHolder="Select region..." />
+        </div>
+        <div>
+            <label class="form-label">Server</label>
+            <Select TValue="string" Items="serverScopeServerItems" @bind-Value="selectedServerIdInput"
+                    ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(serverRegionIdInput is null)" />
+        </div>
+        <div>
+            <button class="btn btn-primary" @onclick="AddGuildServer">Add</button>
+        </div>
+    </div>
 }
-<table class="table">
-    <thead>
-        <tr>
-            <th>Alliance</th>
-            <th>Member Role</th>
-            <th>Officer Role</th>
-            <th>Diplomat Role</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var link in guildAlliances)
-        {
-            <tr>
-                <td>@allAlliances.FirstOrDefault(a => a.Id == link.StfcAllianceId)?.Tag</td>
-                <td>@RoleName(link.MemberRoleId)</td>
-                <td>@RoleName(link.OfficerRoleId)</td>
-                <td>@RoleName(link.DiplomatRoleId)</td>
-                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">Delete</button></td>
-            </tr>
-        }
-        <tr>
-            <td>
-                <select class="form-select" @bind="newAllianceLink.StfcAllianceId">
-                    <option value="0">Select alliance...</option>
-                    @foreach (var alliance in allAlliances)
-                    {
-                        <option value="@alliance.Id">@alliance.Tag - @alliance.Name</option>
-                    }
-                </select>
-            </td>
-            <td>
-                <select class="form-select" @bind="memberRoleIdInput">
-                    <option value="">— create a role —</option>
-                    @foreach (var role in roles)
-                    {
-                        <option value="@role.Id">@role.Name</option>
-                    }
-                </select>
-            </td>
-            <td>
-                <select class="form-select" @bind="officerRoleIdInput">
-                    <option value="">— create a role —</option>
-                    @foreach (var role in roles)
-                    {
-                        <option value="@role.Id">@role.Name</option>
-                    }
-                </select>
-            </td>
-            <td>
-                <select class="form-select" @bind="diplomatRoleIdInput">
-                    <option value="">— create a role —</option>
-                    @foreach (var role in roles)
-                    {
-                        <option value="@role.Id">@role.Name</option>
-                    }
-                </select>
-            </td>
-            <td><button class="btn btn-primary" disabled="@creatingRole" @onclick="AddGuildAlliance">@(creatingRole ? "Creating..." : "Add")</button></td>
-        </tr>
-    </tbody>
-</table>
+else if (Audience == GuildAudience.VeilGroup)
+{
+    <h2>Linked Veil Groups</h2>
+    <table class="table">
+        <thead><tr><th>Veil Group</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var link in guildVeilGroups)
+            {
+                <tr>
+                    <td>@veilGroupNamesById.GetValueOrDefault(link.StfcVeilGroupId)</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildVeilGroup(link)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
 
-<h2 class="mt-4">Linked Servers</h2>
-<table class="table">
-    <thead><tr><th>Server</th><th></th></tr></thead>
-    <tbody>
-        @foreach (var link in guildServers)
-        {
-            <tr>
-                <td>@allServers.FirstOrDefault(s => s.Id == link.StfcServerId)?.DisplayName</td>
-                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildServer(link)">Delete</button></td>
-            </tr>
-        }
-    </tbody>
-</table>
-<EditForm Model="newServerLink" FormName="add-guild-server" OnValidSubmit="AddGuildServer">
-    <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newServerLink.StfcServerId">
-        <option value="0">Select server...</option>
-        @foreach (var server in allServers)
-        {
-            <option value="@server.Id">@server.DisplayName</option>
-        }
-    </InputSelect>
-    <button type="submit" class="btn btn-primary">Add</button>
-</EditForm>
-
-<h2 class="mt-4">Linked Veil Groups</h2>
-<table class="table">
-    <thead><tr><th>Veil Group</th><th></th></tr></thead>
-    <tbody>
-        @foreach (var link in guildVeilGroups)
-        {
-            <tr>
-                <td>@allVeilGroups.FirstOrDefault(v => v.Id == link.StfcVeilGroupId)?.Name</td>
-                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildVeilGroup(link)">Delete</button></td>
-            </tr>
-        }
-    </tbody>
-</table>
-<EditForm Model="newVeilGroupLink" FormName="add-guild-veil-group" OnValidSubmit="AddGuildVeilGroup">
-    <InputSelect class="form-select d-inline-block w-auto" @bind-Value="newVeilGroupLink.StfcVeilGroupId">
-        <option value="0">Select veil group...</option>
-        @foreach (var veilGroup in allVeilGroups)
-        {
-            <option value="@veilGroup.Id">@veilGroup.Name</option>
-        }
-    </InputSelect>
-    <button type="submit" class="btn btn-primary">Add</button>
-</EditForm>
+    <div class="d-flex gap-2 align-items-end flex-wrap scope-add-card">
+        <div>
+            <label class="form-label">Region</label>
+            <Select TValue="string" Items="regionItems" @bind-Value="veilGroupRegionIdInput" @bind-Value:after="OnVeilGroupRegionChangedAsync" PlaceHolder="Select region..." />
+        </div>
+        <div>
+            <label class="form-label">Veil Group</label>
+            <Select TValue="string" Items="veilGroupItems" @bind-Value="selectedVeilGroupIdInput" PlaceHolder="Select veil group..." IsDisabled="@(veilGroupRegionIdInput is null)" />
+        </div>
+        <div>
+            <button class="btn btn-primary" @onclick="AddGuildVeilGroup">Add</button>
+        </div>
+    </div>
+}
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
-    private List<StfcAlliance> allAlliances = [];
-    private List<StfcServer> allServers = [];
-    private List<StfcVeilGroup> allVeilGroups = [];
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+
+    // Shared across all three branches — regions rarely change and the list is tiny (3 rows),
+    // so it's loaded once regardless of which branch is active.
+    private List<StfcRegion> regions = [];
+    private List<SelectedItem> regionItems = [];
+
     private List<GuildAlliance> guildAlliances = [];
     private List<GuildServer> guildServers = [];
     private List<GuildVeilGroup> guildVeilGroups = [];
+    private Dictionary<int, string> allianceTagsById = [];
+    private Dictionary<int, string> serverNamesById = [];
+    private Dictionary<int, string> veilGroupNamesById = [];
+
+    // Alliance branch
+    private string? allianceRegionIdInput;
+    private string? allianceServerIdInput;
+    private string? selectedAllianceIdInput;
+    private List<SelectedItem> allianceServerItems = [];
+    private List<StfcAlliance> serverAlliances = [];
+    private List<SelectedItem> allianceItems = [];
     private List<Role> roles = [];
-    private GuildAlliance newAllianceLink = new();
-    private GuildServer newServerLink = new();
-    private GuildVeilGroup newVeilGroupLink = new();
+    private List<SelectedItem> memberRoleItems = [];
+    private List<SelectedItem> officerRoleItems = [];
+    private List<SelectedItem> diplomatRoleItems = [];
     private string? memberRoleIdInput;
     private string? officerRoleIdInput;
     private string? diplomatRoleIdInput;
@@ -145,19 +169,46 @@
     private string? createRoleError;
     private bool creatingRole;
 
-    protected override async Task OnParametersSetAsync() => await LoadAsync();
+    // Server branch
+    private string? serverRegionIdInput;
+    private string? selectedServerIdInput;
+    private List<SelectedItem> serverScopeServerItems = [];
 
-    private async Task LoadAsync()
+    // VeilGroup branch
+    private string? veilGroupRegionIdInput;
+    private string? selectedVeilGroupIdInput;
+    private List<SelectedItem> veilGroupItems = [];
+
+    protected override async Task OnParametersSetAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        allAlliances = await db.StfcAlliances.AsNoTracking().ToListAsync();
-        allServers = await db.StfcServers.Include(s => s.Region).OrderBy(s => s.Region.Name).ThenBy(s => s.Id).AsNoTracking().ToListAsync();
-        allVeilGroups = await db.StfcVeilGroups.AsNoTracking().ToListAsync();
-        guildAlliances = await db.GuildAlliances.Where(ga => ga.GuildId == GuildId).AsNoTracking().ToListAsync();
-        guildServers = await db.GuildServers.Where(gs => gs.GuildId == GuildId).AsNoTracking().ToListAsync();
-        guildVeilGroups = await db.GuildVeilGroups.Where(gv => gv.GuildId == GuildId).AsNoTracking().ToListAsync();
 
-        await LoadDiscordRolesAsync();
+        regions = await db.StfcRegions.OrderBy(r => r.Id).AsNoTracking().ToListAsync();
+        regionItems = regions.Select(r => new SelectedItem(r.Id.ToString(), r.Name)).ToList();
+
+        switch (Audience)
+        {
+            case GuildAudience.Alliance:
+                guildAlliances = await db.GuildAlliances.Where(ga => ga.GuildId == GuildId).AsNoTracking().ToListAsync();
+                allianceTagsById = await db.StfcAlliances
+                    .Where(a => guildAlliances.Select(ga => ga.StfcAllianceId).Contains(a.Id))
+                    .ToDictionaryAsync(a => a.Id, a => a.Tag);
+                ResetMemberOfficerDiplomatItems();
+                await LoadDiscordRolesAsync();
+                break;
+            case GuildAudience.Server:
+                guildServers = await db.GuildServers.Where(gs => gs.GuildId == GuildId).AsNoTracking().ToListAsync();
+                serverNamesById = await db.StfcServers.Include(s => s.Region)
+                    .Where(s => guildServers.Select(gs => gs.StfcServerId).Contains(s.Id))
+                    .ToDictionaryAsync(s => s.Id, s => s.DisplayName);
+                break;
+            case GuildAudience.VeilGroup:
+                guildVeilGroups = await db.GuildVeilGroups.Where(gv => gv.GuildId == GuildId).AsNoTracking().ToListAsync();
+                veilGroupNamesById = await db.StfcVeilGroups
+                    .Where(v => guildVeilGroups.Select(gv => gv.StfcVeilGroupId).Contains(v.Id))
+                    .ToDictionaryAsync(v => v.Id, v => v.Name);
+                break;
+        }
     }
 
     // Same 60s-cached role fetch/cache key Settings.razor and SetupWizard.razor use — kept
@@ -183,29 +234,125 @@
             roles = [];
             discordDataError = "Could not load roles from Discord (is the bot in this guild?)";
         }
+
+        ResetMemberOfficerDiplomatItems();
     }
 
     private string RoleName(ulong? id) =>
         id is null ? "-" : roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+
+    private async Task OnAllianceRegionChangedAsync()
+    {
+        allianceServerIdInput = null;
+        selectedAllianceIdInput = null;
+        allianceItems = [];
+        ResetMemberOfficerDiplomatItems();
+
+        if (!int.TryParse(allianceRegionIdInput, out var regionId))
+        {
+            allianceServerItems = [];
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var servers = await db.StfcServers
+            .Where(s => s.RegionId == regionId)
+            .OrderBy(s => s.Id)
+            .AsNoTracking()
+            .ToListAsync();
+        allianceServerItems = servers.Select(s => new SelectedItem(s.Id.ToString(), s.DisplayName)).ToList();
+    }
+
+    private async Task OnAllianceServerChangedAsync()
+    {
+        selectedAllianceIdInput = null;
+        ResetMemberOfficerDiplomatItems();
+
+        if (!int.TryParse(allianceServerIdInput, out var serverId))
+        {
+            serverAlliances = [];
+            allianceItems = [];
+            return;
+        }
+
+        // Already-linked alliances would otherwise throw on Add (unique index on
+        // GuildId+StfcAllianceId) — excluded here rather than letting that happen. Uses a
+        // HashSet<int> rather than `guildAlliances.Any(...)` directly: EF Core can't translate
+        // a lambda comparing against a local collection of entities (only primitive collections).
+        var linkedAllianceIds = guildAlliances.Select(ga => ga.StfcAllianceId).ToHashSet();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        serverAlliances = await db.StfcAlliances
+            .Where(a => a.ServerId == serverId)
+            .Where(a => !linkedAllianceIds.Contains(a.Id))
+            .OrderBy(a => a.Tag)
+            .AsNoTracking()
+            .ToListAsync();
+        allianceItems = serverAlliances.Select(a => new SelectedItem(a.Id.ToString(), $"{a.Tag} - {a.Name}")).ToList();
+    }
+
+    private void OnAllianceChanged() => ResetMemberOfficerDiplomatItems();
+
+    // The Member/Officer/Diplomat selects' blank entry mentions the exact role name that
+    // will be created (once an alliance is picked) instead of a generic "create a role" —
+    // rebuilt whenever the alliance selection (or the cached role list) changes.
+    //
+    // Uses "create" rather than "" as this entry's Value: BootstrapBlazor's Select doesn't
+    // fire its selection callback for an empty-string item value (its dropdown-item click
+    // handling treats "" as no-op), so with "" as the value that entry was unselectable —
+    // clicking it silently left the bound Xxx­RoleIdInput at its previous state. Any
+    // non-numeric sentinel works since EnsureRoleAsync already falls back to "create new"
+    // whenever ulong.TryParse fails.
+    private const string CreateNewRoleSentinel = "create";
+
+    private void ResetMemberOfficerDiplomatItems()
+    {
+        var tag = serverAlliances.FirstOrDefault(a => a.Id.ToString() == selectedAllianceIdInput)?.Tag;
+        var existing = roles.Select(r => new SelectedItem(r.Id.ToString(), r.Name));
+
+        memberRoleItems = new List<SelectedItem> { new(CreateNewRoleSentinel, tag is null ? "— create a role —" : $"— create {tag}-Member —") }
+            .Concat(existing).ToList();
+        officerRoleItems = new List<SelectedItem> { new(CreateNewRoleSentinel, tag is null ? "— create a role —" : $"— create {tag}-Officer —") }
+            .Concat(existing).ToList();
+        diplomatRoleItems = new List<SelectedItem> { new(CreateNewRoleSentinel, tag is null ? "— create a role —" : $"— create {tag}-Diplomat —") }
+            .Concat(existing).ToList();
+
+        // Pre-select an already-existing role matching the default naming convention —
+        // without this, picking an alliance that already has "{Tag}-Member" etc. from an
+        // earlier manual setup left the selects on "create new", and Add then tried (and
+        // failed) to create a role Discord already had, surfacing a confusing permission
+        // error instead of just reusing the existing role.
+        memberRoleIdInput = FindDefaultRoleId(tag, "Member");
+        officerRoleIdInput = FindDefaultRoleId(tag, "Officer");
+        diplomatRoleIdInput = FindDefaultRoleId(tag, "Diplomat");
+    }
+
+    private string FindDefaultRoleId(string? tag, string roleType) =>
+        (tag is null ? null : roles.FirstOrDefault(r => r.Name == $"{tag}-{roleType}")?.Id.ToString())
+            ?? CreateNewRoleSentinel;
 
     // A blank Member/Officer/Diplomat selection creates a new role instead of just
     // saving null — named after the alliance tag so multiple linked alliances don't end
     // up sharing ambiguous "Member"/"Officer" role names.
     private async Task AddGuildAlliance()
     {
-        if (newAllianceLink.StfcAllianceId == 0)
+        if (!int.TryParse(selectedAllianceIdInput, out var allianceId))
             return;
 
         createRoleError = null;
         creatingRole = true;
         try
         {
-            var tag = allAlliances.First(a => a.Id == newAllianceLink.StfcAllianceId).Tag;
+            var tag = serverAlliances.First(a => a.Id == allianceId).Tag;
 
-            newAllianceLink.GuildId = GuildId;
-            newAllianceLink.MemberRoleId = await EnsureRoleAsync(memberRoleIdInput, $"{tag} Member");
-            newAllianceLink.OfficerRoleId = await EnsureRoleAsync(officerRoleIdInput, $"{tag} Officer");
-            newAllianceLink.DiplomatRoleId = await EnsureRoleAsync(diplomatRoleIdInput, $"{tag} Diplomat");
+            var newAllianceLink = new GuildAlliance
+            {
+                GuildId = GuildId,
+                StfcAllianceId = allianceId,
+                MemberRoleId = await EnsureRoleAsync(memberRoleIdInput, $"{tag}-Member"),
+                OfficerRoleId = await EnsureRoleAsync(officerRoleIdInput, $"{tag}-Officer"),
+                DiplomatRoleId = await EnsureRoleAsync(diplomatRoleIdInput, $"{tag}-Diplomat"),
+            };
 
             await using (var db = await DbFactory.CreateDbContextAsync())
             {
@@ -213,13 +360,14 @@
                 await db.SaveChangesAsync();
             }
 
-            newAllianceLink = new();
+            selectedAllianceIdInput = null;
             memberRoleIdInput = null;
             officerRoleIdInput = null;
             diplomatRoleIdInput = null;
 
             Cache.Remove($"discord-guild-roles:{GuildId}");
-            await LoadAsync();
+            await OnAllianceServerChangedAsync();
+            await OnParametersSetAsync();
         }
         catch (RestException)
         {
@@ -248,23 +396,47 @@
             await db.SaveChangesAsync();
         }
 
-        await LoadAsync();
+        await OnParametersSetAsync();
+    }
+
+    private async Task OnServerRegionChangedAsync()
+    {
+        selectedServerIdInput = null;
+
+        if (!int.TryParse(serverRegionIdInput, out var regionId))
+        {
+            serverScopeServerItems = [];
+            return;
+        }
+
+        // See OnAllianceServerChangedAsync's comment: EF Core can't translate a lambda
+        // comparing against a local collection of entities, only primitive collections.
+        var linkedServerIds = guildServers.Select(gs => gs.StfcServerId).ToHashSet();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var servers = await db.StfcServers
+            .Where(s => s.RegionId == regionId)
+            .Where(s => !linkedServerIds.Contains(s.Id))
+            .OrderBy(s => s.Id)
+            .AsNoTracking()
+            .ToListAsync();
+        serverScopeServerItems = servers.Select(s => new SelectedItem(s.Id.ToString(), s.DisplayName)).ToList();
     }
 
     private async Task AddGuildServer()
     {
-        if (newServerLink.StfcServerId == 0)
+        if (!int.TryParse(selectedServerIdInput, out var serverId))
             return;
 
-        newServerLink.GuildId = GuildId;
         await using (var db = await DbFactory.CreateDbContextAsync())
         {
-            db.GuildServers.Add(newServerLink);
+            db.GuildServers.Add(new GuildServer { GuildId = GuildId, StfcServerId = serverId });
             await db.SaveChangesAsync();
         }
 
-        newServerLink = new();
-        await LoadAsync();
+        selectedServerIdInput = null;
+        await OnServerRegionChangedAsync();
+        await OnParametersSetAsync();
     }
 
     private async Task DeleteGuildServer(GuildServer link)
@@ -275,23 +447,47 @@
             await db.SaveChangesAsync();
         }
 
-        await LoadAsync();
+        await OnParametersSetAsync();
+    }
+
+    private async Task OnVeilGroupRegionChangedAsync()
+    {
+        selectedVeilGroupIdInput = null;
+
+        if (!int.TryParse(veilGroupRegionIdInput, out var regionId))
+        {
+            veilGroupItems = [];
+            return;
+        }
+
+        // See OnAllianceServerChangedAsync's comment: EF Core can't translate a lambda
+        // comparing against a local collection of entities, only primitive collections.
+        var linkedVeilGroupIds = guildVeilGroups.Select(gv => gv.StfcVeilGroupId).ToHashSet();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var veilGroups = await db.StfcVeilGroups
+            .Where(v => v.RegionId == regionId)
+            .Where(v => !linkedVeilGroupIds.Contains(v.Id))
+            .OrderBy(v => v.Name)
+            .AsNoTracking()
+            .ToListAsync();
+        veilGroupItems = veilGroups.Select(v => new SelectedItem(v.Id.ToString(), v.Name)).ToList();
     }
 
     private async Task AddGuildVeilGroup()
     {
-        if (newVeilGroupLink.StfcVeilGroupId == 0)
+        if (!int.TryParse(selectedVeilGroupIdInput, out var veilGroupId))
             return;
 
-        newVeilGroupLink.GuildId = GuildId;
         await using (var db = await DbFactory.CreateDbContextAsync())
         {
-            db.GuildVeilGroups.Add(newVeilGroupLink);
+            db.GuildVeilGroups.Add(new GuildVeilGroup { GuildId = GuildId, StfcVeilGroupId = veilGroupId });
             await db.SaveChangesAsync();
         }
 
-        newVeilGroupLink = new();
-        await LoadAsync();
+        selectedVeilGroupIdInput = null;
+        await OnVeilGroupRegionChangedAsync();
+        await OnParametersSetAsync();
     }
 
     private async Task DeleteGuildVeilGroup(GuildVeilGroup link)
@@ -302,6 +498,6 @@
             await db.SaveChangesAsync();
         }
 
-        await LoadAsync();
+        await OnParametersSetAsync();
     }
 }

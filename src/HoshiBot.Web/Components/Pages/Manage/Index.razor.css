@@ -59,6 +59,13 @@
     margin-top: auto;
 }
 
+.guild-card-actions .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
 .guild-card-install {
     margin-top: auto;
 }
