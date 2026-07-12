@@ -1,9 +1,11 @@
 @page "/manage/guilds/{GuildId}/permission-check"
 @inherits GuildAdminPageBase
+@using HoshiBot.Web.Services
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
 @using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
 @inject RestClient BotRestClient
 @inject IMemoryCache Cache
 @inject IConfiguration Configuration
@@ -201,7 +203,6 @@ else
         await LoadDiscordDataAsync();
     }
 
-    // Same 60s-cached channel/role fetch pattern as Settings.razor/SetupWizard.razor.
     private async Task LoadDiscordDataAsync()
     {
         discordDataError = null;
@@ -209,27 +210,13 @@ else
         {
             var guildId = ParsedGuildId;
 
-            var allChannels = await Cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-                return await BotRestClient.GetGuildChannelsAsync(guildId);
-            });
-            channels = (allChannels ?? [])
-                .Where(c => c is not CategoryGuildChannel)
-                .OrderBy(c => c.Position ?? int.MaxValue)
-                .ThenBy(c => c.Name)
-                .ToList();
+            channels = await DiscordData.GetChannelsAsync(guildId);
 
-            var allRoles = await Cache.GetOrCreateAsync($"discord-guild-roles:{guildId}", async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-                return await BotRestClient.GetGuildRolesAsync(guildId);
-            });
-            allRolesById = (allRoles ?? []).ToDictionary(r => r.Id);
-            roles = (allRoles ?? [])
-                .Where(r => r.Id != guildId)
-                .OrderByDescending(r => r.RawPosition)
-                .ToList();
+            // GetAllRolesAsync (not the filtered GetRolesAsync) — allRolesById needs @everyone
+            // too, for LoadBotStatusAsync's permission/hierarchy math below.
+            var allRoles = await DiscordData.GetAllRolesAsync(guildId);
+            allRolesById = allRoles.ToDictionary(r => r.Id);
+            roles = allRoles.Where(r => r.Id != guildId).ToList();
 
             await LoadBotStatusAsync(guildId);
         }

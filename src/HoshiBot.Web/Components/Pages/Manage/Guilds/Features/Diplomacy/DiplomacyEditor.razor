@@ -16,7 +16,7 @@
     <p class="text-danger">@createRoleError</p>
 }
 
-<div class="row g-3 mt-1">
+<div class="card-grid mt-1">
     <SettingsCard Title="Diplomacy">
         <ChannelPicker Label="Diplomacy" ShowLabel="false" Usage="Where diplomacy status changes (/set-diplomacy) are announced."
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />

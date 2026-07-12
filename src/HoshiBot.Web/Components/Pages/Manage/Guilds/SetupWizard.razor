@@ -5,7 +5,6 @@
 @using NetCord
 @using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject RestClient BotRestClient
 @inject DiscordGuildDataService DiscordData
 @inject IMemoryCache Cache
 
@@ -301,19 +300,17 @@ else
             ulong? categoryId = null;
             if (!string.IsNullOrWhiteSpace(newCategoryNameInput))
             {
-                var category = await BotRestClient.CreateGuildChannelAsync(guildId,
-                    new GuildChannelProperties(newCategoryNameInput.Trim(), ChannelType.CategoryChannel));
-                categoryId = category.Id;
+                categoryId = await DiscordData.CreateCategoryAsync(guildId, newCategoryNameInput.Trim());
             }
             else if (ulong.TryParse(selectedCategoryIdInput, out var existingCategoryId))
             {
                 categoryId = existingCategoryId;
             }
 
-            var logId = await EnsureChannelAsync(logChannelIdInput, "log", categoryId);
-            var adminId = await EnsureChannelAsync(adminChannelIdInput, "admin", categoryId);
-            var memberId = await EnsureRoleAsync(memberRoleIdInput, "Member");
-            var staffId = await EnsureRoleAsync(commandStaffRoleIdInput, "Command Staff");
+            var logId = await DiscordData.EnsureChannelAsync(guildId, logChannelIdInput, "log", categoryId);
+            var adminId = await DiscordData.EnsureChannelAsync(guildId, adminChannelIdInput, "admin", categoryId);
+            var memberId = await DiscordData.EnsureRoleAsync(guildId, memberRoleIdInput, "Member", alwaysCreateIfBlank: true);
+            var staffId = await DiscordData.EnsureRoleAsync(guildId, commandStaffRoleIdInput, "Command Staff", alwaysCreateIfBlank: true);
 
             await using (var db = await DbFactory.CreateDbContextAsync())
             {
@@ -341,9 +338,10 @@ else
             newCategoryNameInput = null;
             selectedCategoryIdInput = categoryId?.ToString();
 
-            // Invalidate the 60s Discord-data cache so anything just created shows up
-            // immediately here and on the Admin Access step's role dropdown.
-            DiscordData.InvalidateCache(guildId);
+            // DiscordGuildDataService's Create*/EnsureRoleAsync/EnsureChannelAsync calls above
+            // already invalidate the 60s Discord-data cache whenever they actually create/
+            // modify something — this just re-reads it so the wizard's own state (and the
+            // Admin Access step's role dropdown) reflects it immediately.
             await LoadDiscordDataAsync();
 
             return true;
@@ -357,25 +355,6 @@ else
         {
             creating = false;
         }
-    }
-
-    private async Task<ulong?> EnsureChannelAsync(string? currentInput, string defaultName, ulong? categoryId)
-    {
-        if (ulong.TryParse(currentInput, out var existingId))
-            return existingId;
-
-        var created = await BotRestClient.CreateGuildChannelAsync(ParsedGuildId,
-            new GuildChannelProperties(defaultName, ChannelType.TextGuildChannel) { ParentId = categoryId });
-        return created.Id;
-    }
-
-    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName)
-    {
-        if (ulong.TryParse(currentInput, out var existingId))
-            return existingId;
-
-        var created = await BotRestClient.CreateGuildRoleAsync(ParsedGuildId, new RoleProperties { Name = defaultName });
-        return created.Id;
     }
 
     private async Task AddAdminRoleAsync()

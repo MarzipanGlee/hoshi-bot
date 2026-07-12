@@ -1,0 +1,53 @@
+@using HoshiBot.Web.Services
+
+<div class="card h-100 @(Guild.BotInstalled ? "" : "opacity-75")"
+     style="@(Guild.BotInstalled ? "cursor:pointer;" : "")"
+     @onclick="() => OnOpen.InvokeAsync()">
+    <div class="card-header d-flex align-items-center gap-3">
+        <GuildIcon GuildId="Guild.Id" IconHash="@Guild.IconHash" Name="@Guild.Name"
+                   CssClass="rounded-circle object-fit-cover flex-shrink-0" Style="width:3rem;height:3rem;font-size:1.25rem;" />
+        <div>
+            <h2 class="fs-6 fw-semibold mb-1">@Guild.Name</h2>
+            @if (Audience != GuildAudience.None)
+            {
+                @foreach (var label in AudienceDisplay.Labels(Audience))
+                {
+                    <span class="badge bg-secondary me-1">@label</span>
+                }
+            }
+            @if (Guild.BotInstalled && !SetupComplete)
+            {
+                <span class="badge bg-warning text-dark">needs setup</span>
+            }
+        </div>
+    </div>
+
+    <div class="card-footer">
+        @if (!Guild.BotInstalled)
+        {
+            <a class="btn btn-outline-primary btn-sm" href="invite?guildId=@Guild.Id" target="_blank" rel="noopener" @onclick:stopPropagation="true">+ Install bot</a>
+        }
+        else
+        {
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guilds/@Guild.Id/features" @onclick:stopPropagation="true">Features</a>
+                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guilds/@Guild.Id/settings" @onclick:stopPropagation="true">Settings</a>
+                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guilds/@Guild.Id/setup-wizard" @onclick:stopPropagation="true">Setup Wizard</a>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // The dashboard's per-guild card — bespoke enough (conditional footer, whole-card
+    // click-to-navigate, opacity for not-yet-installed) that it doesn't fit SettingsCard/
+    // ToggleCard's shapes, but still gets its own component so Manage/Index.razor's markup
+    // is just a foreach over these instead of ~40 lines of hand-rolled card markup.
+    [Parameter, EditorRequired] public UserManagedGuild Guild { get; set; } = null!;
+
+    [Parameter] public GuildAudience Audience { get; set; }
+
+    [Parameter] public bool SetupComplete { get; set; }
+
+    [Parameter] public EventCallback OnOpen { get; set; }
+}

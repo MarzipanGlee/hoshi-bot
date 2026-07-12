@@ -13,34 +13,22 @@ else
 {
     <h1>@guildName</h1>
 
-    <div class="row g-3">
-        <div class="col-sm-6 col-lg-4">
-            <a class="card h-100 text-decoration-none text-body" href="manage/guilds/@GuildId/features">
-                <div class="card-body">
-                    <span class="oi oi-puzzle-piece fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-                    <h2 class="fs-5 fw-semibold mt-2 mb-1">Features</h2>
-                    <p class="mb-0" style="color:#5a5a63;">@enabledCount/@totalCount enabled</p>
-                </div>
-            </a>
-        </div>
-        <div class="col-sm-6 col-lg-4">
-            <a class="card h-100 text-decoration-none text-body" href="manage/guilds/@GuildId/settings">
-                <div class="card-body">
-                    <span class="oi oi-cog fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-                    <h2 class="fs-5 fw-semibold mt-2 mb-1">Settings</h2>
-                    <p class="mb-0" style="color:#5a5a63;">@audienceSummary</p>
-                </div>
-            </a>
-        </div>
-        <div class="col-sm-6 col-lg-4">
-            <a class="card h-100 text-decoration-none text-body" href="manage/guilds/@GuildId/setup-wizard">
-                <div class="card-body">
-                    <span class="oi oi-list-rich fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-                    <h2 class="fs-5 fw-semibold mt-2 mb-1">Setup Wizard</h2>
-                    <p class="mb-0" style="color:#5a5a63;">@(setupComplete ? "Setup complete" : "Needs setup")</p>
-                </div>
-            </a>
-        </div>
+    <div class="card-grid">
+        <SettingsCard Href="@($"manage/guilds/{GuildId}/features")">
+            <span class="oi oi-puzzle-piece fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+            <h2 class="fs-5 fw-semibold mt-2 mb-1">Features</h2>
+            <p class="mb-0" style="color:#5a5a63;">@enabledCount/@totalCount enabled</p>
+        </SettingsCard>
+        <SettingsCard Href="@($"manage/guilds/{GuildId}/settings")">
+            <span class="oi oi-cog fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+            <h2 class="fs-5 fw-semibold mt-2 mb-1">Settings</h2>
+            <p class="mb-0" style="color:#5a5a63;">@audienceSummary</p>
+        </SettingsCard>
+        <SettingsCard Href="@($"manage/guilds/{GuildId}/setup-wizard")">
+            <span class="oi oi-list-rich fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+            <h2 class="fs-5 fw-semibold mt-2 mb-1">Setup Wizard</h2>
+            <p class="mb-0" style="color:#5a5a63;">@(setupComplete ? "Setup complete" : "Needs setup")</p>
+        </SettingsCard>
     </div>
 }
 

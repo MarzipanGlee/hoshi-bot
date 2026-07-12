@@ -34,6 +34,18 @@ a, .btn-link {
     color: red;
 }
 
+/* Bootstrap's grid (row/col-*) only resizes at fixed viewport breakpoints, not based on the
+   container's actual available width — a sidebar eating part of the viewport can leave a
+   col-xl-3 grid computing "4 columns" that don't actually fit the space left over. This sizes
+   off the grid container itself instead: cards never shrink below 250px or grow past 350px,
+   and auto-fit (not auto-fill) collapses empty trailing tracks so real cards stretch to fill
+   each row evenly instead of leaving a ragged gap. */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 350px));
+    gap: 1rem;
+}
+
 /* QuickGrid intentionally renders extra empty <tr>/<td> elements on a paginated grid's
    last page to keep a stable row count/height across pages (documented behavior, see
    https://github.com/dotnet/aspnetcore/issues/59096 and /issues/57199) — it explicitly

@@ -16,7 +16,7 @@
     <p class="text-danger">@createRoleError</p>
 }
 
-<div class="row g-3 mt-1">
+<div class="card-grid mt-1">
     <SettingsCard Title="Alerts">
         <RolePicker Label="Alerts" ShowLabel="false" Usage="Role members opt into via the hub's 'manage alerts' button, to receive raid/shield pings." CreateRoleName="Alerts"
             @bind-Value="roleIdInput" @bind-Value:after="SaveRoleAsync" Roles="roles" />

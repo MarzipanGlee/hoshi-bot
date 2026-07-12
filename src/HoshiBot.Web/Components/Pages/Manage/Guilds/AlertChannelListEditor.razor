@@ -4,7 +4,7 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-<div class="row g-3 mt-1">
+<div class="card-grid mt-1">
     <SettingsCard Title="Alert Channels">
         <p class="form-text mb-0">
             Each channel+role pair below gets a copy of every alert for this feature — add one per
@@ -29,15 +29,15 @@
                 }
             </tbody>
         </table>
-        <EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync">
-            <select class="form-select d-inline-block w-auto" @bind="newChannelIdInput">
+        <EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync" class="d-flex flex-column gap-2">
+            <select class="form-select" @bind="newChannelIdInput">
                 <option value="">— select channel —</option>
                 @foreach (var channel in channels)
                 {
                     <option value="@channel.Id">@ChannelLabel(channel)</option>
                 }
             </select>
-            <select class="form-select d-inline-block w-auto" @bind="newRoleIdInput">
+            <select class="form-select" @bind="newRoleIdInput">
                 <option value="">— select role —</option>
                 @foreach (var role in roles)
                 {

@@ -5,7 +5,6 @@
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 @inject GuildFeatureService FeatureService
-@inject RestClient BotRestClient
 
 <div class="form-switch mb-3">
     <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
@@ -18,23 +17,23 @@
     <p class="text-danger">@createRoleError</p>
 }
 
-<div class="row g-3 mt-1">
+<div class="card-grid mt-1">
     @foreach (var state in rankStates)
     {
-        <div class="col-sm-6 col-lg-4 col-xl-3" @key="state">
-            <div class="card h-100">
-                <div class="card-header d-flex align-items-center gap-2">
+        <SettingsCard @key="state">
+            <HeaderContent>
+                <div class="d-flex align-items-center gap-2">
                     <img src="@($"images/ranks/{state.DefaultName.ToLowerInvariant()}.png")" alt="" style="width:1.5rem;height:1.5rem;object-fit:contain;" />
                     <strong>@state.DefaultName</strong>
                 </div>
-                <div class="card-body d-flex flex-column gap-3">
-                    <RolePicker Label="@state.DefaultName" ShowLabel="false" CreateRoleName="@state.DefaultName"
-                                @bind-Value="state.RoleId" @bind-Value:after="() => OnRoleChangedAsync(state)" Roles="roles" />
-                    <RoleColorMentionableInputs @bind-ColorValue="state.Color" @bind-ColorValue:after="() => SaveRankRoleAsync(state)"
-                                                 MentionableValue="state.Mentionable" MentionableValueChanged="m => OnMentionableChangedAsync(state, m)" />
-                </div>
-            </div>
-        </div>
+            </HeaderContent>
+            <ChildContent>
+                <RolePicker Label="@state.DefaultName" ShowLabel="false" CreateRoleName="@state.DefaultName"
+                            @bind-Value="state.RoleId" @bind-Value:after="() => OnRoleChangedAsync(state)" Roles="roles" />
+                <RoleColorMentionableInputs @bind-ColorValue="state.Color" @bind-ColorValue:after="() => SaveRankRoleAsync(state)"
+                                             MentionableValue="state.Mentionable" MentionableValueChanged="m => OnMentionableChangedAsync(state, m)" />
+            </ChildContent>
+        </SettingsCard>
     }
 </div>
 
@@ -95,7 +94,7 @@
     {
         if (ulong.TryParse(state.RoleId, out var id) && roles.FirstOrDefault(r => r.Id == id) is { } role)
         {
-            state.Color = ToHex(role.Colors.PrimaryColor);
+            state.Color = DiscordGuildDataService.ToHex(role.Colors.PrimaryColor);
             state.Mentionable = role.Mentionable;
         }
         else
@@ -131,8 +130,9 @@
         createRoleError = null;
         try
         {
-            var roleId = await EnsureRoleAsync(state.RoleId, state.DefaultName, state.Color, state.Mentionable);
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, state.RoleId, state.DefaultName, state.Color, state.Mentionable, roles);
             state.RoleId = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
             await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, state.SettingKey, roleId);
         }
         catch (RestException)
@@ -144,57 +144,4 @@
                 state.RoleId = null;
         }
     }
-
-    private async Task<ulong?> EnsureRoleAsync(string? currentInput, string defaultName, string? colorInput, bool mentionable)
-    {
-        var desiredColor = ToColor(colorInput);
-
-        if (ulong.TryParse(currentInput, out var existingId))
-        {
-            var existingRole = roles.FirstOrDefault(r => r.Id == existingId);
-            if (existingRole is not null &&
-                (existingRole.Colors.PrimaryColor.RawValue != desiredColor.RawValue || existingRole.Mentionable != mentionable))
-            {
-                await BotRestClient.ModifyGuildRoleAsync(GuildId, existingId, props =>
-                {
-                    props.Colors = new RoleColorsProperties(desiredColor);
-                    props.Mentionable = mentionable;
-                });
-                DiscordData.InvalidateCache(GuildId);
-                roles = await DiscordData.GetRolesAsync(GuildId);
-            }
-
-            return existingId;
-        }
-
-        var created = await BotRestClient.CreateGuildRoleAsync(GuildId, new RoleProperties
-        {
-            Name = defaultName,
-            Colors = new RoleColorsProperties(desiredColor),
-            Mentionable = mentionable,
-        });
-        DiscordData.InvalidateCache(GuildId);
-        roles = await DiscordData.GetRolesAsync(GuildId);
-        return created.Id;
-    }
-
-    // null = Discord's own "Default" (raw color value 0) — can't just omit Colors when
-    // modifying an existing role, since Discord's API treats an omitted field as "leave
-    // unchanged," not "clear", so resetting to Default needs this explicit raw-0 value.
-    private static NetCord.Color ToColor(string? colorInput)
-    {
-        if (colorInput is null)
-            return new NetCord.Color(0);
-
-        var hex = colorInput.TrimStart('#');
-        // The picker may report an 8-digit RRGGBBAA (opacity support is on to make its
-        // Swatches list render at all) — Discord role colors have no alpha, only the first
-        // 6 digits matter.
-        if (hex.Length > 6)
-            hex = hex[..6];
-
-        return new NetCord.Color(Convert.ToInt32(hex, 16));
-    }
-
-    private static string ToHex(NetCord.Color color) => $"#{color.RawValue:X6}";
 }

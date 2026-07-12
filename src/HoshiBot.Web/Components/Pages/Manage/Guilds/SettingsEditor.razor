@@ -1,32 +1,83 @@
 @using HoshiBot.Web.Services
 @using NetCord
+@using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
 <h2>Channels</h2>
-<ChannelPicker Label="Log" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
-<ChannelPicker Label="Admin" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
-<ChannelPicker Label="User Log" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
-<ChannelPicker Label="Alliance Boarding" Usage="Where new-member boarding happens." @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="SaveAllianceBoardingChannelAsync" Channels="channels" />
-<ChannelPicker Label="Command Bridge" Usage="Where the Command Bridge hub message (staff action buttons) is posted." @bind-Value="commandBridgeChannelIdInput" @bind-Value:after="SaveCommandBridgeChannelAsync" Channels="channels" />
-<ChannelPicker Label="Reminders" Usage="General reminders channel." @bind-Value="remindersChannelIdInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
-<ChannelPicker Label="Reminders (Allies)" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="SaveRemindersAlliesChannelAsync" Channels="channels" />
-<ChannelPicker Label="Reminders (Services)" @bind-Value="remindersServicesChannelIdInput" @bind-Value:after="SaveRemindersServicesChannelAsync" Channels="channels" />
-<ChannelPicker Label="Rules (DE)" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="SaveRulesDeChannelAsync" Channels="channels" />
-<ChannelPicker Label="Rules (EN)" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="SaveRulesEnChannelAsync" Channels="channels" />
-<ChannelPicker Label="User Notifications" Usage="General user-facing notifications, not tied to one feature." @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="SaveUserNotificationsChannelAsync" Channels="channels" />
-<ChannelPicker Label="Bot Support" Usage="Where server admins can ask for help with the bot itself." @bind-Value="botSupportChannelIdInput" @bind-Value:after="SaveBotSupportChannelAsync" Channels="channels" />
-<ChannelPicker Label="Command Staff Jobs" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="SaveCommandStaffJobsChannelAsync" Channels="channels" />
-<ChannelPicker Label="Default Channel Category" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
+<div class="card-grid mt-1">
+    <SettingsCard Title="Log">
+        <ChannelPicker Label="Log" ShowLabel="false" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Admin">
+        <ChannelPicker Label="Admin" ShowLabel="false" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="User Log">
+        <ChannelPicker Label="User Log" ShowLabel="false" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Alliance Boarding">
+        <ChannelPicker Label="Alliance Boarding" ShowLabel="false" Usage="Where new-member boarding happens." @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="SaveAllianceBoardingChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Command Bridge">
+        <ChannelPicker Label="Command Bridge" ShowLabel="false" Usage="Where the Command Bridge hub message (staff action buttons) is posted." @bind-Value="commandBridgeChannelIdInput" @bind-Value:after="SaveCommandBridgeChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Reminders">
+        <ChannelPicker Label="Reminders" ShowLabel="false" Usage="General reminders channel." @bind-Value="remindersChannelIdInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Reminders (Allies)">
+        <ChannelPicker Label="Reminders (Allies)" ShowLabel="false" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="SaveRemindersAlliesChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Reminders (Services)">
+        <ChannelPicker Label="Reminders (Services)" ShowLabel="false" @bind-Value="remindersServicesChannelIdInput" @bind-Value:after="SaveRemindersServicesChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Rules (DE)">
+        <ChannelPicker Label="Rules (DE)" ShowLabel="false" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="SaveRulesDeChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Rules (EN)">
+        <ChannelPicker Label="Rules (EN)" ShowLabel="false" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="SaveRulesEnChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="User Notifications">
+        <ChannelPicker Label="User Notifications" ShowLabel="false" Usage="General user-facing notifications, not tied to one feature." @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="SaveUserNotificationsChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Bot Support">
+        <ChannelPicker Label="Bot Support" ShowLabel="false" Usage="Where server admins can ask for help with the bot itself." @bind-Value="botSupportChannelIdInput" @bind-Value:after="SaveBotSupportChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Command Staff Jobs">
+        <ChannelPicker Label="Command Staff Jobs" ShowLabel="false" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="SaveCommandStaffJobsChannelAsync" Channels="channels" />
+    </SettingsCard>
+    <SettingsCard Title="Default Channel Category">
+        <ChannelPicker Label="Default Channel Category" ShowLabel="false" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
+    </SettingsCard>
+</div>
 
 <h2 class="mt-4">Roles</h2>
-<RolePicker Label="Member" Usage="This guild's general membership role." @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
-<RolePicker Label="Command Staff" Usage="Leadership/staff role — gates several admin-only bot actions." @bind-Value="commandStaffRoleIdInput" @bind-Value:after="SaveCommandStaffRoleAsync" Roles="roles" />
-<RolePicker Label="Boarding" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
-<RolePicker Label="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
-<RolePicker Label="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
-<RolePicker Label="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
-<RolePicker Label="Warnings" @bind-Value="warningsRoleIdInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
+<div class="card-grid mt-1">
+    <SettingsCard Title="Member">
+        <RolePicker Label="Member" ShowLabel="false" Usage="This guild's general membership role." CreateRoleName="Member" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+    </SettingsCard>
+    <SettingsCard Title="Command Staff">
+        <RolePicker Label="Command Staff" ShowLabel="false" Usage="Leadership/staff role — gates several admin-only bot actions." CreateRoleName="Command Staff" @bind-Value="commandStaffRoleIdInput" @bind-Value:after="SaveCommandStaffRoleAsync" Roles="roles" />
+    </SettingsCard>
+    <SettingsCard Title="Boarding">
+        <RolePicker Label="Boarding" ShowLabel="false" CreateRoleName="Boarding" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
+    </SettingsCard>
+    <SettingsCard Title="Crews">
+        <RolePicker Label="Crews" ShowLabel="false" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
+    </SettingsCard>
+    <SettingsCard Title="Beta Tester">
+        <RolePicker Label="Beta Tester" ShowLabel="false" CreateRoleName="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
+    </SettingsCard>
+    <SettingsCard Title="Hoshi Tester">
+        <RolePicker Label="Hoshi Tester" ShowLabel="false" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
+    </SettingsCard>
+    <SettingsCard Title="Warnings">
+        <RolePicker Label="Warnings" ShowLabel="false" CreateRoleName="Warnings" @bind-Value="warningsRoleIdInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
+    </SettingsCard>
+</div>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
@@ -35,6 +86,7 @@
     private List<IGuildChannel> channels = [];
     private List<CategoryGuildChannel> categories = [];
     private List<Role> roles = [];
+    private string? createRoleError;
 
     private string? logChannelIdInput;
     private string? adminChannelIdInput;
@@ -121,11 +173,35 @@
     private Task SaveBotSupportChannelAsync() => SaveAsync(s => s.BotSupportChannelId = ParseId(botSupportChannelIdInput));
     private Task SaveCommandStaffJobsChannelAsync() => SaveAsync(s => s.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput));
     private Task SaveDefaultChannelCategoryAsync() => SaveAsync(s => s.DefaultChannelCategoryId = ParseId(defaultChannelCategoryIdInput));
-    private Task SaveMemberRoleAsync() => SaveAsync(s => s.MemberRoleId = ParseId(memberRoleIdInput));
-    private Task SaveCommandStaffRoleAsync() => SaveAsync(s => s.CommandStaffRoleId = ParseId(commandStaffRoleIdInput));
-    private Task SaveBoardingRoleAsync() => SaveAsync(s => s.BoardingRoleId = ParseId(boardingRoleIdInput));
-    private Task SaveCrewsRoleAsync() => SaveAsync(s => s.CrewsRoleId = ParseId(crewsRoleIdInput));
-    private Task SaveBetaTesterRoleAsync() => SaveAsync(s => s.BetaTesterRoleId = ParseId(betaTesterRoleIdInput));
-    private Task SaveHoshiTesterRoleAsync() => SaveAsync(s => s.HoshiTesterRoleId = ParseId(hoshiTesterRoleIdInput));
-    private Task SaveWarningsRoleAsync() => SaveAsync(s => s.WarningsRoleId = ParseId(warningsRoleIdInput));
+
+    // A blank selection creates a new role instead of just saving null — named after the
+    // setting so it's clear at a glance what it's for. Mirrors AlertsOptIn/Diplomacy/
+    // TerritoryCapture's role saves; unlike those, these roles have no color/mentionable
+    // inputs of their own, so this goes through DiscordGuildDataService's simpler
+    // EnsureRoleAsync rather than a local create-or-modify-if-changed one.
+    private async Task SaveRoleAsync(Action<GuildSettings, ulong?> setter, string? currentInput, Action<string?> setInput, string defaultName)
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, defaultName);
+            setInput(roleId?.ToString());
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SaveAsync(s => setter(s, roleId));
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (currentInput == RolePicker.CreateSentinel)
+                setInput(null);
+        }
+    }
+
+    private Task SaveMemberRoleAsync() => SaveRoleAsync((s, id) => s.MemberRoleId = id, memberRoleIdInput, v => memberRoleIdInput = v, "Member");
+    private Task SaveCommandStaffRoleAsync() => SaveRoleAsync((s, id) => s.CommandStaffRoleId = id, commandStaffRoleIdInput, v => commandStaffRoleIdInput = v, "Command Staff");
+    private Task SaveBoardingRoleAsync() => SaveRoleAsync((s, id) => s.BoardingRoleId = id, boardingRoleIdInput, v => boardingRoleIdInput = v, "Boarding");
+    private Task SaveCrewsRoleAsync() => SaveRoleAsync((s, id) => s.CrewsRoleId = id, crewsRoleIdInput, v => crewsRoleIdInput = v, "Crews");
+    private Task SaveBetaTesterRoleAsync() => SaveRoleAsync((s, id) => s.BetaTesterRoleId = id, betaTesterRoleIdInput, v => betaTesterRoleIdInput = v, "Beta Tester");
+    private Task SaveHoshiTesterRoleAsync() => SaveRoleAsync((s, id) => s.HoshiTesterRoleId = id, hoshiTesterRoleIdInput, v => hoshiTesterRoleIdInput = v, "Hoshi Tester");
+    private Task SaveWarningsRoleAsync() => SaveRoleAsync((s, id) => s.WarningsRoleId = id, warningsRoleIdInput, v => warningsRoleIdInput = v, "Warnings");
 }
