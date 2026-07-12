@@ -8,6 +8,8 @@ services:
       - ConnectionStrings__HoshiBotDbContext=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
       - Discord__Token=${DISCORD_TOKEN}
       - PublicWebBaseUrl=${PUBLIC_WEB_BASE_URL}
+    volumes:
+      - ./logs/bot:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -29,6 +31,7 @@ services:
       - "8080:8080"
     volumes:
       - web-dpkeys:/keys
+      - ./logs/web:/app/logs
     depends_on:
       postgres:
         condition: service_healthy

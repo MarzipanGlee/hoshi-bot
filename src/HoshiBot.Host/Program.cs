@@ -18,8 +18,21 @@ using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
 using NetCord.Services.ComponentInteractions;
 using Quartz;
+using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// ClearProviders so the default console provider doesn't also write (Serilog's own
+// console sink below replaces it) — otherwise every log line would be printed twice.
+// The file sink also writes to a bind-mounted ./logs/bot host directory (see
+// compose.yaml) so logs survive without needing shell access to the container — see
+// DEBUG.md.
+builder.Logging.ClearProviders();
+builder.Services.AddSerilog((services, loggerConfig) => loggerConfig
+    .ReadFrom.Configuration(builder.Configuration)
+    .ReadFrom.Services(services)
+    .WriteTo.Console()
+    .WriteTo.File("logs/bot-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 14));
 
 builder.Services
     // GuildUsers (NetCord's name for Discord's "GUILD_MEMBERS" intent) is required for

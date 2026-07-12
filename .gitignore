@@ -15,3 +15,7 @@ keys/
 
 # Manually-provided third-party source snapshots for HoshiBot.StfcCatalogSync (not ours to commit)
 data/
+
+# Serilog file sink output — bind-mounted from compose.yaml in production, or written
+# next to the executable in local dev
+logs/

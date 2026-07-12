@@ -77,6 +77,9 @@ dotnet user-secrets set "Discord:ClientSecret" "<oauth-client-secret>" --project
 `postgres`. Both app services read secrets from environment variables — see `compose.yaml`
 for the full list (`DISCORD_TOKEN`, `POSTGRES_PASSWORD`, `PUBLIC_WEB_BASE_URL`, etc.).
 
+`bot`/`web` logs are bind-mounted to `./logs/bot`/`./logs/web` on the host (rolling daily
+files, 14 days retained) — see [DEBUG.md](DEBUG.md) for how to pull them for debugging.
+
 ### Redeploying
 
 From the repo checkout on the host, run `./deploy.sh` — or the equivalent steps by hand:
