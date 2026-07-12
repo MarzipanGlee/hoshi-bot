@@ -5,7 +5,7 @@ namespace HoshiBot.Domain.Entities;
 // needing a surrogate Id. Same Notified*/observed split and temporary-seed situation as
 // StfcServerStatus (see there for why).
 //
-// Only "incursions" is currently acted on (see IncursionNotifyJob) — the other groups
+// Only "incursions" is currently acted on (see InfiniteIncursionsNotifyJob) — the other groups
 // are stored for completeness but have no notify logic yet.
 public class StfcEventStatus
 {

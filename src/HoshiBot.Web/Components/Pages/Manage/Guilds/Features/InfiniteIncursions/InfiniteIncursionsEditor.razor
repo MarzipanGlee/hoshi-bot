@@ -2,9 +2,9 @@
 @inject GuildFeatureService FeatureService
 
 <p class="form-text">
-    Advance-warning announcement when a new Incursion event is scheduled. Not scoped to a
-    specific server — every guild tracking any server (see Scope) is notified, since
-    Incursions aren't currently known to be server/region-specific. Currently fed by a
+    Advance-warning announcement when a new Infinite Incursions event is scheduled. Not scoped
+    to a specific server — every guild tracking any server (see Scope) is notified, since
+    Infinite Incursions aren't currently known to be server/region-specific. Currently fed by a
     one-time seed, not a live sync — see StfcEventStatus for why.
 </p>
 
@@ -14,7 +14,7 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Incursion" Audience="Audience" />
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.InfiniteIncursions" Audience="Audience" />
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
@@ -24,12 +24,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Incursion, Audience);
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.InfiniteIncursions, Audience);
     }
 
     private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Incursion, Audience, value);
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.InfiniteIncursions, Audience, value);
         enabled = value;
     }
 }

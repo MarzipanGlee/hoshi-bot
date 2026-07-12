@@ -16,7 +16,7 @@ public static class GuildFeatureAudiences
         GuildFeature.Diplomacy => GuildAudience.Alliance,
         GuildFeature.RaidAlerts => GuildAudience.Alliance,
         GuildFeature.ServerStatus => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
-        GuildFeature.Incursion => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
+        GuildFeature.InfiniteIncursions => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
         GuildFeature.Announcements => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.Tickets => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.AnonymousMessaging => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,

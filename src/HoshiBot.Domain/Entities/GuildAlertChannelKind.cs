@@ -5,5 +5,5 @@ public enum GuildAlertChannelKind
     Raid,
     Shield,
     ServerStatus,
-    Incursion,
+    InfiniteIncursions,
 }

@@ -16,7 +16,7 @@ public enum GuildFeature
     AlertsOptIn,
     Diplomacy,
     ServerStatus,
-    Incursion,
+    InfiniteIncursions,
     RankRoles,
     OpsLevelRoles,
 }

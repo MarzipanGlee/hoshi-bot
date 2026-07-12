@@ -385,7 +385,7 @@ public static class ServiceCollectionExtensions
 
     // Seeds a one-time snapshot of each recurring event category's most recent occurrence
     // from StfcEventStatusSeedData. NotifiedEventStart is set equal to the seeded
-    // EventStart so IncursionNotifyJob doesn't treat the seeded value as a new,
+    // EventStart so InfiniteIncursionsNotifyJob doesn't treat the seeded value as a new,
     // not-yet-announced start time.
     public static async Task SeedStfcEventStatusIfEmptyAsync(this IServiceProvider services)
     {

@@ -10,7 +10,7 @@ namespace HoshiBot.Data;
 // Single-audience features (7 of 14) have only one possible Audience value
 // (GuildFeatureAudiences.SingleAudience) — the guild-wide overloads below are exactly
 // equivalent to the audience-explicit ones for those. For the 7 multi-audience features
-// (Announcements/Tickets/AnonymousMessaging/ServerStatus/Incursion/RankRoles/OpsLevelRoles),
+// (Announcements/Tickets/AnonymousMessaging/ServerStatus/InfiniteIncursions/RankRoles/OpsLevelRoles),
 // the guild-wide overloads are a transitional shim ("enabled if ANY relevant audience is on" / "set every
 // relevant audience at once") preserving today's one-shared-switch behavior for call sites
 // that haven't yet been upgraded to call the audience-explicit overloads directly — see the
@@ -117,7 +117,7 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         GuildFeature.AlertsOptIn => "Alarme verwalten",
         GuildFeature.Diplomacy => "Diplomatie",
         GuildFeature.ServerStatus => "Serverstatus",
-        GuildFeature.Incursion => "Incursion-Ankündigungen",
+        GuildFeature.InfiniteIncursions => "Infinite-Incursions-Ankündigungen",
         GuildFeature.RankRoles => "Rangrollen",
         GuildFeature.OpsLevelRoles => "Ops-Level-Rollen",
         _ => feature.ToString(),

@@ -30,7 +30,7 @@ public class NotificationDispatcher(
 
     // Same as SendPublicAsync, but gates per-row instead of once per guild: only sends to
     // channels whose own tagged Audience is enabled for feature. Used by
-    // ServerStatus/Incursion, whose GuildAlertChannel rows can span multiple audiences for
+    // ServerStatus/InfiniteIncursions, whose GuildAlertChannel rows can span multiple audiences for
     // the same guild — disabling the feature for one audience must not silence channels
     // tagged for a different audience the guild also serves.
     public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicToEnabledAudiencesAsync(

@@ -3,7 +3,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AlertsOptIn;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Announcements;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AnonymousMessaging;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Diplomacy;
-using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Incursion;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.InfiniteIncursions;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.OpsLevelRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RaidAlerts;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RankRoles;
@@ -22,22 +22,24 @@ namespace HoshiBot.Web.Components.Pages.Manage.Guilds.Features;
 // Features/{Name}/ — this file just lists them.
 public static class FeatureCatalog
 {
+    // Alphabetical by Title — both the Features catalog cards and the sidebar nav group just
+    // iterate this array in order, so this is the one place that controls both.
     public static readonly IFeatureModule[] All =
     [
         new AbsencesFeature(),
+        new AlertsOptInFeature(),
+        new AnnouncementsFeature(),
+        new AnonymousMessagingFeature(),
+        new DiplomacyFeature(),
+        new InfiniteIncursionsFeature(),
+        new OpsLevelRolesFeature(),
+        new RaidAlertsFeature(),
+        new RankRolesFeature(),
+        new RoeViolationReportsFeature(),
+        new ServerStatusFeature(),
         new ShieldRemindersFeature(),
         new TerritoryCaptureFeature(),
-        new AnnouncementsFeature(),
         new TicketsFeature(),
-        new AnonymousMessagingFeature(),
-        new RoeViolationReportsFeature(),
-        new AlertsOptInFeature(),
-        new DiplomacyFeature(),
-        new RaidAlertsFeature(),
-        new ServerStatusFeature(),
-        new IncursionFeature(),
-        new RankRolesFeature(),
-        new OpsLevelRolesFeature(),
     ];
 
     public static IFeatureModule? FindBySlug(string slug) =>

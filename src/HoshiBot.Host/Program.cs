@@ -136,10 +136,10 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(serverStatusNotifyJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInSeconds(15).RepeatForever()));
 
-    var incursionNotifyJobKey = new JobKey(nameof(IncursionNotifyJob));
-    quartz.AddJob<IncursionNotifyJob>(incursionNotifyJobKey)
+    var infiniteIncursionsNotifyJobKey = new JobKey(nameof(InfiniteIncursionsNotifyJob));
+    quartz.AddJob<InfiniteIncursionsNotifyJob>(infiniteIncursionsNotifyJobKey)
         .AddTrigger(trigger => trigger
-            .ForJob(incursionNotifyJobKey)
+            .ForJob(infiniteIncursionsNotifyJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
 });
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
