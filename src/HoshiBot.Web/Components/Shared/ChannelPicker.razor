@@ -1,3 +1,4 @@
+@using HoshiBot.Web.Services
 @using NetCord
 @using NetCord.Rest
 
@@ -12,9 +13,24 @@
         {
             <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
         }
-        @foreach (var channel in Channels)
+        @foreach (var group in FilteredGroups)
         {
-            <option value="@channel.Id">@ChannelLabel(channel)</option>
+            @if (group.Category is not null)
+            {
+                <optgroup label="@group.Category.Name">
+                    @foreach (var channel in group.Channels)
+                    {
+                        <option value="@channel.Id">@ChannelLabel(channel)</option>
+                    }
+                </optgroup>
+            }
+            else
+            {
+                @foreach (var channel in group.Channels)
+                {
+                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                }
+            }
         }
     </select>
     @if (!string.IsNullOrWhiteSpace(Usage))
@@ -40,8 +56,22 @@
 
     [Parameter, EditorRequired] public IReadOnlyList<IGuildChannel> Channels { get; set; } = [];
 
+    // Most settings just need "something SendMessageAsync can target" (Normal); RoE Violations/
+    // Tickets create a private thread under the channel instead, which narrows this to plain
+    // text channels only (TextOnly) — see DiscordGuildDataService.IsAllowedChannel.
+    [Parameter] public ChannelKind Kind { get; set; } = ChannelKind.Normal;
+
     private bool IsUnknown =>
         !string.IsNullOrEmpty(Value) && ulong.TryParse(Value, out var id) && !Channels.Any(c => c.Id == id);
+
+    // Categories stay so a category with no matching children just disappears (no empty
+    // <optgroup>) rather than needing separate filtering logic before grouping.
+    private List<ChannelGroup> FilteredGroups =>
+        DiscordGuildDataService.GroupChannelsForDisplay(Channels
+                .Where(c => c is CategoryGuildChannel || DiscordGuildDataService.IsAllowedChannel(c, Kind))
+                .ToList())
+            .Where(g => g.Channels.Count > 0)
+            .ToList();
 
     private async Task OnChangeAsync(ChangeEventArgs e)
     {

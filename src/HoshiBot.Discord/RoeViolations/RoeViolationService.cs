@@ -9,8 +9,13 @@ using NetCord.Rest;
 
 namespace HoshiBot.Discord.RoeViolations;
 
-// Real thread creation from scratch, mirroring TicketService's shape exactly (same
-// permission-catch-and-notify-admin pattern via NotificationDispatcher).
+// Posts as a forum thread (the configured channel is a Forum channel — see
+// RoeViolationReportsEditor's ChannelKind.Forum picker) rather than a private thread under a
+// text channel like TicketService: a Forum channel's "create thread" endpoint requires the
+// starter message up front (CreateForumGuildThreadAsync), it can't be created empty and filled
+// in after the way CreateGuildThreadAsync works for a normal text channel. Otherwise mirrors
+// TicketService's shape — same permission-catch-and-notify-admin pattern via
+// NotificationDispatcher.
 public class RoeViolationService(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
@@ -103,17 +108,33 @@ public class RoeViolationService(
         if (threadName.Length > 100)
             threadName = threadName[..100];
 
-        GuildThread thread;
+        // A forum post's starter message is required at creation time — unlike a normal text
+        // channel's thread (create empty, send the first message after), Discord's forum-thread
+        // endpoint has no "create, then fill in" step, so the embed has to be built first.
+        var embed = new EmbedProperties
+        {
+            Title = $"[{attackerTag}] {attackerName} - [{defenderTag}] {defenderName}",
+            Description = reporterIsVictim ? VictimInstructions : OffenderInstructions,
+            Color = EmbedBranding.BotColor,
+            Author = await embedBranding.BuildAuthorAsync(guildId),
+            Footer = embedBranding.BuildFooter(guildId),
+        };
+
+        ForumGuildThread thread;
         try
         {
-            thread = await gatewayClient.Rest.CreateGuildThreadAsync(channelId,
-                new GuildThreadProperties(threadName) { ChannelType = ChannelType.PrivateGuildThread });
+            thread = await gatewayClient.Rest.CreateForumGuildThreadAsync(channelId, new ForumGuildThreadProperties(threadName,
+                new ForumGuildThreadMessageProperties
+                {
+                    Embeds = [embed],
+                    Components = [new ActionRowProperties([ReadyButton(report.Id), DoneButton(report.Id)])],
+                }));
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             db.RoeViolationReports.Remove(report);
             await db.SaveChangesAsync();
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "einen RoE-Verstoss melden", $"fehlende Berechtigung (Threads erstellen) in <#{channelId}>?");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "einen RoE-Verstoss melden", $"fehlende Berechtigung (Forum-Post erstellen) in <#{channelId}>?");
             return "Das RoE-Verstoss-System ist aktuell falsch konfiguriert — ein Admin wurde informiert.";
         }
 
@@ -125,26 +146,11 @@ public class RoeViolationService(
             await gatewayClient.Rest.AddGuildThreadUserAsync(thread.Id, reporterId);
             if (attackerDiscordUserId is { } attackerId && attackerId != reporterId)
                 await gatewayClient.Rest.AddGuildThreadUserAsync(thread.Id, attackerId);
-
-            var embed = new EmbedProperties
-            {
-                Title = $"[{attackerTag}] {attackerName} - [{defenderTag}] {defenderName}",
-                Description = reporterIsVictim ? VictimInstructions : OffenderInstructions,
-                Color = EmbedBranding.BotColor,
-                Author = await embedBranding.BuildAuthorAsync(guildId),
-                Footer = embedBranding.BuildFooter(guildId),
-            };
-
-            await gatewayClient.Rest.SendMessageAsync(thread.Id, new MessageProperties
-            {
-                Embeds = [embed],
-                Components = [new ActionRowProperties([ReadyButton(report.Id), DoneButton(report.Id)])],
-            });
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            // The thread exists even if this part fails — nothing to roll back, just report it.
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "die RoE-Verstoss-Nachricht senden", $"fehlende Berechtigung im Thread <#{thread.Id}>?");
+            // The post exists even if this part fails — nothing to roll back, just report it.
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "die RoE-Verstoss-Nutzer hinzufügen", $"fehlende Berechtigung im Thread <#{thread.Id}>?");
         }
 
         return $"RoE-Verstoss gemeldet: <#{thread.Id}>";

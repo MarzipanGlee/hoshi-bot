@@ -32,9 +32,24 @@
         <EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync" class="d-flex flex-column gap-2">
             <select class="form-select" @bind="newChannelIdInput">
                 <option value="">— select channel —</option>
-                @foreach (var channel in channels)
+                @foreach (var group in NormalChannelGroups)
                 {
-                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                    @if (group.Category is not null)
+                    {
+                        <optgroup label="@group.Category.Name">
+                            @foreach (var channel in group.Channels)
+                            {
+                                <option value="@channel.Id">@ChannelLabel(channel)</option>
+                            }
+                        </optgroup>
+                    }
+                    else
+                    {
+                        @foreach (var channel in group.Channels)
+                        {
+                            <option value="@channel.Id">@ChannelLabel(channel)</option>
+                        }
+                    }
                 }
             </select>
             <select class="form-select" @bind="newRoleIdInput">
@@ -105,6 +120,16 @@
         await db.SaveChangesAsync();
         await LoadAsync();
     }
+
+    // All 4 GuildAlertChannelKind values deliver via a plain SendMessageAsync (see
+    // NotificationDispatcher) — never a private thread — so Normal is always right here,
+    // unlike ChannelPicker's per-setting Kind parameter.
+    private List<ChannelGroup> NormalChannelGroups =>
+        DiscordGuildDataService.GroupChannelsForDisplay(channels
+                .Where(c => c is CategoryGuildChannel || DiscordGuildDataService.IsAllowedChannel(c, ChannelKind.Normal))
+                .ToList())
+            .Where(g => g.Channels.Count > 0)
+            .ToList();
 
     private string ChannelName(ulong id) =>
         channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";

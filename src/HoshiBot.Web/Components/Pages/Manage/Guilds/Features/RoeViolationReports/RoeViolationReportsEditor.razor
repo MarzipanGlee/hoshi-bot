@@ -12,7 +12,7 @@
 
 <div class="card-grid mt-1">
     <SettingsCard Title="RoE Violations">
-        <ChannelPicker Label="RoE Violations" ShowLabel="false" Usage="Where /report-roe-violation reports are posted."
+        <ChannelPicker Label="RoE Violations" ShowLabel="false" Usage="Where /report-roe-violation reports are posted — must be a Forum channel." Kind="ChannelKind.Forum"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
     </SettingsCard>
 </div>

@@ -77,9 +77,24 @@ else
                 {
                     <option value="@logChannelIdInput" selected>⚠ Unbekannt (@logChannelIdInput)</option>
                 }
-                @foreach (var channel in channels)
+                @foreach (var group in NormalChannelGroups)
                 {
-                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                    @if (group.Category is not null)
+                    {
+                        <optgroup label="@group.Category.Name">
+                            @foreach (var channel in group.Channels)
+                            {
+                                <option value="@channel.Id">@ChannelLabel(channel)</option>
+                            }
+                        </optgroup>
+                    }
+                    else
+                    {
+                        @foreach (var channel in group.Channels)
+                        {
+                            <option value="@channel.Id">@ChannelLabel(channel)</option>
+                        }
+                    }
                 }
             </select>
         </div>
@@ -91,9 +106,24 @@ else
                 {
                     <option value="@adminChannelIdInput" selected>⚠ Unbekannt (@adminChannelIdInput)</option>
                 }
-                @foreach (var channel in channels)
+                @foreach (var group in NormalChannelGroups)
                 {
-                    <option value="@channel.Id">@ChannelLabel(channel)</option>
+                    @if (group.Category is not null)
+                    {
+                        <optgroup label="@group.Category.Name">
+                            @foreach (var channel in group.Channels)
+                            {
+                                <option value="@channel.Id">@ChannelLabel(channel)</option>
+                            }
+                        </optgroup>
+                    }
+                    else
+                    {
+                        @foreach (var channel in group.Channels)
+                        {
+                            <option value="@channel.Id">@ChannelLabel(channel)</option>
+                        }
+                    }
                 }
             </select>
         </div>
@@ -269,6 +299,15 @@ else
 
     private bool IsUnknownChannel(string? current) =>
         !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !channels.Any(c => c.Id == id);
+
+    // Log/Admin Channel both just get a plain SendMessageAsync-style post — Normal is right
+    // for both, same as every other ChannelPicker-based setting's default.
+    private List<ChannelGroup> NormalChannelGroups =>
+        DiscordGuildDataService.GroupChannelsForDisplay(channels
+                .Where(c => c is CategoryGuildChannel || DiscordGuildDataService.IsAllowedChannel(c, ChannelKind.Normal))
+                .ToList())
+            .Where(g => g.Channels.Count > 0)
+            .ToList();
 
     private bool IsUnknownRole(string? current) =>
         !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !roles.Any(r => r.Id == id);

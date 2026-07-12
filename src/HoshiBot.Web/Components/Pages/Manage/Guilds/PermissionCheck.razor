@@ -62,9 +62,24 @@ else
         <label>Channel</label>
         <select class="form-select d-inline-block w-auto" @bind="formChannelIdInput">
             <option value="">— select channel —</option>
-            @foreach (var channel in channels)
+            @foreach (var group in DiscordGuildDataService.GroupChannelsForDisplay(channels))
             {
-                <option value="@channel.Id">@ChannelLabel(channel)</option>
+                @if (group.Category is not null)
+                {
+                    <optgroup label="@group.Category.Name">
+                        @foreach (var channel in group.Channels)
+                        {
+                            <option value="@channel.Id">@ChannelLabel(channel)</option>
+                        }
+                    </optgroup>
+                }
+                else
+                {
+                    @foreach (var channel in group.Channels)
+                    {
+                        <option value="@channel.Id">@ChannelLabel(channel)</option>
+                    }
+                }
             }
         </select>
     </div>

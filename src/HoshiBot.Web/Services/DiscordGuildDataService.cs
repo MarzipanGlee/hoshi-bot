@@ -13,22 +13,115 @@ namespace HoshiBot.Web.Services;
 // directly — this service is for the common "list/create/reuse a channel or role" cases.
 public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cache)
 {
+    // Discord's real channel list order: categories and uncategorized channels share one
+    // position ordering at the guild's root level (a category and a "no parent" channel are
+    // siblings there); each category's own children are ordered separately, by their own
+    // position within that category. Categories are included in the result (not just real
+    // channels) rather than excluded — GroupChannelsForDisplay below uses that to build real
+    // <optgroup> nesting for a <select>.
     public async Task<List<IGuildChannel>> GetChannelsAsync(ulong guildId)
     {
-        var allChannels = await cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-            return await botRestClient.GetGuildChannelsAsync(guildId);
-        });
+        var allChannels = await GetCachedChannelsAsync(guildId);
 
-        return (allChannels ?? [])
+        var categories = allChannels.OfType<CategoryGuildChannel>()
+            .OrderBy(c => c.Position ?? int.MaxValue)
+            .ThenBy(c => c.Name)
+            .ToList();
+
+        var childrenByParentId = allChannels
             .Where(c => c is not CategoryGuildChannel)
+            .ToLookup(GetParentCategoryId);
+
+        var rootEntries = categories.Cast<IGuildChannel>()
+            .Concat(childrenByParentId[null])
+            .OrderBy(c => c.Position ?? int.MaxValue)
+            .ThenBy(c => c.Name);
+
+        var ordered = new List<IGuildChannel>();
+        foreach (var entry in rootEntries)
+        {
+            ordered.Add(entry);
+            if (entry is CategoryGuildChannel category)
+            {
+                ordered.AddRange(childrenByParentId[category.Id]
+                    .OrderBy(c => c.Position ?? int.MaxValue)
+                    .ThenBy(c => c.Name));
+            }
+        }
+
+        return ordered;
+    }
+
+    public async Task<List<CategoryGuildChannel>> GetCategoriesAsync(ulong guildId)
+    {
+        var allChannels = await GetCachedChannelsAsync(guildId);
+        return allChannels
+            .OfType<CategoryGuildChannel>()
             .OrderBy(c => c.Position ?? int.MaxValue)
             .ThenBy(c => c.Name)
             .ToList();
     }
 
-    public async Task<List<CategoryGuildChannel>> GetCategoriesAsync(ulong guildId)
+    // Every nestable channel type exposes its own ParentId — there's no shared interface for it
+    // (confirmed via reflection against the installed NetCord package). Only two arms needed:
+    // Voice/Stage/Announcement all derive from TextGuildChannel (inheriting its ParentId), and
+    // MediaForum derives from ForumGuildChannel — matching the base type already covers them.
+    // Public so the <select>-rendering call sites below can use the real parent/child
+    // relationship too, not just position-based ordering.
+    public static ulong? GetParentCategoryId(IGuildChannel channel) => channel switch
+    {
+        TextGuildChannel c => c.ParentId,
+        ForumGuildChannel c => c.ParentId,
+        _ => null,
+    };
+
+    // Voice/Stage/Announcement all derive from TextGuildChannel in NetCord's model (they share
+    // its shape — topic, ParentId, etc. — even though they're not plain text channels), so a
+    // plain `is TextGuildChannel` check would wrongly match them too. Voice/Stage are excluded
+    // outright; Announcement is allowed only for Normal, since private-thread creation (used by
+    // Tickets) isn't supported there.
+    public static bool IsAllowedChannel(IGuildChannel channel, ChannelKind kind) => kind switch
+    {
+        ChannelKind.Forum => channel is ForumGuildChannel or MediaForumGuildChannel,
+        _ => channel switch
+        {
+            VoiceGuildChannel or StageGuildChannel or ForumGuildChannel or MediaForumGuildChannel => false,
+            AnnouncementGuildChannel => kind == ChannelKind.Normal,
+            TextGuildChannel => true,
+            _ => false,
+        },
+    };
+
+    // Rendering-only view over an already-ordered GetChannelsAsync result — groups each category
+    // with the channels immediately following it that are genuinely its children (checked via
+    // GetParentCategoryId, not just position), so a <select> can render real <optgroup> nesting
+    // instead of a flat sequence. A channel with no matching category (before the first
+    // category, or genuinely parentless) comes back as its own single-channel, Category-null
+    // entry.
+    public static List<ChannelGroup> GroupChannelsForDisplay(IReadOnlyList<IGuildChannel> orderedChannels)
+    {
+        var groups = new List<ChannelGroup>();
+        foreach (var channel in orderedChannels)
+        {
+            if (channel is CategoryGuildChannel category)
+            {
+                groups.Add(new ChannelGroup(category, []));
+            }
+            else if (groups.Count > 0 && groups[^1].Category is { } lastCategory
+                && GetParentCategoryId(channel) == lastCategory.Id)
+            {
+                groups[^1].Channels.Add(channel);
+            }
+            else
+            {
+                groups.Add(new ChannelGroup(null, [channel]));
+            }
+        }
+
+        return groups;
+    }
+
+    private async Task<IReadOnlyList<IGuildChannel>> GetCachedChannelsAsync(ulong guildId)
     {
         var allChannels = await cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>
         {
@@ -36,11 +129,7 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
             return await botRestClient.GetGuildChannelsAsync(guildId);
         });
 
-        return (allChannels ?? [])
-            .OfType<CategoryGuildChannel>()
-            .OrderBy(c => c.Position ?? int.MaxValue)
-            .ThenBy(c => c.Name)
-            .ToList();
+        return allChannels ?? [];
     }
 
     public async Task<List<Role>> GetRolesAsync(ulong guildId)
@@ -48,7 +137,7 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
         var allRoles = await GetCachedRolesAsync(guildId);
         return allRoles
             .Where(r => r.Id != guildId)
-            .OrderByDescending(r => r.RawPosition)
+            .OrderByDescending(r => r.Position)
             .ToList();
     }
 
@@ -59,7 +148,7 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
     public async Task<List<Role>> GetAllRolesAsync(ulong guildId)
     {
         var allRoles = await GetCachedRolesAsync(guildId);
-        return allRoles.OrderByDescending(r => r.RawPosition).ToList();
+        return allRoles.OrderByDescending(r => r.Position).ToList();
     }
 
     private async Task<IReadOnlyList<Role>> GetCachedRolesAsync(ulong guildId)
@@ -191,4 +280,18 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
         cache.Remove($"discord-guild-channels:{guildId}");
         cache.Remove($"discord-guild-roles:{guildId}");
     }
+}
+
+// See GroupChannelsForDisplay — Category is null for a channel with no matching category.
+public sealed record ChannelGroup(CategoryGuildChannel? Category, List<IGuildChannel> Channels);
+
+// See IsAllowedChannel. Normal covers most settings (anything SendMessageAsync can target);
+// TextOnly is for settings that create a private thread under the configured channel (Tickets),
+// which Discord doesn't support on Announcement channels; Forum is for settings that post as a
+// forum thread (RoE Violations — see RoeViolationService.CreateReportAsync).
+public enum ChannelKind
+{
+    Normal,
+    TextOnly,
+    Forum,
 }
