@@ -1,0 +1,33 @@
+@using HoshiBot.Web.Components.Pages.Manage.Guilds
+@inject GuildFeatureService FeatureService
+
+<p class="form-text">
+    Announces when a new STFC game client version is released for Windows, macOS, Android, or
+    iOS. Linux has no known version-check source yet.
+</p>
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.ClientRelease" Audience="Audience" />
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+
+    private bool enabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.ClientRelease, Audience);
+    }
+
+    private async Task ToggleAsync(bool value)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.ClientRelease, Audience, value);
+        enabled = value;
+    }
+}

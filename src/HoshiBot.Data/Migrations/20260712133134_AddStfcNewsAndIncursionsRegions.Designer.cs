@@ -3,6 +3,7 @@ using System;
 using HoshiBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HoshiBot.Data.Migrations
 {
     [DbContext(typeof(HoshiBotDbContext))]
-    partial class HoshiBotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260712133134_AddStfcNewsAndIncursionsRegions")]
+    partial class AddStfcNewsAndIncursionsRegions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -964,28 +967,6 @@ namespace HoshiBot.Data.Migrations
                     b.HasIndex("StfcAllianceId");
 
                     b.ToTable("StfcAllianceNameHistories");
-                });
-
-            modelBuilder.Entity("HoshiBot.Domain.Entities.StfcClientRelease", b =>
-                {
-                    b.Property<int>("Platform")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("NotifiedVersion")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Version")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.HasKey("Platform");
-
-                    b.ToTable("StfcClientReleases");
                 });
 
             modelBuilder.Entity("HoshiBot.Domain.Entities.StfcEventDateConfirmation", b =>

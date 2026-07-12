@@ -1,0 +1,101 @@
+@page "/manage/bot/trusted-users"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Trusted Users</PageTitle>
+
+@if (authorized is null)
+{
+    <p>Checking access...</p>
+}
+else if (authorized == false)
+{
+    <p>You do not have admin access to this page.</p>
+}
+else
+{
+    <h1>Trusted Users</h1>
+    <p>
+        Discord users whose confirmation of an STFC News event date is trusted enough to
+        resolve it immediately, without waiting for the usual confirmation quorum.
+    </p>
+
+    <table class="table">
+        <thead><tr><th>Discord User ID</th><th>Display Name</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.DiscordUserId</td>
+                    <td>@user.DisplayName</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteUser(user)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <EditForm Model="this" FormName="add-trusted-user" OnValidSubmit="AddUser">
+        <input type="text" class="form-control d-inline-block w-auto" @bind="newDiscordUserIdInput" placeholder="Discord user ID" />
+        <input type="text" class="form-control d-inline-block w-auto" @bind="newDisplayNameInput" placeholder="Display name (optional)" />
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+}
+
+@code {
+    private bool? authorized;
+    private List<TrustedUser> users = [];
+    private string? newDiscordUserIdInput;
+    private string? newDisplayNameInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
+        authorized = result.Succeeded;
+
+        if (authorized == true)
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        users = await db.TrustedUsers.AsNoTracking().ToListAsync();
+    }
+
+    private async Task AddUser()
+    {
+        if (!ulong.TryParse(newDiscordUserIdInput, out var discordUserId))
+            return;
+
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            if (!await db.TrustedUsers.AnyAsync(u => u.DiscordUserId == discordUserId))
+            {
+                db.TrustedUsers.Add(new TrustedUser
+                {
+                    DiscordUserId = discordUserId,
+                    DisplayName = string.IsNullOrWhiteSpace(newDisplayNameInput) ? null : newDisplayNameInput,
+                    AddedAt = DateTimeOffset.UtcNow,
+                });
+                await db.SaveChangesAsync();
+            }
+        }
+
+        newDiscordUserIdInput = null;
+        newDisplayNameInput = null;
+        await LoadAsync();
+    }
+
+    private async Task DeleteUser(TrustedUser user)
+    {
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.TrustedUsers.Remove(user);
+            await db.SaveChangesAsync();
+        }
+
+        await LoadAsync();
+    }
+}

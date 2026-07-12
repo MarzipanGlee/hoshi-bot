@@ -7,49 +7,61 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Announces a newly-scheduled Infinite Incursions event as advance warning. /api/events has no
-// server/region field, so Infinite Incursions aren't scoped to a specific StfcServer the way
-// StfcServerStatus is — every guild tracking any server (via GuildServer) is notified,
-// since there's currently no finer signal to filter on. Revisit once api.stfc.pro
-// clarifies whether Infinite Incursions is global or per-region. Same one-time-seed situation
-// as ServerStatusNotifyJob (see there for why).
+// Announces a newly-scheduled Infinite Incursions event as advance warning. Region-aware:
+// Infinite Incursions has 3 distinct regional start times (confirmed from a real pairings
+// post — US/EU/APAC), so StfcEventStatus now carries 3 rows for EventGroup == "incursions"
+// (one per StfcRegion), each progressing independently. A guild is notified with a given
+// region's time only if it tracks a server in that region (via GuildServer -> StfcServer ->
+// Region) — a guild tracking servers in multiple regions is notified once per matching
+// region; a guild with no resolvable region at all is skipped entirely (a deliberate
+// behavior change from the previous region-blind "notify every GuildServer guild
+// regardless"). Same one-time-seed situation as ServerStatusNotifyJob (see there for why).
 public class InfiniteIncursionsNotifyJob(
     HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
 {
-    // The string value ("incursions") is a real persisted lookup key (StfcEventStatus.EventGroup
-    // is a string PK, seeded with this exact value) — do not change the value, only the constant's
-    // own name is cosmetic.
+    // The string value ("incursions") is a real persisted lookup key (StfcEventStatus.EventGroup)
+    // — do not change the value, only the constant's own name is cosmetic.
     private const string InfiniteIncursionsEventGroup = "incursions";
 
     public async Task Execute(IJobExecutionContext context)
     {
         var now = DateTimeOffset.UtcNow;
 
-        var incursion = await db.StfcEventStatuses.FirstOrDefaultAsync(e => e.EventGroup == InfiniteIncursionsEventGroup);
-        if (incursion is null)
-            return;
+        var regionRows = await db.StfcEventStatuses
+            .Include(e => e.Region)
+            .Where(e => e.EventGroup == InfiniteIncursionsEventGroup)
+            .ToListAsync();
 
-        if (incursion.EventStart == incursion.NotifiedEventStart || incursion.EventStart <= now)
-            return;
-
-        var guildIds = await db.GuildServers.Select(g => g.GuildId).Distinct().ToListAsync();
-
-        var content = $"⚔️ A new Infinite Incursions event is scheduled to start <t:{incursion.EventStart.ToUnixTimeSeconds()}:R>!";
-
-        foreach (var guildId in guildIds)
+        foreach (var row in regionRows)
         {
-            var embed = new EmbedProperties
+            if (row.RegionId is not { } regionId || row.EventStart == row.NotifiedEventStart || row.EventStart <= now)
+                continue;
+
+            var guildIds = await db.GuildServers
+                .Where(g => g.StfcServer.RegionId == regionId)
+                .Select(g => g.GuildId)
+                .Distinct()
+                .ToListAsync();
+
+            var regionName = row.Region?.Name ?? "?";
+            var content = $"⚔️ [{regionName}] A new Infinite Incursions event is scheduled to start <t:{row.EventStart.ToUnixTimeSeconds()}:R>!";
+
+            foreach (var guildId in guildIds)
             {
-                Description = content,
-                Color = EmbedBranding.WarningColor,
-                Author = await embedBranding.BuildAuthorAsync(guildId),
-                Footer = embedBranding.BuildFooter(guildId),
-            };
-            await dispatcher.SendPublicToEnabledAudiencesAsync(
-                guildId, GuildAlertChannelKind.InfiniteIncursions, GuildFeature.InfiniteIncursions, content, embed: embed);
+                var embed = new EmbedProperties
+                {
+                    Description = content,
+                    Color = EmbedBranding.WarningColor,
+                    Author = await embedBranding.BuildAuthorAsync(guildId),
+                    Footer = embedBranding.BuildFooter(guildId),
+                };
+                await dispatcher.SendPublicToEnabledAudiencesAsync(
+                    guildId, GuildAlertChannelKind.InfiniteIncursions, GuildFeature.InfiniteIncursions, content, embed: embed);
+            }
+
+            row.NotifiedEventStart = row.EventStart;
         }
 
-        incursion.NotifiedEventStart = incursion.EventStart;
         await db.SaveChangesAsync();
     }
 }

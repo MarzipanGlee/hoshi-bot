@@ -93,6 +93,20 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<StfcEventStatus> StfcEventStatuses => Set<StfcEventStatus>();
 
+    public DbSet<StfcNewsPost> StfcNewsPosts => Set<StfcNewsPost>();
+
+    public DbSet<StfcNewsPostGuildMessage> StfcNewsPostGuildMessages => Set<StfcNewsPostGuildMessage>();
+
+    public DbSet<StfcEventDateConfirmation> StfcEventDateConfirmations => Set<StfcEventDateConfirmation>();
+
+    public DbSet<TrustedUser> TrustedUsers => Set<TrustedUser>();
+
+    public DbSet<StfcNewsSettings> StfcNewsSettings => Set<StfcNewsSettings>();
+
+    public DbSet<IncursionsRegionDefault> IncursionsRegionDefaults => Set<IncursionsRegionDefault>();
+
+    public DbSet<StfcClientRelease> StfcClientReleases => Set<StfcClientRelease>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HoshiBotDbContext).Assembly);

@@ -44,6 +44,7 @@ public class ServerStatusNotifyJob(
             {
                 var embed = new EmbedProperties
                 {
+                    Title = "Server Status Change",
                     Description = content,
                     Color = color,
                     Author = await embedBranding.BuildAuthorAsync(guildId),

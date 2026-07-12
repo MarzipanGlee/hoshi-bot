@@ -53,18 +53,60 @@ labels, error messages) — English is fine for code, comments, and the Web admi
   - See `AbsenceButtonModule`/`AbsenceModalModule`/`AbsenceStringMenuModule` for the
     canonical example of a full wizard done right (entry point posts new, every follow-up
     step — including modal submits — edits in place).
-- **Slow DB-backed steps should show a loading placeholder first.** Legacy did this for
-  exactly two flows (Absences' "Abwesenheiten verwalten" and the Command Bridge hub's
-  "Ungelesene Ankündigungen") — matching text: title + "... werden gesucht..." description
-  + `EmbedBranding.InformationColor`. This requires manually calling
-  `Context.Interaction.SendResponseAsync(...)` then `Context.Interaction.ModifyResponseAsync(...)`
-  instead of returning a single value, since the framework only sends a response once the
-  handler method returns.
+- **Any interaction handler doing non-trivial work (DB writes, a Discord REST call, anything
+  not near-instant) must ack immediately and edit afterward — never return a single response
+  built at the end of the handler.** This is a hard requirement, not just a visual nicety:
+  Discord interactions must be acknowledged within ~3 seconds or they become invalid, and a
+  handler that does DB round-trips first (worse under concurrent load — e.g. `HoshiBot.Web`
+  and `HoshiBot.Host` sharing the same dev SQLite file) risks the interaction expiring or
+  double-acknowledging. Observed for real, live-tested: `RestException` "Unknown interaction"
+  (404) and "Interaction has already been acknowledged" (400) — both went unnoticed by
+  build/tests and only surfaced under real interaction latency. Concretely:
+  `await Context.Interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of("⏳ Processing...")))`
+  immediately, do the slow work, then `await Context.Interaction.ModifyResponseAsync(m => ...)`
+  with the real outcome — never a single `return` at the end.
+  - The immediate ack (and its later edit) should be **ephemeral and personal** to the
+    clicking user, kept **fully independent** of any shared/persistent message the
+    component lives on. If the handler also needs to update that shared message, do it via
+    a separate, plain `gatewayClient.Rest.ModifyMessageAsync(...)` call — never by reusing
+    the interaction response to edit the shared message, which conflicts with the ephemeral
+    ack/edit above and causes the same "already acknowledged" failure.
+  - Legacy already did an ack-then-edit for two flows (Absences' "Abwesenheiten verwalten"
+    and the Command Bridge hub's "Ungelesene Ankündigungen"), just not ephemeral; see
+    `AbsenceButtonModule`/`CommandBridgeButtonModule` for that shape, and `StfcNewsButtonModule`/
+    `StfcNewsModalModule` for the full ephemeral version.
 - **Guild nicknames often carry an alliance tag prefix** (e.g. `[LF] PlayerName`). Use
   `CommanderName.Of(Context.User)` (strips a leading `[...]` bracket group, ported from
   legacy's `$defs.RegEx.MemberName` regex) instead of `Context.User.Username` whenever
   building a "Commander {name}, ..." message — the raw Discord username/nickname is not
   the display name legacy always showed.
+- **A Quartz job that creates a row the first time it sees something (rather than only ever
+  diffing pre-seeded rows) needs `[DisallowConcurrentExecution]`.** `WithSimpleSchedule()
+  .RepeatForever()` fires an immediate first run at scheduler start; if that first run is slow
+  enough (an HTTP fetch, a per-guild member scan), a second scheduled tick can start before it
+  commits, and both can see "no row yet" for the same natural key and collide on a unique
+  constraint. Hit for real with `StfcClientReleaseNotifyJob` and `StfcNewsNotifyJob` (both
+  insert a new row on first detection) — `ServerStatusNotifyJob`/`InfiniteIncursionsNotifyJob`
+  don't need this since they only ever update rows a seeder already created.
+- **A bare `HttpClient` with no User-Agent gets 403'd by some external sites' bot protection**
+  — hit for real against `startrekfleetcommand.com`'s WordPress feed (a plain
+  `HttpClient.GetStringAsync` failed; the same URL fetched fine via a tool that sends a
+  realistic browser User-Agent). Register a realistic User-Agent
+  (`AddHttpClient(name, client => client.DefaultRequestHeaders.UserAgent.ParseAdd(...))`) for
+  any named `HttpClient` that hits a third-party site, not just Discord's own API.
+- **A dedicated Hoshi Bot Discord test guild exists for live end-to-end testing** — the bot is
+  already a member, with a channel category and admin channel/role already set up. Its ID and
+  the seeder that provisions its `GuildSettings` row (`DefaultChannelCategoryId`, etc.) live in
+  `SeedHoshiTestGuildSettingsIfEmptyAsync` (`HoshiBot.Data/ServiceCollectionExtensions.cs`) —
+  use this guild for real interaction testing instead of the real "Lost Falcons" production
+  guild. Note: Lost Falcons' own `AdminChannelId` currently has a real permission problem (the
+  bot can't post there — a pre-existing Discord-side config issue in that production guild,
+  not a code bug, and not affecting the test guild), so don't be surprised if a notify job logs
+  `Forbidden` for Lost Falcons specifically.
+- **Running `HoshiBot.Web` and `HoshiBot.Host` at the same time against the same dev
+  `hoshibot.dev.db`** works (SQLite allows concurrent readers/writers) but adds real lock
+  contention — worth knowing when diagnosing why an interaction handler is slower than
+  expected in dev specifically (see the ack-then-edit gotcha above for why that matters).
 
 ## Conventions
 

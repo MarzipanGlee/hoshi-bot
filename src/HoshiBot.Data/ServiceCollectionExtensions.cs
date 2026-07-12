@@ -51,7 +51,10 @@ public static class ServiceCollectionExtensions
         await services.SeedStfcTerritoriesIfEmptyAsync();
         await services.SeedStfcServerStatusIfEmptyAsync();
         await services.SeedStfcEventStatusIfEmptyAsync();
+        await services.SeedIncursionsRegionDefaultsIfEmptyAsync();
+        await services.SeedStfcNewsSettingsIfEmptyAsync();
         await services.SeedGuildSettingsIfEmptyAsync();
+        await services.SeedHoshiTestGuildSettingsIfEmptyAsync();
     }
 
     // SQLite dev data is disposable, so it's created directly from the current model
@@ -216,6 +219,39 @@ public static class ServiceCollectionExtensions
                 Feature = feature,
                 Audience = GuildFeatureAudiences.HasMultipleAudiences(feature) ? GuildAudience.Alliance : GuildFeatureAudiences.RelevantAudiences(feature),
             }));
+
+        await db.SaveChangesAsync();
+    }
+
+    // The bot's own dev/test Discord guild — not a real alliance/production guild, just
+    // somewhere to point channel-creation flows (SetupWizard, AlertChannelListEditor's
+    // "create new channel", etc.) at a real category while testing against a live gateway
+    // connection. Only seeds while this guild has no GuildSettings row yet, so it never
+    // overwrites a value set later via the admin UI — same convention as
+    // SeedGuildSettingsIfEmptyAsync, just far more minimal (no alert channels/feature
+    // settings, since this guild isn't meant to exercise those).
+    private const ulong HoshiTestGuildId = 1296179770421149786;
+    private const string HoshiTestGuildName = "Hoshi Bot";
+    private const ulong HoshiTestGuildDefaultCategoryId = 1525894580988411944;
+
+    public static async Task SeedHoshiTestGuildSettingsIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.GuildSettings.AnyAsync(s => s.GuildId == HoshiTestGuildId))
+            return;
+
+        if (!await db.DiscordGuilds.AnyAsync(g => g.Id == HoshiTestGuildId))
+        {
+            db.DiscordGuilds.Add(new DiscordGuild { Id = HoshiTestGuildId, Name = HoshiTestGuildName });
+        }
+
+        db.GuildSettings.Add(new GuildSettings
+        {
+            GuildId = HoshiTestGuildId,
+            DefaultChannelCategoryId = HoshiTestGuildDefaultCategoryId,
+        });
 
         await db.SaveChangesAsync();
     }
@@ -400,6 +436,7 @@ public static class ServiceCollectionExtensions
         db.StfcEventStatuses.AddRange(StfcEventStatusSeedData.Entries.Select(e => new StfcEventStatus
         {
             EventGroup = e.EventGroup,
+            RegionId = e.RegionId,
             EventStart = e.EventStart,
             EventEnd = e.EventEnd,
             Active = e.Active,
@@ -407,6 +444,50 @@ public static class ServiceCollectionExtensions
             NotifiedEventStart = e.EventStart,
         }));
 
+        await db.SaveChangesAsync();
+    }
+
+    // Seeds the preserved daily "time of day" Infinite Incursions starts in each region (US
+    // 15:00 UTC, EU 08:00 UTC, APAC 23:00 UTC — the same real values StfcEventStatusSeedData
+    // uses), so an admin-submitted date can be combined with these to produce each region's
+    // EventStart without re-entering the time every event. Must run after
+    // SeedStfcCatalogIfEmptyAsync — it FKs into StfcRegions. Only seeds while empty, so it
+    // never overwrites values corrected later via the admin UI.
+    public static async Task SeedIncursionsRegionDefaultsIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.IncursionsRegionDefaults.AnyAsync())
+            return;
+
+        var defaultsByRegionId = new Dictionary<int, TimeOnly>
+        {
+            [ScopelyRegionIds["US"]] = new TimeOnly(15, 0),
+            [ScopelyRegionIds["EU"]] = new TimeOnly(8, 0),
+            [ScopelyRegionIds["APAC"]] = new TimeOnly(23, 0),
+        };
+
+        var knownRegionIds = await db.StfcRegions.Select(r => r.Id).ToHashSetAsync();
+
+        db.IncursionsRegionDefaults.AddRange(defaultsByRegionId
+            .Where(kv => knownRegionIds.Contains(kv.Key))
+            .Select(kv => new IncursionsRegionDefault { RegionId = kv.Key, DefaultStartTimeUtc = kv.Value }));
+
+        await db.SaveChangesAsync();
+    }
+
+    // Seeds the single StfcNewsSettings row (Id = 1) with its default values. Only seeds
+    // while the table is empty, so it never overwrites values edited later via the admin UI.
+    public static async Task SeedStfcNewsSettingsIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.StfcNewsSettings.AnyAsync())
+            return;
+
+        db.StfcNewsSettings.Add(new StfcNewsSettings { Id = 1 });
         await db.SaveChangesAsync();
     }
 

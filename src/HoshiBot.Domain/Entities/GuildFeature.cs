@@ -19,4 +19,7 @@ public enum GuildFeature
     InfiniteIncursions,
     RankRoles,
     OpsLevelRoles,
+    StfcNews,
+    AllianceTournament,
+    ClientRelease,
 }

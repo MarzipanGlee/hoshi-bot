@@ -6,4 +6,6 @@ public enum GuildAlertChannelKind
     Shield,
     ServerStatus,
     InfiniteIncursions,
+    AllianceTournament,
+    ClientRelease,
 }

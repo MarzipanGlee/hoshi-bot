@@ -6,6 +6,7 @@ using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Discord.Scheduling;
+using HoshiBot.Discord.StfcNews;
 using HoshiBot.Discord.Tickets;
 using HoshiBot.Host;
 using Microsoft.Extensions.Hosting;
@@ -21,7 +22,12 @@ using Quartz;
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
-    .AddDiscordGateway(options => options.Intents = GatewayIntents.Guilds)
+    // GuildUsers (NetCord's name for Discord's "GUILD_MEMBERS" intent) is required for
+    // StfcNewsNotifyJob's role-count proxy (RestClient.GetGuildUsersAsync) — also needs the
+    // privileged Server Members Intent enabled for this bot application in the Discord
+    // Developer Portal, or member fetches will fail/return incomplete data regardless of
+    // this flag.
+    .AddDiscordGateway(options => options.Intents = GatewayIntents.Guilds | GatewayIntents.GuildUsers)
     .AddApplicationCommands()
     .AddComponentInteractions<ButtonInteraction, ButtonInteractionContext>()
     .AddComponentInteractions<UserMenuInteraction, UserMenuInteractionContext>()
@@ -43,6 +49,18 @@ builder.Services.AddScoped<AnonymousMessageService>();
 builder.Services.AddScoped<PendingModalInputService>();
 builder.Services.AddScoped<GuildFeatureService>();
 builder.Services.AddScoped<GuildFeatureSettingsService>();
+builder.Services.AddScoped<StfcNewsService>();
+
+// A bare, User-Agent-less HttpClient gets a 403 from startrekfleetcommand.com's WordPress
+// bot protection (confirmed against the real feed) — both of these hit external sites with
+// similar bot-detection surfaces (a WordPress-hosted blog; Google/Apple's app stores), so a
+// realistic browser User-Agent is applied to both, not just the one that's already failed.
+const string BrowserUserAgent =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+builder.Services.AddHttpClient(nameof(StfcNewsNotifyJob), client =>
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(BrowserUserAgent));
+builder.Services.AddHttpClient(nameof(StfcClientReleaseNotifyJob), client =>
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(BrowserUserAgent));
 
 builder.Services.AddQuartz(quartz =>
 {
@@ -141,6 +159,30 @@ builder.Services.AddQuartz(quartz =>
         .AddTrigger(trigger => trigger
             .ForJob(infiniteIncursionsNotifyJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
+
+    var allianceTournamentNotifyJobKey = new JobKey(nameof(AllianceTournamentNotifyJob));
+    quartz.AddJob<AllianceTournamentNotifyJob>(allianceTournamentNotifyJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(allianceTournamentNotifyJobKey)
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
+
+    var stfcNewsNotifyJobKey = new JobKey(nameof(StfcNewsNotifyJob));
+    quartz.AddJob<StfcNewsNotifyJob>(stfcNewsNotifyJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(stfcNewsNotifyJobKey)
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(30).RepeatForever()));
+
+    var stfcNewsStatsRefreshJobKey = new JobKey(nameof(StfcNewsStatsRefreshJob));
+    quartz.AddJob<StfcNewsStatsRefreshJob>(stfcNewsStatsRefreshJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(stfcNewsStatsRefreshJobKey)
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(5).RepeatForever()));
+
+    var stfcClientReleaseNotifyJobKey = new JobKey(nameof(StfcClientReleaseNotifyJob));
+    quartz.AddJob<StfcClientReleaseNotifyJob>(stfcClientReleaseNotifyJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(stfcClientReleaseNotifyJobKey)
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInSeconds(60).RepeatForever()));
 });
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 

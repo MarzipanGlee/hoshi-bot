@@ -1,7 +1,9 @@
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Absences;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AlertsOptIn;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AllianceTournament;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Announcements;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AnonymousMessaging;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.ClientRelease;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Diplomacy;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.InfiniteIncursions;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.OpsLevelRoles;
@@ -10,6 +12,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RankRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RoeViolationReports;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.ServerStatus;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.ShieldReminders;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.StfcNews;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.TerritoryCapture;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Tickets;
 
@@ -28,8 +31,10 @@ public static class FeatureCatalog
     [
         new AbsencesFeature(),
         new AlertsOptInFeature(),
+        new AllianceTournamentFeature(),
         new AnnouncementsFeature(),
         new AnonymousMessagingFeature(),
+        new ClientReleaseFeature(),
         new DiplomacyFeature(),
         new InfiniteIncursionsFeature(),
         new OpsLevelRolesFeature(),
@@ -38,6 +43,7 @@ public static class FeatureCatalog
         new RoeViolationReportsFeature(),
         new ServerStatusFeature(),
         new ShieldRemindersFeature(),
+        new StfcNewsFeature(),
         new TerritoryCaptureFeature(),
         new TicketsFeature(),
     ];

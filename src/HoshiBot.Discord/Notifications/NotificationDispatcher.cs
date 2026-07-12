@@ -78,6 +78,37 @@ public class NotificationDispatcher(
         return results;
     }
 
+    // Sends to guildId's configured AdminChannelId (GuildSettings) and returns the sent
+    // message's (channelId, messageId) so a caller can persist it for later edits — unlike
+    // NotifyAdminOfPermissionIssueAsync (hardcoded wording, 1h throttle keyed by a free-text
+    // context string), this is generic and untimed: callers own their own dedup (e.g. a real
+    // DB row), not a time window. Returns null if AdminChannelId isn't configured or the send
+    // fails, so callers can just skip rather than branch on a missing setting.
+    public async Task<(ulong ChannelId, ulong MessageId)?> SendToAdminChannelAsync(
+        ulong guildId, string? content = null, EmbedProperties? embed = null, IReadOnlyList<ButtonProperties>? buttons = null)
+    {
+        var settings = await db.GuildSettings.FindAsync(guildId);
+        if (settings?.AdminChannelId is not { } channelId)
+            return null;
+
+        try
+        {
+            var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
+            {
+                Content = content,
+                Embeds = embed is null ? null : [embed],
+                Components = buttons is null ? null : [new ActionRowProperties(buttons)],
+            });
+            return (channelId, message.Id);
+        }
+        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            logger.LogWarning("Could not send admin channel notification to {ChannelId} for guild {GuildId}: {StatusCode}",
+                channelId, guildId, ex.StatusCode);
+            return null;
+        }
+    }
+
     public async Task EditPublicAsync(ulong channelId, ulong messageId, string content)
     {
         try

@@ -120,6 +120,9 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         GuildFeature.InfiniteIncursions => "Infinite-Incursions-Ankündigungen",
         GuildFeature.RankRoles => "Rangrollen",
         GuildFeature.OpsLevelRoles => "Ops-Level-Rollen",
+        GuildFeature.StfcNews => "STFC-News-Benachrichtigungen",
+        GuildFeature.AllianceTournament => "Allianz-Turnier-Benachrichtigungen",
+        GuildFeature.ClientRelease => "Client-Versions-Benachrichtigungen",
         _ => feature.ToString(),
     };
 }

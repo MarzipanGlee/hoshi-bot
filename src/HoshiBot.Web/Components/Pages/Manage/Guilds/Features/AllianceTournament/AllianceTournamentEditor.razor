@@ -1,0 +1,35 @@
+@using HoshiBot.Web.Components.Pages.Manage.Guilds
+@inject GuildFeatureService FeatureService
+
+<p class="form-text">
+    Advance-warning announcement when a new Alliance Tournament event is scheduled. Not scoped
+    to a specific server — every guild tracking any server (see Scope) is notified, since
+    Alliance Tournament isn't currently known to be server/region-specific. Currently fed by a
+    one-time seed, not a live sync — see StfcEventStatus for why.
+</p>
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.AllianceTournament" Audience="Audience" />
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+
+    private bool enabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience);
+    }
+
+    private async Task ToggleAsync(bool value)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience, value);
+        enabled = value;
+    }
+}

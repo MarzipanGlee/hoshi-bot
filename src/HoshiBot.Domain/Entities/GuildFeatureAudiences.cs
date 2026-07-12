@@ -22,6 +22,16 @@ public static class GuildFeatureAudiences
         GuildFeature.AnonymousMessaging => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.RankRoles => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.OpsLevelRoles => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        GuildFeature.AllianceTournament => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
+        // Single-audience on purpose, unlike its sibling notify features above: StfcNews has
+        // no real per-audience distinction (it's one guild-wide toggle reusing the existing
+        // AdminChannelId/CommandStaffRoleId settings, not per-audience alert channels), so
+        // mapping it to multiple audiences would only force awkward multi-page routing
+        // (FeatureSettings.razor requires an Audience param and renders one sub-page per
+        // audience for any multi-audience feature) with no actual behavioral difference
+        // between those pages.
+        GuildFeature.StfcNews => GuildAudience.Alliance,
+        GuildFeature.ClientRelease => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
         _ => GuildAudience.None,
     };
 
