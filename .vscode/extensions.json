@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "ms-dotnettools.csdevkit",
+        "anthropic.claude-code",
+        "editorconfig.editorconfig",
+        "github.vscode-pull-request-github",
+        "davidanson.vscode-markdownlint",
+        "github.vscode-github-actions",
+        "ms-vscode-remote.remote-wsl-recommender"
+    ]
+}

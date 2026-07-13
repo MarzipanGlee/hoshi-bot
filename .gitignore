@@ -4,6 +4,9 @@ obj/
 *.user
 *.suo
 .idea/
+
+# .NET SDK / C# Dev Kit runfile-discovery cache (generated under the repo root on Linux)
+/dotnet/
 *.db
 *.db-shm
 *.db-wal
