@@ -24,12 +24,41 @@ splits that matter most when deciding where new code goes:
 German is the primary user-facing language for all bot-facing text (embeds, button
 labels, error messages) — English is fine for code, comments, and the Web admin UI.
 
+## Local dev environment (in transition, as of 2026-07-13)
+
+Local development is moving from native Windows to **WSL2** (Ubuntu 26.04, `.NET 10` SDK
+installed there) — running Docker Engine directly inside the WSL2 distro rather than Docker
+Desktop (side-steps Docker Desktop's licensing requirement for larger orgs) and matching
+production's actual Linux environment (the `docker/Dockerfile.*` base images) much more
+closely than a Windows host does. If you're picking this up on a fresh WSL2 setup: put the
+repo checkout inside the WSL2 filesystem itself (not under `/mnt/c/...`) — bind-mount and
+build performance are much worse across that boundary.
+
+A related, **not-yet-executed** follow-up discussed alongside this move: switching local dev's
+database from SQLite to Postgres (via the `postgres` service already in `compose.yaml`, e.g.
+`docker compose up postgres`) to close the gap between SQLite's EF Core provider limitations
+(see the two SQLite gotchas right below) and what production actually runs. Check whether this
+has happened before assuming either way — if `src/HoshiBot.Host/appsettings.Development.json`
+/ `src/HoshiBot.Web/appsettings.Development.json` still have a `Data Source=...hoshibot.dev.db`
+connection string and `"Database": {"Provider": "Sqlite"}`, it hasn't yet, and the
+`EnsureCreated()` plus "delete `hoshibot.dev.db` after a schema change" workflow below is still
+current. If it *has* happened, local dev needs real EF migrations like production does —
+`EnsureCreated()` only applies to the SQLite path.
+
 ## Known gotchas
 
 - **SQLite can't translate `DateTimeOffset` comparisons/ordering** in LINQ `Where`/`OrderBy`
   (production runs Postgres, which handles this fine). Materialize with `ToListAsync()`
   first, then filter/order client-side. Every place this bites has a comment explaining it
   — search for "SQLite's EF Core provider can't translate" before assuming a query is safe.
+- **SQLite can't translate `ulong` (Discord snowflake `GuildId`/`DiscordUserId`/`ChannelId`/etc.)
+  columns in ORDER BY either** — same family of gotcha as the one above, same fix
+  (`NotSupportedException` locally; Postgres handles it fine). This bites in two ways: an
+  initial query ordering by a `ulong` column, and — easy to miss — marking a `ulong`
+  `PropertyColumn` `Sortable="true"` in a QuickGrid, which throws the moment someone clicks
+  that column's header rather than on page load. Hit for real building the `Manage/Database/`
+  debug pages (see below) — order by an `int`/`string` column instead (or don't order at all
+  if none exists), and leave `ulong` columns non-sortable.
 - **`EnsureCreated()` (SQLite dev path) only builds schema for a *new* file.** After adding
   entities or changing the schema, delete `hoshibot.dev.db` so it gets recreated.
 - **EF Core migration scaffolding sometimes can't tell a rename from a drop+recreate.**
@@ -126,3 +155,12 @@ labels, error messages) — English is fine for code, comments, and the Web admi
   reach for its components first (`<Select>`/`<AutoComplete>` instead of a plain
   `<select>`, `<Collapse>` instead of a hand-rolled checkbox/label toggle, etc.) rather than
   writing the plain-HTML equivalent from scratch.
+- **Deciding CRUD vs. read-only for a new admin page**: does anything else (a Quartz job, a
+  Discord command, another Web page) already write to this table automatically? If yes, it's
+  job/Discord-managed — read-only (`StfcServerStatus`/`StfcEventStatus`/`StfcClientRelease`
+  and everything under `Manage/Database/`). If nothing else writes to it, full CRUD is
+  correct (`StfcRegion`/`Server`/`Alliance`/`Territory`, the STFC Discord-invite and
+  Territory Ownership/Neighbour pages). `Manage/Database/` specifically is a debug-only
+  section (plain QuickGrid Index pages, no Create/Edit/Delete) for tables with zero admin
+  visibility anywhere else, raw or curated — check there before assuming a table needs a
+  brand new page; it might already have a read-only one.
