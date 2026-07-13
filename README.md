@@ -72,10 +72,15 @@ factory default. **After adding a migration, re-run the migrator** to apply it l
 
 ### Secrets
 
-Never commit tokens/passwords to `appsettings*.json`. Use user-secrets locally:
+Never commit tokens/passwords to `appsettings*.json`. Use user-secrets locally. `Host` and
+`Web` have separate secret stores, so the bot token must be set on **both** — `Web` needs it
+for the `RestClient` it uses to read guild/role/channel data for the admin panel, and
+`ClientId`/`ClientSecret` on top for Discord OAuth login:
 
 ```bash
 dotnet user-secrets set "Discord:Token" "<bot-token>" --project src/HoshiBot.Host
+
+dotnet user-secrets set "Discord:Token" "<bot-token>" --project src/HoshiBot.Web
 dotnet user-secrets set "Discord:ClientId" "<oauth-client-id>" --project src/HoshiBot.Web
 dotnet user-secrets set "Discord:ClientSecret" "<oauth-client-secret>" --project src/HoshiBot.Web
 ```
