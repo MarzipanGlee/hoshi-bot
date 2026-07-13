@@ -136,6 +136,44 @@ current. If it *has* happened, local dev needs real EF migrations like productio
   `hoshibot.dev.db`** works (SQLite allows concurrent readers/writers) but adds real lock
   contention — worth knowing when diagnosing why an interaction handler is slower than
   expected in dev specifically (see the ack-then-edit gotcha above for why that matters).
+- **Thread removal must never be a general-purpose user command.** An earlier `/close-thread`
+  slash command (letting anyone with `ManageThreads` mark *any* thread for removal) was
+  deliberately deleted — thread removal must only ever be a button/action a specific feature
+  attaches to a thread it owns and understands the lifecycle of (e.g. a "close ticket" button
+  once that feature exists). `ThreadRemovalRequest`/`ThreadCleanupJob` (the queue + cleanup
+  job) are legitimate generic infrastructure and were kept — currently unused since nothing
+  produces rows for them — but a future thread-owning feature should wire a feature-specific
+  button into that same queue, not reintroduce a standalone command.
+- **A plain HTML `<select>` skips a `disabled` placeholder `<option>` when resolving its
+  default selection** — the browser jumps to the next enabled option instead of showing the
+  disabled one as selected. If a placeholder/sentinel option needs to display as the default
+  until a real choice is made, leave it a normal selectable option (it can still be
+  functionally inert downstream via its value) — confirmed via screenshot on `RolePicker.razor`,
+  don't assume `disabled` alone achieves "shown but not a real choice."
+- **Bootstrap 5 utility classes (`.d-flex`, `.gap-3`, `.d-none`, etc.) all compile `!important`.**
+  Before converting a custom CSS declaration to the matching utility class, check whether that
+  same property is overridden elsewhere by a custom `@media` query (this app has non-standard
+  641px/900px breakpoints tied to the sidebar's own collapse point, not Bootstrap's sm/md/lg),
+  an inline `style` toggle, or a `:hover`/state selector — if that override isn't itself
+  `!important`, the utility class silently and permanently defeats it regardless of source
+  order. Hit for real converting `MainLayout.razor.css` to Bootstrap utilities (broke the
+  sidebar's `@media(min-width:641px)` row/column layout twice in one sitting).
+- **BootstrapBlazor's `<Collapse>` has no `ChildContent` parameter** — only a named
+  `CollapseItems` RenderFragment. Nesting `<CollapseItem>` directly as `<Collapse>...</Collapse>`
+  child content compiles cleanly but silently renders nothing; wrap explicitly:
+  `<Collapse><CollapseItems>...</CollapseItems></Collapse>`.
+- **EF Core can't translate `localList.Any(x => x.ForeignId == entity.Id)`** — a lambda
+  comparing against a local `List<TEntity>` of entity objects (not primitives) throws
+  `InvalidOperationException: could not be translated`, and inside a Blazor Server circuit
+  this is swallowed entirely (no console output, no error UI) — a cascading dropdown or
+  filtered list just silently stays empty. Fix: precompute
+  `var ids = localList.Select(x => x.ForeignId).ToHashSet();` first, then
+  `.Where(e => !ids.Contains(e.Id))` — a primitive-typed `HashSet.Contains` translates fine.
+- **BootstrapBlazor's bundled CSS truncates `.form-check-label` text** (`white-space: nowrap;
+  overflow: hidden`, fixed width) whenever the wrapping element has both `form-check` AND
+  `form-switch` classes together — invisible until a switch gets a long label. Fix: drop the
+  `form-check` class and keep only `form-switch` (the input's own classes still apply the
+  switch styling) — cleaner than fighting it with a component-scoped `!important` override.
 
 ## Conventions
 
@@ -164,3 +202,31 @@ current. If it *has* happened, local dev needs real EF migrations like productio
   section (plain QuickGrid Index pages, no Create/Edit/Delete) for tables with zero admin
   visibility anywhere else, raw or curated — check there before assuming a table needs a
   brand new page; it might already have a read-only one.
+- **Push Discord/infra API calls (`RestClient`, `IMemoryCache`, etc.) into a service, even for
+  a single caller.** A Razor component injecting these directly to make Discord REST calls
+  should move that logic into the relevant service (e.g. `DiscordGuildDataService`) regardless
+  of whether the call is duplicated elsewhere — this is about keeping components as UI/state
+  glue and infra calls in a service layer, not about deduplication. Still use judgment on
+  behavior-preserving extraction (a method's semantics may need a new parameter/overload
+  rather than reusing an existing one with different behavior for its other callers).
+
+## Collaboration notes
+
+- **Get explicit sign-off (screenshot + approval) before committing/pushing any visual/styling
+  change to `HoshiBot.Web`** — don't stage and commit right after your own local
+  verification passes. A past NotFound-page styling fix looked correct in a local screenshot
+  but the user's own test showed it still broken; the deeper issue was committing before they
+  got a chance to look at all. Backend logic changes (auth, routing, job behavior) already
+  verified via curl/build/test don't need this extra gate — this is specific to visual changes.
+- **When the user shows concrete real-world evidence (a screenshot of actual Discord/browser
+  state) that contradicts a conclusion drawn from reading code, trust the evidence and dig
+  deeper — don't just restate the code-based analysis.** Static code analysis shows what code
+  currently does, not whether that path was ever actually exercised for real; a live
+  screenshot is stronger evidence of intent than an untested code path. Concretely: this once
+  correctly surfaced a real bug (RoE Violations wired to a Forum channel that the current code
+  couldn't actually create private threads on).
+- **Before "fixing" what looks like an unintended regression in a pre-commit `git diff`, ask
+  rather than silently reverting it.** A diff shows *what* changed, not *why* or *by whom* —
+  a removal that looks like collateral damage from your own earlier edits may be a deliberate
+  change the user made themselves (confirmed happening once with an intentionally-removed CSS
+  rule). State the finding and ask before restoring it.
