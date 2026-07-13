@@ -48,10 +48,6 @@
                 </InputSelect>
                 <ValidationMessage For="() => Ownership.AllianceId" class="text-danger" />
             </div>
-            <div class="mb-3">
-                <label for="lastCapturedAt" class="form-label">Last Captured At (UTC):</label>
-                <InputDate id="lastCapturedAt" Type="InputDateType.DateTimeLocal" @bind-Value="Ownership.LastCapturedAt" class="form-control" />
-            </div>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>
@@ -98,7 +94,6 @@
         else
         {
             existing.AllianceId = Ownership.AllianceId;
-            existing.LastCapturedAt = Ownership.LastCapturedAt;
         }
 
         await context.SaveChangesAsync();

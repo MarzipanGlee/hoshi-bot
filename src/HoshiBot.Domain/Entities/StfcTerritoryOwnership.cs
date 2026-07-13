@@ -17,6 +17,4 @@ public class StfcTerritoryOwnership
     public int AllianceId { get; set; }
 
     public StfcAlliance Alliance { get; set; } = null!;
-
-    public DateTimeOffset? LastCapturedAt { get; set; }
 }

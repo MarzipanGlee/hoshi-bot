@@ -21,8 +21,6 @@
             <dd class="col-sm-10">@ownership.Server.DisplayName</dd>
             <dt class="col-sm-2">Alliance</dt>
             <dd class="col-sm-10">@ownership.Alliance.Tag</dd>
-            <dt class="col-sm-2">Last Captured</dt>
-            <dd class="col-sm-10">@ownership.LastCapturedAt</dd>
         </dl>
         <EditForm method="post" Model="ownership" OnValidSubmit="DeleteOwnership" FormName="delete" Enhance>
             <button type="submit" class="btn btn-danger">Delete</button> |

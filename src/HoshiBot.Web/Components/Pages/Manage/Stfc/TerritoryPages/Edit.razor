@@ -78,14 +78,13 @@ else
 
     <h2 class="mt-4">Ownership</h2>
     <table class="table">
-        <thead><tr><th>Server</th><th>Alliance</th><th>Last Captured</th><th></th></tr></thead>
+        <thead><tr><th>Server</th><th>Alliance</th><th></th></tr></thead>
         <tbody>
             @foreach (var ownership in ownerships)
             {
                 <tr>
                     <td>@ownership.Server.DisplayName</td>
                     <td>[@ownership.Alliance.Tag] @ownership.Alliance.Name</td>
-                    <td>@(ownership.LastCapturedAt?.ToString("g") ?? "-")</td>
                     <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveOwnershipAsync(ownership)">Remove</button></td>
                 </tr>
             }
@@ -224,13 +223,11 @@ else
                 TerritoryId = Id,
                 ServerId = newOwnershipServerId,
                 AllianceId = newOwnershipAllianceId,
-                LastCapturedAt = DateTimeOffset.UtcNow,
             });
         }
         else
         {
             existing.AllianceId = newOwnershipAllianceId;
-            existing.LastCapturedAt = DateTimeOffset.UtcNow;
         }
 
         await context.SaveChangesAsync();
