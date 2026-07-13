@@ -1,0 +1,90 @@
+@page "/manage/database/client-releases"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Client Releases</PageTitle>
+
+<h1>Client Releases</h1>
+<p>
+    Latest known STFC game client version per platform, as tracked by
+    <code>StfcClientReleaseNotifyJob</code>. Editing <code>Notified Version</code> to
+    something older than <code>Version</code> forces the next poll to re-announce it;
+    editing <code>Version</code> corrects a bad scrape.
+</p>
+
+<table class="table">
+    <thead><tr><th>Platform</th><th>Version</th><th>Notified Version</th><th>Updated At (UTC)</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var platform in Enum.GetValues<StfcClientPlatform>())
+        {
+            var release = releases.GetValueOrDefault(platform);
+            <tr>
+                <td>@platform</td>
+                @if (release is null)
+                {
+                    <td colspan="3"><em>Not yet observed</em></td>
+                    <td>
+                        <input class="form-control form-control-sm d-inline-block w-auto" placeholder="Version" @bind="newVersionInputs[platform]" />
+                        <button class="btn btn-sm btn-primary" @onclick="() => CreateRelease(platform)">Set</button>
+                    </td>
+                }
+                else
+                {
+                    <td><input class="form-control form-control-sm" @bind="release.Version" /></td>
+                    <td><input class="form-control form-control-sm" @bind="release.NotifiedVersion" /></td>
+                    <td>@release.UpdatedAt</td>
+                    <td><button class="btn btn-sm btn-primary" @onclick="() => SaveRelease(release)">Save</button></td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private Dictionary<StfcClientPlatform, StfcClientRelease> releases = [];
+
+    // Every platform key must exist upfront — @bind="newVersionInputs[platform]" uses the
+    // dictionary indexer, whose getter throws KeyNotFoundException for a missing key (unlike
+    // GetValueOrDefault), and this dictionary starts out with no rows created yet.
+    private readonly Dictionary<StfcClientPlatform, string?> newVersionInputs =
+        Enum.GetValues<StfcClientPlatform>().ToDictionary(p => p, _ => (string?)null);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        releases = await db.StfcClientReleases.AsNoTracking().ToDictionaryAsync(r => r.Platform);
+    }
+
+    private async Task CreateRelease(StfcClientPlatform platform)
+    {
+        var version = newVersionInputs.GetValueOrDefault(platform);
+        if (string.IsNullOrWhiteSpace(version))
+            return;
+
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            db.StfcClientReleases.Add(new StfcClientRelease
+            {
+                Platform = platform,
+                Version = version,
+                NotifiedVersion = version,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        newVersionInputs[platform] = null;
+        await LoadAsync();
+    }
+
+    private async Task SaveRelease(StfcClientRelease release)
+    {
+        release.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Attach(release).State = EntityState.Modified;
+        await db.SaveChangesAsync();
+        await LoadAsync();
+    }
+}

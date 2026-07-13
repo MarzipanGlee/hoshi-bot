@@ -1,0 +1,98 @@
+@page "/manage/stfc/alliance-invites/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Alliance Discord Invite</PageTitle>
+
+<h1>Edit Alliance Discord Invite</h1>
+<hr />
+@if (Invite is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Invite" OnValidSubmit="UpdateInvite" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Invite.Id" value="@Invite.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="alliance" class="form-label">Alliance:</label>
+                    <InputSelect id="alliance" @bind-Value="Invite.AllianceId" class="form-control">
+                        @foreach (var alliance in alliances)
+                        {
+                            <option value="@alliance.Id">@alliance.Tag (@alliance.Server.DisplayName)</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Invite.AllianceId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="url" class="form-label">Invite URL:</label>
+                    <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Invite.Url" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/manage/stfc/alliance-invites">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcAllianceDiscordInvite? Invite { get; set; }
+
+    private List<StfcAlliance> alliances = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        alliances = await context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).AsNoTracking().OrderBy(a => a.Tag).ToListAsync();
+        Invite ??= await context.StfcAllianceDiscordInvites.FirstOrDefaultAsync(i => i.Id == Id);
+
+        if (Invite is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+
+    private async Task UpdateInvite()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Invite!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await InviteExistsAsync(Invite!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc/alliance-invites");
+    }
+
+    private async Task<bool> InviteExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcAllianceDiscordInvites.AnyAsync(i => i.Id == id);
+    }
+}

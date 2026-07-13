@@ -1,0 +1,40 @@
+@page "/manage/database/stfc-news-posts"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>STFC News Posts</PageTitle>
+
+<h1>STFC News Posts</h1>
+<p>
+    Read-only — Alliance Tournament / Infinite Incursions posts detected by
+    <code>StfcNewsNotifyJob</code>, and the shared crowd-sourced date-confirmation state for
+    each. For debugging.
+</p>
+
+@* PublishedAt/DetectedAt/SubmittedAt/ResolvedAt are DateTimeOffset — SQLite's EF Core
+   provider can't translate them in ORDER BY, so this orders by Id instead and leaves
+   them non-sortable. *@
+<QuickGrid Class="table" Items="context.StfcNewsPosts.OrderByDescending(p => p.Id)">
+    <PropertyColumn Property="post => post.Id" Sortable="true" />
+    <PropertyColumn Property="post => post.EventGroup" Sortable="true" />
+    <PropertyColumn Property="post => post.Title" Sortable="true" />
+    <PropertyColumn Property="post => post.Link" />
+    <PropertyColumn Property="post => post.DetectedAt" />
+    <PropertyColumn Property="post => post.SubmittedDate" Sortable="true" />
+    <PropertyColumn Property="post => post.SubmittedByDiscordUserId" />
+    <PropertyColumn Property="post => post.RequiredConfirmations" Sortable="true" />
+    <PropertyColumn Property="post => post.LastDisplayedConfirmationCount" Title="Displayed Confirmations" Sortable="true" />
+    <PropertyColumn Property="post => post.ResolvedAt" />
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

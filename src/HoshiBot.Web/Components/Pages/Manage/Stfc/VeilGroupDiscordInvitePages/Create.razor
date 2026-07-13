@@ -1,0 +1,64 @@
+@page "/manage/stfc/veil-group-invites/create"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Veil Group Discord Invite</PageTitle>
+
+<h1>Create Veil Group Discord Invite</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Invite" OnValidSubmit="AddInvite" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="veilGroup" class="form-label">Veil Group:</label>
+                <InputSelect id="veilGroup" @bind-Value="Invite.VeilGroupId" class="form-control">
+                    <option value="0">Select veil group...</option>
+                    @foreach (var veilGroup in veilGroups)
+                    {
+                        <option value="@veilGroup.Id">@veilGroup.Name</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Invite.VeilGroupId" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="url" class="form-label">Invite URL:</label>
+                <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Invite.Url" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/manage/stfc/veil-group-invites">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private StfcVeilGroupDiscordInvite Invite { get; set; } = default!;
+
+    private List<StfcVeilGroup> veilGroups = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Invite ??= new() { Url = "" };
+        using var context = DbFactory.CreateDbContext();
+        veilGroups = await context.StfcVeilGroups.AsNoTracking().OrderBy(v => v.Name).ToListAsync();
+    }
+
+    private async Task AddInvite()
+    {
+        if (Invite.VeilGroupId == 0)
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcVeilGroupDiscordInvites.Add(Invite);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc/veil-group-invites");
+    }
+}

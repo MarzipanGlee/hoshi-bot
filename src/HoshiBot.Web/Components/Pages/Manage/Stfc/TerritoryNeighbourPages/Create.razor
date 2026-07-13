@@ -1,0 +1,70 @@
+@page "/manage/stfc/territory-neighbours/create"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Territory Neighbour</PageTitle>
+
+<h1>Create Territory Neighbour</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Neighbour" OnValidSubmit="AddNeighbour" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="territory" class="form-label">Territory:</label>
+                <InputSelect id="territory" @bind-Value="Neighbour.TerritoryId" class="form-control">
+                    <option value="0">Select territory...</option>
+                    @foreach (var territory in territories)
+                    {
+                        <option value="@territory.Id">@territory.Name</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Neighbour.TerritoryId" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="neighbourTerritory" class="form-label">Neighbour Territory:</label>
+                <InputSelect id="neighbourTerritory" @bind-Value="Neighbour.NeighbourTerritoryId" class="form-control">
+                    <option value="0">Select territory...</option>
+                    @foreach (var territory in territories)
+                    {
+                        <option value="@territory.Id">@territory.Name</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Neighbour.NeighbourTerritoryId" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/manage/stfc/territory-neighbours">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private StfcTerritoryNeighbour Neighbour { get; set; } = default!;
+
+    private List<StfcTerritory> territories = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Neighbour ??= new();
+        using var context = DbFactory.CreateDbContext();
+        territories = await context.StfcTerritories.AsNoTracking().OrderBy(t => t.Name).ToListAsync();
+    }
+
+    private async Task AddNeighbour()
+    {
+        if (Neighbour.TerritoryId == 0 || Neighbour.NeighbourTerritoryId == 0)
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcTerritoryNeighbours.Add(Neighbour);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc/territory-neighbours");
+    }
+}

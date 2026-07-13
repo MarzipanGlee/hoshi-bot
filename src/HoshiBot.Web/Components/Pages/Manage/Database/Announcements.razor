@@ -1,0 +1,36 @@
+@page "/manage/database/announcements"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Announcements</PageTitle>
+
+<h1>Announcements</h1>
+<p>Read-only — published via the Command Bridge hub, stores real content for audit/history. For debugging.</p>
+
+@* SentAt is a DateTimeOffset and GuildId is a ulong (Discord snowflake) — SQLite's EF
+   Core provider can't translate either in ORDER BY, so this orders by Id instead and
+   leaves both non-sortable. *@
+<QuickGrid Class="table" Items="context.Announcements.OrderByDescending(a => a.Id)">
+    <PropertyColumn Property="announcement => announcement.Id" Sortable="true" />
+    <PropertyColumn Property="announcement => announcement.GuildId" />
+    <PropertyColumn Property="announcement => announcement.Title" Sortable="true" />
+    <PropertyColumn Property="announcement => announcement.Severity" Sortable="true" />
+    <PropertyColumn Property="announcement => announcement.Audience" Sortable="true" />
+    <PropertyColumn Property="announcement => announcement.ChannelId" />
+    <PropertyColumn Property="announcement => announcement.MessageId" />
+    <PropertyColumn Property="announcement => announcement.TriggeredByDiscordUserId" />
+    <PropertyColumn Property="announcement => announcement.SentAt" />
+    <PropertyColumn Property="announcement => announcement.LastKnownReadCount" Title="Read Count" Sortable="true" />
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

@@ -1,0 +1,29 @@
+@page "/manage/database/guild-members"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Guild Members</PageTitle>
+
+<h1>Guild Members</h1>
+<p>Read-only — synced from Discord, not admin-editable here. For debugging.</p>
+
+@* GuildId/DiscordUserId are ulong (Discord snowflakes) and JoinedAt is a DateTimeOffset —
+   SQLite's EF Core provider can't translate any of them in ORDER BY, so this is left
+   unordered and all three columns non-sortable. *@
+<QuickGrid Class="table" Items="context.GuildMembers">
+    <PropertyColumn Property="member => member.GuildId" />
+    <PropertyColumn Property="member => member.DiscordUserId" />
+    <PropertyColumn Property="member => member.JoinedAt" />
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

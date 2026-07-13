@@ -1,0 +1,98 @@
+@page "/manage/stfc/veil-group-invites/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Veil Group Discord Invite</PageTitle>
+
+<h1>Edit Veil Group Discord Invite</h1>
+<hr />
+@if (Invite is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Invite" OnValidSubmit="UpdateInvite" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Invite.Id" value="@Invite.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="veilGroup" class="form-label">Veil Group:</label>
+                    <InputSelect id="veilGroup" @bind-Value="Invite.VeilGroupId" class="form-control">
+                        @foreach (var veilGroup in veilGroups)
+                        {
+                            <option value="@veilGroup.Id">@veilGroup.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Invite.VeilGroupId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="url" class="form-label">Invite URL:</label>
+                    <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Invite.Url" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/manage/stfc/veil-group-invites">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcVeilGroupDiscordInvite? Invite { get; set; }
+
+    private List<StfcVeilGroup> veilGroups = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        veilGroups = await context.StfcVeilGroups.AsNoTracking().OrderBy(v => v.Name).ToListAsync();
+        Invite ??= await context.StfcVeilGroupDiscordInvites.FirstOrDefaultAsync(i => i.Id == Id);
+
+        if (Invite is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+
+    private async Task UpdateInvite()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Invite!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await InviteExistsAsync(Invite!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc/veil-group-invites");
+    }
+
+    private async Task<bool> InviteExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcVeilGroupDiscordInvites.AnyAsync(i => i.Id == id);
+    }
+}

@@ -1,0 +1,34 @@
+@page "/manage/stfc/territory-neighbours"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Territory Neighbours</PageTitle>
+
+<h1>Territory Neighbours</h1>
+<p>Directed zone-adjacency edges — add both directions if a pair should be mutual neighbours.</p>
+
+<p>
+    <a href="manage/stfc/territory-neighbours/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="context.StfcTerritoryNeighbours.Include(n => n.Territory).Include(n => n.NeighbourTerritory).OrderBy(n => n.Territory.Name).ThenBy(n => n.NeighbourTerritory.Name)">
+    <PropertyColumn Property="neighbour => neighbour.Territory.Name" Title="Territory" Sortable="true" />
+    <PropertyColumn Property="neighbour => neighbour.NeighbourTerritory.Name" Title="Neighbour" Sortable="true" />
+
+    <TemplateColumn Context="neighbour">
+        <a href="@($"manage/stfc/territory-neighbours/edit?id={neighbour.Id}")">Edit</a> |
+        <a href="@($"manage/stfc/territory-neighbours/delete?id={neighbour.Id}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

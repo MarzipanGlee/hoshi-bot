@@ -1,0 +1,31 @@
+@page "/manage/database/alert-notifications"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Alert Notifications</PageTitle>
+
+<h1>Alert Notifications</h1>
+<p>Read-only — one row per channel/DM an alert was fanned out to. For debugging.</p>
+
+@* SentAt is a DateTimeOffset — SQLite's EF Core provider can't translate it in
+   ORDER BY, so this orders by Id instead and leaves SentAt non-sortable. *@
+<QuickGrid Class="table" Items="context.AlertNotifications.OrderByDescending(n => n.Id)">
+    <PropertyColumn Property="notification => notification.Id" Sortable="true" />
+    <PropertyColumn Property="notification => notification.AlertId" Sortable="true" />
+    <PropertyColumn Property="notification => notification.Kind" Sortable="true" />
+    <PropertyColumn Property="notification => notification.ChannelId" />
+    <PropertyColumn Property="notification => notification.MessageId" />
+    <PropertyColumn Property="notification => notification.SentAt" />
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

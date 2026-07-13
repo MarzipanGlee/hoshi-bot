@@ -1,0 +1,31 @@
+@page "/manage/database/thread-removal-requests"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Thread Removal Requests</PageTitle>
+
+<h1>Thread Removal Requests</h1>
+<p>Read-only — managed entirely via feature-specific Discord buttons. For debugging.</p>
+
+@* RequestedAt is a DateTimeOffset, and GuildId/ThreadId are ulong (Discord snowflakes) —
+   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
+   Id instead and leaves the others non-sortable. *@
+<QuickGrid Class="table" Items="context.ThreadRemovalRequests.OrderByDescending(r => r.Id)">
+    <PropertyColumn Property="request => request.Id" Sortable="true" />
+    <PropertyColumn Property="request => request.GuildId" />
+    <PropertyColumn Property="request => request.ThreadId" />
+    <PropertyColumn Property="request => request.RequestedByDiscordUserId" />
+    <PropertyColumn Property="request => request.RequestedAt" />
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

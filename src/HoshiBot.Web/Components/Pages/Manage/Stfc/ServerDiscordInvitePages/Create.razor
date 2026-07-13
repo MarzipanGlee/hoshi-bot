@@ -1,0 +1,64 @@
+@page "/manage/stfc/server-invites/create"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Server Discord Invite</PageTitle>
+
+<h1>Create Server Discord Invite</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Invite" OnValidSubmit="AddInvite" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="server" class="form-label">Server:</label>
+                <InputSelect id="server" @bind-Value="Invite.ServerId" class="form-control">
+                    <option value="0">Select server...</option>
+                    @foreach (var server in servers)
+                    {
+                        <option value="@server.Id">@server.DisplayName</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Invite.ServerId" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="url" class="form-label">Invite URL:</label>
+                <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Invite.Url" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/manage/stfc/server-invites">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private StfcServerDiscordInvite Invite { get; set; } = default!;
+
+    private List<StfcServer> servers = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Invite ??= new() { Url = "" };
+        using var context = DbFactory.CreateDbContext();
+        servers = await context.StfcServers.Include(s => s.Region).AsNoTracking().OrderBy(s => s.Name).ToListAsync();
+    }
+
+    private async Task AddInvite()
+    {
+        if (Invite.ServerId == 0)
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcServerDiscordInvites.Add(Invite);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc/server-invites");
+    }
+}

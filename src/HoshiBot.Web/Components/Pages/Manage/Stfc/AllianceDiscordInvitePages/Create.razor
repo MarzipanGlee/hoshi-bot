@@ -1,0 +1,64 @@
+@page "/manage/stfc/alliance-invites/create"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Alliance Discord Invite</PageTitle>
+
+<h1>Create Alliance Discord Invite</h1>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Invite" OnValidSubmit="AddInvite" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="alliance" class="form-label">Alliance:</label>
+                <InputSelect id="alliance" @bind-Value="Invite.AllianceId" class="form-control">
+                    <option value="0">Select alliance...</option>
+                    @foreach (var alliance in alliances)
+                    {
+                        <option value="@alliance.Id">@alliance.Tag (@alliance.Server.DisplayName)</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Invite.AllianceId" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <span class="text-danger">*</span>
+                <label for="url" class="form-label">Invite URL:</label>
+                <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Invite.Url" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a href="/manage/stfc/alliance-invites">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private StfcAllianceDiscordInvite Invite { get; set; } = default!;
+
+    private List<StfcAlliance> alliances = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Invite ??= new() { Url = "" };
+        using var context = DbFactory.CreateDbContext();
+        alliances = await context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).AsNoTracking().OrderBy(a => a.Tag).ToListAsync();
+    }
+
+    private async Task AddInvite()
+    {
+        if (Invite.AllianceId == 0)
+            return;
+
+        using var context = DbFactory.CreateDbContext();
+        context.StfcAllianceDiscordInvites.Add(Invite);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/manage/stfc/alliance-invites");
+    }
+}

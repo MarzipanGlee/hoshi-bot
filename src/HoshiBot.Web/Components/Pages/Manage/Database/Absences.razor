@@ -1,0 +1,38 @@
+@page "/manage/database/absences"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Absences</PageTitle>
+
+<h1>Absences</h1>
+<p>Read-only — managed entirely via Discord buttons/modals. For debugging.</p>
+
+@* StartsAt/EndsAt/CreatedAt are DateTimeOffset, and GuildId/DiscordUserId are ulong
+   (Discord snowflakes) — SQLite's EF Core provider can't translate any of them in
+   ORDER BY, so this orders by Id instead and leaves the others non-sortable. *@
+<QuickGrid Class="table" Items="context.Absences.OrderByDescending(a => a.Id)">
+    <PropertyColumn Property="absence => absence.Id" Sortable="true" />
+    <PropertyColumn Property="absence => absence.GuildId" />
+    <PropertyColumn Property="absence => absence.DiscordUserId" />
+    <PropertyColumn Property="absence => absence.StartsAt" />
+    <PropertyColumn Property="absence => absence.EndsAt" />
+    <PropertyColumn Property="absence => absence.Reason" />
+    <PropertyColumn Property="absence => absence.SuppressNotifications" Sortable="true" />
+    <PropertyColumn Property="absence => absence.Visibility" Sortable="true" />
+    <PropertyColumn Property="absence => absence.Status" Sortable="true" />
+    <PropertyColumn Property="absence => absence.CreatedByDiscordUserId" />
+    <PropertyColumn Property="absence => absence.CreatedAt" />
+    <PropertyColumn Property="absence => absence.EditsAbsenceId" />
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

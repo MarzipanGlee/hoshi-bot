@@ -1,0 +1,38 @@
+@page "/manage/database/pending-modal-inputs"
+@implements IAsyncDisposable
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>Pending Modal Inputs</PageTitle>
+
+<h1>Pending Modal Inputs</h1>
+<p>
+    Read-only — draft field values from a failed modal submission, kept so a "Back" button can
+    reopen it pre-filled. Swept away by <code>PendingModalInputSweepJob</code>. For debugging.
+</p>
+
+@* CreatedAt is a DateTimeOffset, and GuildId/DiscordUserId are ulong (Discord snowflakes) —
+   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by Id
+   instead and leaves the other three non-sortable. *@
+<QuickGrid Class="table" Items="context.PendingModalInputs.OrderByDescending(i => i.Id)">
+    <PropertyColumn Property="input => input.Id" Sortable="true" />
+    <PropertyColumn Property="input => input.GuildId" />
+    <PropertyColumn Property="input => input.DiscordUserId" />
+    <PropertyColumn Property="input => input.Kind" Sortable="true" />
+    <PropertyColumn Property="input => input.Field1" />
+    <PropertyColumn Property="input => input.Field2" />
+    <PropertyColumn Property="input => input.Field3" />
+    <PropertyColumn Property="input => input.Field4" />
+    <PropertyColumn Property="input => input.CreatedAt" />
+</QuickGrid>
+
+@code {
+    private HoshiBotDbContext context = default!;
+
+    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}

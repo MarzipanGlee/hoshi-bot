@@ -1,0 +1,122 @@
+@page "/manage/stfc/territory-ownership/edit"
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Territory Ownership</PageTitle>
+
+<h1>Edit Territory Ownership</h1>
+<hr />
+@if (Ownership is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Ownership" OnValidSubmit="UpdateOwnership" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert" />
+                <input type="hidden" name="Ownership.Id" value="@Ownership.Id" />
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="territory" class="form-label">Territory:</label>
+                    <InputSelect id="territory" @bind-Value="Ownership.TerritoryId" class="form-control">
+                        @foreach (var territory in territories)
+                        {
+                            <option value="@territory.Id">@territory.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Ownership.TerritoryId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="server" class="form-label">Server:</label>
+                    <InputSelect id="server" @bind-Value="Ownership.ServerId" class="form-control">
+                        @foreach (var server in servers)
+                        {
+                            <option value="@server.Id">@server.DisplayName</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Ownership.ServerId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <span class="text-danger">*</span>
+                    <label for="alliance" class="form-label">Alliance:</label>
+                    <InputSelect id="alliance" @bind-Value="Ownership.AllianceId" class="form-control">
+                        @foreach (var alliance in alliances)
+                        {
+                            <option value="@alliance.Id">@alliance.Tag (@alliance.Server.DisplayName)</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Ownership.AllianceId" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="lastCapturedAt" class="form-label">Last Captured At (UTC):</label>
+                    <InputDate id="lastCapturedAt" Type="InputDateType.DateTimeLocal" @bind-Value="Ownership.LastCapturedAt" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/manage/stfc/territory-ownership">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private StfcTerritoryOwnership? Ownership { get; set; }
+
+    private List<StfcTerritory> territories = [];
+    private List<StfcServer> servers = [];
+    private List<StfcAlliance> alliances = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        territories = await context.StfcTerritories.AsNoTracking().OrderBy(t => t.Name).ToListAsync();
+        servers = await context.StfcServers.Include(s => s.Region).AsNoTracking().OrderBy(s => s.Name).ToListAsync();
+        alliances = await context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).AsNoTracking().OrderBy(a => a.Tag).ToListAsync();
+        Ownership ??= await context.StfcTerritoryOwnerships.FirstOrDefaultAsync(o => o.Id == Id);
+
+        if (Ownership is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+
+    private async Task UpdateOwnership()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Ownership!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await OwnershipExistsAsync(Ownership!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/manage/stfc/territory-ownership");
+    }
+
+    private async Task<bool> OwnershipExistsAsync(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return await context.StfcTerritoryOwnerships.AnyAsync(o => o.Id == id);
+    }
+}
