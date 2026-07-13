@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using HoshiBot.Domain.Entities;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
@@ -20,9 +21,20 @@ public class CurrentGuildContext(GuildAccessService guildAccessService, Protecte
     // needs an interactive circuit, so this can't run during prerendering.
     public async Task InitializeAsync(ClaimsPrincipal user)
     {
-        var result = await storage.GetAsync<ulong>(StorageKey);
-        if (result.Success)
-            await SetAsync(result.Value, user);
+        try
+        {
+            var result = await storage.GetAsync<ulong>(StorageKey);
+            if (result.Success)
+                await SetAsync(result.Value, user);
+        }
+        catch (CryptographicException)
+        {
+            // The stored value was protected with a Data Protection key that's no longer in the
+            // ring (e.g. the gitignored dev key folder was regenerated across the WSL2 move, or
+            // keys rotated). Unprotecting it throws here — treat it as absent and delete it so it
+            // stops crashing the circuit on every page load instead of just re-selecting a guild.
+            await storage.DeleteAsync(StorageKey);
+        }
     }
 
     public async Task<bool> SetAsync(ulong guildId, ClaimsPrincipal user)
