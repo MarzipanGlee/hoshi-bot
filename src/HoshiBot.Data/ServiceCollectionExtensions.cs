@@ -8,7 +8,6 @@ namespace HoshiBot.Data;
 
 public static class ServiceCollectionExtensions
 {
-    // "Postgres" (default, used in production/Docker) or "Sqlite" (local dev, zero setup).
     // Registers both IDbContextFactory<HoshiBotDbContext> — a fresh, short-lived context per
     // operation, which every HoshiBot.Web page/service/authorization-handler must use, since a
     // Blazor Server circuit's DI scope spans the whole session (many page navigations), not one
@@ -25,13 +24,7 @@ public static class ServiceCollectionExtensions
     {
         var connectionString = configuration.GetConnectionString("HoshiBotDbContext");
 
-        services.AddDbContextFactory<HoshiBotDbContext>(options =>
-        {
-            if (IsSqlite(configuration))
-                options.UseSqlite(connectionString ?? "Data Source=hoshibot.dev.db");
-            else
-                options.UseNpgsql(connectionString);
-        });
+        services.AddDbContextFactory<HoshiBotDbContext>(options => options.UseNpgsql(connectionString));
 
         services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<HoshiBotDbContext>>().CreateDbContext());
 
@@ -42,9 +35,8 @@ public static class ServiceCollectionExtensions
     // HoshiBot.Web) need on startup, so adding a new seeder only means updating this one
     // method instead of both Program.cs files. SeedGlobalAdminsIfEmptyAsync isn't
     // included — it's web-admin-panel-only, called separately by HoshiBot.Web.
-    public static async Task SeedHoshiBotDatabaseAsync(this IServiceProvider services, IConfiguration configuration)
+    public static async Task SeedHoshiBotDatabaseAsync(this IServiceProvider services)
     {
-        await services.EnsureHoshiBotDatabaseCreatedIfSqliteAsync(configuration);
         await services.SeedStfcCatalogIfEmptyAsync();
         await services.SeedStfcAlliancesIfEmptyAsync();
         await services.SeedStfcPlayersIfEmptyAsync();
@@ -55,19 +47,6 @@ public static class ServiceCollectionExtensions
         await services.SeedStfcNewsSettingsIfEmptyAsync();
         await services.SeedGuildSettingsIfEmptyAsync();
         await services.SeedHoshiTestGuildSettingsIfEmptyAsync();
-    }
-
-    // SQLite dev data is disposable, so it's created directly from the current model
-    // instead of via the checked-in Postgres migrations (which stay the schema source
-    // of truth, applied in production by HoshiBot.Migrator).
-    public static async Task EnsureHoshiBotDatabaseCreatedIfSqliteAsync(this IServiceProvider services, IConfiguration configuration)
-    {
-        if (!IsSqlite(configuration))
-            return;
-
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
-        await db.Database.EnsureCreatedAsync();
     }
 
     // Bootstraps the first global admin(s) from config, since nobody could otherwise grant
@@ -490,7 +469,4 @@ public static class ServiceCollectionExtensions
         db.StfcNewsSettings.Add(new StfcNewsSettings { Id = 1 });
         await db.SaveChangesAsync();
     }
-
-    private static bool IsSqlite(IConfiguration configuration) =>
-        string.Equals(configuration["Database:Provider"], "Sqlite", StringComparison.OrdinalIgnoreCase);
 }

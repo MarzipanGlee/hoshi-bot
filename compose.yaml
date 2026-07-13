@@ -55,6 +55,12 @@ services:
       - POSTGRES_DB=hoshibot
       - POSTGRES_USER=hoshibot
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    # Publish on loopback only so host-run local dev (`dotnet run` against
+    # Host=localhost) can reach Postgres. Bound to 127.0.0.1 so it's never
+    # exposed on the host's external interfaces in production, where bot/web
+    # reach it over the compose network via Host=postgres instead.
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:

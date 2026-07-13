@@ -20,12 +20,11 @@ public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient,
     {
         var cutoff = DateTimeOffset.UtcNow - GracePeriod;
 
-        // Filtered/ordered client-side: SQLite's EF Core provider can't translate
-        // DateTimeOffset comparisons here, and this table is always small (a handful
-        // of pending requests at most) so client evaluation is cheap either way.
-        var request = (await db.ThreadRemovalRequests.ToListAsync())
+        // Oldest request that's past its grace period, if any.
+        var request = await db.ThreadRemovalRequests
             .Where(r => r.RequestedAt <= cutoff)
-            .MinBy(r => r.RequestedAt);
+            .OrderBy(r => r.RequestedAt)
+            .FirstOrDefaultAsync();
 
         if (request is null)
             return;

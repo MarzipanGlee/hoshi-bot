@@ -28,11 +28,9 @@ public class AlertService(
     public static ButtonProperties ShieldReminderTerminateButton(ulong guildId) =>
         new($"shield-reminder-terminate:{guildId}", "Beenden", ButtonStyle.Danger);
 
-    // Case-insensitive: EF Core translates ToUpper() to the SQL UPPER() function on both
-    // providers. On Npgsql (production) this is a real Unicode-aware case fold; on SQLite
-    // (local dev) UPPER() only handles ASCII by default — a known, already-accepted
-    // dev/prod discrepancy in this codebase (see e.g. DateTimeOffset-ordering comments
-    // elsewhere), and moot today since every synced system name is English/ASCII anyway.
+    // Case-insensitive: EF Core translates ToUpper() to the SQL UPPER() function — a
+    // Unicode-aware case fold on Npgsql. Moot today since every synced system name is
+    // English/ASCII anyway.
     //
     // Falls back to a phonetic match (SystemNamePhoneticKey) when the exact lookup
     // misses — primarily for Cyrillic-transliterated input from Russian-locale players
@@ -70,19 +68,14 @@ public class AlertService(
         if (active is not null)
             return $"<@{targetUserId}> was already reported by <@{active.TriggeredByDiscordUserId}> at <t:{active.TriggeredAt.ToUnixTimeSeconds()}:f>.";
 
-        // Excludes test runs, so a self-test never shows up in real history. Ordered
-        // client-side: SQLite's EF Core provider can't translate DateTimeOffset
-        // ordering/comparisons — same workaround already used elsewhere in this codebase
-        // (e.g. ThreadCleanupJob) — and per-target raid counts are small enough that this
-        // is cheap either way.
-        var pastRaids = (await db.Alerts
+        // Excludes test runs, so a self-test never shows up in real history.
+        var pastRaids = await db.Alerts
             .Include(a => a.StfcSystem)
             .Where(a => a.GuildId == guildId && a.Type == AlertType.Raid && a.TargetDiscordUserId == targetUserId
                 && a.TerminatedAt != null && !a.IsTest)
-            .ToListAsync())
             .OrderByDescending(a => a.TriggeredAt)
             .Take(5)
-            .ToList();
+            .ToListAsync();
 
         var alert = new Alert
         {

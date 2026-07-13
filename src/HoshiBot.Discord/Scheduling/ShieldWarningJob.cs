@@ -24,15 +24,12 @@ public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispa
         var now = DateTimeOffset.UtcNow;
         var cutoff = now.Add(LookAhead);
 
-        // Filtered client-side: SQLite's EF Core provider can't translate DateTimeOffset
-        // comparisons here, and per-guild reminder counts are always small.
-        var reminders = (await db.ShieldReminders
+        // Only reminders whose shield expires within the look-ahead window.
+        var reminders = await db.ShieldReminders
             .Include(s => s.Notifications)
             .Include(s => s.StfcSystem)
-            .Where(s => !s.Disabled)
-            .ToListAsync())
-            .Where(s => s.ShieldExpiration <= cutoff)
-            .ToList();
+            .Where(s => !s.Disabled && s.ShieldExpiration <= cutoff)
+            .ToListAsync();
 
         foreach (var reminder in reminders)
         {

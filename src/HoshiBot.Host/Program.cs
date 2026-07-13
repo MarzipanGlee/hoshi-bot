@@ -203,6 +203,6 @@ var host = builder.Build();
 
 host.AddModules(typeof(PingModule).Assembly);
 
-await host.Services.SeedHoshiBotDatabaseAsync(builder.Configuration);
+await host.Services.SeedHoshiBotDatabaseAsync();
 
 await host.RunAsync();

@@ -11,7 +11,7 @@ reference alongside this repo).
 | Project | Purpose |
 |---|---|
 | `src/HoshiBot.Domain` | Plain POCOs, enums, and pure logic (duration/scheduling parsers) — no EF Core, no Discord references. |
-| `src/HoshiBot.Data` | EF Core `DbContext`, entity configurations, migrations, seed data. PostgreSQL in production, SQLite for local dev. |
+| `src/HoshiBot.Data` | EF Core `DbContext`, entity configurations, migrations, seed data. PostgreSQL in both production and local dev. |
 | `src/HoshiBot.Discord` | All bot behavior: slash-command/button/modal/menu modules, per-feature services, Quartz scheduled jobs. A plain library — no entry point. |
 | `src/HoshiBot.Host` | The Worker Service that actually runs the bot: composition root (DI, Quartz schedules, Discord gateway) plus one gateway handler (`GuildSyncHandler`). |
 | `src/HoshiBot.Web` | Blazor Web App admin panel — Discord OAuth2 login, per-guild settings, feature toggles, STFC catalog management. |
@@ -34,7 +34,7 @@ identification purposes only.
 
 ## Local development
 
-Requires .NET 10 SDK.
+Requires the .NET 10 SDK and Docker (for the local PostgreSQL database).
 
 ```bash
 dotnet restore
@@ -55,10 +55,20 @@ Run the web admin:
 dotnet run --project src/HoshiBot.Web
 ```
 
-Local dev defaults to SQLite (`Database:Provider` = `Sqlite` in each project's
-`appsettings.Development.json`, zero-setup file DB at `hoshibot.dev.db`) via
-`EnsureCreated()` — no migrations needed locally. **After any entity/schema change, delete
-`hoshibot.dev.db`** so it gets recreated with the current schema.
+Local dev runs against **PostgreSQL** — the same engine as production — via the `postgres`
+service in `compose.yaml`, published on `127.0.0.1:5432` so host-run `dotnet run` can reach
+it. Each project's `appsettings.Development.json` sets `Database:Provider` = `Postgres`.
+One-time setup:
+
+```bash
+docker compose up -d postgres        # start the local database
+HOSHIBOT_CONNECTIONSTRING="Host=localhost;Port=5432;Database=hoshibot;Username=hoshibot;Password=hoshibot" \
+  dotnet run --project tools/HoshiBot.Migrator   # create/upgrade the schema
+```
+
+`docker compose` reads `POSTGRES_PASSWORD` from a gitignored `.env`; the throwaway local
+value is `hoshibot`, matching both `appsettings.Development.json` and the design-time
+factory default. **After adding a migration, re-run the migrator** to apply it locally.
 
 ### Secrets
 

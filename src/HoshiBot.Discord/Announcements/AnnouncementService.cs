@@ -155,16 +155,12 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         return (wasNew, count);
     }
 
-    // Ordered client-side: SQLite's EF Core provider can't translate an OrderBy on a
-    // DateTimeOffset column (see the same workaround in ShieldWarningJob/
-    // TerritoryCaptureRoleSyncJob) — per-guild unread counts are always small.
     public async Task<List<Announcement>> GetUnreadAsync(ulong guildId, ulong userId, int limit = 10) =>
-        (await db.Announcements
+        await db.Announcements
             .Where(a => a.GuildId == guildId && !a.ReadReceipts.Any(r => r.GuildId == guildId && r.DiscordUserId == userId))
-            .ToListAsync())
             .OrderBy(a => a.SentAt)
             .Take(limit)
-            .ToList();
+            .ToListAsync();
 
     // Just the role name now — the bot's own identity is already covered by the embed's
     // standardized Author (EmbedBranding), no longer folded into this string.

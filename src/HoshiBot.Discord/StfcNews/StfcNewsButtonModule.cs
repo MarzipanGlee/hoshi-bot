@@ -24,8 +24,7 @@ public class StfcNewsButtonModule(StfcNewsService service) : ComponentInteractio
     // Personal ephemeral reply, not an edit to the shared message: an immediate "Processing"
     // ack (ConfirmDateAsync's DB work — recount, trusted-user check, and on the resolving
     // click a StfcEventStatus write — can occasionally exceed Discord's 3-second interaction
-    // deadline, e.g. under contention from the Web admin app sharing the same dev SQLite
-    // file), then edited with the real outcome once it completes. The shared message (seen by
+    // deadline), then edited with the real outcome once it completes. The shared message (seen by
     // everyone) is updated separately, inside the service, via a plain direct REST edit — kept
     // fully independent of this reply so the two can never conflict.
     [ComponentInteraction("stfc-news-confirm")]

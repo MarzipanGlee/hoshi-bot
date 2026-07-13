@@ -1,8 +1,7 @@
 namespace HoshiBot.Domain.Entities;
 
-// Uniqueness on (TerritoryId, ServerId) is enforced in application code, not a DB
-// constraint — avoids cross-provider filtered-index syntax differences between
-// Postgres/SQLite for a personal-scale bot.
+// Uniqueness on (TerritoryId, ServerId) is enforced in application code, not a
+// filtered unique index — simpler, and sufficient for a personal-scale bot.
 public class StfcTerritoryOwnership
 {
     public int Id { get; set; }

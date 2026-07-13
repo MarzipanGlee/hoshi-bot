@@ -38,10 +38,9 @@ public class StationHousingSystemAutocompleteProvider(HoshiBotDbContext db)
 
         var query = rawQuery.ToUpper();
 
-        // ToUpper() on both sides: EF Core's default LIKE translation for .Contains() is
-        // case-insensitive on SQLite (ASCII only) but case-sensitive on Npgsql — this
-        // makes it consistent across both providers rather than relying on SQLite's
-        // incidental behavior.
+        // ToUpper() on both sides for a case-insensitive match: EF Core translates
+        // .Contains() to a case-sensitive LIKE on Npgsql, so UPPER() both the column and
+        // the query to fold case explicitly.
         var matches = await db.StfcSystems
             .Where(s => s.HasStationHousing && s.Name.ToUpper().Contains(query))
             .OrderBy(s => s.Name)

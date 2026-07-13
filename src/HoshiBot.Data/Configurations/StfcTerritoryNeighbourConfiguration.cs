@@ -16,7 +16,7 @@ public class StfcTerritoryNeighbourConfiguration : IEntityTypeConfiguration<Stfc
             .HasForeignKey(n => n.TerritoryId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Two cascade paths into StfcTerritories would trip Postgres/SQLite's
+        // Two cascade paths into StfcTerritories would trip the database's
         // multiple-cascade-path restriction — this side is Restrict instead.
         builder.HasOne(n => n.NeighbourTerritory)
             .WithMany()

@@ -17,9 +17,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <!-- Pins EF Core to 10.0.9 for this project and everything that references it. Npgsql
+         10.0.2 only pulls EF Core 10.0.4 transitively, but Design (above, PrivateAssets=all)
+         compiles this assembly against 10.0.9, so consumers must resolve 10.0.9 too or they
+         hit CS1705 — the Sqlite package used to provide this pin incidentally. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
   </ItemGroup>
 
   <PropertyGroup>

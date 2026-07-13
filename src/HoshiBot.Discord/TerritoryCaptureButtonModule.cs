@@ -16,12 +16,9 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db) : ComponentInter
         var start = DateTimeOffset.FromUnixTimeSeconds(startUnix);
         var end = DateTimeOffset.FromUnixTimeSeconds(endUnix);
 
-        // Filtered client-side: SQLite's EF Core provider can't translate DateTimeOffset
-        // range comparisons here, and per-user absence counts are always small.
-        var overlapping = (await db.Absences
-            .Where(a => a.GuildId == guildId && a.DiscordUserId == userId)
-            .ToListAsync())
-            .Any(a => a.StartsAt < end && a.EndsAt > start);
+        var overlapping = await db.Absences
+            .AnyAsync(a => a.GuildId == guildId && a.DiscordUserId == userId
+                && a.StartsAt < end && a.EndsAt > start);
         if (overlapping)
             return EphemeralReply.Of("Du hast für diesen Zeitraum bereits eine Abwesenheit erfasst.");
 

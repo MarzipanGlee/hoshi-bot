@@ -42,8 +42,8 @@ public class TerritoryCaptureRoleSyncJob(
 
             var memberIds = await db.GuildMembers.Where(m => m.GuildId == guildId).Select(m => m.DiscordUserId).ToListAsync();
 
-            // Filtered client-side: SQLite's EF Core provider can't translate DateTimeOffset
-            // range comparisons here, and per-guild absence counts are always small.
+            // Materialize this guild's absences once, then check overlap in-memory across the
+            // slot × member loop below instead of querying the DB per member.
             var absences = await db.Absences.Where(a => a.GuildId == guildId).ToListAsync();
 
             for (var slotIndex = 1; slotIndex <= 5; slotIndex++)

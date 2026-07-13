@@ -64,14 +64,11 @@ public class AbsenceService(
     {
         var now = DateTimeOffset.UtcNow;
 
-        // Filtered client-side: SQLite's EF Core provider can't translate DateTimeOffset
-        // comparisons/ordering — same workaround already used in NotificationRoleSyncJob.
-        return (await db.Absences
-            .Where(a => a.GuildId == guildId && a.DiscordUserId == userId && a.Status == AbsenceStatus.Confirmed)
-            .ToListAsync())
-            .Where(a => a.EndsAt > now)
+        return await db.Absences
+            .Where(a => a.GuildId == guildId && a.DiscordUserId == userId && a.Status == AbsenceStatus.Confirmed
+                && a.EndsAt > now)
             .OrderBy(a => a.StartsAt)
-            .ToList();
+            .ToListAsync();
     }
 
     public Task<Absence> CreateDraftAsync(ulong guildId, ulong userId, DateTimeOffset startsAt, DateTimeOffset endsAt,

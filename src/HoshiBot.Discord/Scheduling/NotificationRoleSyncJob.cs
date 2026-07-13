@@ -50,13 +50,11 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
         var now = DateTimeOffset.UtcNow;
         var cutoff = now.Add(LookAhead);
 
-        // Filtered client-side: SQLite's EF Core provider can't translate DateTimeOffset
-        // range comparisons here, and per-guild absence counts are always small.
         var suppressedMemberIds = (await db.Absences
-            .Where(a => a.GuildId == notificationRole.GuildId && a.SuppressNotifications && a.Status == AbsenceStatus.Confirmed)
-            .ToListAsync())
-            .Where(a => a.StartsAt <= cutoff && a.EndsAt > now)
+            .Where(a => a.GuildId == notificationRole.GuildId && a.SuppressNotifications && a.Status == AbsenceStatus.Confirmed
+                && a.StartsAt <= cutoff && a.EndsAt > now)
             .Select(a => a.DiscordUserId)
+            .ToListAsync())
             .ToHashSet();
 
         foreach (var userId in memberIds)

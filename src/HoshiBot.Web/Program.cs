@@ -158,7 +158,7 @@ app.MapGet("/invite", (IConfiguration config, ulong? guildId) =>
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-await app.Services.SeedHoshiBotDatabaseAsync(builder.Configuration);
+await app.Services.SeedHoshiBotDatabaseAsync();
 await app.Services.SeedGlobalAdminsIfEmptyAsync(builder.Configuration);
 
 await app.RunAsync();
