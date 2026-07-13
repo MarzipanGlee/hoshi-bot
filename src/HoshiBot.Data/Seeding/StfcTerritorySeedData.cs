@@ -21,11 +21,9 @@ namespace HoshiBot.Data.Seeding;
 // one API territory id, with zero left over on either side.
 public static class StfcTerritorySeedData
 {
-    // This zone map and its Ownership snapshot are specific to server 164 — alliance tags
-    // in Ownership below must be resolved against this server only, since tags are only
-    // unique per-server and plenty are reused across the 113 known servers.
-    public const int Server164Id = 164;
-
+    // The zone catalog (names, tiers, schedule, adjacency). Current ownership is no longer here
+    // — it's seeded per-server from StfcTerritoryOwnershipSeedData (stfc.pro's stfc_territories
+    // feed) instead of a hand-transcribed server-164 snapshot.
     public static readonly (int Id, string Name, int Tier, DayOfWeek? Weekday, TimeOnly? CaptureTimeUtc, string[] Neighbours)[] Entries =
     [
         // Legacy day-0 (Sunday) group, Tier 1.
@@ -97,54 +95,5 @@ public static class StfcTerritorySeedData
 
         // New zone (2026-07-04), not in the legacy 55.
         (2088113723, "Qoda", 4, DayOfWeek.Monday, new TimeOnly(19, 0), ["Framtid", "Nujord", "Duportas"]),
-    ];
-
-    public static readonly (string ZoneName, string AllianceTag)[] Ownership =
-    [
-        ("Qeyma", "RETR"),
-        ("Gelida", "BCTK"),
-        ("Vemira", "LF"),
-        ("Helvi", "DSX"),
-        ("Temeri", "S3I"),
-        ("Stilhe", "DÀRK"),
-        ("Parturi", "THOR"),
-        ("Aylus", "BONK"),
-        ("Hoobishan", "S3I"),
-        ("Crios", "DÀRK"),
-        ("Roshar", "DÀRK"),
-        ("Abilakk", "DSX"),
-        ("Adia", "TLE"),
-        ("Otima", "GER"),
-        ("Perim", "S3I"),
-        ("Thaylen", "AEON"),
-        ("Asiti", "THOR"),
-        ("Tefkari", "GOT"),
-        ("Nujord", "KOBY"),
-        ("Thosz", "BONK"),
-        ("Lenara", "DSX"),
-        ("Vantar", "DFÖ"),
-        ("Avansa", "DÀRK"),
-        ("Burran", "AEON"),
-        ("Triss", "DSX"),
-        ("Brijac", "KÅØŞ"),
-        ("Hrojost", "KOBY"),
-        ("Tezera", "LF"),
-        ("Ber'Tho", "SHQL"),
-        ("Comst", "AEON"),
-        ("Framtid", "KOBY"),
-        ("Ruhe", "GER"),
-        ("Saldeti", "BCTK"),
-        ("Ezla", "S3I"),
-        ("Kolava", "THOR"),
-        ("Beku", "KÅØŞ"),
-        ("Klefaski", "DFÖ"),
-        ("Tazolka", "SHQL"),
-        ("Tigan", "LF"),
-        ("Mak'ala", "S3I"),
-        ("Nyrheimur", "KOBY"),
-        ("Barasa", "KÅØŞ"),
-        ("Tholus", "LF"),
-        ("Brellan", "SHQL"),
-        ("Qoda", "KOBY"),
     ];
 }

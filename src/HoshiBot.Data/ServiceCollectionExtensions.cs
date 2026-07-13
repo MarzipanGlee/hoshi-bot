@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         await services.SeedStfcAlliancesIfEmptyAsync();
         await services.SeedStfcPlayersIfEmptyAsync();
         await services.SeedStfcTerritoriesIfEmptyAsync();
+        await services.SeedStfcTerritoryOwnershipIfEmptyAsync();
         await services.SeedStfcServerStatusIfEmptyAsync();
         await services.SeedStfcEventStatusIfEmptyAsync();
         await services.SeedIncursionsRegionDefaultsIfEmptyAsync();
@@ -235,13 +236,11 @@ public static class ServiceCollectionExtensions
         await db.SaveChangesAsync();
     }
 
-    // Seeds the Territory Capture zone map (names, tiers, neighbours, current
-    // weekday/time schedule, and current ownership) from StfcTerritorySeedData. Only
-    // seeds while no territory exists yet, so it never overwrites data corrected later.
-    // Ownership rows are skipped (not created) for any alliance tag not yet known to
-    // StfcAlliances on server 164 — alliance seeding is a separate concern. Must resolve
-    // scoped to server 164 (see StfcTerritorySeedData.Server164Id) now that StfcAlliances
-    // covers every server — a Tag alone is not globally unique.
+    // Seeds the Territory Capture zone map (names, tiers, neighbours, current weekday/time
+    // schedule) from StfcTerritorySeedData. Only seeds while no territory exists yet, so it
+    // never overwrites data corrected later. Ownership is seeded separately
+    // (SeedStfcTerritoryOwnershipIfEmptyAsync) under its own guard, since it depends on
+    // alliances already being seeded.
     public static async Task SeedStfcTerritoriesIfEmptyAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -276,18 +275,49 @@ public static class ServiceCollectionExtensions
             }
         }
 
-        foreach (var (zoneName, allianceTag) in StfcTerritorySeedData.Ownership)
+        await db.SaveChangesAsync();
+    }
+
+    // Seeds per-server territory ownership from StfcTerritoryOwnershipSeedData (a snapshot of
+    // stfc.pro's stfc_territories feed). Guarded on ownership being empty (not on territories
+    // being empty) so it self-heals: if territories were seeded in an earlier state where the
+    // owning alliances weren't resolvable yet, ownership stays empty and this backfills it on
+    // the next startup once the alliances exist. Must run after both the territory and alliance
+    // seeders. Each (Server, Tag) is resolved against StfcAlliances (a Tag alone is not globally
+    // unique, so resolution is scoped per server); rows with a null Tag, or a Tag/Territory not
+    // present in the DB, are skipped.
+    public static async Task SeedStfcTerritoryOwnershipIfEmptyAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+
+        if (await db.StfcTerritoryOwnerships.AnyAsync())
+            return;
+
+        var territoryIds = (await db.StfcTerritories.Select(t => t.Id).ToListAsync()).ToHashSet();
+        if (territoryIds.Count == 0)
+            return;
+
+        // (ServerId, Tag) -> AllianceId, resolved in-memory so the thousands of ownership rows
+        // don't each cost a DB round-trip. Tag is unique per server, so the key is unambiguous.
+        var alliances = await db.StfcAlliances.Select(a => new { a.Id, a.ServerId, a.Tag }).ToListAsync();
+        var allianceIdByServerTag = alliances
+            .GroupBy(a => (a.ServerId, a.Tag))
+            .ToDictionary(g => g.Key, g => g.First().Id);
+
+        foreach (var (server, territory, tag) in StfcTerritoryOwnershipSeedData.Entries)
         {
-            var alliance = await db.StfcAlliances.FirstOrDefaultAsync(a =>
-                a.Tag == allianceTag && a.ServerId == StfcTerritorySeedData.Server164Id);
-            if (alliance is null)
+            if (tag is null || !territoryIds.Contains(territory))
+                continue;
+
+            if (!allianceIdByServerTag.TryGetValue((server, tag), out var allianceId))
                 continue;
 
             db.StfcTerritoryOwnerships.Add(new StfcTerritoryOwnership
             {
-                TerritoryId = territoriesByName[zoneName].Id,
-                ServerId = alliance.ServerId,
-                AllianceId = alliance.Id,
+                TerritoryId = territory,
+                ServerId = server,
+                AllianceId = allianceId,
             });
         }
 
