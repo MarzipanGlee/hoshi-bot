@@ -44,17 +44,30 @@ public class OpsLevelRoleSyncJob(
                     gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => (int?)up.StfcPlayer.OpsLevel).FirstOrDefault()))
                 .ToListAsync();
 
+            // The Alliance audience is per-alliance: apply each enabled alliance's own ops-level
+            // palette (to all members, per the product decision — palettes stack when several
+            // alliances configure them). Other audiences are guild-scoped.
             foreach (var audience in enabledAudiences)
-                await SyncAudienceAsync(guildId, audience, members);
+            {
+                if (audience == GuildAudience.Alliance)
+                {
+                    foreach (var allianceId in await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.OpsLevelRoles))
+                        await SyncAudienceAsync(guildId, audience, allianceId, members);
+                }
+                else
+                {
+                    await SyncAudienceAsync(guildId, audience, null, members);
+                }
+            }
         }
     }
 
-    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, IReadOnlyList<MemberOpsLevel> members)
+    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, IReadOnlyList<MemberOpsLevel> members)
     {
         var roleIdsByGroup = new Dictionary<StfcOpsGroup, ulong>();
         foreach (var group in Enum.GetValues<StfcOpsGroup>())
         {
-            var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.OpsLevelRoles, audience, OpsLevelRolesSettingKeys.RoleForGroup(group));
+            var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.OpsLevelRoles, audience, guildAllianceId, OpsLevelRolesSettingKeys.RoleForGroup(group));
             if (roleId is { } id)
                 roleIdsByGroup[group] = id;
         }

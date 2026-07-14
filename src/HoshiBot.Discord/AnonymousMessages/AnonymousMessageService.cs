@@ -17,9 +17,9 @@ public class AnonymousMessageService(
     EmbedBranding embedBranding,
     GuildFeatureSettingsService settingsService)
 {
-    public async Task<string> SendAsync(ulong guildId, GuildAudience audience, string subject, string message)
+    public async Task<string> SendAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, string subject, string message)
     {
-        var channelIdResult = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AnonymousMessaging, audience, AnonymousMessagingSettingKeys.Channel);
+        var channelIdResult = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AnonymousMessaging, audience, guildAllianceId, AnonymousMessagingSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
             return "Der Kanal für anonyme Nachrichten ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 

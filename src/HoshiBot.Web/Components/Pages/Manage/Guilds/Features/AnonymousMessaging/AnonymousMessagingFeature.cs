@@ -15,6 +15,6 @@ public class AnonymousMessagingFeature : IFeatureModule
     public string Icon => "oi-envelope-closed";
     public Type EditorComponentType => typeof(AnonymousMessagingEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, AnonymousMessagingSettingKeys.Channel) is not null;
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AnonymousMessagingSettingKeys.Channel) is not null;
 }

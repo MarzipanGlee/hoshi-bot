@@ -25,22 +25,20 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.Absences;
 
-    private GuildAudience audience;
     private List<IGuildChannel> channels = [];
     private string? reportChannelIdInput;
     private string? staffChannelIdInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        audience = GuildFeatureAudiences.SingleAudience(Feature);
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        reportChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportChannel))?.ToString();
-        staffChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportStaffChannel))?.ToString();
+        reportChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportChannel))?.ToString();
+        staffChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportStaffChannel))?.ToString();
     }
 
     private Task SaveReportChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportChannel, ParseId(reportChannelIdInput));
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportChannel, ParseId(reportChannelIdInput));
 
     private Task SaveStaffChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AbsencesSettingKeys.ReportStaffChannel, ParseId(staffChannelIdInput));
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportStaffChannel, ParseId(staffChannelIdInput));
 }

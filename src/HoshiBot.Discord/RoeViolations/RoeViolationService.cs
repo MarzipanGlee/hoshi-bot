@@ -21,7 +21,8 @@ public class RoeViolationService(
     GatewayClient gatewayClient,
     NotificationDispatcher dispatcher,
     EmbedBranding embedBranding,
-    GuildFeatureSettingsService settingsService)
+    GuildFeatureSettingsService settingsService,
+    GuildAllianceService allianceService)
 {
     private const string VictimInstructions =
         "Bitte prüfe zuerst Folgendes, bevor der Fall weiterverfolgt wird:\n" +
@@ -85,14 +86,21 @@ public class RoeViolationService(
     public async Task<string> CreateReportAsync(ulong guildId, ulong reporterId, string attackerTag, string attackerName,
         string defenderTag, string defenderName, ulong? attackerDiscordUserId, bool reporterIsVictim)
     {
-        var channelIdResult = await settingsService.GetSnowflakeAsync(
-            guildId, GuildFeature.RoeViolationReports, GuildAudience.Alliance, RoeViolationReportsSettingKeys.Channel);
+        // The report belongs to the reporter's own linked alliance; if they have no resolvable
+        // alliance, fall back to the guild's primary link so a report is never lost.
+        var guildAllianceId = (await allianceService.FindByMemberAsync(guildId, reporterId))?.Id
+            ?? await allianceService.GetPrimaryIdAsync(guildId);
+        var channelIdResult = guildAllianceId is null
+            ? null
+            : await settingsService.GetSnowflakeAsync(
+                guildId, GuildFeature.RoeViolationReports, GuildAudience.Alliance, guildAllianceId, RoeViolationReportsSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
             return "Der RoE-Verstoss-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 
         var report = new RoeViolationReport
         {
             GuildId = guildId,
+            GuildAllianceId = guildAllianceId,
             AttackerAllianceTag = attackerTag,
             AttackerCommanderName = attackerName,
             DefenderAllianceTag = defenderTag,
@@ -164,8 +172,13 @@ public class RoeViolationService(
         if (callerId != report.ReportedByDiscordUserId)
             return "Nur die meldende Person kann dies bestätigen.";
 
-        var diplomatRoleId = await settingsService.GetSnowflakeAsync(
-            report.GuildId, GuildFeature.Diplomacy, GuildAudience.Alliance, DiplomacySettingKeys.DiplomatRole);
+        // The diplomat pinged is the one for the report's own alliance (fallback to primary for
+        // legacy reports created before per-alliance scoping).
+        var diplomacyAllianceId = report.GuildAllianceId ?? await allianceService.GetPrimaryIdAsync(report.GuildId);
+        var diplomatRoleId = diplomacyAllianceId is null
+            ? null
+            : await settingsService.GetSnowflakeAsync(
+                report.GuildId, GuildFeature.Diplomacy, GuildAudience.Alliance, diplomacyAllianceId, DiplomacySettingKeys.DiplomatRole);
         var mention = diplomatRoleId is { } roleId ? $"<@&{roleId}>" : null;
 
         try

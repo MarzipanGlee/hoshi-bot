@@ -1,5 +1,6 @@
 @using HoshiBot.Web.Services
 @using NetCord
+@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 @inject GuildFeatureService FeatureService
@@ -25,41 +26,54 @@
         <ChannelPicker Label="Announcements Draft" ShowLabel="false" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
             @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
     </SettingsCard>
+
+    <SettingsCard Title="Warnings Role">
+        <RolePicker Label="Warnings Role" ShowLabel="false" Usage="Pinged when a High-severity announcement is published."
+            @bind-Value="warningsRoleInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
+    </SettingsCard>
 </div>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
 
     private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
     private bool enabled;
     private string? channelInput;
     private string? remindersChannelInput;
     private string? draftChannelInput;
+    private string? warningsRoleInput;
 
     protected override async Task OnInitializedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Announcements, Audience);
-        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.Channel))?.ToString();
-        remindersChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.RemindersChannel))?.ToString();
-        draftChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.DraftChannel))?.ToString();
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId);
+        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.Channel))?.ToString();
+        remindersChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.RemindersChannel))?.ToString();
+        draftChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.DraftChannel))?.ToString();
+        warningsRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.WarningsRole))?.ToString();
     }
 
     private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Announcements, Audience, value);
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, value);
         enabled = value;
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.Channel, ParseId(channelInput));
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.Channel, ParseId(channelInput));
 
     private Task SaveRemindersChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.RemindersChannel, ParseId(remindersChannelInput));
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.RemindersChannel, ParseId(remindersChannelInput));
 
     private Task SaveDraftChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, AnnouncementsSettingKeys.DraftChannel, ParseId(draftChannelInput));
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.DraftChannel, ParseId(draftChannelInput));
+
+    private Task SaveWarningsRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Announcements, Audience, GuildAllianceId, AnnouncementsSettingKeys.WarningsRole, ParseId(warningsRoleInput));
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
 }

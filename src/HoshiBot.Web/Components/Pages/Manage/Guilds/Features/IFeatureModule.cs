@@ -21,16 +21,17 @@ public interface IFeatureModule
     Type EditorComponentType { get; }
 
     // Identical logic for every feature (just checks GuildEnabledFeature for Feature+
-    // audience) — a default interface method, so this is written once here rather than
-    // duplicated verbatim across all 12 module classes.
-    Task<bool> IsEnabledAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context) =>
-        context.FeatureService.IsEnabledAsync(guildId, Feature, audience);
+    // audience+alliance) — a default interface method, so this is written once here rather than
+    // duplicated verbatim across all module classes. guildAllianceId scopes the Alliance
+    // audience to one linked alliance (null otherwise — see FeatureScopeGuard).
+    Task<bool> IsEnabledAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        context.FeatureService.IsEnabledAsync(guildId, Feature, audience, guildAllianceId);
 
-    // Whether this feature's required settings are actually present for guildId+audience —
-    // the Features page's yellow "enabled but not configured" state. Unlike IsEnabledAsync,
+    // Whether this feature's required settings are actually present for guildId+audience+alliance
+    // — the Features page's yellow "enabled but not configured" state. Unlike IsEnabledAsync,
     // this genuinely varies per feature (different settings shapes), so every module
     // implements its own — no default body.
-    Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context);
+    Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context);
 }
 
 // Everything a module's own checks might need, bundled so the interface members stay one

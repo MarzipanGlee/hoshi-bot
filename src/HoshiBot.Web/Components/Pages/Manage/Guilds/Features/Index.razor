@@ -1,8 +1,10 @@
 @page "/manage/guilds/{GuildId}/features"
+@implements IDisposable
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject GuildFeatureService FeatureService
 @inject GuildFeatureSettingsService SettingsService
+@inject CurrentAllianceContext AllianceContext
 @inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage Storage
 
 <PageTitle>Features</PageTitle>
@@ -27,6 +29,11 @@ else
         if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
             continue;
 
+        // The Alliance section shows the currently-selected alliance (top-bar AllianceSelector).
+        // With no alliance linked there's nothing to scope to, so skip it (Audience page links one).
+        if (audience == GuildAudience.Alliance && SelectedAllianceId is null)
+            continue;
+
         var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
         if (hideInactive)
             features = features.Where(f => enabledFeatures.Contains((f.Feature, audience))).ToList();
@@ -34,7 +41,7 @@ else
         if (features.Count == 0)
             continue;
 
-        <h3 class="fs-6 fw-semibold text-uppercase mt-4" style="color:#5a5a63;letter-spacing:0.03em;margin-bottom:0.75rem;">@AudienceDisplay.Labels(audience).First()</h3>
+        <h3 class="fs-6 fw-semibold text-uppercase mt-4" style="color:#5a5a63;letter-spacing:0.03em;margin-bottom:0.75rem;">@SectionHeader(audience)</h3>
         <div class="card-grid">
             @foreach (var feature in features)
             {
@@ -66,10 +73,28 @@ else
     private HashSet<(GuildFeature Feature, GuildAudience Audience)> configuredFeatures = [];
     private bool hideInactive;
 
+    // The Alliance section reflects the alliance chosen in the top-bar AllianceSelector; other
+    // audiences are guild-scoped (null).
+    private int? SelectedAllianceId => AllianceContext.GuildAllianceId;
+    private int? Scope(GuildAudience audience) => audience == GuildAudience.Alliance ? SelectedAllianceId : null;
+
+    private string SectionHeader(GuildAudience audience) =>
+        audience == GuildAudience.Alliance && AllianceContext.Alliance is { } link
+            ? $"Alliance — [{link.StfcAlliance.Tag}]"
+            : AudienceDisplay.Labels(audience).First();
+
     private string FeatureHref(IFeatureModule feature, GuildAudience audience) =>
-        feature.HasMultipleAudiences()
-            ? $"manage/guilds/{GuildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}"
-            : $"manage/guilds/{GuildId}/features/{feature.Slug}";
+        audience == GuildAudience.Alliance
+            ? $"manage/guilds/{GuildId}/features/{feature.Slug}/alliance/{SelectedAllianceId}"
+            : $"manage/guilds/{GuildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}";
+
+    protected override void OnInitialized() => AllianceContext.Changed += OnAllianceChanged;
+
+    private void OnAllianceChanged() => InvokeAsync(async () =>
+    {
+        await LoadFeaturesAsync();
+        StateHasChanged();
+    });
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
@@ -83,16 +108,30 @@ else
             .Select(s => s.Audiences)
             .FirstOrDefaultAsync();
 
+        await LoadFeaturesAsync();
+    }
+
+    // Builds the enabled/configured sets for the current selected alliance. Re-run on alliance
+    // switch so the Alliance section reflects the chosen alliance specifically (not "any alliance").
+    private async Task LoadFeaturesAsync()
+    {
+        var enabledScopes = await FeatureService.GetEnabledAsync(ParsedGuildId);
         var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
         enabledFeatures = [];
         configuredFeatures = [];
         foreach (var feature in FeatureCatalog.All)
         {
-            var audiences = await FeatureService.GetEnabledAudiencesAsync(ParsedGuildId, feature.Feature);
-            foreach (var audience in audiences)
+            foreach (var audience in GuildFeatureAudiences.EnumerateFlags(feature.RelevantAudiences()))
             {
+                if (audience == GuildAudience.Alliance && SelectedAllianceId is null)
+                    continue;
+
+                var scope = Scope(audience);
+                if (!enabledScopes.Contains((feature.Feature, audience, scope)))
+                    continue;
+
                 enabledFeatures.Add((feature.Feature, audience));
-                if (await feature.IsConfiguredAsync(ParsedGuildId, audience, context))
+                if (await feature.IsConfiguredAsync(ParsedGuildId, audience, scope, context))
                     configuredFeatures.Add((feature.Feature, audience));
             }
         }
@@ -100,14 +139,14 @@ else
 
     private async Task ToggleFeatureAsync(GuildFeature feature, GuildAudience audience, bool enabled)
     {
-        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, audience, enabled);
+        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, audience, Scope(audience), enabled);
         if (enabled)
         {
             enabledFeatures.Add((feature, audience));
 
             var module = FeatureCatalog.All.First(f => f.Feature == feature);
             var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
-            if (await module.IsConfiguredAsync(ParsedGuildId, audience, context))
+            if (await module.IsConfiguredAsync(ParsedGuildId, audience, Scope(audience), context))
                 configuredFeatures.Add((feature, audience));
         }
         else
@@ -115,6 +154,8 @@ else
             enabledFeatures.Remove((feature, audience));
         }
     }
+
+    public void Dispose() => AllianceContext.Changed -= OnAllianceChanged;
 
     private async Task ToggleHideInactiveAsync(ChangeEventArgs e)
     {

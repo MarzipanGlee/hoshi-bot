@@ -1,0 +1,28 @@
+@using HoshiBot.Domain.Entities
+
+<div class="card h-100" style="cursor:pointer;" @onclick="() => OnOpen.InvokeAsync()">
+    <div class="card-header d-flex align-items-center gap-3">
+        <span class="oi oi-star fs-4 flex-shrink-0" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+        <div>
+            <h2 class="fs-6 fw-semibold mb-1">[@Link.StfcAlliance.Tag] @Link.StfcAlliance.Name</h2>
+            <span class="badge bg-secondary">@Link.StfcAlliance.Server.DisplayName</span>
+        </div>
+    </div>
+
+    <div class="card-footer">
+        <p class="mb-0" style="color:#5a5a63;">@EnabledCount/@TotalCount features enabled</p>
+    </div>
+</div>
+
+@code {
+    // A guild's per-linked-alliance card on the guild Overview page — clicking selects that
+    // alliance (top-bar context) and opens its Features page. Mirrors GuildCard's whole-card
+    // click pattern, scaled down for the alliance's tag/name/server + enabled-feature count.
+    [Parameter, EditorRequired] public GuildAlliance Link { get; set; } = null!;
+
+    [Parameter] public int EnabledCount { get; set; }
+
+    [Parameter] public int TotalCount { get; set; }
+
+    [Parameter] public EventCallback OnOpen { get; set; }
+}

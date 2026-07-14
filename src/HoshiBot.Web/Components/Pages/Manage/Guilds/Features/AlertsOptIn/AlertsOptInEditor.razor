@@ -26,16 +26,14 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.AlertsOptIn;
 
-    private GuildAudience audience;
     private List<Role> roles = [];
     private string? roleIdInput;
     private string? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        audience = GuildFeatureAudiences.SingleAudience(Feature);
         roles = await DiscordData.GetRolesAsync(GuildId);
-        roleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, AlertsOptInSettingKeys.Role))?.ToString();
+        roleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AlertsOptInSettingKeys.Role))?.ToString();
     }
 
     private async Task SaveRoleAsync()
@@ -46,7 +44,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, roleIdInput, "Alerts");
             roleIdInput = roleId?.ToString();
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, AlertsOptInSettingKeys.Role, roleId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AlertsOptInSettingKeys.Role, roleId);
         }
         catch (RestException)
         {

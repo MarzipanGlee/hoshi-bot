@@ -25,11 +25,11 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         return (content[..newlineIndex].Trim(), content[(newlineIndex + 1)..].Trim());
     }
 
-    public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId)
+    public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId)
     {
         var settings = await db.GuildSettings.FindAsync(guildId);
 
-        var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, AnnouncementsSettingKeys.Channel);
+        var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.Channel);
         if (channelId is not { } channelIdValue)
             return "Set the Announcements channel first (via the guild settings page).";
 
@@ -42,7 +42,8 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
                 .Where(r => r.GuildId == guildId && r.Kind == NotificationRoleKind.General)
                 .Select(r => (ulong?)r.DiscordRoleId)
                 .FirstOrDefaultAsync(),
-            AnnouncementSeverity.High => settings?.WarningsRoleId,
+            AnnouncementSeverity.High => await settingsService.GetSnowflakeAsync(
+                guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.WarningsRole),
             _ => null,
         };
 

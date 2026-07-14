@@ -2,6 +2,9 @@
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject GuildFeatureService FeatureService
+@inject GuildAllianceService AllianceService
+@inject CurrentAllianceContext AllianceContext
+@inject NavigationManager Nav
 
 <PageTitle>@(guildName ?? "Guild")</PageTitle>
 
@@ -30,6 +33,19 @@ else
             <p class="mb-0" style="color:#5a5a63;">@(setupComplete ? "Setup complete" : "Needs setup")</p>
         </SettingsCard>
     </div>
+
+    @if (links.Count > 0)
+    {
+        <h2 class="fs-5 fw-semibold mt-4 mb-2">Alliances</h2>
+        <p class="mb-3" style="color:#5a5a63;">Select an alliance to configure its features and settings.</p>
+        <div class="card-grid">
+            @foreach (var link in links)
+            {
+                <AllianceCard Link="link" EnabledCount="allianceEnabledCounts.GetValueOrDefault(link.Id)" TotalCount="allianceFeatureTotal"
+                              OnOpen="() => OpenAllianceAsync(link.Id)" />
+            }
+        </div>
+    }
 }
 
 @code {
@@ -41,9 +57,19 @@ else
     private bool setupComplete;
     private int enabledCount;
     private int totalCount;
+    private List<GuildAlliance> links = [];
+    private Dictionary<int, int> allianceEnabledCounts = new();
+    private int allianceFeatureTotal;
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
+        links = await AllianceService.GetLinksAsync(ParsedGuildId);
+        allianceFeatureTotal = FeatureCatalog.All.Count(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance));
+        allianceEnabledCounts = (await FeatureService.GetEnabledAsync(ParsedGuildId))
+            .Where(s => s.Audience == GuildAudience.Alliance && s.GuildAllianceId is not null)
+            .GroupBy(s => s.GuildAllianceId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+
         await using var db = await DbFactory.CreateDbContextAsync();
         guildName = await db.DiscordGuilds
             .Where(g => g.Id == ParsedGuildId)
@@ -82,5 +108,11 @@ else
                     enabledCount++;
             }
         }
+    }
+
+    private async Task OpenAllianceAsync(int guildAllianceId)
+    {
+        await AllianceContext.SetAsync(guildAllianceId);
+        Nav.NavigateTo($"manage/guilds/{GuildId}/features");
     }
 }

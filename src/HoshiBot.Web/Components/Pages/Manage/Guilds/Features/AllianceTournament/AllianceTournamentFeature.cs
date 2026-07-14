@@ -15,7 +15,7 @@ public class AllianceTournamentFeature : IFeatureModule
     public string Icon => "oi-flag";
     public Type EditorComponentType => typeof(AllianceTournamentEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context)
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
         await using var db = await context.DbFactory.CreateDbContextAsync();
         return await db.GuildAlertChannels.AnyAsync(c => c.GuildId == guildId && c.Kind == GuildAlertChannelKind.AllianceTournament && c.Audience == audience);

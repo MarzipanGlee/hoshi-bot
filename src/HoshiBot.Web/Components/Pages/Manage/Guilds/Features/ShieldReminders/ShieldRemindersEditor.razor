@@ -18,7 +18,7 @@
     </SettingsCard>
 </div>
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="audience" />
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="ResolvedAudience" />
 
 @code {
     protected override GuildFeature Feature => GuildFeature.ShieldReminders;
@@ -27,17 +27,15 @@
     // AlertChannelListEditor list below, GuildAlertChannelKind.Shield) — key stays local.
     private const string ChannelKey = "Channel";
 
-    private GuildAudience audience;
     private List<IGuildChannel> channels = [];
     private string? channelIdInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        audience = GuildFeatureAudiences.SingleAudience(Feature);
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, ChannelKey))?.ToString();
+        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, ChannelKey))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, ChannelKey, ParseId(channelIdInput));
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, ChannelKey, ParseId(channelIdInput));
 }

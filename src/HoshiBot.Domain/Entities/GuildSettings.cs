@@ -24,14 +24,8 @@ public class GuildSettings
     public ulong? LogChannelId { get; set; }
     public ulong? AdminChannelId { get; set; }
     public ulong? UserLogChannelId { get; set; }
-    // The two persistent, edited-in-place "Abwesenheiten" report messages — tracked so
-    // AbsenceService.RefreshReportsAsync can edit them in place instead of re-posting,
-    // same role CommandBridgeMessageId plays for the hub message.
-    public ulong? AbsencesReportMessageId { get; set; }
-    public ulong? AbsencesReportStaffMessageId { get; set; }
     public ulong? AllianceBoardingChannelId { get; set; }
     public ulong? CommandBridgeChannelId { get; set; }
-    public ulong? RemindersChannelId { get; set; }
     public ulong? RemindersAlliesChannelId { get; set; }
     public ulong? RemindersServicesChannelId { get; set; }
     public ulong? RulesDeChannelId { get; set; }
@@ -51,7 +45,6 @@ public class GuildSettings
     public ulong? CrewsRoleId { get; set; }
     public ulong? BetaTesterRoleId { get; set; }
     public ulong? HoshiTesterRoleId { get; set; }
-    public ulong? WarningsRoleId { get; set; }
 
     // Stamped when a guild admin completes (or explicitly finishes, even having skipped
     // steps) the Setup Wizard — drives the "needs setup" nudge on Guilds/Index.razor.

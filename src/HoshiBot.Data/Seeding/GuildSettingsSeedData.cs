@@ -15,6 +15,15 @@ public static class GuildSettingsSeedData
     public const ulong GuildId = 793375182596866079;
     public const string GuildName = "Lost Falcons";
 
+    // Lost Falcons' own linked alliance — "LF" / "Lost Falcons" on server 164 (Mindmeld),
+    // StfcAlliances.Id 7433. Seeded as a GuildAlliance so this single-alliance guild's
+    // per-alliance feature settings (all seeded under GuildAudience.Alliance below) attach to a
+    // concrete alliance under the multi-alliance model. MemberRole/DiplomatRole reuse the roles
+    // this guild already uses (MemberRoleId below / the Diplomacy DiplomatRole snowflake).
+    public const int OwnStfcAllianceId = 7433;
+    public const ulong OwnAllianceMemberRoleId = 793383681233518633;
+    public const ulong OwnAllianceDiplomatRoleId = 829693359874375710;
+
     public static GuildSettings CreateSettings() => new()
     {
         GuildId = GuildId,
@@ -25,7 +34,6 @@ public static class GuildSettingsSeedData
         UserLogChannelId = 1251050019235299448,
         AllianceBoardingChannelId = 955406358356852746,
         CommandBridgeChannelId = 1251810911451349095,
-        RemindersChannelId = 832991289423167579,
         RemindersAlliesChannelId = 1273592443954003968,
         RemindersServicesChannelId = 810175634096783411,
         RulesDeChannelId = 803965908309245962,
@@ -40,7 +48,6 @@ public static class GuildSettingsSeedData
         CrewsRoleId = 1044929004035113070,
         BetaTesterRoleId = 1253341776970776637,
         HoshiTesterRoleId = 1268128662457286687,
-        WarningsRoleId = 793383681233518633,
     };
 
     // Per-feature settings that now live in GuildFeatureSettingSnowflakes/Texts instead of
@@ -58,6 +65,9 @@ public static class GuildSettingsSeedData
         (GuildFeature.ShieldReminders, "Channel", 1252972665044603083),
         (GuildFeature.AnonymousMessaging, AnonymousMessagingSettingKeys.Channel, 1254418233788858480),
         (GuildFeature.AlertsOptIn, AlertsOptInSettingKeys.Role, 1253175695354364066),
+        // Moved off GuildSettings.RemindersChannelId / WarningsRoleId into their features.
+        (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.DigestChannel, 832991289423167579),
+        (GuildFeature.Announcements, AnnouncementsSettingKeys.WarningsRole, 793383681233518633),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot1Role, 1275018847417536554),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot2Role, 1275019040108318791),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot3Role, 1275019101265465427),

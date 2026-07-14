@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using NetCord;
 using NetCord.Rest;
@@ -5,7 +6,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.Tickets;
 
-public class TicketModalModule(TicketService ticketService) : ComponentInteractionModule<ModalInteractionContext>
+public class TicketModalModule(TicketService ticketService, GuildAllianceService allianceService) : ComponentInteractionModule<ModalInteractionContext>
 {
     // Always opened from CommandBridgeButtonModule.ContactCommandStaffPrompt's ephemeral
     // wizard message, so ModifyMessage is safe here — never the public hub.
@@ -19,8 +20,12 @@ public class TicketModalModule(TicketService ticketService) : ComponentInteracti
             .ToDictionary(i => i.CustomId, i => i.Value)
             .GetValueOrDefault("subject") ?? "";
 
+        var parsedAudience = Enum.Parse<GuildAudience>(audience);
+        var guildAllianceId = parsedAudience == GuildAudience.Alliance
+            ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
+            : null;
         var result = await ticketService.OpenTicketAsync(
-            Context.Guild!.Id, Enum.Parse<GuildAudience>(audience), Context.User.Id, CommanderName.Of(Context.User), subject);
+            Context.Guild!.Id, parsedAudience, guildAllianceId, Context.User.Id, CommanderName.Of(Context.User), subject);
         return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
     }
 }

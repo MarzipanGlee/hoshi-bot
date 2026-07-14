@@ -16,9 +16,9 @@ public class RaidAlertsFeature : IFeatureModule
     public string Icon => "oi-bolt";
     public Type EditorComponentType => typeof(RaidAlertsEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context)
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
-        if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, "Channel") is not null)
+        if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, "Channel") is not null)
             return true;
 
         await using var db = await context.DbFactory.CreateDbContextAsync();

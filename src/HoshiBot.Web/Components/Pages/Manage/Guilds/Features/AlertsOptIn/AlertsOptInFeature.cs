@@ -16,6 +16,6 @@ public class AlertsOptInFeature : IFeatureModule
     public string Icon => "oi-bell";
     public Type EditorComponentType => typeof(AlertsOptInEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, AlertsOptInSettingKeys.Role) is not null;
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AlertsOptInSettingKeys.Role) is not null;
 }

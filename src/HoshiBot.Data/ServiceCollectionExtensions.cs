@@ -48,6 +48,12 @@ public static class ServiceCollectionExtensions
         await services.SeedStfcNewsSettingsIfEmptyAsync();
         await services.SeedGuildSettingsIfEmptyAsync();
         await services.SeedHoshiTestGuildSettingsIfEmptyAsync();
+
+        // Self-heal: attach any Alliance-audience feature rows still left unscoped (seeded or
+        // migrated before their guild linked an alliance) to each guild's primary link. Safe to
+        // run every startup — it only touches rows with a null GuildAllianceId.
+        using var scope = services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<GuildAllianceService>().AdoptAllOrphansAsync();
     }
 
     // Bootstraps the first global admin(s) from config, since nobody could otherwise grant
@@ -170,8 +176,23 @@ public static class ServiceCollectionExtensions
 
         db.GuildSettings.Add(GuildSettingsSeedData.CreateSettings());
 
+        // This guild's own linked alliance. All the per-feature settings below are seeded under
+        // GuildAudience.Alliance, which is now scoped per specific linked alliance — so they hang
+        // off this link (via the navigation property, so a single SaveChanges assigns its Id and
+        // fills the FK). Requires StfcAlliance 7433 to be seeded already (SeedStfcAlliancesIfEmptyAsync
+        // runs earlier in SeedHoshiBotDatabaseAsync).
+        var ownAlliance = new GuildAlliance
+        {
+            GuildId = GuildSettingsSeedData.GuildId,
+            StfcAllianceId = GuildSettingsSeedData.OwnStfcAllianceId,
+            MemberRoleId = GuildSettingsSeedData.OwnAllianceMemberRoleId,
+            DiplomatRoleId = GuildSettingsSeedData.OwnAllianceDiplomatRoleId,
+        };
+        db.GuildAlliances.Add(ownAlliance);
+
         // Raid/Shield alert channels are an Alliance-only feature — the only audience this
-        // seeded guild uses (see GuildSettingsSeedData's doc comment).
+        // seeded guild uses (see GuildSettingsSeedData's doc comment). GuildAlertChannel is not
+        // per-alliance (stays audience-scoped), so no link reference here.
         db.GuildAlertChannels.AddRange(GuildSettingsSeedData.AlertChannels.Select(c =>
             new GuildAlertChannel
             {
@@ -188,17 +209,24 @@ public static class ServiceCollectionExtensions
                 GuildId = GuildSettingsSeedData.GuildId,
                 Feature = s.Feature,
                 Audience = GuildAudience.Alliance,
+                GuildAlliance = ownAlliance,
                 Key = s.Key,
                 Value = s.Value,
             }));
 
         db.GuildEnabledFeatures.AddRange(GuildSettingsSeedData.EnabledFeatures.Select(feature =>
-            new GuildEnabledFeature
+        {
+            var audience = GuildFeatureAudiences.HasMultipleAudiences(feature) ? GuildAudience.Alliance : GuildFeatureAudiences.RelevantAudiences(feature);
+            return new GuildEnabledFeature
             {
                 GuildId = GuildSettingsSeedData.GuildId,
                 Feature = feature,
-                Audience = GuildFeatureAudiences.HasMultipleAudiences(feature) ? GuildAudience.Alliance : GuildFeatureAudiences.RelevantAudiences(feature),
-            }));
+                Audience = audience,
+                // Every seeded feature resolves to the Alliance audience for this guild, so each
+                // scopes to the own-alliance link.
+                GuildAlliance = audience == GuildAudience.Alliance ? ownAlliance : null,
+            };
+        }));
 
         await db.SaveChangesAsync();
     }

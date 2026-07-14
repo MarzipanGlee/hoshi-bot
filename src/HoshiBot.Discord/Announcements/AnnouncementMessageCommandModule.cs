@@ -25,9 +25,12 @@ public class AnnouncementMessageCommandModule(GuildFeatureService featureService
         // draft channel to begin with). Right after this guild's migration, before any
         // splitting, a channel can still match 2+ audiences (all pointing at the same
         // legacy channel) — ask explicitly rather than guessing.
-        var candidates = await settingsService.FindAudiencesByValueAsync(guildId, GuildFeature.Announcements, AnnouncementsSettingKeys.DraftChannel, draft.ChannelId);
-        return candidates.Count == 1
-            ? AnnouncementButtonModule.BuildSeverityPrompt(draft, candidates[0])
+        // Phase 1 stays audience-based (the specific alliance is resolved at publish time as the
+        // primary link). Collapse the scopes to distinct audiences: one → straight to severity.
+        var scopes = await settingsService.FindScopesByValueAsync(guildId, GuildFeature.Announcements, AnnouncementsSettingKeys.DraftChannel, draft.ChannelId);
+        var audiences = scopes.Select(s => s.Audience).Distinct().ToList();
+        return audiences.Count == 1
+            ? AnnouncementButtonModule.BuildSeverityPrompt(draft, audiences[0])
             : AnnouncementButtonModule.BuildAudiencePrompt(draft);
     }
 }

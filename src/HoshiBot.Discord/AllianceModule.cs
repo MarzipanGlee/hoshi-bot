@@ -15,16 +15,18 @@ public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureSer
     {
         var guildId = Context.Guild!.Id;
 
-        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Diplomacy))
+        var ourGuildAlliance = await db.GuildAlliances
+            .Include(ga => ga.StfcAlliance)
+            .FirstOrDefaultAsync(ga => ga.GuildId == guildId && ga.StfcAlliance.Tag == ourAllianceTag);
+        if (ourGuildAlliance is null)
+            return EphemeralReply.Of($"This guild doesn't manage an alliance tagged \"{ourAllianceTag}\". Ask an admin to link it via the web admin.");
+
+        // Gate per that specific alliance — Diplomacy can be enabled for one linked alliance
+        // but not another.
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Diplomacy, GuildAudience.Alliance, ourGuildAlliance.Id))
             return EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.Diplomacy));
 
-        var ourAlliance = await db.GuildAlliances
-            .Include(ga => ga.StfcAlliance)
-            .Where(ga => ga.GuildId == guildId && ga.StfcAlliance.Tag == ourAllianceTag)
-            .Select(ga => ga.StfcAlliance)
-            .FirstOrDefaultAsync();
-        if (ourAlliance is null)
-            return EphemeralReply.Of($"This guild doesn't manage an alliance tagged \"{ourAllianceTag}\". Ask an admin to link it via the web admin.");
+        var ourAlliance = ourGuildAlliance.StfcAlliance;
 
         // Scoped to our own alliance's server — diplomacy is always within the same
         // server in STFC, and Tag alone isn't globally unique across the full catalog.

@@ -19,6 +19,7 @@ public class AbsenceService(
     GatewayClient gatewayClient,
     NotificationDispatcher dispatcher,
     EmbedBranding embedBranding,
+    GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService)
 {
     private static readonly TimeSpan DraftTtl = TimeSpan.FromMinutes(15);
@@ -234,8 +235,10 @@ public class AbsenceService(
 
     public async Task RefreshReportsAsync(ulong guildId)
     {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings is null)
+        // The absence list is guild-wide; the same report is posted to each linked alliance that
+        // has Absences enabled, in that alliance's own channels (each with its own pinned message).
+        var enabledAllianceIds = await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.Absences);
+        if (enabledAllianceIds.Count == 0)
             return;
 
         var now = DateTimeOffset.UtcNow;
@@ -249,23 +252,27 @@ public class AbsenceService(
         var active = rows.Where(a => a.StartsAt <= now).ToList();
         var upcoming = rows.Where(a => a.StartsAt > now).ToList();
 
-        var publicChannelId = await settingsService.GetSnowflakeAsync(
-            guildId, GuildFeature.Absences, GuildAudience.Alliance, AbsencesSettingKeys.ReportChannel);
-        if (publicChannelId is { } publicChannelIdValue)
-        {
-            settings.AbsencesReportMessageId = await PostOrEditAsync(guildId, publicChannelIdValue, settings.AbsencesReportMessageId,
-                await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: false), "die öffentliche Abwesenheiten-Übersicht");
-        }
+        var publicEmbed = await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: false);
+        var staffEmbed = await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: true);
 
-        var staffChannelId = await settingsService.GetSnowflakeAsync(
-            guildId, GuildFeature.Absences, GuildAudience.Alliance, AbsencesSettingKeys.ReportStaffChannel);
-        if (staffChannelId is { } staffChannelIdValue)
+        foreach (var allianceId in enabledAllianceIds)
         {
-            settings.AbsencesReportStaffMessageId = await PostOrEditAsync(guildId, staffChannelIdValue, settings.AbsencesReportStaffMessageId,
-                await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: true), "die Führungsstab-Abwesenheiten-Übersicht");
+            await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportChannel, AbsencesSettingKeys.ReportMessageId,
+                publicEmbed, "die öffentliche Abwesenheiten-Übersicht");
+            await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportStaffChannel, AbsencesSettingKeys.ReportStaffMessageId,
+                staffEmbed, "die Führungsstab-Abwesenheiten-Übersicht");
         }
+    }
 
-        await db.SaveChangesAsync();
+    private async Task RefreshOneAsync(ulong guildId, int guildAllianceId, string channelKey, string messageKey, EmbedProperties embed, string context)
+    {
+        var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, guildAllianceId, channelKey);
+        if (channelId is not { } channelIdValue)
+            return;
+
+        var existingMessageId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, guildAllianceId, messageKey);
+        var newMessageId = await PostOrEditAsync(guildId, channelIdValue, existingMessageId, embed, context);
+        await settingsService.SetSnowflakeAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, guildAllianceId, messageKey, newMessageId);
     }
 
     private async Task<ulong?> PostOrEditAsync(ulong guildId, ulong channelId, ulong? existingMessageId, EmbedProperties embed, string context)

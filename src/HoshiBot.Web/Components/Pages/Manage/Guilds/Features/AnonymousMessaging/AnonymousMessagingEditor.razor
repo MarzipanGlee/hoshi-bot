@@ -20,6 +20,7 @@
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
 
     private List<IGuildChannel> channels = [];
     private bool enabled;
@@ -28,18 +29,18 @@
     protected override async Task OnInitializedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, Audience);
-        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, AnonymousMessagingSettingKeys.Channel))?.ToString();
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, GuildAllianceId);
+        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, GuildAllianceId, AnonymousMessagingSettingKeys.Channel))?.ToString();
     }
 
     private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, value);
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, GuildAllianceId, value);
         enabled = value;
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, AnonymousMessagingSettingKeys.Channel, ParseId(channelInput));
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.AnonymousMessaging, Audience, GuildAllianceId, AnonymousMessagingSettingKeys.Channel, ParseId(channelInput));
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
 }

@@ -44,17 +44,30 @@ public class RankRoleSyncJob(
                     gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => (StfcPlayerRank?)up.StfcPlayer.Rank).FirstOrDefault()))
                 .ToListAsync();
 
+            // The Alliance audience is per-alliance: apply each enabled alliance's own rank-role
+            // palette (to all members, per the product decision — palettes stack when several
+            // alliances configure them). Other audiences are guild-scoped.
             foreach (var audience in enabledAudiences)
-                await SyncAudienceAsync(guildId, audience, members);
+            {
+                if (audience == GuildAudience.Alliance)
+                {
+                    foreach (var allianceId in await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.RankRoles))
+                        await SyncAudienceAsync(guildId, audience, allianceId, members);
+                }
+                else
+                {
+                    await SyncAudienceAsync(guildId, audience, null, members);
+                }
+            }
         }
     }
 
-    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, IReadOnlyList<MemberRank> members)
+    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, IReadOnlyList<MemberRank> members)
     {
         var roleIdsByRank = new Dictionary<StfcPlayerRank, ulong>();
         foreach (var rank in Enum.GetValues<StfcPlayerRank>())
         {
-            var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.RankRoles, audience, RankRolesSettingKeys.RoleForRank(rank));
+            var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.RankRoles, audience, guildAllianceId, RankRolesSettingKeys.RoleForRank(rank));
             if (roleId is { } id)
                 roleIdsByRank[rank] = id;
         }

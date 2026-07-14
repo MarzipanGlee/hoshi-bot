@@ -7,7 +7,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.Announcements;
 
-public class AnnouncementButtonModule(AnnouncementService announcementService, GatewayClient gatewayClient, GuildFeatureService featureService)
+public class AnnouncementButtonModule(AnnouncementService announcementService, GatewayClient gatewayClient, GuildFeatureService featureService, GuildAllianceService allianceService)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
     // All four Publish buttons and Cancel live on AnnouncementMessageCommandModule.Preview's
@@ -58,7 +58,12 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     private async Task<InteractionCallbackProperties<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity)
     {
         var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience))
+        // Phase 1: the Alliance audience maps to the guild's primary linked alliance.
+        var guildAllianceId = parsedAudience == GuildAudience.Alliance
+            ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
+            : null;
+        if (parsedAudience == GuildAudience.Alliance && guildAllianceId is null
+            || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
         {
             var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements);
             return InteractionCallback.ModifyMessage(m => { m.Content = disabledMessage; m.Embeds = []; m.Components = []; });
@@ -68,7 +73,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         // which is far too small for a full announcement body) means an edit made
         // between preview and publish is naturally picked up.
         var draft = await gatewayClient.Rest.GetMessageAsync(channelId, messageId);
-        var result = await announcementService.PublishAsync(Context.Guild!.Id, parsedAudience, draft, severity, Context.User.Id);
+        var result = await announcementService.PublishAsync(Context.Guild!.Id, parsedAudience, guildAllianceId, draft, severity, Context.User.Id);
         return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
     }
 

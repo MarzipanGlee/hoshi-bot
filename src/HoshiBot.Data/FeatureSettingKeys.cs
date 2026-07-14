@@ -10,6 +10,12 @@ public static class AbsencesSettingKeys
 {
     public const string ReportChannel = "ReportChannel";
     public const string ReportStaffChannel = "ReportStaffChannel";
+
+    // Per-alliance "pinned report message" ids — the message the periodic refresh edits in place
+    // in each alliance's report channel. Replaces GuildSettings.AbsencesReport*MessageId (which
+    // could only track one message per guild) now that each alliance has its own report channel.
+    public const string ReportMessageId = "ReportMessageId";
+    public const string ReportStaffMessageId = "ReportStaffMessageId";
 }
 
 public static class RoeViolationReportsSettingKeys
@@ -22,6 +28,10 @@ public static class AnnouncementsSettingKeys
     public const string Channel = "Channel";
     public const string RemindersChannel = "RemindersChannel";
     public const string DraftChannel = "DraftChannel";
+
+    // The role pinged on a High-severity announcement — moved off GuildSettings.WarningsRoleId
+    // so it lives with the feature (and can differ per alliance).
+    public const string WarningsRole = "WarningsRole";
 }
 
 public static class TicketsSettingKeys
@@ -47,6 +57,10 @@ public static class DiplomacySettingKeys
 
 public static class TerritoryCaptureSettingKeys
 {
+    // Where this alliance's capture digests are posted — moved off GuildSettings.RemindersChannelId
+    // so it lives with the feature (and each alliance can post to its own channel).
+    public const string DigestChannel = "DigestChannel";
+
     public const string ZoneSlot1Role = "ZoneSlot1Role";
     public const string ZoneSlot2Role = "ZoneSlot2Role";
     public const string ZoneSlot3Role = "ZoneSlot3Role";

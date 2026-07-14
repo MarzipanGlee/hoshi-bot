@@ -18,7 +18,8 @@ public class AlertService(
     NotificationDispatcher dispatcher,
     GatewayClient gatewayClient,
     EmbedBranding embedBranding,
-    GuildFeatureSettingsService settingsService)
+    GuildFeatureSettingsService settingsService,
+    GuildAllianceService allianceService)
 {
     // Buttons can be clicked from a DM (no NetCord Guild context there), so the guild ID
     // travels in the custom_id itself rather than relying on Context.Guild.
@@ -271,7 +272,12 @@ public class AlertService(
     // on the caller, no persistence beyond that. Null return means the role isn't configured.
     public async Task<bool?> HasAlertsRoleAsync(ulong guildId, ulong userId)
     {
-        var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, AlertsOptInSettingKeys.Role);
+        var guildAllianceId = (await allianceService.FindByMemberAsync(guildId, userId))?.Id
+            ?? await allianceService.GetPrimaryIdAsync(guildId);
+        if (guildAllianceId is null)
+            return null;
+
+        var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, guildAllianceId, AlertsOptInSettingKeys.Role);
         if (roleId is null)
             return null;
 
@@ -281,7 +287,11 @@ public class AlertService(
 
     public async Task<string> SetAlertsOptInAsync(ulong guildId, ulong userId, bool optIn)
     {
-        var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, AlertsOptInSettingKeys.Role);
+        var guildAllianceId = (await allianceService.FindByMemberAsync(guildId, userId))?.Id
+            ?? await allianceService.GetPrimaryIdAsync(guildId);
+        var roleId = guildAllianceId is null
+            ? null
+            : await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, guildAllianceId, AlertsOptInSettingKeys.Role);
         if (roleId is not { } roleIdValue)
             return "Die Alarme-Rolle ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 

@@ -18,7 +18,7 @@ public class StfcNewsFeature : IFeatureModule
 
     // No feature-specific setting of its own — reuses the guild-wide AdminChannelId
     // (Global Settings), so "configured" just mirrors whether that's set.
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context)
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
         await using var db = await context.DbFactory.CreateDbContextAsync();
         var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == guildId);

@@ -9,9 +9,20 @@ using NetCord.Services.ComponentInteractions;
 namespace HoshiBot.Discord.CommandBridge;
 
 public class CommandBridgeButtonModule(AlertService alertService, AnnouncementService announcementService, RoeViolationService roeViolationService,
-    PendingModalInputService pendingModalInputService, GuildFeatureService featureService, EmbedBranding embedBranding)
+    PendingModalInputService pendingModalInputService, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // Phase 1: the Alliance audience resolves to the guild's primary linked alliance. Other
+    // audiences are guild-scoped (null). Returns (scope, missing) — missing is true only when
+    // the Alliance audience has no linked alliance, so the caller can treat it as disabled.
+    private async Task<(int? GuildAllianceId, bool Missing)> ResolveScopeAsync(ulong guildId, GuildAudience audience)
+    {
+        if (audience != GuildAudience.Alliance)
+            return (null, false);
+        var primary = await allianceService.GetPrimaryIdAsync(guildId);
+        return (primary, primary is null);
+    }
+
     // Shared shape for every ephemeral prompt in this module — same branded style as
     // every real bot message, just also used for these interactive in-between steps.
     private async Task<InteractionMessageProperties> EphemeralEmbedAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null, Color? color = null)
@@ -139,8 +150,9 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     {
         var guildId = Context.Guild!.Id;
         var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        var ticketsEnabled = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, parsedAudience);
-        var anonymousEnabled = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, parsedAudience);
+        var (guildAllianceId, scopeMissing) = await ResolveScopeAsync(guildId, parsedAudience);
+        var ticketsEnabled = !scopeMissing && await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, parsedAudience, guildAllianceId);
+        var anonymousEnabled = !scopeMissing && await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId);
 
         var lines = new List<string>();
         var buttons = new List<ButtonProperties>();
@@ -168,7 +180,8 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task<InteractionCallbackProperties> OpenTicketPrompt(string audience)
     {
         var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets, parsedAudience))
+        var (guildAllianceId, scopeMissing) = await ResolveScopeAsync(Context.Guild!.Id, parsedAudience);
+        if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets, parsedAudience, guildAllianceId))
             return InteractionCallback.Message(EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.Tickets)));
 
         return InteractionCallback.Modal(new ModalProperties($"ticket-open-modal:{audience}", "Ticket öffnen",
@@ -269,7 +282,8 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)
     {
         var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging, parsedAudience))
+        var (guildAllianceId, scopeMissing) = await ResolveScopeAsync(Context.Guild!.Id, parsedAudience);
+        if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId))
             return InteractionCallback.Message(EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging)));
 
         return InteractionCallback.Modal(new ModalProperties($"anonymous-message-modal:{audience}", "Anonyme Nachricht",

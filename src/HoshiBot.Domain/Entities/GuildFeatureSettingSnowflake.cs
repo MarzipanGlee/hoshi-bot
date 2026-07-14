@@ -19,6 +19,13 @@ public class GuildFeatureSettingSnowflake
 
     public GuildAudience Audience { get; set; }
 
+    // Scopes the Alliance audience to one specific linked alliance. Invariant (guarded in
+    // GuildFeatureSettingsService): non-null exactly when Audience == GuildAudience.Alliance,
+    // null otherwise. Cascade-deleted with its GuildAlliance.
+    public int? GuildAllianceId { get; set; }
+
+    public GuildAlliance? GuildAlliance { get; set; }
+
     public string Key { get; set; } = "";
 
     public ulong Value { get; set; }

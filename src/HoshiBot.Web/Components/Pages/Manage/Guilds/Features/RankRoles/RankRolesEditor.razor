@@ -40,6 +40,7 @@
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
 
     // Groups a rank's identity (name/setting key) with its 3 pieces of live state (role,
     // color, mentionable) — replaces what would otherwise be 15 near-duplicate fields/methods
@@ -70,7 +71,7 @@
     protected override async Task OnInitializedAsync()
     {
         roles = await DiscordData.GetRolesAsync(GuildId);
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.RankRoles, Audience);
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.RankRoles, Audience, GuildAllianceId);
 
         foreach (var state in rankStates)
             await LoadRankRoleAsync(state);
@@ -82,7 +83,7 @@
     // (and failed) to create a role Discord already had.
     private async Task LoadRankRoleAsync(RankRoleState state)
     {
-        state.RoleId = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, state.SettingKey))?.ToString()
+        state.RoleId = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, GuildAllianceId, state.SettingKey))?.ToString()
             ?? roles.FirstOrDefault(r => r.Name == state.DefaultName)?.Id.ToString();
         ApplyRoleDisplayState(state);
     }
@@ -106,7 +107,7 @@
 
     private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.RankRoles, Audience, value);
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.RankRoles, Audience, GuildAllianceId, value);
         enabled = value;
     }
 
@@ -133,7 +134,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, state.RoleId, state.DefaultName, state.Color, state.Mentionable, roles);
             state.RoleId = roleId?.ToString();
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, state.SettingKey, roleId);
+            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, GuildAllianceId, state.SettingKey, roleId);
         }
         catch (RestException)
         {

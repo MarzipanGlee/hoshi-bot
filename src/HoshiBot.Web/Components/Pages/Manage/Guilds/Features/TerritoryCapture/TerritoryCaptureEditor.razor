@@ -17,6 +17,11 @@
 }
 
 <div class="card-grid mt-1">
+    <SettingsCard Title="Digest Channel">
+        <ChannelPicker Label="Digest Channel" ShowLabel="false" Usage="Where this alliance's weekly/daily capture digests are posted."
+            @bind-Value="digestChannelInput" @bind-Value:after="SaveDigestChannelAsync" Channels="channels" />
+    </SettingsCard>
+
     <SettingsCard Title="Zone Slot Roles">
         <p class="form-text mb-0">
             One role per owned-zone-slot the alliance currently holds this week (the "Zone Slots:
@@ -42,8 +47,9 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.TerritoryCapture;
 
-    private GuildAudience audience;
     private List<Role> roles = [];
+    private List<IGuildChannel> channels = [];
+    private string? digestChannelInput;
     private string? zoneSlot1Input;
     private string? zoneSlot2Input;
     private string? zoneSlot3Input;
@@ -54,17 +60,21 @@
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        audience = GuildFeatureAudiences.SingleAudience(Feature);
         roles = await DiscordData.GetRolesAsync(GuildId);
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        digestChannelInput = (await Get(TerritoryCaptureSettingKeys.DigestChannel))?.ToString();
         zoneSlot1Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot1Role))?.ToString();
         zoneSlot2Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot2Role))?.ToString();
         zoneSlot3Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
         zoneSlot4Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot4Role))?.ToString();
         zoneSlot5Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
-        instructionsInput = await SettingsService.GetTextAsync(GuildId, Feature, audience, TerritoryCaptureSettingKeys.Instructions);
+        instructionsInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions);
     }
 
-    private Task<ulong?> Get(string key) => SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, key);
+    private Task<ulong?> Get(string key) => SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
+
+    private Task SaveDigestChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DigestChannel, ParseId(digestChannelInput));
 
     private async Task SaveZoneSlotAsync(string key, Action<string?> setInput, string? currentInput, string slotName)
     {
@@ -74,7 +84,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, slotName);
             setInput(roleId?.ToString());
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, key, roleId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, roleId);
         }
         catch (RestException)
         {
@@ -91,5 +101,5 @@
     private Task SaveZoneSlot5Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role, v => zoneSlot5Input = v, zoneSlot5Input, "Slot 5");
 
     private Task SaveInstructionsAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, audience, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
 }

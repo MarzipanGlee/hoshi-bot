@@ -17,7 +17,8 @@ public class CommandBridgeAdminModule(
     GatewayClient gatewayClient,
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
-    GuildFeatureSettingsService settingsService) : ApplicationCommandModule<ApplicationCommandContext>
+    GuildFeatureSettingsService settingsService,
+    GuildAllianceService allianceService) : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("post-command-bridge", "Post or refresh the Command Bridge hub message",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
@@ -110,12 +111,20 @@ public class CommandBridgeAdminModule(
         var relevant = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Tickets); // same set as AnonymousMessaging
         var result = new List<GuildAudience>();
 
+        // Phase 1: the Alliance audience maps to the primary linked alliance; with none linked
+        // there's nothing to offer for that audience.
+        var primaryAllianceId = await allianceService.GetPrimaryIdAsync(guildId);
+
         foreach (var audience in GuildFeatureAudiences.EnumerateFlags(relevant))
         {
-            var ticketsReady = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, audience)
-                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, TicketsSettingKeys.Channel) is not null;
-            var anonymousReady = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, audience)
-                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AnonymousMessaging, audience, AnonymousMessagingSettingKeys.Channel) is not null;
+            var guildAllianceId = audience == GuildAudience.Alliance ? primaryAllianceId : null;
+            if (audience == GuildAudience.Alliance && guildAllianceId is null)
+                continue;
+
+            var ticketsReady = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, audience, guildAllianceId)
+                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, guildAllianceId, TicketsSettingKeys.Channel) is not null;
+            var anonymousReady = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, audience, guildAllianceId)
+                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AnonymousMessaging, audience, guildAllianceId, AnonymousMessagingSettingKeys.Channel) is not null;
 
             if (ticketsReady || anonymousReady)
                 result.Add(audience);

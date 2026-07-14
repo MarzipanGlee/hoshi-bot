@@ -2,6 +2,9 @@
 @using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
+@inject GuildAllianceService AllianceService
+@inject CurrentAllianceContext AllianceContext
+@inject IJSRuntime JS
 
 @if (Audience == GuildAudience.Alliance)
 {
@@ -373,6 +376,7 @@ else if (Audience == GuildAudience.VeilGroup)
         try
         {
             var tag = serverAlliances.First(a => a.Id == allianceId).Tag;
+            var wasFirstLink = guildAlliances.Count == 0;
 
             var newAllianceLink = new GuildAlliance
             {
@@ -389,6 +393,11 @@ else if (Audience == GuildAudience.VeilGroup)
                 await db.SaveChangesAsync();
             }
 
+            // Adopt any Alliance-audience settings seeded/migrated before this guild had a link
+            // (see GuildAllianceService.AdoptOrphansAsync) onto the very first alliance linked.
+            if (wasFirstLink)
+                await AllianceService.AdoptOrphansAsync(GuildId, newAllianceLink.Id);
+
             selectedAllianceIdInput = null;
             memberRoleIdInput = null;
             officerRoleIdInput = null;
@@ -396,6 +405,7 @@ else if (Audience == GuildAudience.VeilGroup)
 
             await OnAllianceServerChangedAsync();
             await OnParametersSetAsync();
+            await AllianceContext.ReloadAsync();
         }
         catch (RestException)
         {
@@ -409,6 +419,12 @@ else if (Audience == GuildAudience.VeilGroup)
 
     private async Task DeleteGuildAlliance(GuildAlliance link)
     {
+        // Removing the link cascade-deletes this alliance's per-alliance feature toggles and
+        // settings (see the FK), so confirm before destroying that configuration.
+        if (!await JS.InvokeAsync<bool>("confirm",
+            "Remove this alliance link? Its feature toggles and settings for this alliance will be deleted too."))
+            return;
+
         await using (var db = await DbFactory.CreateDbContextAsync())
         {
             db.GuildAlliances.Remove(link);
@@ -416,6 +432,7 @@ else if (Audience == GuildAudience.VeilGroup)
         }
 
         await OnParametersSetAsync();
+        await AllianceContext.ReloadAsync();
     }
 
     private async Task OnServerRegionChangedAsync()

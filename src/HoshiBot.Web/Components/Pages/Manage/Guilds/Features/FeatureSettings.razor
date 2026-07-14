@@ -1,5 +1,7 @@
-@page "/manage/guilds/{GuildId}/features/{FeatureSlug}/{AudienceSlug?}"
+@page "/manage/guilds/{GuildId}/features/{FeatureSlug}/{AudienceSlug?}/{GuildAllianceIdRaw:int?}"
 @inherits GuildAdminPageBase
+@inject GuildAllianceService AllianceService
+@inject CurrentAllianceContext AllianceContext
 
 <PageTitle>@(descriptor?.Title ?? "Feature Settings")</PageTitle>
 
@@ -11,6 +13,14 @@ else if (descriptor is null)
 {
     <p>Unknown feature "@FeatureSlug".</p>
 }
+else if (needsAllianceLink)
+{
+    <h1>@descriptor.Title</h1>
+    <p class="text-muted">
+        This is an alliance feature, but this guild has no alliance linked yet. Link one on the
+        <a href="manage/guilds/@GuildId/audience">Audience</a> page first, then come back to configure it.
+    </p>
+}
 else if (editorParameters is null)
 {
     <p>Redirecting...</p>
@@ -20,19 +30,25 @@ else
     <h1>@descriptor.Title</h1>
     <p>@descriptor.Description</p>
 
-    <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" @key="@AudienceSlug" />
+    <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" @key="editorKey" />
 }
 
 @code {
     [Parameter] public string FeatureSlug { get; set; } = "";
     [Parameter] public string? AudienceSlug { get; set; }
+    [Parameter] public int? GuildAllianceIdRaw { get; set; }
+
+    private const string AllianceSlug = "alliance";
 
     private IFeatureModule? descriptor;
     private IDictionary<string, object>? editorParameters;
+    private bool needsAllianceLink;
+    private string editorKey = "";
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
         editorParameters = null;
+        needsAllianceLink = false;
 
         descriptor = FeatureCatalog.FindBySlug(FeatureSlug);
         if (descriptor is null)
@@ -41,22 +57,68 @@ else
             return;
         }
 
-        GuildAudience? resolvedAudience = null;
+        GuildAudience effectiveAudience;
         if (descriptor.HasMultipleAudiences())
         {
             var relevant = descriptor.RelevantAudiences();
             if (!AudienceDisplay.TryParseSlug(AudienceSlug, out var parsed) || !relevant.HasFlag(parsed))
             {
                 var first = GuildFeatureAudiences.EnumerateFlags(relevant).First();
-                Nav.NavigateTo($"manage/guilds/{GuildId}/features/{FeatureSlug}/{AudienceDisplay.Slug(first)}", replace: true);
+                Nav.NavigateTo(CanonicalUrl(AudienceDisplay.Slug(first), await DefaultAllianceIdAsync(first)), replace: true);
                 return;
             }
 
-            resolvedAudience = parsed;
+            effectiveAudience = parsed;
+        }
+        else
+        {
+            effectiveAudience = GuildFeatureAudiences.SingleAudience(descriptor.Feature);
+        }
+
+        int? guildAllianceId = null;
+        if (effectiveAudience == GuildAudience.Alliance)
+        {
+            // Resolve the target alliance: an explicit (validated) route id wins, else the
+            // top-bar selection, else the guild's primary link.
+            guildAllianceId = await ResolveAllianceIdAsync(GuildAllianceIdRaw);
+            if (guildAllianceId is null)
+            {
+                needsAllianceLink = true;
+                return;
+            }
+
+            // Canonicalize the URL so it's deep-linkable and the AllianceSelector's rewrite works:
+            // /features/{slug}/alliance/{id} (for single- and multi-audience alliance features).
+            if (!string.Equals(AudienceSlug, AllianceSlug, StringComparison.Ordinal) || GuildAllianceIdRaw != guildAllianceId)
+            {
+                Nav.NavigateTo(CanonicalUrl(AllianceSlug, guildAllianceId), replace: true);
+                return;
+            }
         }
 
         editorParameters = new Dictionary<string, object> { ["GuildId"] = ParsedGuildId };
-        if (resolvedAudience is { } audience)
-            editorParameters["Audience"] = audience;
+        if (descriptor.HasMultipleAudiences())
+            editorParameters["Audience"] = effectiveAudience;
+        editorParameters["GuildAllianceId"] = guildAllianceId!;
+
+        editorKey = $"{effectiveAudience}:{guildAllianceId}";
     }
+
+    // Route id if it's a real link of this guild; else the selected alliance; else the primary.
+    private async Task<int?> ResolveAllianceIdAsync(int? routeId)
+    {
+        if (routeId is { } id && await AllianceService.FindByIdAsync(ParsedGuildId, id) is not null)
+            return id;
+        if (AllianceContext.GuildAllianceId is { } selected && await AllianceService.FindByIdAsync(ParsedGuildId, selected) is not null)
+            return selected;
+        return await AllianceService.GetPrimaryIdAsync(ParsedGuildId);
+    }
+
+    private async Task<int?> DefaultAllianceIdAsync(GuildAudience audience) =>
+        audience == GuildAudience.Alliance ? await ResolveAllianceIdAsync(null) : null;
+
+    private string CanonicalUrl(string audienceSlug, int? guildAllianceId) =>
+        guildAllianceId is { } id
+            ? $"manage/guilds/{GuildId}/features/{FeatureSlug}/{audienceSlug}/{id}"
+            : $"manage/guilds/{GuildId}/features/{FeatureSlug}/{audienceSlug}";
 }

@@ -17,7 +17,7 @@ public class RankRolesFeature : IFeatureModule
     public string Icon => "oi-badge";
     public Type EditorComponentType => typeof(RankRolesEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context)
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
         foreach (var key in new[]
         {
@@ -25,7 +25,7 @@ public class RankRolesFeature : IFeatureModule
             RankRolesSettingKeys.OperativeRole, RankRolesSettingKeys.AgentRole,
         })
         {
-            if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, key) is not null)
+            if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, key) is not null)
                 return true;
         }
 

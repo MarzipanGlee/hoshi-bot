@@ -31,7 +31,6 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.Diplomacy;
 
-    private GuildAudience audience;
     private List<IGuildChannel> channels = [];
     private List<Role> roles = [];
     private string? channelIdInput;
@@ -40,15 +39,14 @@
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        audience = GuildFeatureAudiences.SingleAudience(Feature);
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
-        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.Channel))?.ToString();
-        diplomatRoleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.DiplomatRole))?.ToString();
+        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.Channel))?.ToString();
+        diplomatRoleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.DiplomatRole))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.Channel, ParseId(channelIdInput));
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.Channel, ParseId(channelIdInput));
 
     private async Task SaveDiplomatRoleAsync()
     {
@@ -58,7 +56,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, "Diplomat");
             diplomatRoleIdInput = roleId?.ToString();
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, DiplomacySettingKeys.DiplomatRole, roleId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.DiplomatRole, roleId);
         }
         catch (RestException)
         {

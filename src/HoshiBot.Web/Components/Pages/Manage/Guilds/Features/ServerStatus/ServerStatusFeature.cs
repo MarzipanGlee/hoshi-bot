@@ -16,7 +16,7 @@ public class ServerStatusFeature : IFeatureModule
     public string Icon => "oi-pulse";
     public Type EditorComponentType => typeof(ServerStatusEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context)
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
         await using var db = await context.DbFactory.CreateDbContextAsync();
         return await db.GuildAlertChannels.AnyAsync(c => c.GuildId == guildId && c.Kind == GuildAlertChannelKind.ServerStatus && c.Audience == audience);

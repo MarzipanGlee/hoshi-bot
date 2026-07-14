@@ -20,7 +20,6 @@ public class TerritoryCaptureRoleSyncJob(
     HoshiBotDbContext db,
     TerritoryCaptureDigestService digestService,
     GatewayClient gatewayClient,
-    GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     ILogger<TerritoryCaptureRoleSyncJob> logger) : IJob
 {
@@ -34,33 +33,38 @@ public class TerritoryCaptureRoleSyncJob(
 
         foreach (var guildId in guildIds)
         {
-            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.TerritoryCapture))
+            // Each TC-enabled alliance has its own 5 zone-slot roles over its own owned zones.
+            var links = await digestService.GetTcEnabledLinksAsync(guildId);
+            if (links.Count == 0)
                 continue;
-
-            var slots = await digestService.GetWeeklySlotAssignmentsAsync(guildId, weekStart);
-            var slotsByIndex = slots.ToDictionary(s => s.SlotIndex);
 
             var memberIds = await db.GuildMembers.Where(m => m.GuildId == guildId).Select(m => m.DiscordUserId).ToListAsync();
 
             // Materialize this guild's absences once, then check overlap in-memory across the
-            // slot × member loop below instead of querying the DB per member.
+            // alliance × slot × member loop below instead of querying the DB per member.
             var absences = await db.Absences.Where(a => a.GuildId == guildId).ToListAsync();
 
-            for (var slotIndex = 1; slotIndex <= 5; slotIndex++)
+            foreach (var link in links)
             {
-                var slotRoleId = await settingsService.GetSnowflakeAsync(
-                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, TerritoryCaptureSettingKeys.ZoneSlotRole(slotIndex));
-                if (slotRoleId is not { } roleId)
-                    continue;
+                var slots = await digestService.GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart);
+                var slotsByIndex = slots.ToDictionary(s => s.SlotIndex);
 
-                var hasSlot = slotsByIndex.TryGetValue(slotIndex, out var slot);
-
-                foreach (var userId in memberIds)
+                for (var slotIndex = 1; slotIndex <= 5; slotIndex++)
                 {
-                    var shouldHaveRole = hasSlot &&
-                        !absences.Any(a => a.DiscordUserId == userId && a.StartsAt < slot.End && a.EndsAt > slot.Start);
+                    var slotRoleId = await settingsService.GetSnowflakeAsync(
+                        guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slotIndex));
+                    if (slotRoleId is not { } roleId)
+                        continue;
 
-                    await SyncRoleAsync(guildId, userId, roleId, shouldHaveRole);
+                    var hasSlot = slotsByIndex.TryGetValue(slotIndex, out var slot);
+
+                    foreach (var userId in memberIds)
+                    {
+                        var shouldHaveRole = hasSlot &&
+                            !absences.Any(a => a.DiscordUserId == userId && a.StartsAt < slot.End && a.EndsAt > slot.Start);
+
+                        await SyncRoleAsync(guildId, userId, roleId, shouldHaveRole);
+                    }
                 }
             }
         }

@@ -15,5 +15,11 @@ public class RoeViolationReportConfiguration : IEntityTypeConfiguration<RoeViola
             .WithMany()
             .HasForeignKey(r => r.GuildId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // SetNull, not Cascade — a historical report should survive its alliance being unlinked.
+        builder.HasOne(r => r.GuildAlliance)
+            .WithMany()
+            .HasForeignKey(r => r.GuildAllianceId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

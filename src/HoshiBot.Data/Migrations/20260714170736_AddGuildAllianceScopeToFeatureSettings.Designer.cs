@@ -3,6 +3,7 @@ using System;
 using HoshiBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HoshiBot.Data.Migrations
 {
     [DbContext(typeof(HoshiBotDbContext))]
-    partial class HoshiBotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714170736_AddGuildAllianceScopeToFeatureSettings")]
+    partial class AddGuildAllianceScopeToFeatureSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -565,6 +568,12 @@ namespace HoshiBot.Data.Migrations
                     b.Property<decimal>("GuildId")
                         .HasColumnType("numeric(20,0)");
 
+                    b.Property<decimal?>("AbsencesReportMessageId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<decimal?>("AbsencesReportStaffMessageId")
+                        .HasColumnType("numeric(20,0)");
+
                     b.Property<decimal?>("AdminChannelId")
                         .HasColumnType("numeric(20,0)");
 
@@ -613,6 +622,9 @@ namespace HoshiBot.Data.Migrations
                     b.Property<decimal?>("RemindersAlliesChannelId")
                         .HasColumnType("numeric(20,0)");
 
+                    b.Property<decimal?>("RemindersChannelId")
+                        .HasColumnType("numeric(20,0)");
+
                     b.Property<decimal?>("RemindersServicesChannelId")
                         .HasColumnType("numeric(20,0)");
 
@@ -629,6 +641,9 @@ namespace HoshiBot.Data.Migrations
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<decimal?>("UserNotificationsChannelId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<decimal?>("WarningsRoleId")
                         .HasColumnType("numeric(20,0)");
 
                     b.HasKey("GuildId");
@@ -779,9 +794,6 @@ namespace HoshiBot.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("GuildAllianceId")
-                        .HasColumnType("integer");
-
                     b.Property<decimal>("GuildId")
                         .HasColumnType("numeric(20,0)");
 
@@ -795,8 +807,6 @@ namespace HoshiBot.Data.Migrations
                         .HasColumnType("numeric(20,0)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("GuildAllianceId");
 
                     b.HasIndex("GuildId");
 
@@ -1901,11 +1911,6 @@ namespace HoshiBot.Data.Migrations
 
             modelBuilder.Entity("HoshiBot.Domain.Entities.RoeViolationReport", b =>
                 {
-                    b.HasOne("HoshiBot.Domain.Entities.GuildAlliance", "GuildAlliance")
-                        .WithMany()
-                        .HasForeignKey("GuildAllianceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("HoshiBot.Domain.Entities.DiscordGuild", "Guild")
                         .WithMany()
                         .HasForeignKey("GuildId")
@@ -1913,8 +1918,6 @@ namespace HoshiBot.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Guild");
-
-                    b.Navigation("GuildAlliance");
                 });
 
             modelBuilder.Entity("HoshiBot.Domain.Entities.ShieldReminder", b =>

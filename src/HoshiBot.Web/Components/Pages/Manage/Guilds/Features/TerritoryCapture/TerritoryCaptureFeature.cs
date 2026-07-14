@@ -16,11 +16,11 @@ public class TerritoryCaptureFeature : IFeatureModule
     public string Icon => "oi-map";
     public Type EditorComponentType => typeof(TerritoryCaptureEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context)
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
         for (var slot = 1; slot <= 5; slot++)
         {
-            if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, TerritoryCaptureSettingKeys.ZoneSlotRole(slot)) is not null)
+            if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, TerritoryCaptureSettingKeys.ZoneSlotRole(slot)) is not null)
                 return true;
         }
 

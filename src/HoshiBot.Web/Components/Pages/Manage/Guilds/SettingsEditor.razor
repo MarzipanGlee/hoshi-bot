@@ -21,9 +21,6 @@
     <SettingsCard Title="Command Bridge">
         <ChannelPicker Label="Command Bridge" ShowLabel="false" Usage="Where the Command Bridge hub message (staff action buttons) is posted." @bind-Value="commandBridgeChannelIdInput" @bind-Value:after="SaveCommandBridgeChannelAsync" Channels="channels" />
     </SettingsCard>
-    <SettingsCard Title="Reminders">
-        <ChannelPicker Label="Reminders" ShowLabel="false" Usage="General reminders channel." @bind-Value="remindersChannelIdInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
-    </SettingsCard>
     <SettingsCard Title="Reminders (Allies)">
         <ChannelPicker Label="Reminders (Allies)" ShowLabel="false" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="SaveRemindersAlliesChannelAsync" Channels="channels" />
     </SettingsCard>
@@ -74,9 +71,6 @@
     <SettingsCard Title="Hoshi Tester">
         <RolePicker Label="Hoshi Tester" ShowLabel="false" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
     </SettingsCard>
-    <SettingsCard Title="Warnings">
-        <RolePicker Label="Warnings" ShowLabel="false" CreateRoleName="Warnings" @bind-Value="warningsRoleIdInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
-    </SettingsCard>
 </div>
 
 @code {
@@ -93,7 +87,6 @@
     private string? userLogChannelIdInput;
     private string? allianceBoardingChannelIdInput;
     private string? commandBridgeChannelIdInput;
-    private string? remindersChannelIdInput;
     private string? remindersAlliesChannelIdInput;
     private string? remindersServicesChannelIdInput;
     private string? rulesDeChannelIdInput;
@@ -108,7 +101,6 @@
     private string? crewsRoleIdInput;
     private string? betaTesterRoleIdInput;
     private string? hoshiTesterRoleIdInput;
-    private string? warningsRoleIdInput;
 
     protected override async Task OnInitializedAsync()
     {
@@ -125,7 +117,6 @@
         userLogChannelIdInput = settings.UserLogChannelId?.ToString();
         allianceBoardingChannelIdInput = settings.AllianceBoardingChannelId?.ToString();
         commandBridgeChannelIdInput = settings.CommandBridgeChannelId?.ToString();
-        remindersChannelIdInput = settings.RemindersChannelId?.ToString();
         remindersAlliesChannelIdInput = settings.RemindersAlliesChannelId?.ToString();
         remindersServicesChannelIdInput = settings.RemindersServicesChannelId?.ToString();
         rulesDeChannelIdInput = settings.RulesDeChannelId?.ToString();
@@ -140,7 +131,6 @@
         crewsRoleIdInput = settings.CrewsRoleId?.ToString();
         betaTesterRoleIdInput = settings.BetaTesterRoleId?.ToString();
         hoshiTesterRoleIdInput = settings.HoshiTesterRoleId?.ToString();
-        warningsRoleIdInput = settings.WarningsRoleId?.ToString();
     }
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
@@ -164,7 +154,6 @@
     private Task SaveUserLogChannelAsync() => SaveAsync(s => s.UserLogChannelId = ParseId(userLogChannelIdInput));
     private Task SaveAllianceBoardingChannelAsync() => SaveAsync(s => s.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput));
     private Task SaveCommandBridgeChannelAsync() => SaveAsync(s => s.CommandBridgeChannelId = ParseId(commandBridgeChannelIdInput));
-    private Task SaveRemindersChannelAsync() => SaveAsync(s => s.RemindersChannelId = ParseId(remindersChannelIdInput));
     private Task SaveRemindersAlliesChannelAsync() => SaveAsync(s => s.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput));
     private Task SaveRemindersServicesChannelAsync() => SaveAsync(s => s.RemindersServicesChannelId = ParseId(remindersServicesChannelIdInput));
     private Task SaveRulesDeChannelAsync() => SaveAsync(s => s.RulesDeChannelId = ParseId(rulesDeChannelIdInput));
@@ -203,5 +192,4 @@
     private Task SaveCrewsRoleAsync() => SaveRoleAsync((s, id) => s.CrewsRoleId = id, crewsRoleIdInput, v => crewsRoleIdInput = v, "Crews");
     private Task SaveBetaTesterRoleAsync() => SaveRoleAsync((s, id) => s.BetaTesterRoleId = id, betaTesterRoleIdInput, v => betaTesterRoleIdInput = v, "Beta Tester");
     private Task SaveHoshiTesterRoleAsync() => SaveRoleAsync((s, id) => s.HoshiTesterRoleId = id, hoshiTesterRoleIdInput, v => hoshiTesterRoleIdInput = v, "Hoshi Tester");
-    private Task SaveWarningsRoleAsync() => SaveRoleAsync((s, id) => s.WarningsRoleId = id, warningsRoleIdInput, v => warningsRoleIdInput = v, "Warnings");
 }

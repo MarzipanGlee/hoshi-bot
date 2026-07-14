@@ -15,6 +15,6 @@ public class TicketsFeature : IFeatureModule
     public string Icon => "oi-task";
     public Type EditorComponentType => typeof(TicketsEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, TicketsSettingKeys.Channel) is not null;
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, TicketsSettingKeys.Channel) is not null;
 }

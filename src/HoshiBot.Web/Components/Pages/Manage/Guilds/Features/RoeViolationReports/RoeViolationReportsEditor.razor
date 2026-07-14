@@ -20,17 +20,15 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.RoeViolationReports;
 
-    private GuildAudience audience;
     private List<IGuildChannel> channels = [];
     private string? channelIdInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        audience = GuildFeatureAudiences.SingleAudience(Feature);
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, audience, RoeViolationReportsSettingKeys.Channel))?.ToString();
+        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, RoeViolationReportsSettingKeys.Channel))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, audience, RoeViolationReportsSettingKeys.Channel, ParseId(channelIdInput));
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, RoeViolationReportsSettingKeys.Channel, ParseId(channelIdInput));
 }

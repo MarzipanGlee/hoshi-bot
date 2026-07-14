@@ -33,4 +33,12 @@ public class RoeViolationReport
     public DateTimeOffset? ClosedAt { get; set; }
 
     public ulong? ClosedByDiscordUserId { get; set; }
+
+    // Which linked alliance this report belongs to (the reporter's alliance) — determines which
+    // alliance's RoE channel it was posted to and whose diplomat role gets pinged. Nullable and
+    // SetNull on unlink: a historical report outlives the link. Null for reports created before
+    // per-alliance scoping, or by a member with no resolvable alliance (fell back to primary).
+    public int? GuildAllianceId { get; set; }
+
+    public GuildAlliance? GuildAlliance { get; set; }
 }

@@ -26,21 +26,29 @@ public class TerritoryCaptureDigestService(
 
         foreach (var guildId in await GetEligibleGuildIdsAsync())
         {
-            var (known, unknown) = await GetOwnedZonesAsync(guildId, weekStart);
-            if (known.Count == 0 && unknown.Count == 0)
-                continue;
-
-            var settings = await db.GuildSettings.FindAsync(guildId);
-            if (settings?.RemindersChannelId is not { } channelId)
-                continue;
-
+            var links = await GetTcEnabledLinksAsync(guildId);
             var weekEnd = weekStart.AddDays(6);
-            var title = $"Gebietsübernahmen vom {weekStart.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy} bis {weekEnd.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy}";
+            var baseTitle = $"Gebietsübernahmen vom {weekStart.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy} bis {weekEnd.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy}";
 
             var notificationRole = await db.NotificationRoles
                 .FirstOrDefaultAsync(r => r.GuildId == guildId && r.Kind == NotificationRoleKind.General);
 
-            await SendDigestAsync(guildId, channelId, title, known, unknown, notificationRole?.DiscordRoleId, pin: true);
+            // One digest per TC-enabled alliance, each to its own configured digest channel;
+            // the alliance tag is appended to the title only when the guild runs several.
+            foreach (var link in links)
+            {
+                var channelId = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
+                if (channelId is not { } channelIdValue)
+                    continue;
+
+                var (known, unknown) = await GetOwnedZonesAsync(link.StfcAllianceId, weekStart);
+                if (known.Count == 0 && unknown.Count == 0)
+                    continue;
+
+                var title = links.Count > 1 ? $"{baseTitle} — [{link.StfcAlliance.Tag}]" : baseTitle;
+                await SendDigestAsync(guildId, channelIdValue, link, title, known, unknown, notificationRole?.DiscordRoleId, pin: true);
+            }
         }
     }
 
@@ -51,31 +59,52 @@ public class TerritoryCaptureDigestService(
 
         foreach (var guildId in await GetEligibleGuildIdsAsync())
         {
-            var slots = await GetWeeklySlotAssignmentsAsync(guildId, weekStart);
-            var tomorrowSlots = slots.Where(s => DateOnly.FromDateTime(s.Start.UtcDateTime) == tomorrow).ToList();
-            if (tomorrowSlots.Count == 0)
-                continue;
+            var links = await GetTcEnabledLinksAsync(guildId);
+            foreach (var link in links)
+            {
+                var channelId = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
+                if (channelId is not { } channelIdValue)
+                    continue;
 
-            var settings = await db.GuildSettings.FindAsync(guildId);
-            if (settings?.RemindersChannelId is not { } channelId)
-                continue;
+                var slots = await GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart);
+                var tomorrowSlots = slots.Where(s => DateOnly.FromDateTime(s.Start.UtcDateTime) == tomorrow).ToList();
+                if (tomorrowSlots.Count == 0)
+                    continue;
 
-            var mentionRoleId = await settingsService.GetSnowflakeAsync(
-                guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance,
-                TerritoryCaptureSettingKeys.ZoneSlotRole(tomorrowSlots[0].SlotIndex));
+                var mentionRoleId = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id,
+                    TerritoryCaptureSettingKeys.ZoneSlotRole(tomorrowSlots[0].SlotIndex));
 
-            var known = tomorrowSlots.Select(s => (s.Territory, s.Start, s.End)).ToList();
-            await SendDigestAsync(guildId, channelId, "Morgige Gebietsübernahmen", known, [], mentionRoleId, pin: false);
+                var title = links.Count > 1 ? $"Morgige Gebietsübernahmen — [{link.StfcAlliance.Tag}]" : "Morgige Gebietsübernahmen";
+                var known = tomorrowSlots.Select(s => (s.Territory, s.Start, s.End)).ToList();
+                await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleId, pin: false);
+            }
         }
     }
 
-    // This week's zones owned by the guild's linked alliances, in slot order (slot 1 =
-    // earliest window that week). Shared with TerritoryCaptureRoleSyncJob so both use the
-    // exact same ordering when assigning GuildSettings' 5 fixed zone-slot roles.
-    public async Task<List<(int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)>> GetWeeklySlotAssignmentsAsync(
-        ulong guildId, DateOnly weekStart)
+    // The guild's linked alliances that have Territory Capture enabled, ordered by link id
+    // (slot roles/settings are keyed per alliance). Shared with TerritoryCaptureRoleSyncJob.
+    public async Task<List<GuildAlliance>> GetTcEnabledLinksAsync(ulong guildId)
     {
-        var (known, _) = await GetOwnedZonesAsync(guildId, weekStart);
+        var enabledIds = await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.TerritoryCapture);
+        if (enabledIds.Count == 0)
+            return [];
+
+        return await db.GuildAlliances
+            .Include(ga => ga.StfcAlliance)
+            .Where(ga => ga.GuildId == guildId && enabledIds.Contains(ga.Id))
+            .OrderBy(ga => ga.Id)
+            .ToListAsync();
+    }
+
+    // This week's zones owned by one alliance, in slot order (slot 1 = earliest window that
+    // week). Shared with TerritoryCaptureRoleSyncJob so both use the exact same per-alliance
+    // ordering when assigning that alliance's 5 fixed zone-slot roles.
+    public async Task<List<(int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)>> GetWeeklySlotAssignmentsAsync(
+        int stfcAllianceId, DateOnly weekStart)
+    {
+        var (known, _) = await GetOwnedZonesAsync(stfcAllianceId, weekStart);
         return known
             .Select((z, index) => (SlotIndex: index + 1, z.Territory, z.Start, z.End))
             .ToList();
@@ -95,14 +124,10 @@ public class TerritoryCaptureDigestService(
     }
 
     private async Task<(List<(StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> Known, List<StfcTerritory> Unknown)> GetOwnedZonesAsync(
-        ulong guildId, DateOnly weekStart)
+        int stfcAllianceId, DateOnly weekStart)
     {
-        var allianceIds = await db.GuildAlliances.Where(ga => ga.GuildId == guildId).Select(ga => ga.StfcAllianceId).ToListAsync();
-        if (allianceIds.Count == 0)
-            return ([], []);
-
         var territories = await db.StfcTerritoryOwnerships
-            .Where(o => allianceIds.Contains(o.AllianceId))
+            .Where(o => o.AllianceId == stfcAllianceId)
             .Select(o => o.Territory)
             .ToListAsync();
 
@@ -121,7 +146,7 @@ public class TerritoryCaptureDigestService(
         return (known.OrderBy(z => z.Item2).ToList(), unknown);
     }
 
-    private async Task SendDigestAsync(ulong guildId, ulong channelId, string title,
+    private async Task SendDigestAsync(ulong guildId, ulong channelId, GuildAlliance link, string title,
         List<(StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
         ulong? mentionRoleId, bool pin)
     {
@@ -160,12 +185,12 @@ public class TerritoryCaptureDigestService(
         };
 
         var instructions = await settingsService.GetTextAsync(
-            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, TerritoryCaptureSettingKeys.Instructions);
+            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.Instructions);
         if (!string.IsNullOrWhiteSpace(instructions))
         {
             embed.Fields = embed.Fields.Append(new EmbedFieldProperties
             {
-                Name = "Anweisungen von LF-Führungsstab",
+                Name = $"Anweisungen von {link.StfcAlliance.Tag}-Führungsstab",
                 Value = instructions,
             });
         }

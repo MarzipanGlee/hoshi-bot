@@ -15,6 +15,6 @@ public class RoeViolationReportsFeature : IFeatureModule
     public string Icon => "oi-ban";
     public Type EditorComponentType => typeof(RoeViolationReportsEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, RoeViolationReportsSettingKeys.Channel) is not null;
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, RoeViolationReportsSettingKeys.Channel) is not null;
 }

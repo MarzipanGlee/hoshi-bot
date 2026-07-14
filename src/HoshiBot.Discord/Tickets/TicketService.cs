@@ -28,9 +28,9 @@ public class TicketService(
     public static UserMenuProperties AddCommanderMenu(int ticketId) =>
         new($"ticket-add-commander:{ticketId}") { Placeholder = "Commander zum Ticket hinzufügen" };
 
-    public async Task<string> OpenTicketAsync(ulong guildId, GuildAudience audience, ulong openedByUserId, string openerName, string subject)
+    public async Task<string> OpenTicketAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, ulong openedByUserId, string openerName, string subject)
     {
-        var channelIdResult = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, TicketsSettingKeys.Channel);
+        var channelIdResult = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, guildAllianceId, TicketsSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
             return "Der Tickets-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 

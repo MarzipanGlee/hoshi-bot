@@ -19,17 +19,18 @@
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
 
     private bool enabled;
 
     protected override async Task OnInitializedAsync()
     {
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience);
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience, GuildAllianceId);
     }
 
     private async Task ToggleAsync(bool value)
     {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience, value);
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience, GuildAllianceId, value);
         enabled = value;
     }
 }

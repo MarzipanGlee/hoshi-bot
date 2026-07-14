@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @inject CurrentGuildContext GuildContext
+@inject CurrentAllianceContext AllianceContext
 @inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Hoshi Bot Admin</PageTitle>
@@ -16,6 +17,7 @@
                 <Authorized>
                     <div class="topbar-actions d-flex align-items-center flex-shrink-0">
                         <GuildSelector />
+                        <AllianceSelector />
                         <span class="topbar-user d-flex align-items-center gap-2 text-nowrap" title="@context.User.Identity?.Name">
                             @{ var avatarUrl = GetAvatarUrl(context.User); }
                             @if (avatarUrl is not null)
@@ -57,7 +59,10 @@
 
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
+        {
             await GuildContext.InitializeAsync(authState.User);
+            await AllianceContext.InitializeAsync();
+        }
     }
 
     private static string? GetAvatarUrl(ClaimsPrincipal user)
