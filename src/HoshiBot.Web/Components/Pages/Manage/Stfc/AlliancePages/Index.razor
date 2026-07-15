@@ -11,6 +11,9 @@
 </p>
 
 <QuickGrid Class="table" Items="context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
+    <TemplateColumn Title="Emblem" Context="alliance">
+        <AllianceEmblem Emblem="alliance.Emblem" Size="28" />
+    </TemplateColumn>
     <PropertyColumn Property="alliance => alliance.Tag" Sortable="true" />
     <PropertyColumn Property="alliance => alliance.Name" Sortable="true" />
     @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy

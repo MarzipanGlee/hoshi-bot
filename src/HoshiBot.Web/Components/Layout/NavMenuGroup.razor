@@ -1,7 +1,14 @@
 <div class="nav-group">
     <input type="checkbox" id="@_checkboxId" class="nav-group-toggle-checkbox" checked="@(InitiallyExpanded || Active)" />
     <label for="@_checkboxId" class="nav-group-toggle rounded-1 d-flex align-items-center gap-2 w-100 fw-semibold text-uppercase @(Active ? "nav-group-toggle-active text-white" : "")">
-        <span class="oi @Icon" aria-hidden="true"></span>
+        @if (IconContent is not null)
+        {
+            @IconContent
+        }
+        else
+        {
+            <span class="oi @Icon" aria-hidden="true"></span>
+        }
         <span class="nav-group-label flex-grow-1 text-start">@Title</span>
         <span class="nav-group-chevron d-inline-block" aria-hidden="true">&#9656;</span>
     </label>
@@ -21,6 +28,11 @@
 
     [Parameter, EditorRequired]
     public string Icon { get; set; } = string.Empty;
+
+    /// <summary>Optional custom icon markup shown in place of the <see cref="Icon"/> glyph — used
+    /// by the Alliance group to render the selected alliance's emblem image instead of a font icon.</summary>
+    [Parameter]
+    public RenderFragment? IconContent { get; set; }
 
     /// <summary>Whether the current route falls inside this group -- forces it open regardless of
     /// <see cref="InitiallyExpanded"/>, so navigating straight to a page never hides its own group.</summary>

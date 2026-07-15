@@ -1,0 +1,41 @@
+@using NetCord
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
+
+@* Guild-wide Command Staff role, surfaced inside every feature that reads it (RoE
+   moderation, raid-alert termination, announcement attribution, STFC News confirmer
+   count). It is ONE shared value on GuildSettings — editing it from any feature editor
+   changes it for all of them; there is no per-alliance copy. *@
+<SettingsCard Title="Command Staff Role">
+    <RolePicker Label="Command Staff Role" ShowLabel="false"
+        Usage="Shared leadership/staff role — gates several admin-only bot actions across features (RoE moderation, ending another commander's raid alert, announcement attribution, STFC News). One guild-wide value: changing it here changes it everywhere."
+        CreateRoleName="Command Staff" @bind-Value="roleInput" @bind-Value:after="SaveAsync" Roles="roles" />
+</SettingsCard>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    private List<Role> roles = [];
+    private string? roleInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId);
+        roleInput = settings?.CommandStaffRoleId?.ToString();
+    }
+
+    private async Task SaveAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == GuildId);
+        if (existing is null)
+        {
+            existing = new GuildSettings { GuildId = GuildId };
+            db.GuildSettings.Add(existing);
+        }
+        existing.CommandStaffRoleId = ulong.TryParse(roleInput, out var id) ? id : null;
+        await db.SaveChangesAsync();
+    }
+}

@@ -55,7 +55,7 @@
                         var allianceFeatures = FeatureCatalog.All
                             .Where(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance) && enabledFeatures.Contains((f.Feature, GuildAudience.Alliance)))
                             .ToList();
-                        <NavMenuGroup Title="@AllianceGroupTitle()" Icon="oi-star" Active="@IsAllianceGroupActive()">
+                        <NavMenuGroup Title="@AllianceGroupTitle()" Icon="oi-star" IconContent="@AllianceEmblemIcon" Active="@IsAllianceGroupActive()">
                             <div class="nav-item px-3 ps-4">
                                 <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/features")" Match="NavLinkMatch.All">Features</NavLink>
                             </div>
@@ -350,6 +350,10 @@
 
     private string AllianceGroupTitle() =>
         AllianceContext.Alliance is { } link ? $"Alliance — [{link.StfcAlliance.Tag}]" : "Alliance";
+
+    // The selected alliance's emblem, shown in place of the group's star glyph. Falls back to a
+    // star (AllianceEmblem's own fallback) when no alliance is selected or it has no emblem yet.
+    private RenderFragment AllianceEmblemIcon => @<AllianceEmblem Emblem="AllianceContext.Alliance?.StfcAlliance.Emblem" Size="18" />;
 
     private bool IsAllianceGroupActive() =>
         (currentUrl?.Contains("/features/", StringComparison.OrdinalIgnoreCase) ?? false)

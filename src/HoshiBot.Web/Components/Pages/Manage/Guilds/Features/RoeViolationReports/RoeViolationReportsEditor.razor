@@ -15,6 +15,8 @@
         <ChannelPicker Label="RoE Violations" ShowLabel="false" Usage="Where /report-roe-violation reports are posted — must be a Forum channel." Kind="ChannelKind.Forum"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
     </SettingsCard>
+
+    <CommandStaffRoleCard GuildId="GuildId" />
 </div>
 
 @code {

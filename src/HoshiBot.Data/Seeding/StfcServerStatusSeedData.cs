@@ -1,6 +1,6 @@
 namespace HoshiBot.Data.Seeding;
 
-// A one-time snapshot of every server's up/down/maintenance state, captured 2026-07-08
+// A one-time snapshot of every server's up/down/maintenance state, captured 2026-07-15
 // from an external STFC stats site's API. Seeded once into an empty table as a baseline
 // for StfcServerStatus (see there for why this is temporary rather than an ongoing sync).
 public static class StfcServerStatusSeedData
@@ -107,6 +107,7 @@ public static class StfcServerStatusSeedData
         (409, 1, "0"),
         (411, 1, "0"),
         (412, 1, "0"),
+        (413, 1, "0"),
         (700, 1, "0"),
         (701, 1, "0"),
         (702, 1, "0"),
@@ -120,5 +121,6 @@ public static class StfcServerStatusSeedData
         (717, 1, "0"),
         (719, 1, "0"),
         (724, 1, "0"),
+        (725, 1, "0"),
     ];
 }

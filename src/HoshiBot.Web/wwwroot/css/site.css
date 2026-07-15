@@ -65,3 +65,39 @@ a, .btn-link {
     border-bottom-style: hidden;
     --col-gap: 0;
 }
+
+/* Alliance emblem picker — a static-SSR radio grid on the STFC alliance Create/Edit pages.
+   Selection highlight is pure CSS (:has(:checked)) so it updates on click with no interactive
+   circuit; the native radios post the chosen index (or empty = None) with the form. */
+.emblem-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-width: 640px;
+}
+.emblem-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    padding: 6px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #fff;
+    margin: 0;
+}
+.emblem-tile:hover {
+    border-color: #adb5bd;
+}
+.emblem-tile:has(input:checked) {
+    border-color: rgb(5, 39, 103);
+    box-shadow: 0 0 0 2px rgba(5, 39, 103, 0.2);
+}
+.emblem-tile-none {
+    color: #6c757d;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}

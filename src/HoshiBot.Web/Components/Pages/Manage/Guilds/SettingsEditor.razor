@@ -56,9 +56,6 @@
     <SettingsCard Title="Member">
         <RolePicker Label="Member" ShowLabel="false" Usage="This guild's general membership role." CreateRoleName="Member" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
     </SettingsCard>
-    <SettingsCard Title="Command Staff">
-        <RolePicker Label="Command Staff" ShowLabel="false" Usage="Leadership/staff role — gates several admin-only bot actions." CreateRoleName="Command Staff" @bind-Value="commandStaffRoleIdInput" @bind-Value:after="SaveCommandStaffRoleAsync" Roles="roles" />
-    </SettingsCard>
     <SettingsCard Title="Boarding">
         <RolePicker Label="Boarding" ShowLabel="false" CreateRoleName="Boarding" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
     </SettingsCard>
@@ -96,7 +93,6 @@
     private string? commandStaffJobsChannelIdInput;
     private string? defaultChannelCategoryIdInput;
     private string? memberRoleIdInput;
-    private string? commandStaffRoleIdInput;
     private string? boardingRoleIdInput;
     private string? crewsRoleIdInput;
     private string? betaTesterRoleIdInput;
@@ -126,7 +122,6 @@
         commandStaffJobsChannelIdInput = settings.CommandStaffJobsChannelId?.ToString();
         defaultChannelCategoryIdInput = settings.DefaultChannelCategoryId?.ToString();
         memberRoleIdInput = settings.MemberRoleId?.ToString();
-        commandStaffRoleIdInput = settings.CommandStaffRoleId?.ToString();
         boardingRoleIdInput = settings.BoardingRoleId?.ToString();
         crewsRoleIdInput = settings.CrewsRoleId?.ToString();
         betaTesterRoleIdInput = settings.BetaTesterRoleId?.ToString();
@@ -187,7 +182,6 @@
     }
 
     private Task SaveMemberRoleAsync() => SaveRoleAsync((s, id) => s.MemberRoleId = id, memberRoleIdInput, v => memberRoleIdInput = v, "Member");
-    private Task SaveCommandStaffRoleAsync() => SaveRoleAsync((s, id) => s.CommandStaffRoleId = id, commandStaffRoleIdInput, v => commandStaffRoleIdInput = v, "Command Staff");
     private Task SaveBoardingRoleAsync() => SaveRoleAsync((s, id) => s.BoardingRoleId = id, boardingRoleIdInput, v => boardingRoleIdInput = v, "Boarding");
     private Task SaveCrewsRoleAsync() => SaveRoleAsync((s, id) => s.CrewsRoleId = id, crewsRoleIdInput, v => crewsRoleIdInput = v, "Crews");
     private Task SaveBetaTesterRoleAsync() => SaveRoleAsync((s, id) => s.BetaTesterRoleId = id, betaTesterRoleIdInput, v => betaTesterRoleIdInput = v, "Beta Tester");

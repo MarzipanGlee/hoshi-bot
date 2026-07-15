@@ -16,6 +16,8 @@
         <ChannelPicker Label="Raid Reports" ShowLabel="false" Usage="Where /raid reports are posted."
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
     </SettingsCard>
+
+    <CommandStaffRoleCard GuildId="GuildId" />
 </div>
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="ResolvedAudience" />

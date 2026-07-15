@@ -1,0 +1,32 @@
+@* Renders an alliance's in-game emblem from the bundled image set
+   (wwwroot/emblems/Emblem_{n:D3}.png). Falls back to a neutral star glyph — sized to match —
+   when the emblem is unset or out of the known range, so surrounding layout stays stable
+   whether or not an alliance has an emblem yet. Mirrors how GuildIcon renders a guild avatar. *@
+@if (IsKnown)
+{
+    <img src="@Src" alt="Alliance emblem" title="Alliance emblem @Emblem"
+         class="alliance-emblem flex-shrink-0 @CssClass" width="@Size" height="@Size"
+         style="width:@(Size)px;height:@(Size)px;" loading="lazy" />
+}
+else
+{
+    <span class="oi oi-star alliance-emblem-fallback flex-shrink-0 d-inline-flex align-items-center justify-content-center @CssClass"
+          style="width:@(Size)px;height:@(Size)px;font-size:@(Size * 0.6)px;" aria-hidden="true"></span>
+}
+
+@code {
+    // Highest emblem index shipped in wwwroot/emblems (Emblem_000..Emblem_026).
+    private const int MaxEmblem = 26;
+
+    [Parameter] public int? Emblem { get; set; }
+
+    // Rendered box size in px (square). Callers pick per context (small in the selector, larger
+    // on the overview cards).
+    [Parameter] public int Size { get; set; } = 28;
+
+    [Parameter] public string? CssClass { get; set; }
+
+    private bool IsKnown => Emblem is >= 0 and <= MaxEmblem;
+
+    private string Src => $"emblems/Emblem_{Emblem:D3}.png";
+}

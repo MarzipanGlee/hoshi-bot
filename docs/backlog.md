@@ -27,23 +27,20 @@ resolve to the guild's **primary** linked alliance — fully correct for single-
 Both are low-urgency (no coalition guild exists yet) and the risky part is custom-id
 compatibility on persistent messages — hence deferred.
 
-## Alliance emblems (icons)
+## Alliance emblems (icons) — DONE
 
-Alliances have emblems; show them in the admin UI wherever an alliance appears.
+Implemented. `StfcAlliance.Emblem` (`int?`) stores a 0-based index into
+`HoshiBot.Web/wwwroot/emblems/Emblem_{n:D3}.png` (0–26); rendered via the reusable
+`AllianceEmblem` component on the overview cards, top-bar selector, sidebar Alliance group,
+and the STFC → Alliances grid, with a visual thumbnail picker on the alliance Create/Edit
+pages. The seed (`StfcAllianceSeedData.json`) was refreshed from `data/alliances/alliances`
+to carry `emblem` for all 10,045 alliances.
 
-- **Source:** stfc.pro's alliance data carries an `emblem` field (integer, e.g. `"emblem": 21`).
-  Seen in `data/alliances/alliances` and the players feed's `allianceData`.
-- **Assets:** `assets/emblems/Emblem_000.png` … `Emblem_027.png` (28 images). The `emblem`
-  value looks like a direct 0-based index → `Emblem_{emblem:D3}.png`, **but confirm the mapping**
-  (spot-check a few known alliances against their in-game emblem before relying on it).
-- **Storage:** `StfcAlliance` doesn't store `emblem` today — add an `int Emblem` (or `int?`)
-  column and populate it in the alliance sync/seed (`StfcAllianceSeedData` + whatever future
-  live sync replaces it). It's a small snowflake-adjacent value; a plain int column is fine.
-- **Serve the images:** copy `assets/emblems` into `HoshiBot.Web/wwwroot/emblems` (or add a
-  static-file mapping) so they're web-servable, then reference `emblems/Emblem_0XX.png`.
-- **Display:** show the emblem next to the tag/name in `AllianceCard.razor`,
-  `AllianceSelector.razor`, and the sidebar's Alliance group — mirrors how `GuildIcon` renders
-  a guild's avatar. A small rounded/framed `<img>` with a graceful fallback when the emblem is
-  unknown.
-- Ties into the multi-alliance work (per-alliance selector/cards/nav) — the emblem is the
-  natural visual anchor for "which alliance am I looking at".
+**Mapping confirmed:** the external `emblem` integer is a direct 0-based index into our image
+set — across the full 10,045-alliance dump every value falls in exactly 0–26, matching the 27
+bundled images 1:1. So a future permitted live sync can persist `emblem` straight into
+`StfcAlliance.Emblem` with no translation.
+
+Remaining follow-up: there is no live sync yet (stfc.pro `/api/` polling is still
+robots.txt-disallowed — see `docs/stfc-api-requirements.md`), so emblems only refresh via a new
+manual snapshot or admin edits.

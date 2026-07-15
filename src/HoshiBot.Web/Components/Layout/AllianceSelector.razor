@@ -9,6 +9,7 @@
 {
     <div class="alliance-selector position-relative">
         <button type="button" class="alliance-selector-toggle d-flex align-items-center gap-2 bg-white rounded-3" @onclick="ToggleOpen">
+            <AllianceEmblem Emblem="AllianceContext.Alliance?.StfcAlliance.Emblem" Size="20" />
             <span class="alliance-selector-tag text-truncate">@Label(AllianceContext.Alliance)</span>
             <span class="oi oi-chevron-bottom alliance-selector-caret ms-auto flex-shrink-0" aria-hidden="true"></span>
         </button>
@@ -19,8 +20,9 @@
             <div class="alliance-selector-menu position-absolute start-0 overflow-y-auto bg-white rounded-3 shadow">
                 @foreach (var link in AllianceContext.Alliances)
                 {
-                    <button type="button" class="alliance-selector-item w-100 border-0 text-start text-decoration-none d-flex align-items-center @(link.Id == AllianceContext.GuildAllianceId ? "alliance-selector-item-active fw-semibold" : "")"
+                    <button type="button" class="alliance-selector-item w-100 border-0 text-start text-decoration-none d-flex align-items-center gap-2 @(link.Id == AllianceContext.GuildAllianceId ? "alliance-selector-item-active fw-semibold" : "")"
                             @onclick="() => SelectAsync(link.Id)">
+                        <AllianceEmblem Emblem="link.StfcAlliance.Emblem" Size="20" />
                         <span class="text-truncate">@Label(link)</span>
                     </button>
                 }

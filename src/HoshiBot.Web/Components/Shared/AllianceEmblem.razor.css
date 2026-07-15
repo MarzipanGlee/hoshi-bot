@@ -1,0 +1,9 @@
+.alliance-emblem {
+    object-fit: contain;
+    /* Transparent PNGs — no background so the metallic emblem sits cleanly on any surface. */
+}
+
+.alliance-emblem-fallback {
+    color: rgb(5, 39, 103);
+    opacity: 0.55;
+}

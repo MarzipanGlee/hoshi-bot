@@ -35,6 +35,25 @@
                 </InputSelect>
                 <ValidationMessage For="() => Alliance.ServerId" class="text-danger" />
             </div>
+            <div class="mb-3">
+                <label class="form-label">Emblem:</label>
+                <InputRadioGroup @bind-Value="Alliance.Emblem">
+                    <div class="emblem-picker">
+                        <label class="emblem-tile emblem-tile-none">
+                            <InputRadio Value="@((int?)null)" class="d-none" />
+                            None
+                        </label>
+                        @for (var i = 0; i <= MaxEmblem; i++)
+                        {
+                            var idx = i;
+                            <label class="emblem-tile" title="Emblem @idx">
+                                <InputRadio Value="@((int?)idx)" class="d-none" />
+                                <AllianceEmblem Emblem="idx" Size="44" />
+                            </label>
+                        }
+                    </div>
+                </InputRadioGroup>
+            </div>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>
@@ -45,6 +64,9 @@
 </div>
 
 @code {
+    // Highest emblem index bundled in wwwroot/emblems (Emblem_000..Emblem_026).
+    private const int MaxEmblem = 26;
+
     [SupplyParameterFromForm]
     private StfcAlliance Alliance { get; set; } = default!;
 

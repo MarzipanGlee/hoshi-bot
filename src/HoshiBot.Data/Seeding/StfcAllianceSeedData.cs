@@ -3,8 +3,9 @@ using System.Text.Json;
 
 namespace HoshiBot.Data.Seeding;
 
-// A one-time snapshot of every server's alliance roster (ExternalId, ServerId, Tag, Name),
-// captured 2026-07-08 from an external STFC stats site's API. Unlike StfcCatalogSeedData,
+// A one-time snapshot of every server's alliance roster (ExternalId, ServerId, Tag, Name,
+// Emblem), captured 2026-07-15 from an external STFC stats site's API (16,834 alliances).
+// Unlike StfcCatalogSeedData,
 // this isn't auto-regenerated — alliance rosters change constantly (renames, disbands,
 // server moves), so this is just a starting point seeded once into an empty table; ongoing
 // changes are expected to go through the existing Manage > STFC Catalog > Alliances admin
@@ -16,11 +17,11 @@ namespace HoshiBot.Data.Seeding;
 // access costs nothing by comparison.
 public static class StfcAllianceSeedData
 {
-    private record Entry(long ExternalId, int ServerId, string Tag, string Name);
+    private record Entry(long ExternalId, int ServerId, string Tag, string Name, int Emblem);
 
-    public static readonly (long ExternalId, int ServerId, string Tag, string Name)[] Entries = Load();
+    public static readonly (long ExternalId, int ServerId, string Tag, string Name, int Emblem)[] Entries = Load();
 
-    private static (long ExternalId, int ServerId, string Tag, string Name)[] Load()
+    private static (long ExternalId, int ServerId, string Tag, string Name, int Emblem)[] Load()
     {
         var assembly = Assembly.GetExecutingAssembly();
         const string resourceName = "HoshiBot.Data.Seeding.StfcAllianceSeedData.json";
@@ -30,6 +31,6 @@ public static class StfcAllianceSeedData
         var entries = JsonSerializer.Deserialize<Entry[]>(stream)
             ?? throw new InvalidOperationException($"Embedded resource '{resourceName}' deserialized to null.");
 
-        return entries.Select(e => (e.ExternalId, e.ServerId, e.Tag, e.Name)).ToArray();
+        return entries.Select(e => (e.ExternalId, e.ServerId, e.Tag, e.Name, e.Emblem)).ToArray();
     }
 }

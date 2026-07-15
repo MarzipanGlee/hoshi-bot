@@ -31,6 +31,8 @@
         <RolePicker Label="Warnings Role" ShowLabel="false" Usage="Pinged when a High-severity announcement is published."
             @bind-Value="warningsRoleInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
     </SettingsCard>
+
+    <CommandStaffRoleCard GuildId="GuildId" />
 </div>
 
 @code {

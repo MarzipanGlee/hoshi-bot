@@ -19,6 +19,14 @@ public class StfcAlliance
 
     public required string Name { get; set; }
 
+    // The alliance's in-game emblem, as a 0-based index into the bundled emblem image set
+    // (HoshiBot.Web/wwwroot/emblems/Emblem_{Emblem:D3}.png, currently 0–26). Null = unknown
+    // (the ~10k seeded alliances have no emblem yet). Expected to line up 1:1 with stfc.pro's
+    // `emblem` integer, but that mapping is unconfirmed and stfc.pro's /api/ is not permitted
+    // for automated polling — so today this is set visually via the alliance admin UI (the
+    // admin picks the image they see), which sidesteps the external-mapping question entirely.
+    public int? Emblem { get; set; }
+
     public int ServerId { get; set; }
 
     public StfcServer Server { get; set; } = null!;

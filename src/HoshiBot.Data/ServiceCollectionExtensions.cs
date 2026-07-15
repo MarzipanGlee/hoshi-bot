@@ -369,14 +369,25 @@ public static class ServiceCollectionExtensions
 
         var seededAt = DateTimeOffset.UtcNow;
 
-        foreach (var (externalId, serverId, tag, name) in StfcAllianceSeedData.Entries)
+        // The snapshot is a faithful dump of every alliance the source knew about, which can
+        // include a handful on brand-new servers not yet in our curated StfcServers catalog
+        // (they show up in alliance data before they're catalogued — see the STFC data doc).
+        // Skip those rather than FK-crash the whole seed; they'll come in with the next catalog
+        // + alliance refresh.
+        var knownServerIds = (await db.StfcServers.Select(s => s.Id).ToListAsync()).ToHashSet();
+
+        foreach (var (externalId, serverId, tag, name, emblem) in StfcAllianceSeedData.Entries)
         {
+            if (!knownServerIds.Contains(serverId))
+                continue;
+
             var alliance = new StfcAlliance
             {
                 ExternalId = externalId,
                 Tag = tag,
                 Name = name,
                 ServerId = serverId,
+                Emblem = emblem,
             };
             alliance.NameHistory.Add(new StfcAllianceNameHistory { Tag = tag, Name = name, ObservedAt = seededAt });
 
