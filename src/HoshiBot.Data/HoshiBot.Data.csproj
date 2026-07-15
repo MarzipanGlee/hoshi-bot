@@ -11,6 +11,9 @@
     <EmbeddedResource Include="Seeding\StfcAllianceSeedData.json" />
     <EmbeddedResource Include="Seeding\StfcPlayerSeedData.json" />
     <EmbeddedResource Include="Seeding\StfcTerritoryOwnershipSeedData.json" />
+    <EmbeddedResource Include="Seeding\StfcServerSeedData.json" />
+    <EmbeddedResource Include="Seeding\StfcServerInviteSeedData.json" />
+    <EmbeddedResource Include="Seeding\StfcServerStatusSeedData.json" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,6 +11,6 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/HoshiBot.Migrator/HoshiBot.Migrator.csproj" />
-    <Project Path="tools/HoshiBot.StfcCatalogSync/HoshiBot.StfcCatalogSync.csproj" />
+    <Project Path="tools/HoshiBot.StfcSeedSync/HoshiBot.StfcSeedSync.csproj" />
   </Folder>
 </Solution>
