@@ -55,7 +55,7 @@ public class EmbedBranding(GatewayClient gatewayClient, EmbedBrandingOptions opt
         return new EmbedAuthorProperties
         {
             Name = name,
-            IconUrl = $"{options.PublicWebBaseUrl}/officers/{ResolveOfficerIconFileName(guildId)}",
+            IconUrl = $"{options.PublicWebBaseUrl}/images/officers/{ResolveOfficerIconFileName(guildId)}",
             Url = AuthorUrl,
         };
     }

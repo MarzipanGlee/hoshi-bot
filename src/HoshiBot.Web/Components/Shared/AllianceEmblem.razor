@@ -1,5 +1,5 @@
 @* Renders an alliance's in-game emblem from the bundled image set
-   (wwwroot/emblems/Emblem_{n:D3}.png). Falls back to a neutral star glyph — sized to match —
+   (wwwroot/images/emblems/emblem_{n:D3}.png). Falls back to a neutral star glyph — sized to match —
    when the emblem is unset or out of the known range, so surrounding layout stays stable
    whether or not an alliance has an emblem yet. Mirrors how GuildIcon renders a guild avatar. *@
 @if (IsKnown)
@@ -15,7 +15,7 @@ else
 }
 
 @code {
-    // Highest emblem index shipped in wwwroot/emblems (Emblem_000..Emblem_026).
+    // Highest emblem index shipped in wwwroot/images/emblems (emblem_000..emblem_026).
     private const int MaxEmblem = 26;
 
     [Parameter] public int? Emblem { get; set; }
@@ -28,5 +28,5 @@ else
 
     private bool IsKnown => Emblem is >= 0 and <= MaxEmblem;
 
-    private string Src => $"emblems/Emblem_{Emblem:D3}.png";
+    private string Src => $"images/emblems/emblem_{Emblem:D3}.png";
 }

@@ -30,7 +30,7 @@ compatibility on persistent messages — hence deferred.
 ## Alliance emblems (icons) — DONE
 
 Implemented. `StfcAlliance.Emblem` (`int?`) stores a 0-based index into
-`HoshiBot.Web/wwwroot/emblems/Emblem_{n:D3}.png` (0–26); rendered via the reusable
+`HoshiBot.Web/wwwroot/images/emblems/emblem_{n:D3}.png` (0–26); rendered via the reusable
 `AllianceEmblem` component on the overview cards, top-bar selector, sidebar Alliance group,
 and the STFC → Alliances grid, with a visual thumbnail picker on the alliance Create/Edit
 pages. The seed (`StfcAllianceSeedData.json`) was refreshed from `data/alliances/alliances`
