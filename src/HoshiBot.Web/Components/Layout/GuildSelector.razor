@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authentication
 @inject CurrentGuildContext GuildContext
 @inject DiscordUserGuildsService DiscordUserGuilds
+@inject SupportModeContext SupportMode
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
 
@@ -63,6 +64,24 @@
     protected override async Task OnInitializedAsync()
     {
         GuildContext.Changed += OnContextChanged;
+        // Support mode is initialized in MainLayout.OnAfterRenderAsync (after this runs) and
+        // fires Changed, so reload the list from the widened source once it flips on/off.
+        SupportMode.Changed += OnSupportModeChanged;
+
+        await LoadGuildsAsync();
+    }
+
+    private async Task LoadGuildsAsync()
+    {
+        // Support mode (global admins only): every guild the bot is in, regardless of the
+        // user's own Discord membership/permissions. Otherwise, the user's own managed guilds.
+        if (SupportMode.IsActive)
+        {
+            installedGuilds = await DiscordUserGuilds.GetAllBotGuildsAsync();
+            notInstalledGuilds = [];
+            UpdateCurrentGuild();
+            return;
+        }
 
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
@@ -90,6 +109,12 @@
         StateHasChanged();
     });
 
+    private void OnSupportModeChanged() => InvokeAsync(async () =>
+    {
+        await LoadGuildsAsync();
+        StateHasChanged();
+    });
+
     private void ToggleOpen() => isOpen = !isOpen;
 
     private void Close() => isOpen = false;
@@ -101,5 +126,9 @@
         isOpen = false;
     }
 
-    public void Dispose() => GuildContext.Changed -= OnContextChanged;
+    public void Dispose()
+    {
+        GuildContext.Changed -= OnContextChanged;
+        SupportMode.Changed -= OnSupportModeChanged;
+    }
 }

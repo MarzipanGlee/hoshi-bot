@@ -12,7 +12,10 @@ namespace HoshiBot.Web.Services;
 // Manage/Index.razor). Depends on IAuthorizationService, so this is for PAGES only — never
 // inject this into an IAuthorizationHandler (see DiscordUserGuildsService's doc comment for
 // why that's a circular dependency).
-public class GuildAccessService(IAuthorizationService authorizationService, IDbContextFactory<HoshiBotDbContext> dbFactory)
+public class GuildAccessService(
+    IAuthorizationService authorizationService,
+    IDbContextFactory<HoshiBotDbContext> dbFactory,
+    SupportModeContext supportMode)
 {
     // Guilds our bot already knows about (has a DiscordGuild row) that the current user
     // can administer — existing Manage/Index.razor (Dashboard) behavior, consolidated.
@@ -20,6 +23,13 @@ public class GuildAccessService(IAuthorizationService authorizationService, IDbC
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var allGuilds = await db.DiscordGuilds.AsNoTracking().ToListAsync();
+
+        // Support mode (only ever active for a global admin) grants access to every bot
+        // guild. Short-circuit the per-guild AuthorizeAsync loop below — it's not just
+        // faster, it also avoids firing GuildAdminHandler's per-guild Discord/bot REST
+        // calls across the entire guild list.
+        if (supportMode.IsActive)
+            return allGuilds;
 
         var accessible = new List<DiscordGuild>();
         foreach (var guild in allGuilds)

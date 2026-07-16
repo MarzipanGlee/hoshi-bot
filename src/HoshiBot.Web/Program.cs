@@ -72,6 +72,7 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("GlobalAdmin", policy => policy.Requirements.Add(new GlobalAdminRequirement()));
 builder.Services.AddScoped<IAuthorizationHandler, GuildAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, GlobalAdminHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, SupportModeGuildAdminHandler>();
 builder.Services.AddScoped<GuildFeatureService>();
 builder.Services.AddScoped<GuildFeatureSettingsService>();
 builder.Services.AddScoped<GuildFeatureChannelService>();
@@ -86,6 +87,7 @@ builder.Services.AddScoped<StfcServerStatusImportService>();
 builder.Services.AddScoped<StfcTerritoryOwnershipImportService>();
 builder.Services.AddScoped<CurrentGuildContext>();
 builder.Services.AddScoped<CurrentAllianceContext>();
+builder.Services.AddScoped<SupportModeContext>();
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtection:KeyPath"] ?? "keys"));

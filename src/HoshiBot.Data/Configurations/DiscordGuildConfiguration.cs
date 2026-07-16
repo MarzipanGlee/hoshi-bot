@@ -11,6 +11,7 @@ public class DiscordGuildConfiguration : IEntityTypeConfiguration<DiscordGuild>
         builder.HasKey(g => g.Id);
         builder.Property(g => g.Id).ValueGeneratedNever();
         builder.Property(g => g.Name).HasMaxLength(100).IsRequired();
+        builder.Property(g => g.IconHash).HasMaxLength(34);
         builder.Property(g => g.Locale).HasMaxLength(10).IsRequired();
     }
 }

@@ -118,4 +118,19 @@ public class DiscordUserGuildsService(
             .ThenBy(g => g.Name)
             .ToList();
     }
+
+    // Every guild the bot is in (all our DiscordGuild rows), shaped for the guild picker —
+    // the support-mode data source, where a global admin sees all guilds regardless of
+    // their own Discord membership/permissions. All BotInstalled = true (a DiscordGuild row
+    // only exists for a guild the bot has joined), so there's no "not added yet" half.
+    // IconHash comes from the DiscordGuild row (kept current by GuildSyncHandler on gateway
+    // connect); GuildIcon falls back to name initials when it's still null.
+    public async Task<List<UserManagedGuild>> GetAllBotGuildsAsync()
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.DiscordGuilds
+            .OrderBy(g => g.Name)
+            .Select(g => new UserManagedGuild(g.Id, g.Name, g.IconHash, true))
+            .ToListAsync();
+    }
 }

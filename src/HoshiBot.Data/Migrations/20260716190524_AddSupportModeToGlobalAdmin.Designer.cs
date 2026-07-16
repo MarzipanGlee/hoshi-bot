@@ -3,6 +3,7 @@ using System;
 using HoshiBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HoshiBot.Data.Migrations
 {
     [DbContext(typeof(HoshiBotDbContext))]
-    partial class HoshiBotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260716190524_AddSupportModeToGlobalAdmin")]
+    partial class AddSupportModeToGlobalAdmin
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -280,10 +283,6 @@ namespace HoshiBot.Data.Migrations
                 {
                     b.Property<decimal>("Id")
                         .HasColumnType("numeric(20,0)");
-
-                    b.Property<string>("IconHash")
-                        .HasMaxLength(34)
-                        .HasColumnType("character varying(34)");
 
                     b.Property<string>("Locale")
                         .IsRequired()

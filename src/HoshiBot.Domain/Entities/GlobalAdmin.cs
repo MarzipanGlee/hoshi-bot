@@ -7,4 +7,9 @@ namespace HoshiBot.Domain.Entities;
 public class GlobalAdmin
 {
     public ulong DiscordUserId { get; set; }
+
+    // Personal "support mode" toggle for this global admin: when true, the web admin panel
+    // lets them select and open every guild the bot is in (not just the ones they personally
+    // administer), for operator/debugging access. Persisted per account, defaults to false.
+    public bool SupportMode { get; set; }
 }

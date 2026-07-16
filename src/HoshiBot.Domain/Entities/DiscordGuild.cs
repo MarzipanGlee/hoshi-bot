@@ -6,6 +6,13 @@ public class DiscordGuild
 
     public required string Name { get; set; }
 
+    // Discord icon hash for the guild's server icon (null if the guild has no icon), kept in
+    // sync by GuildSyncHandler on gateway connect. Lets the web guild picker render real
+    // icons in support mode, where the admin sees guilds they aren't personally a member of
+    // (so the OAuth /users/@me/guilds icon isn't available for them). Falls back to initials
+    // when null. Animated icons carry an "a_" prefix, so this can exceed 32 chars.
+    public string? IconHash { get; set; }
+
     public string Locale { get; set; } = "de";
 
     // Per-guild opt-in for NicknameSyncJob; off by default. /link-player still

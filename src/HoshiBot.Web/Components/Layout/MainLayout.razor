@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject CurrentGuildContext GuildContext
 @inject CurrentAllianceContext AllianceContext
+@inject SupportModeContext SupportMode
 @inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Hoshi Bot Admin</PageTitle>
@@ -16,6 +17,7 @@
             <AuthorizeView>
                 <Authorized>
                     <div class="topbar-actions d-flex align-items-center flex-shrink-0">
+                        <SupportModeToggle />
                         <GuildSelector />
                         <AllianceSelector />
                         <span class="topbar-user d-flex align-items-center gap-2 text-nowrap" title="@context.User.Identity?.Name">
@@ -60,6 +62,11 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
         {
+            // Support mode first: CurrentGuildContext.InitializeAsync validates the stored
+            // guild through GuildAccessService, which must already know support mode is on for
+            // a support-only guild to survive that check.
+            if (ulong.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                await SupportMode.InitializeAsync(userId);
             await GuildContext.InitializeAsync(authState.User);
             await AllianceContext.InitializeAsync();
         }

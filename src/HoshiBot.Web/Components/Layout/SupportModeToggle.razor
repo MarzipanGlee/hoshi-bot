@@ -1,0 +1,59 @@
+@implements IDisposable
+@inject SupportModeContext SupportMode
+@inject CurrentGuildContext GuildContext
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthStateProvider
+
+@* Only global admins ever see this. When on, the guild picker lists every guild the bot is
+   in and all guild pages become openable (see SupportModeContext / SupportModeGuildAdminHandler). *@
+@if (isGlobalAdmin)
+{
+    <div class="form-switch mb-0 d-flex align-items-center gap-2 text-nowrap flex-shrink-0"
+         title="Support-Modus: alle Server sichtbar und aufrufbar">
+        <input class="form-check-input mt-0" type="checkbox" role="switch" id="support-mode-switch"
+               checked="@SupportMode.IsActive" @onchange="OnToggleAsync" />
+        <label class="mb-0" for="support-mode-switch">Support</label>
+    </div>
+}
+
+@code {
+    private bool isGlobalAdmin;
+    private ulong userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // SupportModeContext is initialized by MainLayout (before CurrentGuildContext); this
+        // keeps the switch in sync once that runs, and across later toggles from other tabs.
+        SupportMode.Changed += OnSupportModeChanged;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+            return;
+        if (!ulong.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId))
+            return;
+
+        var result = await AuthorizationService.AuthorizeAsync(user, null, new GlobalAdminRequirement());
+        isGlobalAdmin = result.Succeeded;
+    }
+
+    private void OnSupportModeChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task OnToggleAsync(ChangeEventArgs e)
+    {
+        var value = (bool)e.Value!;
+        await SupportMode.SetAsync(userId, value);
+
+        // Turning support off can strip access to a currently-selected support-only guild —
+        // re-validate the selection (SetAsync goes through GuildAccessService, which no longer
+        // returns that guild once support mode is off) and clear it if it's gone.
+        if (!value && GuildContext.GuildId is { } id)
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (!await GuildContext.SetAsync(id, authState.User))
+                await GuildContext.ClearAsync();
+        }
+    }
+
+    public void Dispose() => SupportMode.Changed -= OnSupportModeChanged;
+}
