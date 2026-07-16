@@ -229,7 +229,133 @@ public class AlertService(
             return $"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.";
 
         var now = DateTimeOffset.UtcNow;
+        var expiration = now.Add(parsed.Value);
+        await UpsertShieldReminderAsync(guildId, userId, stfcSystem.Id, expiration, now);
 
+        return $"Shield reminder set for <t:{expiration.ToUnixTimeSeconds()}:f> (<t:{expiration.ToUnixTimeSeconds()}:R>) in {stfcSystem.Name}.";
+    }
+
+    // Staff-side "Schildverlust melden/Incursions/Gebietsreset" from the Command Bridge
+    // Führungsstab: sets a shield reminder for ANOTHER member, with the expiration derived
+    // from the reported variant (see ResolveShieldExpirationAsync). The member is then picked
+    // up by ShieldWarningJob like any other reminder.
+    public async Task<string> ReportStaffShieldLossAsync(ulong guildId, ulong targetUserId, string system, ShieldLossVariant variant)
+    {
+        var stfcSystem = await FindSystemByNameAsync(system);
+        if (stfcSystem is null)
+            return $"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.";
+
+        var now = DateTimeOffset.UtcNow;
+        var expiration = await ResolveShieldExpirationAsync(guildId, targetUserId, variant, now);
+        await UpsertShieldReminderAsync(guildId, targetUserId, stfcSystem.Id, expiration, now);
+
+        return $"Der Schildverlust für <@{targetUserId}> in **{stfcSystem.Name}** ist eingerichtet (Ablauf <t:{expiration.ToUnixTimeSeconds()}:R>). Der Commander wird in den nächsten Minuten informiert.";
+    }
+
+    // Current public-warning mute state for a member (false when no reminder row exists yet).
+    public async Task<bool> GetShieldMutedAsync(ulong guildId, ulong userId) =>
+        await db.ShieldReminders.AsNoTracking()
+            .Where(s => s.GuildId == guildId && s.DiscordUserId == userId)
+            .Select(s => s.Muted)
+            .FirstOrDefaultAsync();
+
+    // Staff toggle of a member's public shield-warning mute. Creates a disabled placeholder
+    // row if the member has no reminder yet, so the flag survives until a real report activates
+    // it. Notifies the member of the change (matching the legacy bot's wording).
+    public async Task<string> SetShieldMutedAsync(ulong guildId, ulong targetUserId, bool muted)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        if (await db.DiscordUsers.FindAsync(targetUserId) is null)
+            db.DiscordUsers.Add(new DiscordUser { DiscordUserId = targetUserId });
+        if (await db.GuildMembers.FindAsync(guildId, targetUserId) is null)
+            db.GuildMembers.Add(new GuildMember { GuildId = guildId, DiscordUserId = targetUserId, JoinedAt = now });
+
+        var reminder = await db.ShieldReminders.FirstOrDefaultAsync(s => s.GuildId == guildId && s.DiscordUserId == targetUserId);
+        if (reminder is null)
+        {
+            reminder = new ShieldReminder { GuildId = guildId, DiscordUserId = targetUserId, ShieldExpiration = now, Disabled = true };
+            db.ShieldReminders.Add(reminder);
+        }
+
+        reminder.Muted = muted;
+        await db.SaveChangesAsync();
+
+        var memberNotice = muted
+            ? "Commander, ich wurde vom Führungsstab angewiesen, Deine Schildverluste nicht mehr öffentlich zu melden, da Du auffällig oft nicht auf meine Nachrichten reagiert und damit für unnötig viele Pings an die Allianz gesorgt hast. Möchtest Du das wieder geändert haben, dann kontaktiere den Führungsstab. Danke für dein Verständnis!"
+            : "Commander, Deine Schildverluste werden ab sofort wieder öffentlich gemeldet. Bitte reagiere jeweils auf meine Nachrichten, damit die Allianz nicht unnötig über diese informiert werden muss!";
+        await dispatcher.SendDirectMessageAsync(targetUserId, memberNotice);
+
+        return muted
+            ? $"Die öffentlichen Schildablaufwarnungen für <@{targetUserId}> sind jetzt stummgeschaltet."
+            : $"Die öffentlichen Schildablaufwarnungen für <@{targetUserId}> sind jetzt wieder aktiv.";
+    }
+
+    // StfcEventStatus.EventGroup lookup key for Infinite Incursions (matches
+    // InfiniteIncursionsNotifyJob's persisted key — do not change the value).
+    private const string InfiniteIncursionsEventGroup = "incursions";
+
+    // Manual = now (already down); Territory Reset = today 20:00 UTC (fixed global reset hour);
+    // Infinite Incursions = when the event starts in the reported member's region (see below).
+    private async Task<DateTimeOffset> ResolveShieldExpirationAsync(ulong guildId, ulong targetUserId, ShieldLossVariant variant, DateTimeOffset now) => variant switch
+    {
+        ShieldLossVariant.TerritoryReset => TodayAtUtc(now, new TimeOnly(20, 0)),
+        ShieldLossVariant.InfiniteIncursions => await ResolveIncursionsExpirationAsync(guildId, targetUserId, now),
+        _ => now,
+    };
+
+    // The reported member's shield drops when Infinite Incursions starts in THEIR region. Every
+    // player is on one server and every server has a region, so resolve the region from the
+    // target player (falling back to the guild's primary alliance region if the member has no
+    // linked player). Snap to that region's actually-scheduled EventStart (StfcEventStatus); if
+    // none is scheduled, fall back to today at the region's default start time (the Infinite
+    // Incursions Schedule / IncursionsRegionDefault).
+    private async Task<DateTimeOffset> ResolveIncursionsExpirationAsync(ulong guildId, ulong targetUserId, DateTimeOffset now)
+    {
+        var regionId = await ResolvePlayerRegionIdAsync(targetUserId)
+            ?? await ResolvePrimaryAllianceRegionIdAsync(guildId);
+        if (regionId is not { } rid)
+            return now;
+
+        var scheduledStart = await db.StfcEventStatuses
+            .Where(e => e.EventGroup == InfiniteIncursionsEventGroup && e.RegionId == rid)
+            .Select(e => (DateTimeOffset?)e.EventStart)
+            .FirstOrDefaultAsync();
+        if (scheduledStart is { } start)
+            return start;
+
+        var defaultTime = await db.IncursionsRegionDefaults
+            .Where(d => d.RegionId == rid)
+            .Select(d => (TimeOnly?)d.DefaultStartTimeUtc)
+            .FirstOrDefaultAsync();
+        return defaultTime is { } time ? TodayAtUtc(now, time) : now;
+    }
+
+    // Target member's region via their (main) player's server. Null if no linked player.
+    private async Task<int?> ResolvePlayerRegionIdAsync(ulong discordUserId) =>
+        await db.UserPlayers
+            .Where(up => up.DiscordUserId == discordUserId)
+            .OrderByDescending(up => up.IsMain)
+            .Select(up => (int?)up.StfcPlayer.Server.RegionId)
+            .FirstOrDefaultAsync();
+
+    private async Task<int?> ResolvePrimaryAllianceRegionIdAsync(ulong guildId)
+    {
+        var primaryId = await allianceService.GetPrimaryIdAsync(guildId);
+        if (primaryId is null)
+            return null;
+
+        return await db.GuildAlliances
+            .Where(ga => ga.Id == primaryId)
+            .Select(ga => (int?)ga.StfcAlliance.Server.RegionId)
+            .FirstOrDefaultAsync();
+    }
+
+    private static DateTimeOffset TodayAtUtc(DateTimeOffset now, TimeOnly time) =>
+        new(now.UtcDateTime.Date.Add(time.ToTimeSpan()), TimeSpan.Zero);
+
+    private async Task UpsertShieldReminderAsync(ulong guildId, ulong userId, int stfcSystemId, DateTimeOffset expiration, DateTimeOffset now)
+    {
         if (await db.DiscordUsers.FindAsync(userId) is null)
             db.DiscordUsers.Add(new DiscordUser { DiscordUserId = userId });
         if (await db.GuildMembers.FindAsync(guildId, userId) is null)
@@ -248,13 +374,11 @@ public class AlertService(
             db.ShieldReminderNotifications.RemoveRange(reminder.Notifications);
         }
 
-        reminder.ShieldExpiration = now.Add(parsed.Value);
-        reminder.StfcSystemId = stfcSystem.Id;
+        reminder.ShieldExpiration = expiration;
+        reminder.StfcSystemId = stfcSystemId;
         reminder.Disabled = false;
 
         await db.SaveChangesAsync();
-
-        return $"Shield reminder set for <t:{reminder.ShieldExpiration.ToUnixTimeSeconds()}:f> (<t:{reminder.ShieldExpiration.ToUnixTimeSeconds()}:R>) in {stfcSystem.Name}.";
     }
 
     public async Task<string> TerminateShieldReminderAsync(ulong guildId, ulong userId)

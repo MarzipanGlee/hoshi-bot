@@ -63,6 +63,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<ThreadRemovalRequest> ThreadRemovalRequests => Set<ThreadRemovalRequest>();
 
+    public DbSet<CommandBridgeRepublishRequest> CommandBridgeRepublishRequests => Set<CommandBridgeRepublishRequest>();
+
     public DbSet<Alert> Alerts => Set<Alert>();
 
     public DbSet<AlertNotification> AlertNotifications => Set<AlertNotification>();

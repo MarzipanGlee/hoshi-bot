@@ -26,6 +26,8 @@ public class GuildSettings
     public ulong? UserLogChannelId { get; set; }
     public ulong? AllianceBoardingChannelId { get; set; }
     public ulong? CommandBridgeChannelId { get; set; }
+    public ulong? StaffCommandBridgeChannelId { get; set; }
+    public ulong? FriendsCommandBridgeChannelId { get; set; }
     public ulong? RemindersAlliesChannelId { get; set; }
     public ulong? RemindersServicesChannelId { get; set; }
     public ulong? RulesDeChannelId { get; set; }
@@ -34,9 +36,12 @@ public class GuildSettings
     public ulong? BotSupportChannelId { get; set; }
     public ulong? CommandStaffJobsChannelId { get; set; }
 
-    // The posted Command Bridge hub message, so /post-command-bridge can edit it in
-    // place instead of re-posting a duplicate every time it's re-run.
+    // The posted Command Bridge hub messages (one per bridge), so a (re)publish can edit in
+    // place instead of re-posting a duplicate every time. See CommandBridge / the channel
+    // fields above.
     public ulong? CommandBridgeMessageId { get; set; }
+    public ulong? StaffCommandBridgeMessageId { get; set; }
+    public ulong? FriendsCommandBridgeMessageId { get; set; }
 
     // Roles
     public ulong? CommandStaffRoleId { get; set; }

@@ -3,6 +3,7 @@ using System;
 using HoshiBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HoshiBot.Data.Migrations
 {
     [DbContext(typeof(HoshiBotDbContext))]
-    partial class HoshiBotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260716194330_AddCommandBridgesAndRepublishQueue")]
+    partial class AddCommandBridgesAndRepublishQueue
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -892,9 +895,6 @@ namespace HoshiBot.Data.Migrations
 
                     b.Property<decimal>("GuildId")
                         .HasColumnType("numeric(20,0)");
-
-                    b.Property<bool>("Muted")
-                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("ShieldExpiration")
                         .HasColumnType("timestamp with time zone");

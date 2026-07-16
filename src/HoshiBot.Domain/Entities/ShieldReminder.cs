@@ -19,5 +19,11 @@ public class ShieldReminder
 
     public bool Disabled { get; set; }
 
+    // Set by staff via the Command Bridge Führungsstab ("Öffentliche Schildablaufwarnungen
+    // verwalten") — suppresses the PUBLIC alliance shield-expiry warning for this member (the
+    // private DM reminders still go out). Used for members who repeatedly ignore reminders and
+    // cause unnecessary alliance pings.
+    public bool Muted { get; set; }
+
     public ICollection<ShieldReminderNotification> Notifications { get; set; } = [];
 }

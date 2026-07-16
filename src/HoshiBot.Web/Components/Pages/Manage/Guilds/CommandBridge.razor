@@ -1,0 +1,223 @@
+@page "/manage/guilds/{GuildId}/command-bridge"
+@using HoshiBot.Web.Components.Pages.Manage.Guilds.Features
+@using HoshiBot.Web.Services
+@using NetCord
+@using NetCord.Rest
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureService FeatureService
+
+<PageTitle>Command Bridge</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else
+{
+    <h1>Command Bridge</h1>
+    <p>
+        Each Command Bridge is a persistent hub message with action buttons. Pick a channel per
+        bridge and click <strong>Publish</strong> to (re)post it — the bot posts it shortly after.
+        Which buttons appear is controlled by enabling/disabling the underlying features (per
+        alliance) on the <a href="manage/guilds/@GuildId/features">Features</a> page.
+    </p>
+
+    <div class="card-grid mt-1">
+        @foreach (var bridge in bridges)
+        {
+            <SettingsCard Title="@bridge.Heading">
+                <p class="text-muted small mb-0">@bridge.Subtitle</p>
+
+                <ChannelPicker Label="Channel" ShowLabel="false"
+                               Usage="Where this Command Bridge hub message is posted."
+                               Value="@channelInputs[bridge.Kind]"
+                               ValueChanged="v => OnChannelChangedAsync(bridge.Kind, v)"
+                               Channels="channels" />
+
+                <div>
+                    <button class="btn btn-primary btn-sm" @onclick="() => PublishAsync(bridge.Kind)"
+                            disabled="@(ParseId(channelInputs[bridge.Kind]) is null || IsBusy(bridge.Kind))">
+                        Publish
+                    </button>
+                    @if (statuses.TryGetValue(bridge.Kind, out var status))
+                    {
+                        <span class="ms-2 @(status.Done ? "text-success" : "text-muted")">@status.Text</span>
+                    }
+                </div>
+
+                <div>
+                    <h3 class="h6 mb-1">Buttons on this bridge</h3>
+                    @{
+                        var items = OverviewFor(bridge.Kind);
+                    }
+                    @if (items.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No buttons are assigned to this bridge.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var item in items.Where(i => i.Shown))
+                            {
+                                <li>✅ @Link(item)</li>
+                            }
+                            @foreach (var item in items.Where(i => !i.Shown))
+                            {
+                                <li class="text-muted">🚫 @Link(item) <span class="small">(hidden)</span></li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </SettingsCard>
+        }
+    </div>
+}
+
+@code {
+    private record BridgeInfo(CommandBridgeKind Kind, string Heading, string Subtitle);
+
+    private record OverviewItem(string Label, bool Shown, string? Slug);
+
+    private static readonly BridgeInfo[] bridges =
+    [
+        new(CommandBridgeKind.User, "User bridge", "\"Kommandobrücke\" — the member-facing hub."),
+        new(CommandBridgeKind.Staff, "Staff bridge", "\"Kommandobrücke Führungsstab\" — post this to a staff-only channel."),
+        new(CommandBridgeKind.Friends, "Friends bridge", "\"Kommandobrücke Freunde\" — a trimmed hub for allied/friend guilds."),
+    ];
+
+    private record PublishStatus(string Text, bool Done);
+
+    private List<IGuildChannel> channels = [];
+    private readonly Dictionary<CommandBridgeKind, string?> channelInputs = new();
+    private readonly Dictionary<CommandBridgeKind, PublishStatus> statuses = new();
+    private HashSet<GuildFeature> disabledFeatures = [];
+
+    private bool IsBusy(CommandBridgeKind bridge) => statuses.TryGetValue(bridge, out var s) && !s.Done;
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId)
+            ?? new GuildSettings { GuildId = ParsedGuildId };
+
+        channelInputs[CommandBridgeKind.User] = settings.CommandBridgeChannelId?.ToString();
+        channelInputs[CommandBridgeKind.Staff] = settings.StaffCommandBridgeChannelId?.ToString();
+        channelInputs[CommandBridgeKind.Friends] = settings.FriendsCommandBridgeChannelId?.ToString();
+
+        channels = await DiscordData.GetChannelsAsync(ParsedGuildId);
+        disabledFeatures = await FeatureService.GetDisabledAsync(ParsedGuildId);
+    }
+
+    private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
+
+    private async Task OnChannelChangedAsync(CommandBridgeKind bridge, string? value)
+    {
+        channelInputs[bridge] = value;
+        var id = ParseId(value);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
+        if (settings is null)
+        {
+            settings = new GuildSettings { GuildId = ParsedGuildId };
+            db.GuildSettings.Add(settings);
+        }
+
+        switch (bridge)
+        {
+            case CommandBridgeKind.Staff: settings.StaffCommandBridgeChannelId = id; break;
+            case CommandBridgeKind.Friends: settings.FriendsCommandBridgeChannelId = id; break;
+            default: settings.CommandBridgeChannelId = id; break;
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    // Enqueue a republish request for the bot to pick up (Web can't post to Discord itself —
+    // it doesn't reference HoshiBot.Discord). CommandBridgeRepublishJob drains the queue: it
+    // DELETES the row once the hub is posted, so we poll for the row's disappearance to show
+    // completion (there's no status column by design — an empty queue means "all done").
+    private async Task PublishAsync(CommandBridgeKind bridge)
+    {
+        int requestId;
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            var request = new CommandBridgeRepublishRequest
+            {
+                GuildId = ParsedGuildId,
+                Bridge = bridge,
+                RequestedAt = DateTimeOffset.UtcNow,
+            };
+            db.CommandBridgeRepublishRequests.Add(request);
+            await db.SaveChangesAsync();
+            requestId = request.Id;
+        }
+
+        statuses[bridge] = new PublishStatus("Queued — waiting for the bot…", false);
+        StateHasChanged();
+
+        // Poll until the bot drains the request (up to ~40s; the job runs every 15s).
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+
+            bool stillPending;
+            await using (var db = await DbFactory.CreateDbContextAsync())
+                stillPending = await db.CommandBridgeRepublishRequests.AnyAsync(r => r.Id == requestId);
+
+            if (!stillPending)
+            {
+                statuses[bridge] = new PublishStatus("✅ Posted.", true);
+                return;
+            }
+        }
+
+        statuses[bridge] = new PublishStatus("Still queued — is the bot running?", true);
+    }
+
+    private List<OverviewItem> OverviewFor(CommandBridgeKind bridge)
+    {
+        var items = new List<OverviewItem>();
+        foreach (var entry in CommandBridgeCatalog.ForBridge(bridge))
+        {
+            if (entry.Kind == CommandBridgeButtonKind.ContactStaff)
+            {
+                // Mirrors the hub's rule approximately: shown when Tickets OR AnonymousMessaging
+                // is enabled (the hub also requires a configured channel; the exact per-audience
+                // check lives in the bot).
+                var shown = !disabledFeatures.Contains(GuildFeature.Tickets)
+                    || !disabledFeatures.Contains(GuildFeature.AnonymousMessaging);
+                items.Add(new OverviewItem(entry.LabelDe, shown, SlugFor(GuildFeature.Tickets)));
+                continue;
+            }
+
+            if (entry.Feature is { } feature)
+                items.Add(new OverviewItem(entry.LabelDe, !disabledFeatures.Contains(feature), SlugFor(feature)));
+            else
+                // Not gated by a feature (e.g. beta-tests) — always shown, no feature page.
+                items.Add(new OverviewItem(entry.LabelDe, true, null));
+        }
+
+        return items;
+    }
+
+    private static string? SlugFor(GuildFeature feature) =>
+        FeatureCatalog.All.FirstOrDefault(m => m.Feature == feature)?.Slug;
+
+    private RenderFragment Link(OverviewItem item) => builder =>
+    {
+        if (item.Slug is null)
+        {
+            builder.AddContent(0, item.Label);
+        }
+        else
+        {
+            builder.OpenElement(1, "a");
+            builder.AddAttribute(2, "href", $"manage/guilds/{GuildId}/features/{item.Slug}");
+            builder.AddContent(3, item.Label);
+            builder.CloseElement();
+        }
+    };
+}

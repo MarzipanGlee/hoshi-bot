@@ -46,7 +46,9 @@ public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispa
                 continue;
             }
 
-            if (reminder.Notifications.All(n => n.Kind != NotificationKind.Public))
+            // Muted (set by staff) suppresses the PUBLIC alliance warning only — the private
+            // DM reminders below still go out.
+            if (!reminder.Muted && reminder.Notifications.All(n => n.Kind != NotificationKind.Public))
             {
                 var content = $"Commander, <@{reminder.DiscordUserId}>'s shield has expired in **{reminder.StfcSystem?.Name}**! Please assist.";
                 var publicEmbed = new EmbedProperties

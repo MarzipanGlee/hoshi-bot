@@ -18,9 +18,6 @@
     <SettingsCard Title="Alliance Boarding">
         <ChannelPicker Label="Alliance Boarding" ShowLabel="false" Usage="Where new-member boarding happens." @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="SaveAllianceBoardingChannelAsync" Channels="channels" />
     </SettingsCard>
-    <SettingsCard Title="Command Bridge">
-        <ChannelPicker Label="Command Bridge" ShowLabel="false" Usage="Where the Command Bridge hub message (staff action buttons) is posted." @bind-Value="commandBridgeChannelIdInput" @bind-Value:after="SaveCommandBridgeChannelAsync" Channels="channels" />
-    </SettingsCard>
     <SettingsCard Title="Reminders (Allies)">
         <ChannelPicker Label="Reminders (Allies)" ShowLabel="false" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="SaveRemindersAlliesChannelAsync" Channels="channels" />
     </SettingsCard>
@@ -83,7 +80,6 @@
     private string? adminChannelIdInput;
     private string? userLogChannelIdInput;
     private string? allianceBoardingChannelIdInput;
-    private string? commandBridgeChannelIdInput;
     private string? remindersAlliesChannelIdInput;
     private string? remindersServicesChannelIdInput;
     private string? rulesDeChannelIdInput;
@@ -112,7 +108,6 @@
         adminChannelIdInput = settings.AdminChannelId?.ToString();
         userLogChannelIdInput = settings.UserLogChannelId?.ToString();
         allianceBoardingChannelIdInput = settings.AllianceBoardingChannelId?.ToString();
-        commandBridgeChannelIdInput = settings.CommandBridgeChannelId?.ToString();
         remindersAlliesChannelIdInput = settings.RemindersAlliesChannelId?.ToString();
         remindersServicesChannelIdInput = settings.RemindersServicesChannelId?.ToString();
         rulesDeChannelIdInput = settings.RulesDeChannelId?.ToString();
@@ -148,7 +143,6 @@
     private Task SaveAdminChannelAsync() => SaveAsync(s => s.AdminChannelId = ParseId(adminChannelIdInput));
     private Task SaveUserLogChannelAsync() => SaveAsync(s => s.UserLogChannelId = ParseId(userLogChannelIdInput));
     private Task SaveAllianceBoardingChannelAsync() => SaveAsync(s => s.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput));
-    private Task SaveCommandBridgeChannelAsync() => SaveAsync(s => s.CommandBridgeChannelId = ParseId(commandBridgeChannelIdInput));
     private Task SaveRemindersAlliesChannelAsync() => SaveAsync(s => s.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput));
     private Task SaveRemindersServicesChannelAsync() => SaveAsync(s => s.RemindersServicesChannelId = ParseId(remindersServicesChannelIdInput));
     private Task SaveRulesDeChannelAsync() => SaveAsync(s => s.RulesDeChannelId = ParseId(rulesDeChannelIdInput));

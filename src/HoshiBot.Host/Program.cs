@@ -3,6 +3,7 @@ using HoshiBot.Discord;
 using HoshiBot.Discord.Absences;
 using HoshiBot.Discord.AnonymousMessages;
 using HoshiBot.Discord.Announcements;
+using HoshiBot.Discord.CommandBridge;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Discord.Scheduling;
@@ -64,6 +65,8 @@ builder.Services.AddScoped<GuildFeatureService>();
 builder.Services.AddScoped<GuildFeatureSettingsService>();
 builder.Services.AddScoped<GuildFeatureChannelService>();
 builder.Services.AddScoped<GuildAllianceService>();
+builder.Services.AddScoped<CommandBridgeHubService>();
+builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();
 
 // A bare, User-Agent-less HttpClient gets a 403 from startrekfleetcommand.com's WordPress
@@ -102,6 +105,13 @@ builder.Services.AddQuartz(quartz =>
         .AddTrigger(trigger => trigger
             .ForJob(threadCleanupJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
+
+    var commandBridgeRepublishJobKey = new JobKey(nameof(CommandBridgeRepublishJob));
+    quartz.AddJob<CommandBridgeRepublishJob>(commandBridgeRepublishJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(commandBridgeRepublishJobKey)
+            // Short interval: this backs the Web "Publish" button, which polls for completion.
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInSeconds(5).RepeatForever()));
 
     var raidWarningJobKey = new JobKey(nameof(RaidWarningJob));
     quartz.AddJob<RaidWarningJob>(raidWarningJobKey)

@@ -38,5 +38,7 @@ public class DiscordGuild
 
     public ICollection<ThreadRemovalRequest> ThreadRemovalRequests { get; set; } = [];
 
+    public ICollection<CommandBridgeRepublishRequest> CommandBridgeRepublishRequests { get; set; } = [];
+
     public ICollection<ChannelPermissionExpectation> ChannelPermissionExpectations { get; set; } = [];
 }
