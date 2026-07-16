@@ -78,6 +78,40 @@ public class NotificationDispatcher(
         return results;
     }
 
+    // Posts to an explicit set of channel ids, mentioning mentionRoleId only when set — the
+    // channel-list counterpart to SendPublicAsync (which reads GuildAlertChannel rows and pings
+    // each row's own role). Used by ClientRelease, whose channels live in GuildFeatureChannel and
+    // whose role is per-platform, not per-channel.
+    public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendToChannelIdsAsync(
+        ulong guildId, IReadOnlyList<ulong> channelIds, ulong? mentionRoleId, string content, EmbedProperties? embed = null)
+    {
+        var results = new List<(ulong, ulong?)>();
+        var prefix = mentionRoleId is { } roleId ? $"<@&{roleId}> " : "";
+
+        foreach (var channelId in channelIds)
+        {
+            try
+            {
+                var message = await gatewayClient.Rest.SendMessageAsync(channelId,
+                    new MessageProperties
+                    {
+                        Content = $"{prefix}{content}",
+                        Embeds = embed is null ? null : [embed],
+                    });
+                results.Add((channelId, message.Id));
+            }
+            catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            {
+                logger.LogWarning("Skipped feature channel {ChannelId} for guild {GuildId}: {StatusCode}",
+                    channelId, guildId, ex.StatusCode);
+                results.Add((channelId, null));
+                await NotifyAdminOfPermissionIssueAsync(guildId, "eine Alarm-Nachricht senden", $"fehlende Berechtigung in <#{channelId}>?");
+            }
+        }
+
+        return results;
+    }
+
     // Sends to guildId's configured AdminChannelId (GuildSettings) and returns the sent
     // message's (channelId, messageId) so a caller can persist it for later edits — unlike
     // NotifyAdminOfPermissionIssueAsync (hardcoded wording, 1h throttle keyed by a free-text

@@ -7,5 +7,4 @@ public enum GuildAlertChannelKind
     ServerStatus,
     InfiniteIncursions,
     AllianceTournament,
-    ClientRelease,
 }

@@ -74,6 +74,7 @@ builder.Services.AddScoped<IAuthorizationHandler, GuildAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, GlobalAdminHandler>();
 builder.Services.AddScoped<GuildFeatureService>();
 builder.Services.AddScoped<GuildFeatureSettingsService>();
+builder.Services.AddScoped<GuildFeatureChannelService>();
 builder.Services.AddScoped<GuildAllianceService>();
 builder.Services.AddScoped<GuildAccessService>();
 builder.Services.AddScoped<DiscordUserGuildsService>();

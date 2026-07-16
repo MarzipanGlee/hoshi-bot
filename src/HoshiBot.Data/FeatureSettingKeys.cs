@@ -49,6 +49,30 @@ public static class AlertsOptInSettingKeys
     public const string Role = "Role";
 }
 
+public static class ClientReleaseSettingKeys
+{
+    // One opt-in role per game-client platform, pinged only when THAT platform releases a new
+    // version. Guild-wide (client news isn't per-alliance): stored at the None/null scope, so the
+    // same four roles show on every audience tab and the opt-in wizard reads them without an
+    // alliance. Linux has no version-check source, so it has no role. Members opt in/out via the
+    // alerts hub button, alongside the AlertsOptIn role.
+    public const string WindowsRole = "WindowsRole";
+    public const string MacOSRole = "MacOSRole";
+    public const string AndroidRole = "AndroidRole";
+    public const string IOSRole = "IOSRole";
+
+    // Null for Linux (no source, no role). Central so the editor, notify job, and opt-in wizard
+    // all map a platform to the same key.
+    public static string? RoleKey(StfcClientPlatform platform) => platform switch
+    {
+        StfcClientPlatform.Windows => WindowsRole,
+        StfcClientPlatform.MacOS => MacOSRole,
+        StfcClientPlatform.Android => AndroidRole,
+        StfcClientPlatform.IOS => IOSRole,
+        _ => null,
+    };
+}
+
 public static class DiplomacySettingKeys
 {
     public const string Channel = "Channel";

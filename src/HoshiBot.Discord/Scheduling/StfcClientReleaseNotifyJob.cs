@@ -31,6 +31,8 @@ public class StfcClientReleaseNotifyJob(
     IHttpClientFactory httpClientFactory,
     HoshiBotDbContext db,
     NotificationDispatcher dispatcher,
+    GuildFeatureChannelService featureChannelService,
+    GuildFeatureSettingsService settingsService,
     EmbedBranding embedBranding,
     ILogger<StfcClientReleaseNotifyJob> logger) : IJob
 {
@@ -76,11 +78,29 @@ public class StfcClientReleaseNotifyJob(
             if (row.Version == row.NotifiedVersion)
                 continue;
 
-            var guildIds = await db.GuildServers.Select(g => g.GuildId).Distinct().ToListAsync(context.CancellationToken);
+            // Each platform pings only its own guild-wide role (never gets here for Linux — no
+            // source produces a version — but RoleKey guards it regardless).
+            var roleKey = ClientReleaseSettingKeys.RoleKey(platform);
+            if (roleKey is null)
+                continue;
+
             var content = BuildContent(platform, version);
+
+            // Every guild that has configured at least one ClientRelease announcement channel.
+            var guildIds = await db.GuildFeatureChannels
+                .Where(c => c.Feature == GuildFeature.ClientRelease)
+                .Select(c => c.GuildId)
+                .Distinct()
+                .ToListAsync(context.CancellationToken);
 
             foreach (var guildId in guildIds)
             {
+                var channelIds = await featureChannelService.GetEnabledAudienceChannelsAsync(guildId, GuildFeature.ClientRelease);
+                if (channelIds.Count == 0)
+                    continue;
+
+                var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.ClientRelease, GuildAudience.None, null, roleKey);
+
                 var embed = new EmbedProperties
                 {
                     Title = $"New {DisplayName(platform)} Version",
@@ -89,8 +109,7 @@ public class StfcClientReleaseNotifyJob(
                     Author = await embedBranding.BuildAuthorAsync(guildId),
                     Footer = embedBranding.BuildFooter(guildId),
                 };
-                await dispatcher.SendPublicToEnabledAudiencesAsync(
-                    guildId, GuildAlertChannelKind.ClientRelease, GuildFeature.ClientRelease, content, embed: embed);
+                await dispatcher.SendToChannelIdsAsync(guildId, channelIds, roleId, content, embed);
             }
 
             row.NotifiedVersion = row.Version;

@@ -1,9 +1,16 @@
 @using HoshiBot.Web.Components.Pages.Manage.Guilds
+@using HoshiBot.Web.Services
+@using NetCord
+@using NetCord.Rest
 @inject GuildFeatureService FeatureService
+@inject GuildFeatureSettingsService SettingsService
+@inject DiscordGuildDataService DiscordData
 
 <p class="form-text">
     Announces when a new STFC game client version is released for Windows, macOS, Android, or
-    iOS. Linux has no known version-check source yet.
+    iOS. Linux has no known version-check source yet. Each announcement posts to the channels
+    below and pings only that platform's role — members opt in/out of a platform's role via the
+    hub's "manage alerts" button.
 </p>
 
 <div class="form-switch mb-3">
@@ -12,7 +19,26 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.ClientRelease" Audience="Audience" />
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
+
+<div class="card-grid mt-1">
+    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.ClientRelease" Audience="Audience"
+        Title="Announcement Channels" Usage="Every configured platform release is posted to each of these channels." />
+
+    <SettingsCard Title="Platform Roles (guild-wide)">
+        <p class="form-text mb-0">
+            The role pinged when each platform releases a new version — one per platform, shared
+            across all audiences. Members opt in/out via the alerts hub button.
+        </p>
+        <RolePicker Label="Windows" CreateRoleName="Windows" @bind-Value="windowsRoleInput" @bind-Value:after="SaveWindowsRoleAsync" Roles="roles" />
+        <RolePicker Label="macOS" CreateRoleName="macOS" @bind-Value="macOsRoleInput" @bind-Value:after="SaveMacOsRoleAsync" Roles="roles" />
+        <RolePicker Label="Android" CreateRoleName="Android" @bind-Value="androidRoleInput" @bind-Value:after="SaveAndroidRoleAsync" Roles="roles" />
+        <RolePicker Label="iOS" CreateRoleName="iOS" @bind-Value="iosRoleInput" @bind-Value:after="SaveIosRoleAsync" Roles="roles" />
+    </SettingsCard>
+</div>
 
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
@@ -20,10 +46,22 @@
     [Parameter] public int? GuildAllianceId { get; set; }
 
     private bool enabled;
+    private List<Role> roles = [];
+    private string? windowsRoleInput;
+    private string? macOsRoleInput;
+    private string? androidRoleInput;
+    private string? iosRoleInput;
+    private string? createRoleError;
 
     protected override async Task OnInitializedAsync()
     {
         enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.ClientRelease, Audience, GuildAllianceId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
+
+        windowsRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.WindowsRole))?.ToString();
+        macOsRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.MacOSRole))?.ToString();
+        androidRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.AndroidRole))?.ToString();
+        iosRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.IOSRole))?.ToString();
     }
 
     private async Task ToggleAsync(bool value)
@@ -31,4 +69,31 @@
         await FeatureService.SetEnabledAsync(GuildId, GuildFeature.ClientRelease, Audience, GuildAllianceId, value);
         enabled = value;
     }
+
+    // Platform roles are guild-wide (audience-agnostic, no alliance): the None/null scope.
+    private Task<ulong?> GetRoleAsync(string key) =>
+        SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.ClientRelease, GuildAudience.None, null, key);
+
+    private async Task SaveRoleAsync(string key, Action<string?> setInput, string? currentInput, string roleName)
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, roleName);
+            setInput(roleId?.ToString());
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.ClientRelease, GuildAudience.None, null, key, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (currentInput == RolePicker.CreateSentinel)
+                setInput(null);
+        }
+    }
+
+    private Task SaveWindowsRoleAsync() => SaveRoleAsync(ClientReleaseSettingKeys.WindowsRole, v => windowsRoleInput = v, windowsRoleInput, "Windows");
+    private Task SaveMacOsRoleAsync() => SaveRoleAsync(ClientReleaseSettingKeys.MacOSRole, v => macOsRoleInput = v, macOsRoleInput, "macOS");
+    private Task SaveAndroidRoleAsync() => SaveRoleAsync(ClientReleaseSettingKeys.AndroidRole, v => androidRoleInput = v, androidRoleInput, "Android");
+    private Task SaveIosRoleAsync() => SaveRoleAsync(ClientReleaseSettingKeys.IOSRole, v => iosRoleInput = v, iosRoleInput, "iOS");
 }

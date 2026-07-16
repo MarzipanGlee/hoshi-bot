@@ -18,6 +18,7 @@ public class AlertService(
     NotificationDispatcher dispatcher,
     GatewayClient gatewayClient,
     EmbedBranding embedBranding,
+    GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     GuildAllianceService allianceService)
 {
@@ -268,48 +269,80 @@ public class AlertService(
         return "Shield reminder removed.";
     }
 
-    // "Alarme verwalten" — legacy just adds/removes a single role (AlertsOptInSettingKeys.Role)
-    // on the caller, no persistence beyond that. Null return means the role isn't configured.
-    public async Task<bool?> HasAlertsRoleAsync(ulong guildId, ulong userId)
-    {
-        var guildAllianceId = (await allianceService.FindByMemberAsync(guildId, userId))?.Id
-            ?? await allianceService.GetPrimaryIdAsync(guildId);
-        if (guildAllianceId is null)
-            return null;
+    // One opt-in role a member can toggle from the alerts hub button.
+    public record OptInRoleState(string Key, string Label, ulong RoleId, bool HasRole);
 
-        var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, guildAllianceId, AlertsOptInSettingKeys.Role);
-        if (roleId is null)
-            return null;
+    // The four ClientRelease platform opt-ins (Linux has no role). Custom-id keys are stable
+    // (they travel in the alerts-toggle button custom id); labels are member-facing.
+    private static readonly (string Key, string Label, StfcClientPlatform Platform)[] ClientPlatformOptIns =
+    [
+        ("client-windows", "Windows", StfcClientPlatform.Windows),
+        ("client-macos", "macOS", StfcClientPlatform.MacOS),
+        ("client-android", "Android", StfcClientPlatform.Android),
+        ("client-ios", "iOS", StfcClientPlatform.IOS),
+    ];
+
+    // Every opt-in role available to the member: the AlertsOptIn "alerts" role (scoped to the
+    // member's alliance) plus the four guild-wide ClientRelease platform roles. A role is
+    // included only when its feature is enabled and the role configured; HasRole reflects the
+    // member's current membership. Order is stable — alerts first, then the platforms.
+    public async Task<IReadOnlyList<OptInRoleState>> GetOptInRolesAsync(ulong guildId, ulong userId)
+    {
+        var configured = new List<(string Key, string Label, ulong RoleId)>();
+
+        if (await featureService.IsEnabledAsync(guildId, GuildFeature.AlertsOptIn))
+        {
+            var allianceId = (await allianceService.FindByMemberAsync(guildId, userId))?.Id
+                ?? await allianceService.GetPrimaryIdAsync(guildId);
+            if (allianceId is not null)
+            {
+                var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, allianceId, AlertsOptInSettingKeys.Role);
+                if (roleId is { } r)
+                    configured.Add(("alerts", "Alarme", r));
+            }
+        }
+
+        if (await featureService.IsEnabledAsync(guildId, GuildFeature.ClientRelease))
+        {
+            foreach (var (key, label, platform) in ClientPlatformOptIns)
+            {
+                var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.ClientRelease, GuildAudience.None, null, ClientReleaseSettingKeys.RoleKey(platform)!);
+                if (roleId is { } r)
+                    configured.Add((key, label, r));
+            }
+        }
+
+        if (configured.Count == 0)
+            return [];
 
         var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
-        return guildUser.RoleIds.Contains(roleId.Value);
+        return configured
+            .Select(c => new OptInRoleState(c.Key, c.Label, c.RoleId, guildUser.RoleIds.Contains(c.RoleId)))
+            .ToList();
     }
 
-    public async Task<string> SetAlertsOptInAsync(ulong guildId, ulong userId, bool optIn)
+    // Flips one opt-in role for the member (adds if absent, removes if present). Returns a status
+    // message; an unknown/unconfigured key or a permission failure returns a friendly message
+    // rather than throwing.
+    public async Task<string> ToggleOptInRoleAsync(ulong guildId, ulong userId, string key)
     {
-        var guildAllianceId = (await allianceService.FindByMemberAsync(guildId, userId))?.Id
-            ?? await allianceService.GetPrimaryIdAsync(guildId);
-        var roleId = guildAllianceId is null
-            ? null
-            : await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, guildAllianceId, AlertsOptInSettingKeys.Role);
-        if (roleId is not { } roleIdValue)
-            return "Die Alarme-Rolle ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
+        var role = (await GetOptInRolesAsync(guildId, userId)).FirstOrDefault(r => r.Key == key);
+        if (role is null)
+            return "Diese Rolle ist nicht (mehr) verfügbar.";
 
         try
         {
-            if (optIn)
-                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, userId, roleIdValue);
+            if (role.HasRole)
+                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, userId, role.RoleId);
             else
-                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, userId, roleIdValue);
+                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, userId, role.RoleId);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "die Alarme-Rolle anpassen", "fehlende Berechtigung (Rolle verwalten)?");
-            return "Die Alarme konnten nicht angepasst werden — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "eine Opt-In-Rolle anpassen", "fehlende Berechtigung (Rolle verwalten)?");
+            return "Die Rolle konnte nicht angepasst werden — ein Admin wurde informiert.";
         }
 
-        return optIn
-            ? "Commander, die Alarme wurden aktiviert. Danke für Deine Unterstützung!"
-            : "Commander, die Alarme wurden deaktiviert. Du kannst sie jederzeit wieder einschalten, um die Allianz zu unterstützen!";
+        return role.HasRole ? $"**{role.Label}**: deaktiviert." : $"**{role.Label}**: aktiviert.";
     }
 }

@@ -298,32 +298,36 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("alerts-manage")]
     public async Task<InteractionMessageProperties> AlertsManagePrompt()
     {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AlertsOptIn))
-            return EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.AlertsOptIn));
-
-        var hasRole = await alertService.HasAlertsRoleAsync(Context.Guild!.Id, Context.User.Id);
-        if (hasRole is null)
-        {
-            return await EphemeralEmbedAsync("Die Alarme-Rolle ist noch nicht konfiguriert (siehe Guild-Einstellungen).");
-        }
-
-        var status = hasRole.Value ? "EIN" : "AUS";
-        return await EphemeralEmbedAsync(
-            $"Die Alarme sind für Dich aktuell:\n\n- **{status}**\n\nHilf Deinen Mitspielern und schalte die Alarme wenn immer möglich ein!",
-            [
-                new ActionRowProperties(
-                [
-                    new ButtonProperties("alerts-toggle:on", "Alarme einschalten", EmojiProperties.Standard("🔔"), ButtonStyle.Success) { Disabled = hasRole.Value },
-                    new ButtonProperties("alerts-toggle:off", "Alarme ausschalten", EmojiProperties.Standard("🔕"), ButtonStyle.Danger) { Disabled = !hasRole.Value },
-                ]),
-            ]);
+        var (description, components) = await BuildAlertsManageAsync();
+        return await EphemeralEmbedAsync(description, components, title: "Benachrichtigungen verwalten");
     }
 
     // Always a button within alerts-manage's own ephemeral message — ModifyMessage is safe.
     [ComponentInteraction("alerts-toggle")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> ToggleAlerts(string action)
+    public async Task<InteractionCallbackProperties<MessageOptions>> ToggleAlerts(string key)
     {
-        var result = await alertService.SetAlertsOptInAsync(Context.Guild!.Id, Context.User.Id, action == "on");
-        return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
+        await alertService.ToggleOptInRoleAsync(Context.Guild!.Id, Context.User.Id, key);
+        var (description, components) = await BuildAlertsManageAsync();
+        return await EphemeralEmbedModifyAsync(description, components, title: "Benachrichtigungen verwalten");
+    }
+
+    // The opt-in status list: the alerts role plus the four ClientRelease platform roles that are
+    // configured and enabled, each with a toggle button reflecting the member's current state
+    // (up to five buttons — Discord allows five per action row).
+    private async Task<(string Description, IReadOnlyList<IMessageComponentProperties> Components)> BuildAlertsManageAsync()
+    {
+        var roles = await alertService.GetOptInRolesAsync(Context.Guild!.Id, Context.User.Id);
+        if (roles.Count == 0)
+            return ("Es sind aktuell keine Opt-In-Rollen konfiguriert (siehe Guild-Einstellungen).", []);
+
+        var lines = roles.Select(r => $"- **{r.Label}**: {(r.HasRole ? "EIN ✅" : "AUS ❌")}");
+        var description = "Wähle, welche Benachrichtigungen Du erhalten möchtest — tippe auf eine Rolle, um sie umzuschalten:\n\n"
+            + string.Join("\n", lines);
+
+        var buttons = roles
+            .Select(r => new ButtonProperties($"alerts-toggle:{r.Key}", r.Label, r.HasRole ? ButtonStyle.Success : ButtonStyle.Secondary))
+            .ToList();
+
+        return (description, [new ActionRowProperties(buttons)]);
     }
 }

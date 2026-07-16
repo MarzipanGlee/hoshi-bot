@@ -62,6 +62,7 @@ builder.Services.AddScoped<AnonymousMessageService>();
 builder.Services.AddScoped<PendingModalInputService>();
 builder.Services.AddScoped<GuildFeatureService>();
 builder.Services.AddScoped<GuildFeatureSettingsService>();
+builder.Services.AddScoped<GuildFeatureChannelService>();
 builder.Services.AddScoped<GuildAllianceService>();
 builder.Services.AddScoped<StfcNewsService>();
 

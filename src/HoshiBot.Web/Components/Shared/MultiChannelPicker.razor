@@ -1,0 +1,112 @@
+@using HoshiBot.Web.Services
+@using NetCord
+@inject GuildFeatureChannelService FeatureChannelService
+@inject DiscordGuildDataService DiscordData
+
+@* A reusable list of post-to channels for one (feature, audience), backed by
+   GuildFeatureChannel. The channel-only counterpart to AlertChannelListEditor — use this where
+   the role to ping is decided elsewhere (e.g. ClientRelease's per-platform roles) rather than
+   paired one-per-channel. *@
+<SettingsCard Title="@Title">
+    @if (!string.IsNullOrWhiteSpace(Usage))
+    {
+        <p class="form-text mb-0">@Usage</p>
+    }
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Channel</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var channelId in channelIds)
+            {
+                <tr>
+                    <td>@ChannelName(channelId)</td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveAsync(channelId)">Delete</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="@($"add-feature-channel-{Feature}-{Audience}")" OnValidSubmit="AddAsync" class="d-flex flex-column gap-2">
+        <select class="form-select" @bind="newChannelIdInput">
+            <option value="">— select channel —</option>
+            @foreach (var group in NormalChannelGroups)
+            {
+                @if (group.Category is not null)
+                {
+                    <optgroup label="@group.Category.Name">
+                        @foreach (var channel in group.Channels)
+                        {
+                            <option value="@channel.Id">@ChannelLabel(channel)</option>
+                        }
+                    </optgroup>
+                }
+                else
+                {
+                    @foreach (var channel in group.Channels)
+                    {
+                        <option value="@channel.Id">@ChannelLabel(channel)</option>
+                    }
+                }
+            }
+        </select>
+        <button type="submit" class="btn btn-primary">Add</button>
+    </EditForm>
+</SettingsCard>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildFeature Feature { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public string Title { get; set; } = "Channels";
+    [Parameter] public string? Usage { get; set; }
+
+    private List<ulong> channelIds = [];
+    private List<IGuildChannel> channels = [];
+    private string? newChannelIdInput;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        channelIds = await FeatureChannelService.GetChannelsAsync(GuildId, Feature, Audience);
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+    }
+
+    private async Task AddAsync()
+    {
+        if (!ulong.TryParse(newChannelIdInput, out var channelId))
+            return;
+
+        await FeatureChannelService.AddAsync(GuildId, Feature, Audience, channelId);
+        newChannelIdInput = null;
+        await LoadAsync();
+    }
+
+    private async Task RemoveAsync(ulong channelId)
+    {
+        await FeatureChannelService.RemoveAsync(GuildId, Feature, Audience, channelId);
+        await LoadAsync();
+    }
+
+    // Every consumer posts via a plain SendMessageAsync (never a private thread), so Normal is
+    // always right here — same reasoning as AlertChannelListEditor.
+    private List<ChannelGroup> NormalChannelGroups =>
+        DiscordGuildDataService.GroupChannelsForDisplay(channels
+                .Where(c => c is CategoryGuildChannel || DiscordGuildDataService.IsAllowedChannel(c, ChannelKind.Normal))
+                .ToList())
+            .Where(g => g.Channels.Count > 0)
+            .ToList();
+
+    private string ChannelName(ulong id) =>
+        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+
+    private static string ChannelLabel(IGuildChannel channel) => channel switch
+    {
+        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        _ => $"# {channel.Name}",
+    };
+}
