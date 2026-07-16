@@ -18,19 +18,22 @@ public class SupportModeContext(IDbContextFactory<HoshiBotDbContext> dbFactory)
     public bool IsActive { get; private set; }
     public event Action? Changed;
 
-    // Call once, from MainLayout's OnAfterRenderAsync(firstRender) — before CurrentGuildContext
-    // is initialized, so its SetAsync validation (via GuildAccessService) already sees the
-    // right support-mode state. Fires Changed only when support turns out to be on, so the
-    // GuildSelector (already rendered from its default user-managed-guilds source) reloads
-    // from the widened all-bot-guilds source; a default-off state needs no reload.
+    // Seed the state from the DB. MainLayout calls this before CurrentGuildContext is
+    // initialized (so its SetAsync validation, via GuildAccessService, already sees the right
+    // support-mode state); data-loading pages that can run before MainLayout on a fresh load
+    // (e.g. the dashboard) may call it too. Idempotent: only fires Changed when the value
+    // actually changes, so repeat calls in the same circuit don't trigger redundant reloads
+    // or a Changed -> reload -> Changed loop.
     public async Task InitializeAsync(ulong userId)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         var admin = await db.GlobalAdmins.FindAsync(userId);
-        IsActive = admin?.SupportMode ?? false;
+        var value = admin?.SupportMode ?? false;
+        if (value == IsActive)
+            return;
 
-        if (IsActive)
-            Changed?.Invoke();
+        IsActive = value;
+        Changed?.Invoke();
     }
 
     public async Task SetAsync(ulong userId, bool value)
