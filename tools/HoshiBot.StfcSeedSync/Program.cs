@@ -10,8 +10,13 @@ using HoshiBot.StfcSeedSync;
 //
 // data/ is the full-raw working store; Seeding/ holds the shipped, embedded seed. Small feeds
 // are stored raw and the loaders project; the two heavy sources (alliances, players) are
-// trimmed to the fields the seeders use to keep the embedded data small. The player pages
-// arrive gzipped + paginated, so they are also merged into a single full-raw data/players.json.
+// trimmed to the fields the seeders use to keep the embedded data small. Where a raw source
+// arrives split/compressed/HTML-embedded rather than as plain JSON, this also writes a
+// full-fidelity JSON copy back into data/ (not just the trimmed/raw Seeding output) so data/
+// always holds a clean, complete, single-file version of everything: the gzipped, paginated
+// player pages merge into data/players.json; the control-char-laden alliance dump becomes
+// data/alliances.json; servers.htm's embedded RSC payload becomes data/servers.json +
+// data/server-invites.json.
 //
 // Not handled here (deliberate): events.json — StfcEventStatusSeedData is hand-curated
 // (region-split Incursions times the feed does not carry) and must not be overwritten;
@@ -35,7 +40,6 @@ if (!Directory.Exists(seedingDir))
 // UnsafeRelaxed so non-ASCII names/tags (e.g. "DFÖ", Cyrillic) stay as readable UTF-8 rather
 // than \uXXXX escapes; compact (no indentation) to match the other embedded seed files.
 var writeOpts = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-var readOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
 SyncPlayers();
 SyncAlliances();
@@ -80,8 +84,9 @@ void SyncPlayers()
     Console.WriteLine($"players: {pages.Count} pages → {records.Count} players (data/players.json + trimmed seed).");
 }
 
-// data/alliances (one big JSON dump, with stray control chars in slogan/announcement) → trimmed
-// Seeding/StfcAllianceSeedData.json.
+// data/alliances (one big JSON dump, no file extension, with stray control chars in
+// slogan/announcement) → a full-fidelity, validly-escaped data/alliances.json (every field,
+// same idea as the merged data/players.json) + trimmed Seeding/StfcAllianceSeedData.json.
 void SyncAlliances()
 {
     var path = Path.Combine(dataDir, "alliances");
@@ -91,12 +96,17 @@ void SyncAlliances()
         return;
     }
 
-    var alliances = JsonSerializer.Deserialize<AllianceRaw[]>(BlankControlChars(File.ReadAllText(path)), readOpts)
-        ?? throw new InvalidOperationException("data/alliances deserialized to null.");
+    using var doc = JsonDocument.Parse(BlankControlChars(File.ReadAllText(path)));
+    var records = doc.RootElement.EnumerateArray().ToList();
 
-    var seed = alliances.Select(a => new AllianceSeed(a.Id, a.Server, a.Tag, a.Name, a.Emblem)).ToArray();
+    File.WriteAllText(Path.Combine(dataDir, "alliances.json"), JsonSerializer.Serialize(records, writeOpts));
+
+    var seed = records.Select(a => new AllianceSeed(
+            a.GetProperty("id").GetInt64(), a.GetProperty("server").GetInt32(),
+            a.GetProperty("tag").GetString()!, a.GetProperty("name").GetString()!, a.GetProperty("emblem").GetInt32()))
+        .ToArray();
     WriteSeed("StfcAllianceSeedData.json", seed);
-    Console.WriteLine($"alliances: {seed.Length} → trimmed seed.");
+    Console.WriteLine($"alliances: {seed.Length} → data/alliances.json (full) + trimmed seed.");
 }
 
 // The alliance dump carries raw control characters inside string values (slogan/announcement),
@@ -110,8 +120,9 @@ static string BlankControlChars(string text)
     return sb.ToString();
 }
 
-// data/servers.htm (and any other data/*.htm) → two raw Seeding files (server records + invite
-// records), deduped by server number (last file wins, so servers.htm is authoritative).
+// data/servers.htm (and any other data/*.htm) → two full-raw data/ files (server records +
+// invite records, same idea as data/players.json / data/alliances.json) + the matching two raw
+// Seeding files, deduped by server number (last file wins, so servers.htm is authoritative).
 void SyncServers()
 {
     var htmlFiles = Directory.GetFiles(dataDir, "*.htm")
@@ -135,9 +146,14 @@ void SyncServers()
             invitesByServer[invite.GetProperty("serverId").GetInt32()] = invite;
     }
 
-    WriteSeed("StfcServerSeedData.json", serversByNumber.Values);
-    WriteSeed("StfcServerInviteSeedData.json", invitesByServer.Values);
-    Console.WriteLine($"servers: {serversByNumber.Count} servers, {invitesByServer.Count} invites → two raw seed files.");
+    var servers = serversByNumber.Values.ToList();
+    var invites = invitesByServer.Values.ToList();
+
+    WriteDataJson("servers.json", servers);
+    WriteDataJson("server-invites.json", invites);
+    WriteSeed("StfcServerSeedData.json", servers);
+    WriteSeed("StfcServerInviteSeedData.json", invites);
+    Console.WriteLine($"servers: {servers.Count} servers, {invites.Count} invites → data/servers.json + data/server-invites.json + seed files.");
 }
 
 // A plain-JSON feed copied verbatim (re-serialized to validate + normalize) into Seeding/.
@@ -158,9 +174,9 @@ void SyncRawFeed(string sourceName, string outputName)
 void WriteSeed<T>(string name, T value) =>
     File.WriteAllText(Path.Combine(seedingDir, name), JsonSerializer.Serialize(value, writeOpts));
 
+void WriteDataJson<T>(string name, T value) =>
+    File.WriteAllText(Path.Combine(dataDir, name), JsonSerializer.Serialize(value, writeOpts));
+
 // Trimmed seed shapes (PascalCase keys — must match the loaders in HoshiBot.Data/Seeding).
 internal record AllianceSeed(long ExternalId, int ServerId, string Tag, string Name, int Emblem);
 internal record PlayerSeed(long ExternalId, string Name, string? AllianceTag);
-
-// Raw alliance record fields we keep (case-insensitive read; the dump has many more).
-internal record AllianceRaw(long Id, int Server, string Tag, string Name, int Emblem);
