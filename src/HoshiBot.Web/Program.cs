@@ -79,6 +79,10 @@ builder.Services.AddScoped<GuildAccessService>();
 builder.Services.AddScoped<DiscordUserGuildsService>();
 builder.Services.AddScoped<DiscordGuildDataService>();
 builder.Services.AddScoped<StfcPlayerImportService>();
+builder.Services.AddScoped<StfcAllianceImportService>();
+builder.Services.AddScoped<StfcCatalogImportService>();
+builder.Services.AddScoped<StfcServerStatusImportService>();
+builder.Services.AddScoped<StfcTerritoryOwnershipImportService>();
 builder.Services.AddScoped<CurrentGuildContext>();
 builder.Services.AddScoped<CurrentAllianceContext>();
 

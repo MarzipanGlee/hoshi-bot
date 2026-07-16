@@ -81,28 +81,11 @@ public static class ServiceCollectionExtensions
         await db.SaveChangesAsync();
     }
 
-    // Scopely's own region/veil-group numbering — assigned explicitly rather than derived,
-    // since it's a fixed set of 3/6 values that will essentially never grow.
-    private static readonly Dictionary<string, int> ScopelyRegionIds = new()
-    {
-        ["US"] = 1,
-        ["EU"] = 2,
-        ["APAC"] = 3,
-    };
-
-    private static readonly Dictionary<string, int> ScopelyVeilGroupIds = new()
-    {
-        ["US-1"] = 1,
-        ["US-2"] = 2,
-        ["US-3"] = 3,
-        ["EU-4"] = 4,
-        ["EU-5"] = 5,
-        ["APAC-6"] = 6,
-    };
-
     // Bootstraps the baseline STFC region/veil-group/server catalog from the generated
-    // StfcCatalogSeedData (see tools/HoshiBot.StfcCatalogSync). Only seeds while no region
-    // exists yet, so it never overwrites catalog data added/edited later via /catalog.
+    // StfcCatalogSeedData (see tools/HoshiBot.StfcSeedSync). Only seeds while no region
+    // exists yet, so it never overwrites catalog data added/edited later via /catalog or the
+    // admin panel's Import page (StfcCatalogImportService), which is the ongoing-refresh path
+    // once this initial seed has run.
     public static async Task SeedStfcCatalogIfEmptyAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -116,7 +99,7 @@ public static class ServiceCollectionExtensions
             var region = await db.StfcRegions.FirstOrDefaultAsync(r => r.Name == regionName);
             if (region is null)
             {
-                region = new StfcRegion { Id = ScopelyRegionIds[regionName], Name = regionName };
+                region = new StfcRegion { Id = ScopelyCatalogIds.Regions[regionName], Name = regionName };
                 db.StfcRegions.Add(region);
                 await db.SaveChangesAsync();
             }
@@ -130,7 +113,7 @@ public static class ServiceCollectionExtensions
                 veilGroup = await db.StfcVeilGroups.FirstOrDefaultAsync(v => v.Name == veilGroupName);
                 if (veilGroup is null)
                 {
-                    veilGroup = new StfcVeilGroup { Id = ScopelyVeilGroupIds[veilGroupName], Name = veilGroupName, RegionId = region.Id };
+                    veilGroup = new StfcVeilGroup { Id = ScopelyCatalogIds.VeilGroups[veilGroupName], Name = veilGroupName, RegionId = region.Id };
                     db.StfcVeilGroups.Add(veilGroup);
                     await db.SaveChangesAsync();
                 }
@@ -511,9 +494,9 @@ public static class ServiceCollectionExtensions
 
         var defaultsByRegionId = new Dictionary<int, TimeOnly>
         {
-            [ScopelyRegionIds["US"]] = new TimeOnly(15, 0),
-            [ScopelyRegionIds["EU"]] = new TimeOnly(8, 0),
-            [ScopelyRegionIds["APAC"]] = new TimeOnly(23, 0),
+            [ScopelyCatalogIds.Regions["US"]] = new TimeOnly(15, 0),
+            [ScopelyCatalogIds.Regions["EU"]] = new TimeOnly(8, 0),
+            [ScopelyCatalogIds.Regions["APAC"]] = new TimeOnly(23, 0),
         };
 
         var knownRegionIds = await db.StfcRegions.Select(r => r.Id).ToHashSetAsync();

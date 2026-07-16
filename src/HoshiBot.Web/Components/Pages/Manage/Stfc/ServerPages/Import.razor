@@ -1,0 +1,132 @@
+@page "/manage/stfc/servers/import"
+@using System.Text.Json
+@using HoshiBot.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject StfcCatalogImportService ImportService
+
+<PageTitle>Import Servers</PageTitle>
+
+<h1>Import Servers</h1>
+<p>
+    Upload the two catalog files <code>tools/HoshiBot.StfcSeedSync</code> generates from
+    <code>data/servers.htm</code>: the server records (<code>StfcServerSeedData.json</code>
+    shape) and, optionally, the Discord-invite records (<code>StfcServerInviteSeedData.json</code>
+    shape). Regions/veil groups/servers are created or updated; invites are only ever added,
+    never edited or removed (a server can have more than one active invite).
+</p>
+
+<div class="d-flex gap-4 flex-wrap mb-3">
+    <div>
+        <label class="form-label d-block">Servers file (required)</label>
+        <ButtonUpload TValue="string" Accept=".json" IsDisabled="importing"
+                      BrowserButtonText="Choose file..." OnAllFileUploaded="OnServersFileUploadedAsync" />
+        @if (serverEntries is not null)
+        {
+            <p class="form-text mb-0">@serverEntries.Count server records loaded.</p>
+        }
+    </div>
+    <div>
+        <label class="form-label d-block">Invites file (optional)</label>
+        <ButtonUpload TValue="string" Accept=".json" IsDisabled="importing"
+                      BrowserButtonText="Choose file..." OnAllFileUploaded="OnInvitesFileUploadedAsync" />
+        @if (inviteEntries is not null)
+        {
+            <p class="form-text mb-0">@inviteEntries.Count invite records loaded.</p>
+        }
+    </div>
+</div>
+
+<button type="button" class="btn btn-primary" disabled="@(serverEntries is null || importing)" @onclick="RunImportAsync">
+    Run Import
+</button>
+
+@if (importing)
+{
+    <p class="mt-3">Importing...</p>
+}
+
+@if (error is not null)
+{
+    <p class="text-danger mt-3">@error</p>
+}
+
+@if (result is not null)
+{
+    <p class="mt-3">
+        Regions: @result.RegionsAdded added. Veil groups: @result.VeilGroupsAdded added.
+        Servers: @result.ServersAdded added, @result.ServersUpdated updated. Invites: @result.InvitesAdded added.
+        Skipped @result.UnknownRegion (unknown region), @result.UnknownVeilGroup (unknown veil group).
+    </p>
+}
+
+@code {
+    private List<StfcCatalogServerEntry>? serverEntries;
+    private List<StfcCatalogInviteEntry>? inviteEntries;
+    private bool importing;
+    private string? error;
+    private StfcCatalogImportResult? result;
+
+    private async Task OnServersFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
+    {
+        error = null;
+        result = null;
+        var file = files.FirstOrDefault()?.File;
+        if (file is null)
+            return;
+
+        using var doc = await ParseAsync(file);
+        serverEntries = doc.RootElement.EnumerateArray().Select(e => new StfcCatalogServerEntry(
+                e.GetProperty("serverid").GetInt32(),
+                e.GetProperty("name").GetString()!,
+                e.GetProperty("region").GetString()!,
+                e.TryGetProperty("groupname", out var g) && g.ValueKind == JsonValueKind.String ? g.GetString() : null))
+            .ToList();
+        StateHasChanged();
+    }
+
+    private async Task OnInvitesFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
+    {
+        error = null;
+        var file = files.FirstOrDefault()?.File;
+        if (file is null)
+            return;
+
+        using var doc = await ParseAsync(file);
+        inviteEntries = doc.RootElement.EnumerateArray().Select(e => new StfcCatalogInviteEntry(
+                e.GetProperty("serverId").GetInt32(),
+                e.TryGetProperty("discordUrl", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString() : null))
+            .ToList();
+        StateHasChanged();
+    }
+
+    private async Task RunImportAsync()
+    {
+        if (serverEntries is null)
+            return;
+
+        error = null;
+        result = null;
+        importing = true;
+        StateHasChanged();
+
+        try
+        {
+            result = await ImportService.ImportAsync(serverEntries, inviteEntries ?? []);
+        }
+        catch (Exception ex)
+        {
+            error = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            importing = false;
+            StateHasChanged();
+        }
+    }
+
+    private static async Task<JsonDocument> ParseAsync(IBrowserFile file)
+    {
+        await using var stream = file.OpenReadStream(maxAllowedSize: 5_000_000);
+        return await JsonDocument.ParseAsync(stream);
+    }
+}

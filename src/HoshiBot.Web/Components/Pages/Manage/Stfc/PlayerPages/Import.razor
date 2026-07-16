@@ -1,7 +1,6 @@
 @page "/manage/stfc/players/import"
 @using System.IO.Compression
 @using System.Text.Json
-@using System.Text.Json.Serialization
 @using HoshiBot.Web.Services
 @using Microsoft.AspNetCore.Components.Forms
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
@@ -10,7 +9,7 @@
 <PageTitle>Import Players</PageTitle>
 
 <h1>Import Players</h1>
-<p>Upload one or more player-data files for a single server (paginated JSON exports from an external stats site — gzipped or plain). Existing players are matched by their external ID and updated in place; new ones are added.</p>
+<p>Upload one or more player-data files for a single server — either the paginated per-page exports from an external stats site (<code>{"count":…,"players":[{"data":{…}}]}</code>, gzipped or plain) or a single merged flat array of player records (<code>[{…},…]</code>, e.g. <code>data/players.json</code> from <code>tools/HoshiBot.StfcSeedSync</code>). Existing players are matched by their external ID and updated in place; new ones are added.</p>
 
 <div class="d-flex gap-2 align-items-end flex-wrap mb-3">
     <div>
@@ -116,7 +115,10 @@
     }
 
     // Real feed files (e.g. data/players_164*) have no file extension and no declared
-    // content-type — sniffing the gzip magic number is the only reliable signal.
+    // content-type — sniffing the gzip magic number is the only reliable signal. The JSON
+    // itself comes in two shapes: the feed's own paginated {"count":…,"players":[{"data":{…}}]}
+    // wrapper, or a flat array of player records (e.g. data/players.json, merged from those
+    // pages by tools/HoshiBot.StfcSeedSync) — sniffed by the first non-whitespace token.
     private static async Task<List<StfcPlayerImportEntry>> ParseFileAsync(IBrowserFile file)
     {
         await using var raw = file.OpenReadStream(maxAllowedSize: 20_000_000);
@@ -128,20 +130,23 @@
         buffered.Position = 0;
 
         await using Stream jsonStream = isGzip ? new GZipStream(buffered, CompressionMode.Decompress) : buffered;
-        var page = await JsonSerializer.DeserializeAsync<PlayersPage>(jsonStream);
+        using var doc = await JsonDocument.ParseAsync(jsonStream);
 
-        return (page?.Players ?? [])
-            .Select(p => new StfcPlayerImportEntry(p.Data.PlayerId, p.Data.Name, p.Data.Tag, p.Data.Server, p.Data.RankId, p.Data.Level))
-            .ToList();
+        var records = doc.RootElement.ValueKind == JsonValueKind.Array
+            ? doc.RootElement.EnumerateArray()
+            : doc.RootElement.GetProperty("players").EnumerateArray().Select(p => p.GetProperty("data"));
+
+        return records.Select(ToEntry).ToList();
     }
 
-    private record PlayersPage([property: JsonPropertyName("players")] List<PlayerEntry> Players);
-    private record PlayerEntry([property: JsonPropertyName("data")] PlayerData Data);
-    private record PlayerData(
-        [property: JsonPropertyName("playerid")] long PlayerId,
-        [property: JsonPropertyName("name")] string? Name,
-        [property: JsonPropertyName("tag")] string? Tag,
-        [property: JsonPropertyName("server")] int Server,
-        [property: JsonPropertyName("rankid")] int RankId,
-        [property: JsonPropertyName("level")] int Level);
+    // "owner" is the player's in-game display name — "name" on the same record is the
+    // alliance's name (parallel to "tag"), not the player's; using "name" here was a
+    // real bug that silently stored every imported player's alliance name as their own.
+    private static StfcPlayerImportEntry ToEntry(JsonElement p) => new(
+        p.GetProperty("playerid").GetInt64(),
+        p.TryGetProperty("owner", out var owner) ? owner.GetString() : null,
+        p.TryGetProperty("tag", out var tag) && tag.ValueKind == JsonValueKind.String ? tag.GetString() : null,
+        p.GetProperty("server").GetInt32(),
+        p.GetProperty("rankid").GetInt32(),
+        p.GetProperty("level").GetInt32());
 }

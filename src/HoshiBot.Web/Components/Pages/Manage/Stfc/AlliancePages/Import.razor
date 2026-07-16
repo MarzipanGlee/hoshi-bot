@@ -1,0 +1,98 @@
+@page "/manage/stfc/alliances/import"
+@using System.Text
+@using System.Text.Json
+@using HoshiBot.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject StfcAllianceImportService ImportService
+
+<PageTitle>Import Alliances</PageTitle>
+
+<h1>Import Alliances</h1>
+<p>Upload a full alliance-data dump from an external stats site (e.g. <code>data/alliances</code>, one JSON array covering every server). Existing alliances are matched by their external ID and updated in place — a changed Tag/Name is recorded to their name history; new alliances are added. Alliances on a server not yet in the catalog are skipped.</p>
+
+<ButtonUpload TValue="string" Accept=".json" IsDisabled="importing"
+              BrowserButtonText="Choose file..." OnAllFileUploaded="OnAllFileUploadedAsync" />
+
+@if (importing)
+{
+    <p class="mt-3">Importing...</p>
+}
+
+@if (error is not null)
+{
+    <p class="text-danger mt-3">@error</p>
+}
+
+@if (result is not null)
+{
+    <p class="mt-3">
+        Added @result.Added, updated @result.Updated (@result.Renamed renamed/re-tagged). Skipped @result.UnknownServer (unknown server).
+    </p>
+}
+
+@code {
+    private bool importing;
+    private string? error;
+    private StfcAllianceImportResult? result;
+
+    private async Task OnAllFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
+    {
+        error = null;
+        result = null;
+        importing = true;
+        StateHasChanged();
+
+        try
+        {
+            var entries = new List<StfcAllianceImportEntry>();
+            foreach (var file in files)
+            {
+                if (file.File is null)
+                    continue;
+
+                entries.AddRange(await ParseFileAsync(file.File));
+            }
+
+            result = await ImportService.ImportAsync(entries);
+        }
+        catch (Exception ex)
+        {
+            error = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            importing = false;
+            StateHasChanged();
+        }
+    }
+
+    // The raw dump carries stray control characters inside string values (slogan/announcement),
+    // which are invalid JSON — same issue and fix as tools/HoshiBot.StfcSeedSync's SyncAlliances.
+    private static async Task<List<StfcAllianceImportEntry>> ParseFileAsync(IBrowserFile file)
+    {
+        await using var stream = file.OpenReadStream(maxAllowedSize: 32_000_000);
+        using var reader = new StreamReader(stream);
+        var text = BlankControlChars(await reader.ReadToEndAsync());
+
+        using var doc = JsonDocument.Parse(text);
+        var entries = new List<StfcAllianceImportEntry>();
+        foreach (var a in doc.RootElement.EnumerateArray())
+        {
+            entries.Add(new StfcAllianceImportEntry(
+                a.GetProperty("id").GetInt64(),
+                a.GetProperty("server").GetInt32(),
+                a.GetProperty("tag").GetString()!,
+                a.GetProperty("name").GetString()!,
+                a.GetProperty("emblem").GetInt32()));
+        }
+        return entries;
+    }
+
+    private static string BlankControlChars(string text)
+    {
+        var sb = new StringBuilder(text.Length);
+        foreach (var ch in text)
+            sb.Append(ch < ' ' ? ' ' : ch);
+        return sb.ToString();
+    }
+}

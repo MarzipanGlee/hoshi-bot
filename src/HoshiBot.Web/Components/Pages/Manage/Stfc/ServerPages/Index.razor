@@ -7,7 +7,8 @@
 <h1>Servers</h1>
 
 <p>
-    <a href="manage/stfc/servers/create">Create New</a>
+    <a href="manage/stfc/servers/create">Create New</a> |
+    <a href="manage/stfc/servers/import">Import</a>
 </p>
 
 <QuickGrid Class="table" Items="context.StfcServers.Include(s => s.Region).Include(s => s.VeilGroup).OrderBy(s => s.Id)" Pagination="pagination">

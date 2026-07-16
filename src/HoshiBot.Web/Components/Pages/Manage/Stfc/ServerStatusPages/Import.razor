@@ -1,0 +1,82 @@
+@page "/manage/stfc/server-status/import"
+@using System.Text.Json
+@using HoshiBot.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject StfcServerStatusImportService ImportService
+
+<PageTitle>Import Server Status</PageTitle>
+
+<h1>Import Server Status</h1>
+<p>
+    Upload a fresh server-status snapshot (e.g. <code>data/server-status.json</code>). Existing
+    rows have their observed Status/Maintenance updated — the Notified* columns are left alone
+    so <code>ServerStatusNotifyJob</code> can detect and announce the change. A server seen for
+    the first time gets Notified* set equal to the observed values, so it doesn't trigger a false
+    "just changed" announcement.
+</p>
+
+<ButtonUpload TValue="string" Accept=".json" IsDisabled="importing"
+              BrowserButtonText="Choose file..." OnAllFileUploaded="OnFileUploadedAsync" />
+
+@if (importing)
+{
+    <p class="mt-3">Importing...</p>
+}
+
+@if (error is not null)
+{
+    <p class="text-danger mt-3">@error</p>
+}
+
+@if (result is not null)
+{
+    <p class="mt-3">
+        Added @result.Added, updated @result.Updated. Skipped @result.UnknownServer (unknown server).
+    </p>
+}
+
+@code {
+    private bool importing;
+    private string? error;
+    private StfcServerStatusImportResult? result;
+
+    private async Task OnFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
+    {
+        error = null;
+        result = null;
+        var file = files.FirstOrDefault()?.File;
+        if (file is null)
+            return;
+
+        importing = true;
+        StateHasChanged();
+
+        try
+        {
+            var entries = await ParseFileAsync(file);
+            result = await ImportService.ImportAsync(entries);
+        }
+        catch (Exception ex)
+        {
+            error = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            importing = false;
+            StateHasChanged();
+        }
+    }
+
+    private static async Task<List<StfcServerStatusImportEntry>> ParseFileAsync(IBrowserFile file)
+    {
+        await using var stream = file.OpenReadStream(maxAllowedSize: 5_000_000);
+        using var doc = await JsonDocument.ParseAsync(stream);
+
+        return doc.RootElement.EnumerateArray()
+            .Select(e => new StfcServerStatusImportEntry(
+                e.GetProperty("id").GetInt32(),
+                e.GetProperty("status").GetInt32(),
+                e.GetProperty("maintenance").GetString() ?? "0"))
+            .ToList();
+    }
+}
