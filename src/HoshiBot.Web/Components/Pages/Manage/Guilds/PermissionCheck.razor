@@ -1,5 +1,6 @@
 @page "/manage/guilds/{GuildId}/permission-check"
 @inherits GuildAdminPageBase
+@using System.Net
 @using HoshiBot.Web.Services
 @using Microsoft.Extensions.Caching.Memory
 @using NetCord
@@ -67,13 +68,14 @@ else
                                 {
                                     <span>✅ Can post</span>
                                 }
-                                else if (!result.CanView)
-                                {
-                                    <span>🚫 Can't see channel</span>
-                                }
                                 else
                                 {
-                                    <span>🚫 Can't send messages</span>
+                                    <div>🚫 Can't post</div>
+                                    <div class="small">Channel — View @Mark(result.ChannelView) · Send @Mark(result.ChannelSend)</div>
+                                    @if (result.Category is { } cat)
+                                    {
+                                        <div class="small">Category — View @Mark(cat.View) · Send @Mark(cat.Send)</div>
+                                    }
                                 }
                             </td>
                             <td>
@@ -86,8 +88,21 @@ else
                                             {
                                                 <button class="btn btn-sm btn-primary" @onclick="() => FixBotAccessAsync(result, categoryId, true)">Fix on category (@CategoryName(categoryId))</button>
                                             }
-                                            <button class="btn btn-sm @(result.ParentCategoryId is null ? "btn-primary" : "btn-outline-dark")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
+                                            @* A channel the bot can't even see can't be edited via the API
+                                               (Discord returns Missing Access), so a channel-level fix is only
+                                               offered once the bot can already see the channel. *@
+                                            @if (result.CanView)
+                                            {
+                                                <button class="btn btn-sm @(result.ParentCategoryId is null ? "btn-primary" : "btn-outline-dark")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
+                                            }
                                         </div>
+                                        @if (!result.CanView && result.ParentCategoryId is null)
+                                        {
+                                            <div class="small text-danger mt-1">
+                                                The bot can't see this channel and it has no category to inherit from —
+                                                grant Hoshi Bot access to it manually in Discord.
+                                            </div>
+                                        }
                                     }
                                     else
                                     {
@@ -255,7 +270,19 @@ else
 
     // One configured post-to channel and whether the bot can actually deliver to it. Sources is
     // the human-readable list of what points here (a feature, an alert kind, a GuildSettings slot).
-    private record BotAccessResult(ulong ChannelId, ulong? ParentCategoryId, string Sources, bool CanView, bool CanPost, bool CanFix, string? BlockReason);
+    // ChannelView/ChannelSend are the bot's effective permissions on the channel itself; Category
+    // is the same pair resolved on the parent category (null if none) — shown side by side so a
+    // sync mismatch (category grants View, channel doesn't) is visible at a glance.
+    private record BotAccessResult(
+        ulong ChannelId, ulong? ParentCategoryId, string Sources,
+        bool ChannelView, bool ChannelSend, (bool View, bool Send)? Category,
+        bool CanFix, string? BlockReason)
+    {
+        public bool CanView => ChannelView;
+        public bool CanPost => ChannelView && ChannelSend;
+    }
+
+    private static string Mark(bool granted) => granted ? "✓" : "✗";
 
     private const Permissions PostPermissions = Permissions.ViewChannel | Permissions.SendMessages;
 
@@ -625,14 +652,18 @@ else
                 {
                     // Configured but not present in the live channel list — deleted, or the bot
                     // can't even see it. Either way it's undeliverable and not auto-fixable here.
-                    results.Add(new BotAccessResult(channelId, null, sourceLabel, false, false, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
+                    results.Add(new BotAccessResult(channelId, null, sourceLabel, false, false, null, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
                     continue;
                 }
 
                 var parentCategoryId = DiscordGuildDataService.GetParentCategoryId(channel);
-                var (canView, canPost) = BotPostAbility(channel);
-                var (canFix, blockReason) = canPost ? (true, (string?)null) : EvaluateBotAccessFixability();
-                results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, canView, canPost, canFix, blockReason));
+                var (view, send) = BotViewSend(channel);
+                (bool View, bool Send)? category = parentCategoryId is { } catId
+                    && channels.FirstOrDefault(c => c.Id == catId) is { } categoryChannel
+                        ? BotViewSend(categoryChannel)
+                        : null;
+                var (canFix, blockReason) = (view && send) ? (true, (string?)null) : EvaluateBotAccessFixability();
+                results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, view, send, category, canFix, blockReason));
             }
 
             // Problems first, then alphabetically by what points at the channel.
@@ -651,11 +682,10 @@ else
     private Permissions BotChannelPermissions(IGuildChannel channel) =>
         botMember?.GetChannelPermissions(botPermissions, channel) ?? botPermissions;
 
-    private (bool CanView, bool CanPost) BotPostAbility(IGuildChannel channel)
+    private (bool View, bool Send) BotViewSend(IGuildChannel channel)
     {
         var perms = BotChannelPermissions(channel);
-        var canView = perms.HasFlag(Permissions.ViewChannel);
-        return (canView, canView && perms.HasFlag(Permissions.SendMessages));
+        return (perms.HasFlag(Permissions.ViewChannel), perms.HasFlag(Permissions.SendMessages));
     }
 
     // The Fix grants the bot's own top role View Channel + Send Messages via a channel overwrite,
@@ -714,20 +744,24 @@ else
             await LoadDiscordDataAsync();
 
             var channelNow = channels.FirstOrDefault(c => c.Id == result.ChannelId);
-            var canPostNow = channelNow is not null && BotPostAbility(channelNow).CanPost;
-            fixStatus[result.ChannelId] = (viaCategory, canPostNow) switch
+            var (viewNow, sendNow) = channelNow is null ? (false, false) : BotViewSend(channelNow);
+            fixStatus[result.ChannelId] = (viaCategory, viewNow && sendNow, viewNow) switch
             {
-                (true, true) => "✅ Fixed via the category — the bot can now post here.",
-                (true, false) => "⚠ Category updated, but this channel still blocks the bot — its permissions aren't synced with the category. Use \"Fix on channel\".",
-                (false, true) => "✅ Fixed on the channel — the bot can now post here.",
-                (false, false) => "⚠ Overwrite applied on the channel, but the bot still can't post. Check that its role isn't out-ranked and that another overwrite doesn't deny View Channel / Send Messages.",
+                (_, true, _) => viaCategory
+                    ? "✅ Fixed via the category — the bot can now post here."
+                    : "✅ Fixed on the channel — the bot can now post here.",
+                (true, false, true) => "Category granted View Channel, but Send Messages is still missing on the channel itself — use \"Fix on channel\".",
+                (true, false, false) => "⚠ Category updated, but this channel doesn't inherit from it (its permissions aren't synced). A channel the bot can't see can't be fixed automatically — grant Hoshi Bot access to it manually in Discord.",
+                (false, false, _) => "⚠ Overwrite applied on the channel, but the bot still can't post. Check that its role isn't out-ranked and that another overwrite doesn't deny View Channel / Send Messages.",
             };
 
             await RunBotAccessCheckAsync();
         }
-        catch (RestException)
+        catch (RestException ex)
         {
-            discordDataError = "Could not update the bot's channel permission overwrite on Discord — does the bot have Manage Roles/Manage Channels permission in this server?";
+            fixStatus[result.ChannelId] = ex.StatusCode == HttpStatusCode.Forbidden
+                ? "⚠ Discord refused the change (Missing Access) — the bot can't edit a channel it can't see. Fix it at the category level if the channel syncs with it, or grant Hoshi Bot access to this channel manually in Discord."
+                : $"⚠ Discord rejected the change ({ex.StatusCode}). Check the bot's Manage Roles permission and role position.";
         }
     }
 
