@@ -260,7 +260,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             new("roe-violation-from", "Von mir", ButtonStyle.Primary),
         };
 
-        if (await roeViolationService.IsCommandStaffAsync(Context.Guild!.Id, Context.User.Id))
+        if (await roeViolationService.IsDiplomatAsync(Context.Guild!.Id, Context.User.Id))
             buttons.Add(new ButtonProperties("roe-violation-other", "Von eigenem Spieler", ButtonStyle.Secondary));
 
         return await EphemeralEmbedAsync("Wurde der Verstoss an Dir oder von Dir begangen?", [new ActionRowProperties(buttons)]);

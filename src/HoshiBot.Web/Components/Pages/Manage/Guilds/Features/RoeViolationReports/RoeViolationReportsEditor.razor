@@ -1,6 +1,7 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
 @using NetCord
+@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 
@@ -10,27 +11,61 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError</p>
+}
+
 <div class="card-grid mt-1">
     <SettingsCard Title="RoE Violations">
         <ChannelPicker Label="RoE Violations" ShowLabel="false" Usage="Where /report-roe-violation reports are posted — must be a Forum channel." Kind="ChannelKind.Forum"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
     </SettingsCard>
 
-    <CommandStaffRoleCard GuildId="GuildId" />
+    <SettingsCard Title="Diplomat">
+        <RolePicker Label="Diplomat" ShowLabel="false" Usage="Per-alliance role that handles RoE reports: pinged when a case is ready, and allowed to report on behalf of an own player. This is the same Diplomat role as the Diplomacy feature." CreateRoleName="Diplomat"
+            @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+    </SettingsCard>
 </div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.RoeViolationReports;
 
+    // The diplomat role is the Diplomacy feature's per-alliance DiplomatRole (both features are
+    // Alliance-scoped) — RoE reuses that same role rather than defining its own, so it's read/
+    // written under GuildFeature.Diplomacy here while everything else stays under RoE's own key.
     private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
     private string? channelIdInput;
+    private string? diplomatRoleIdInput;
+    private string? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
         channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, RoeViolationReportsSettingKeys.Channel))?.ToString();
+        diplomatRoleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Diplomacy, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.DiplomatRole))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
         SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, RoeViolationReportsSettingKeys.Channel, ParseId(channelIdInput));
+
+    private async Task SaveDiplomatRoleAsync()
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, "Diplomat");
+            diplomatRoleIdInput = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Diplomacy, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.DiplomatRole, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (diplomatRoleIdInput == RolePicker.CreateSentinel)
+                diplomatRoleIdInput = null;
+        }
+    }
 }
