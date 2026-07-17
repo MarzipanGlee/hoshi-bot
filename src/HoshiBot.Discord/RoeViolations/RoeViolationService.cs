@@ -57,24 +57,16 @@ public class RoeViolationService(
                 new TextInputProperties("name", TextInputStyle.Short) { Placeholder = "Name eingeben", Required = true }),
         ]);
 
-    // True if the user holds the diplomat role for their own alliance (the per-alliance
-    // Diplomacy DiplomatRole that RoE reuses) — gates the staff-only "report on behalf of an
-    // own player" option. Falls back to the guild's primary alliance for members with no
-    // resolvable alliance, mirroring CreateReportAsync/SetReadyForDiplomatAsync.
-    public async Task<bool> IsDiplomatAsync(ulong guildId, ulong userId)
+    // Gates the staff-only "report on behalf of an own player" option — the guild-wide Command
+    // Staff role (the per-alliance Diplomat role is only for the ready-for-diplomat ping).
+    public async Task<bool> IsCommandStaffAsync(ulong guildId, ulong userId)
     {
-        var allianceId = (await allianceService.FindByMemberAsync(guildId, userId))?.Id
-            ?? await allianceService.GetPrimaryIdAsync(guildId);
-        if (allianceId is null)
-            return false;
-
-        var roleId = await settingsService.GetSnowflakeAsync(
-            guildId, GuildFeature.Diplomacy, GuildAudience.Alliance, allianceId, DiplomacySettingKeys.DiplomatRole);
-        if (roleId is not { } id)
+        var settings = await db.GuildSettings.FindAsync(guildId);
+        if (settings?.CommandStaffRoleId is not { } roleId)
             return false;
 
         var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
-        return guildUser.RoleIds.Contains(id);
+        return guildUser.RoleIds.Contains(roleId);
     }
 
     // Resolves "this Discord user's current in-game identity" from real linked-player

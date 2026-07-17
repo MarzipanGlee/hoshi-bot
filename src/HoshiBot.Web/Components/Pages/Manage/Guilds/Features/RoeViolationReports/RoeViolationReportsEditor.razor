@@ -23,9 +23,11 @@
     </SettingsCard>
 
     <SettingsCard Title="Diplomat">
-        <RolePicker Label="Diplomat" ShowLabel="false" Usage="Per-alliance role that handles RoE reports: pinged when a case is ready, and allowed to report on behalf of an own player. This is the same Diplomat role as the Diplomacy feature." CreateRoleName="Diplomat"
+        <RolePicker Label="Diplomat" ShowLabel="false" Usage="Per-alliance role pinged in the report thread once the reporter marks a case ready. This is the same Diplomat role as the Diplomacy feature." CreateRoleName="Diplomat"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
     </SettingsCard>
+
+    <CommandStaffRoleCard GuildId="GuildId" />
 </div>
 
 @code {

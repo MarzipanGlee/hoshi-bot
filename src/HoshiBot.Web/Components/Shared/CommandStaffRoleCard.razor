@@ -2,13 +2,13 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-@* Guild-wide Command Staff role, surfaced inside every feature that reads it (raid-alert
-   termination, announcement attribution, STFC News confirmer count). It is ONE shared value
-   on GuildSettings — editing it from any feature editor changes it for all of them; there is
-   no per-alliance copy. (RoE Violations uses the per-alliance Diplomat role instead.) *@
+@* Guild-wide Command Staff role, surfaced inside every feature that reads it (RoE "report on
+   behalf of an own player", raid-alert termination, announcement attribution, STFC News
+   confirmer count). It is ONE shared value on GuildSettings — editing it from any feature
+   editor changes it for all of them; there is no per-alliance copy. *@
 <SettingsCard Title="Command Staff Role">
     <RolePicker Label="Command Staff Role" ShowLabel="false"
-        Usage="Shared leadership/staff role — gates several admin-only bot actions across features (ending another commander's raid alert, announcement attribution, STFC News). One guild-wide value: changing it here changes it everywhere."
+        Usage="Shared leadership/staff role — gates several admin-only bot actions across features (reporting a RoE violation on behalf of an own player, ending another commander's raid alert, announcement attribution, STFC News). One guild-wide value: changing it here changes it everywhere."
         CreateRoleName="Command Staff" @bind-Value="roleInput" @bind-Value:after="SaveAsync" Roles="roles" />
 </SettingsCard>
 
