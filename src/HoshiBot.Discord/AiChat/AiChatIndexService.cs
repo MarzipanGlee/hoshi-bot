@@ -33,7 +33,16 @@ public partial class AiChatIndexService(
     // page — the FTS query then ranks by relevance so age doesn't matter once indexed.
     private const int BackfillPerChannelLimit = 300;
     private const int FallbackPerChannelLimit = 20;
+    // Bound on how many resolved sources the FALLBACK live-gather stuffs into the prompt (used
+    // only before a guild's index is first built) — keeps that prompt from exploding.
     private const int MaxKnowledgeSources = 25;
+
+    // The backfill JOB must index every source — a guild whose knowledge is a few categories/forums
+    // easily expands past 25 channels+threads, and anything beyond the cap silently never gets
+    // indexed. This high safety limit only guards against a pathological forum with thousands of
+    // threads.
+    private const int MaxBackfillSources = 500;
+
     private const int ForumArchivedThreadLimit = 10;
     private const int MaxContentLength = 4000;
 
@@ -153,7 +162,7 @@ public partial class AiChatIndexService(
         var now = DateTimeOffset.UtcNow;
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-        foreach (var (channelId, channelName) in sources.Take(MaxKnowledgeSources))
+        foreach (var (channelId, channelName) in sources.Take(MaxBackfillSources))
         {
             var rendered = (await FetchRecentAsync(channelId, BackfillPerChannelLimit, cancellationToken))
                 .Select(m => new { Msg = m, Text = Truncate(RenderMessageText(m)) })
