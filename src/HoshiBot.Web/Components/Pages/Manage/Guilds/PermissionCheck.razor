@@ -99,10 +99,10 @@ else
                                 else
                                 {
                                     <div>🚫 Can't post</div>
-                                    <div class="small">Channel — View @Mark(result.ChannelView) · Send @Mark(result.ChannelSend)</div>
+                                    <div class="small text-nowrap">Channel — @Mark(result.ChannelView) View · @Mark(result.ChannelSend) Send</div>
                                     @if (result.Category is { } cat)
                                     {
-                                        <div class="small">Category — View @Mark(cat.View) · Send @Mark(cat.Send)</div>
+                                        <div class="small text-nowrap">Category — @Mark(cat.View) View · @Mark(cat.Send) Send</div>
                                     }
                                 }
                             </td>
@@ -129,10 +129,9 @@ else
                                     else if (result.CanFix)
                                     {
                                         <div class="small text-danger mt-1">
-                                            The bot can't manage permissions on this channel or its category, so it
-                                            can't be fixed from here — grant the Hoshi Bot role access (View Channel,
-                                            and Manage Permissions if it should self-heal) in Discord (see the note
-                                            above), then Re-check.
+                                            This channel can't be fixed automatically from here — grant the Hoshi Bot
+                                            role access (View Channel + Send Messages) to the channel itself in Discord
+                                            (see the note above), then Re-check.
                                         </div>
                                     }
                                     else
@@ -317,10 +316,14 @@ else
         // permissions there — Discord 403s an overwrite edit otherwise. So a button is offered
         // only where both hold; anything else needs a manual grant in Discord.
         public bool CanFixChannel => ChannelView && ChannelManage;
-        public bool CanFixCategory => Category is { View: true, Manage: true };
+
+        // Category fix is also pointless when the category already grants View + Send: the child
+        // is blocked by its own (unsynced) overwrite, so re-granting on the category changes
+        // nothing. Only offer it when the category itself is still missing something to grant.
+        public bool CanFixCategory => Category is { View: true, Send: false, Manage: true };
     }
 
-    private static string Mark(bool granted) => granted ? "✓" : "✗";
+    private static string Mark(bool granted) => granted ? "✅" : "❌";
 
     private const Permissions PostPermissions = Permissions.ViewChannel | Permissions.SendMessages;
 
