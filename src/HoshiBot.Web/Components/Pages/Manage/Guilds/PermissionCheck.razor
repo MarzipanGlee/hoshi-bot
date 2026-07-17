@@ -596,10 +596,15 @@ else
     // Send Messages access — the check that would have surfaced the "message only reached one
     // channel" ClientRelease case (a second channel the bot silently couldn't post to).
     // Manual re-check clears the per-fix outcome lines for a fresh look; auto-run and post-fix
-    // re-checks call RunBotAccessCheckAsync directly so their status lines survive.
+    // re-checks call RunBotAccessCheckAsync directly so their status lines survive. Crucially it
+    // reloads live channel/role data first (evicting the 60s Discord cache) so a permission the
+    // admin just changed in Discord is actually picked up — recomputing against the stale
+    // in-memory list is exactly the "Re-check didn't reflect my change" symptom.
     private async Task ReCheckBotAccessAsync()
     {
         fixStatus.Clear();
+        DiscordData.InvalidateCache(ParsedGuildId);
+        await LoadDiscordDataAsync();
         await RunBotAccessCheckAsync();
     }
 
