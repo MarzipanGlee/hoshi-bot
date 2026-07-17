@@ -109,24 +109,25 @@ else
                                    manual grant in Discord (the callout above). *@
                                 @if (!result.CanPost)
                                 {
-                                    @if (result.CanFix && (result.CanView || (result.ParentCategoryId is not null && result.CategoryViewable)))
+                                    @if (result.CanFix && (result.CanFixChannel || result.CanFixCategory))
                                     {
                                         <div class="d-flex flex-wrap gap-2">
-                                            @if (result.ParentCategoryId is { } categoryId && result.CategoryViewable)
+                                            @if (result.ParentCategoryId is { } categoryId && result.CanFixCategory)
                                             {
                                                 <button class="btn btn-sm btn-primary" @onclick="() => FixBotAccessAsync(result, categoryId, true)">Fix on category (@CategoryName(categoryId))</button>
                                             }
-                                            @if (result.CanView)
+                                            @if (result.CanFixChannel)
                                             {
-                                                <button class="btn btn-sm @(result.ParentCategoryId is not null && result.CategoryViewable ? "btn-outline-dark" : "btn-primary")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
+                                                <button class="btn btn-sm @(result.CanFixCategory ? "btn-outline-dark" : "btn-primary")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
                                             }
                                         </div>
                                     }
                                     else if (result.CanFix)
                                     {
                                         <div class="small text-danger mt-1">
-                                            The bot can't see this channel or its category, so it can't be fixed from
-                                            here — grant the Hoshi Bot role View Channel in Discord (see the note
+                                            The bot can't manage permissions on this channel or its category, so it
+                                            can't be fixed from here — grant the Hoshi Bot role access (View Channel,
+                                            and Manage Permissions if it should self-heal) in Discord (see the note
                                             above), then Re-check.
                                         </div>
                                     }
@@ -301,15 +302,18 @@ else
     // sync mismatch (category grants View, channel doesn't) is visible at a glance.
     private record BotAccessResult(
         ulong ChannelId, ulong? ParentCategoryId, string Sources,
-        bool ChannelView, bool ChannelSend, (bool View, bool Send)? Category,
+        bool ChannelView, bool ChannelSend, bool ChannelManage,
+        (bool View, bool Send, bool Manage)? Category,
         bool CanFix, string? BlockReason)
     {
         public bool CanView => ChannelView;
         public bool CanPost => ChannelView && ChannelSend;
 
-        // A fix at a given level only works if the bot can see (and thus edit) that level —
-        // Discord refuses edits to a channel/category the bot can't view.
-        public bool CategoryViewable => Category?.View == true;
+        // A fix at a given level only works if the bot can both see it and manage its
+        // permissions there — Discord 403s an overwrite edit otherwise. So a button is offered
+        // only where both hold; anything else needs a manual grant in Discord.
+        public bool CanFixChannel => ChannelView && ChannelManage;
+        public bool CanFixCategory => Category is { View: true, Manage: true };
     }
 
     private static string Mark(bool granted) => granted ? "✓" : "✗";
@@ -687,18 +691,18 @@ else
                 {
                     // Configured but not present in the live channel list — deleted, or the bot
                     // can't even see it. Either way it's undeliverable and not auto-fixable here.
-                    results.Add(new BotAccessResult(channelId, null, sourceLabel, false, false, null, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
+                    results.Add(new BotAccessResult(channelId, null, sourceLabel, false, false, false, null, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
                     continue;
                 }
 
                 var parentCategoryId = DiscordGuildDataService.GetParentCategoryId(channel);
-                var (view, send) = BotViewSend(channel);
-                (bool View, bool Send)? category = parentCategoryId is { } catId
+                var (view, send, manage) = BotChannelAccess(channel);
+                (bool View, bool Send, bool Manage)? category = parentCategoryId is { } catId
                     && channels.FirstOrDefault(c => c.Id == catId) is { } categoryChannel
-                        ? BotViewSend(categoryChannel)
+                        ? BotChannelAccess(categoryChannel)
                         : null;
                 var (canFix, blockReason) = (view && send) ? (true, (string?)null) : EvaluateBotAccessFixability();
-                results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, view, send, category, canFix, blockReason));
+                results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, view, send, manage, category, canFix, blockReason));
             }
 
             // Problems first, then alphabetically by what points at the channel.
@@ -717,10 +721,16 @@ else
     private Permissions BotChannelPermissions(IGuildChannel channel) =>
         botMember?.GetChannelPermissions(botPermissions, channel) ?? botPermissions;
 
-    private (bool View, bool Send) BotViewSend(IGuildChannel channel)
+    // View/Send are what we're checking (and would grant); Manage is whether the bot could
+    // actually apply an overwrite at this level — editing a channel's permissions needs Manage
+    // Roles effective there, so a fix is pointless (Discord 403s) without it.
+    private (bool View, bool Send, bool Manage) BotChannelAccess(IGuildChannel channel)
     {
         var perms = BotChannelPermissions(channel);
-        return (perms.HasFlag(Permissions.ViewChannel), perms.HasFlag(Permissions.SendMessages));
+        return (
+            perms.HasFlag(Permissions.ViewChannel),
+            perms.HasFlag(Permissions.SendMessages),
+            perms.HasFlag(Permissions.Administrator) || perms.HasFlag(Permissions.ManageRoles));
     }
 
     // The Fix grants the bot's own top role View Channel + Send Messages via a channel overwrite,
@@ -779,7 +789,7 @@ else
             await LoadDiscordDataAsync();
 
             var channelNow = channels.FirstOrDefault(c => c.Id == result.ChannelId);
-            var (viewNow, sendNow) = channelNow is null ? (false, false) : BotViewSend(channelNow);
+            var (viewNow, sendNow, _) = channelNow is null ? (false, false, false) : BotChannelAccess(channelNow);
             fixStatus[result.ChannelId] = (viaCategory, viewNow && sendNow, viewNow) switch
             {
                 (_, true, _) => viaCategory
@@ -794,8 +804,13 @@ else
         }
         catch (RestException ex)
         {
+            var level = viaCategory ? "category" : "channel";
+            var targetChannel = channels.FirstOrDefault(c => c.Id == targetId);
+            var canSeeTarget = targetChannel is not null && BotChannelAccess(targetChannel).View;
             fixStatus[result.ChannelId] = ex.StatusCode == HttpStatusCode.Forbidden
-                ? "⚠ Discord refused the change (Missing Access) — the bot can't edit a channel it can't see. Fix it at the category level if the channel syncs with it, or grant Hoshi Bot access to this channel manually in Discord."
+                ? canSeeTarget
+                    ? $"⚠ Discord refused the change — the bot can see this {level} but isn't allowed to change its permissions here (it needs the Manage Permissions right on it). Grant Hoshi Bot access to this {level} manually in Discord."
+                    : $"⚠ Discord refused the change (Missing Access) — the bot can't edit a {level} it can't see. Grant Hoshi Bot access to it manually in Discord."
                 : $"⚠ Discord rejected the change ({ex.StatusCode}). Check the bot's Manage Roles permission and role position.";
         }
     }
