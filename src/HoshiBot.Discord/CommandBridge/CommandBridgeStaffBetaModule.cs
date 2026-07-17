@@ -37,12 +37,13 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
 
     // Buttons live on this module's own ephemeral message — ModifyMessage is safe.
     [ComponentInteraction("staff-beta-tests-set")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> Set(string action)
-    {
-        var result = await betaTesterService.SetAsync(Context.Guild!.Id, Context.User.Id, action == "on");
-        var embed = await BuildEmbedAsync(result, "Beta-Tests verwalten");
-        return InteractionCallback.ModifyMessage(m => { m.Embeds = [embed]; m.Components = []; });
-    }
+    public Task Set(string action) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var result = await betaTesterService.SetAsync(Context.Guild!.Id, Context.User.Id, action == "on");
+            var embed = await BuildEmbedAsync(result, "Beta-Tests verwalten");
+            return m => { m.Embeds = [embed]; m.Components = []; };
+        });
 
     private async Task<EmbedProperties> BuildEmbedAsync(string description, string title) => new()
     {

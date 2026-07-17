@@ -12,23 +12,24 @@ public class CommandBridgeStaffModalModule(AlertService alertService, EmbedBrand
     : ComponentInteractionModule<ModalInteractionContext>
 {
     [ComponentInteraction("staff-shield-modal")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> SubmitShieldReport(ulong targetUserId, string variant)
-    {
-        var system = TextInputValues().GetValueOrDefault("system") ?? "";
-        var parsedVariant = Enum.TryParse<ShieldLossVariant>(variant, out var v) ? v : ShieldLossVariant.Manual;
-
-        var result = await alertService.ReportStaffShieldLossAsync(Context.Guild!.Id, targetUserId, system, parsedVariant);
-
-        var embed = new EmbedProperties
+    public Task SubmitShieldReport(ulong targetUserId, string variant) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
-            Title = "Schildverlust melden",
-            Description = result,
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(Context.Guild!.Id),
-            Footer = embedBranding.BuildFooter(Context.Guild!.Id),
-        };
-        return InteractionCallback.ModifyMessage(m => { m.Embeds = [embed]; m.Components = []; });
-    }
+            var system = TextInputValues().GetValueOrDefault("system") ?? "";
+            var parsedVariant = Enum.TryParse<ShieldLossVariant>(variant, out var v) ? v : ShieldLossVariant.Manual;
+
+            var result = await alertService.ReportStaffShieldLossAsync(Context.Guild!.Id, targetUserId, system, parsedVariant);
+
+            var embed = new EmbedProperties
+            {
+                Title = "Schildverlust melden",
+                Description = result,
+                Color = EmbedBranding.BotColor,
+                Author = await embedBranding.BuildAuthorAsync(Context.Guild!.Id),
+                Footer = embedBranding.BuildFooter(Context.Guild!.Id),
+            };
+            return m => { m.Embeds = [embed]; m.Components = []; };
+        });
 
     private Dictionary<string, string> TextInputValues() =>
         Context.Components

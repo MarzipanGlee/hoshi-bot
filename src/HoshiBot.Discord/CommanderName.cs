@@ -19,4 +19,16 @@ public static partial class CommanderName
         var name = (user as GuildUser)?.Nickname ?? user.GlobalName ?? user.Username;
         return TagPattern().Replace(name, "");
     }
+
+    // The shared "Commander {name}, " opening every personal, user-addressed message uses, so it's
+    // written the same way everywhere instead of hand-rolled per handler. Greeting returns just the
+    // prefix (for concatenating a longer body); Address prepends it to a message. The string
+    // overloads are for service-layer code that only has a resolved name, not a User object.
+    public static string Greeting(User user) => Greeting(Of(user));
+
+    public static string Greeting(string name) => $"Commander {name}, ";
+
+    public static string Address(User user, string message) => Greeting(user) + message;
+
+    public static string Address(string name, string message) => Greeting(name) + message;
 }

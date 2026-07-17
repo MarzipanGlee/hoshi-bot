@@ -11,29 +11,30 @@ public class AdminModule(HoshiBotDbContext db) : ApplicationCommandModule<Applic
 {
     [SlashCommand("set-notification-role", "Set the role used for general notifications in this server",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
-    public async Task<InteractionMessageProperties> SetNotificationRole(Role role)
-    {
-        var guildId = Context.Guild!.Id;
-
-        var notificationRole = await db.NotificationRoles
-            .FirstOrDefaultAsync(r => r.GuildId == guildId && r.Kind == NotificationRoleKind.General);
-
-        if (notificationRole is null)
+    public Task SetNotificationRole(Role role) =>
+        Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            db.NotificationRoles.Add(new NotificationRole
+            var guildId = Context.Guild!.Id;
+
+            var notificationRole = await db.NotificationRoles
+                .FirstOrDefaultAsync(r => r.GuildId == guildId && r.Kind == NotificationRoleKind.General);
+
+            if (notificationRole is null)
             {
-                GuildId = guildId,
-                DiscordRoleId = role.Id,
-                Kind = NotificationRoleKind.General,
-            });
-        }
-        else
-        {
-            notificationRole.DiscordRoleId = role.Id;
-        }
+                db.NotificationRoles.Add(new NotificationRole
+                {
+                    GuildId = guildId,
+                    DiscordRoleId = role.Id,
+                    Kind = NotificationRoleKind.General,
+                });
+            }
+            else
+            {
+                notificationRole.DiscordRoleId = role.Id;
+            }
 
-        await db.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
-        return EphemeralReply.Of($"Notification role set to {role.Name}. It will be kept in sync every 10 minutes based on active absences.");
-    }
+            return $"Notification role set to {role.Name}. It will be kept in sync every 10 minutes based on active absences.";
+        });
 }

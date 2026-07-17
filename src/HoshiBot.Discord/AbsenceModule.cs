@@ -14,25 +14,26 @@ public class AbsenceModule(AbsenceService absenceService, GuildFeatureService fe
 {
     [SlashCommand("absence", "Report yourself as absent for a number of hours",
         Contexts = [InteractionContextType.Guild])]
-    public async Task<InteractionMessageProperties> ReportAbsence(
+    public Task ReportAbsence(
         double hours,
         string? reason = null,
         bool suppressNotifications = true,
-        AbsenceVisibility visibility = AbsenceVisibility.Public)
-    {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Absences))
-            return EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.Absences));
+        AbsenceVisibility visibility = AbsenceVisibility.Public) =>
+        Context.Interaction.SendDelayedResponseAsync(async () =>
+        {
+            if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Absences))
+                return GuildFeatureService.DisabledMessage(GuildFeature.Absences);
 
-        if (hours <= 0)
-            return EphemeralReply.Of("Hours must be greater than 0.");
+            if (hours <= 0)
+                return "Hours must be greater than 0.";
 
-        var now = DateTimeOffset.UtcNow;
-        var endsAt = now.AddHours(hours);
+            var now = DateTimeOffset.UtcNow;
+            var endsAt = now.AddHours(hours);
 
-        await absenceService.CreateAsync(Context.Guild!.Id, Context.User.Id, now, endsAt,
-            reason, visibility, suppressNotifications);
+            await absenceService.CreateAsync(Context.Guild!.Id, Context.User.Id, now, endsAt,
+                reason, visibility, suppressNotifications);
 
-        return EphemeralReply.Of($"Absence recorded until <t:{endsAt.ToUnixTimeSeconds()}:f>."
-            + (suppressNotifications ? " You'll be excluded from notifications until then." : ""));
-    }
+            return $"Absence recorded until <t:{endsAt.ToUnixTimeSeconds()}:f>."
+                + (suppressNotifications ? " You'll be excluded from notifications until then." : "");
+        });
 }

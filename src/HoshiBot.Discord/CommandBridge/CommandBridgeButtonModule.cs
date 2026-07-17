@@ -171,7 +171,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             return EphemeralReply.Of("Diese Funktion ist auf diesem Server deaktiviert.");
 
         return await EphemeralEmbedAsync(
-            $"Commander {CommanderName.Of(Context.User)}, Du hast verschiedene Möglichkeiten, eine Nachricht an den Führungsstab zu senden:\n\n" + string.Join('\n', lines),
+            CommanderName.Greeting(Context.User) + "Du hast verschiedene Möglichkeiten, eine Nachricht an den Führungsstab zu senden:\n\n" + string.Join('\n', lines),
             [new ActionRowProperties(buttons)],
             title: "Führungsstab kontaktieren");
     }
@@ -192,12 +192,12 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     }
 
     [ComponentInteraction("raid-terminate")]
-    public async Task<InteractionMessageProperties> TerminateRaid(ulong guildId, ulong targetUserId) =>
-        EphemeralReply.Of(await alertService.TerminateRaidAsync(guildId, Context.User.Id, targetUserId));
+    public Task TerminateRaid(ulong guildId, ulong targetUserId) =>
+        Context.Interaction.SendDelayedResponseAsync(() => alertService.TerminateRaidAsync(guildId, Context.User.Id, targetUserId));
 
     [ComponentInteraction("shield-reminder-terminate")]
-    public async Task<InteractionMessageProperties> TerminateShieldReminder(ulong guildId) =>
-        EphemeralReply.Of(await alertService.TerminateShieldReminderAsync(guildId, Context.User.Id));
+    public Task TerminateShieldReminder(ulong guildId) =>
+        Context.Interaction.SendDelayedResponseAsync(() => alertService.TerminateShieldReminderAsync(guildId, Context.User.Id));
 
     // Matches legacy's own loading-placeholder convention for this exact flow (the only
     // other one besides Absences) — an immediate "wird gesucht..." ack, then the real
@@ -213,32 +213,30 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             return;
         }
 
-        var loadingMessage = await EphemeralEmbedAsync("Ungelesene Ankündigungen werden gesucht...",
-            title: "Ungelesene Ankündigungen", color: EmbedBranding.InformationColor);
-        await Context.Interaction.SendResponseAsync(InteractionCallback.Message(loadingMessage));
-
-        var unread = await announcementService.GetUnreadAsync(guildId, Context.User.Id);
-
-        if (unread.Count == 0)
+        await Context.Interaction.SendDelayedEditAsync(async () =>
         {
-            var doneEmbed = await BuildEmbedAsync($"Commander {CommanderName.Of(Context.User)}, Du hast alle Ankündigungen gelesen. 🎉", title: "Ungelesene Ankündigungen");
-            await Context.Interaction.ModifyResponseAsync(m => { m.Embeds = [doneEmbed]; m.Components = []; });
-            return;
-        }
+            var unread = await announcementService.GetUnreadAsync(guildId, Context.User.Id);
 
-        // LastKnownReadCount (kept fresh by AnnouncementCounterRefreshJob) is used here
-        // rather than a.ReadReceipts.Count, since that navigation isn't loaded by
-        // GetUnreadAsync's query — a small staleness window (up to ~15 min) is an
-        // acceptable trade-off already established for this same count elsewhere.
-        var rows = unread
-            .Select(a => new ActionRowProperties([AnnouncementService.ReadButton(a.Id, a.LastKnownReadCount)]))
-            .ToList();
+            if (unread.Count == 0)
+            {
+                var doneEmbed = await BuildEmbedAsync(CommanderName.Address(Context.User, "Du hast alle Ankündigungen gelesen. 🎉"), title: "Ungelesene Ankündigungen");
+                return m => { m.Embeds = [doneEmbed]; m.Components = []; };
+            }
 
-        var lines = unread.Select(a =>
-            $"{SeverityEmoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
+            // LastKnownReadCount (kept fresh by AnnouncementCounterRefreshJob) is used here
+            // rather than a.ReadReceipts.Count, since that navigation isn't loaded by
+            // GetUnreadAsync's query — a small staleness window (up to ~15 min) is an
+            // acceptable trade-off already established for this same count elsewhere.
+            var rows = unread
+                .Select(a => new ActionRowProperties([AnnouncementService.ReadButton(a.Id, a.LastKnownReadCount)]))
+                .ToList();
 
-        var finalEmbed = await BuildEmbedAsync($"Commander {CommanderName.Of(Context.User)}, Deine ungelesenen Ankündigungen:\n" + string.Join('\n', lines), title: "Ungelesene Ankündigungen");
-        await Context.Interaction.ModifyResponseAsync(m => { m.Embeds = [finalEmbed]; m.Components = rows; });
+            var lines = unread.Select(a =>
+                $"{SeverityEmoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
+
+            var finalEmbed = await BuildEmbedAsync(CommanderName.Greeting(Context.User) + "Deine ungelesenen Ankündigungen:\n" + string.Join('\n', lines), title: "Ungelesene Ankündigungen");
+            return m => { m.Embeds = [finalEmbed]; m.Components = rows; };
+        });
     }
 
     private static string SeverityEmoji(AnnouncementSeverity severity) => severity switch
@@ -264,7 +262,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             buttons.Add(new ButtonProperties("roe-violation-other", "Von eigenem Spieler", ButtonStyle.Secondary));
 
         return await EphemeralEmbedAsync(
-            $"Commander {CommanderName.Of(Context.User)}, wurde der Verstoss an Dir oder von Dir begangen?",
+            CommanderName.Address(Context.User, "wurde der Verstoss an Dir oder von Dir begangen?"),
             [new ActionRowProperties(buttons)],
             title: "RoE-Verstoss melden");
     }
@@ -279,7 +277,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
     [ComponentInteraction("roe-violation-other")]
     public Task<InteractionCallbackProperties<MessageOptions>> ReportRoeViolationOtherPrompt() =>
-        EphemeralEmbedModifyAsync($"Commander {CommanderName.Of(Context.User)}, wähle den Commander, der den Verstoss begangen hat.", [new UserMenuProperties("roe-violation-other-target")]);
+        EphemeralEmbedModifyAsync(CommanderName.Address(Context.User, "wähle den Commander, der den Verstoss begangen hat."), [new UserMenuProperties("roe-violation-other-target")]);
 
     [ComponentInteraction("anonymous-message")]
     public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)

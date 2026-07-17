@@ -7,22 +7,8 @@ namespace HoshiBot.Discord.Absences;
 
 public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding embedBranding) : ComponentInteractionModule<ButtonInteractionContext>
 {
-    // Only the true entry point (reached from the persistent, non-ephemeral Command
-    // Bridge hub message) posts a brand-new ephemeral message. Every step after that
-    // edits that same message via ModifyMessage — see EphemeralEmbedModifyAsync below —
-    // for the wizard experience the legacy bot had, instead of stacking a fresh ephemeral
-    // message per step.
-    private async Task<InteractionMessageProperties> EphemeralEmbedAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null, Color? color = null)
-    {
-        var embed = await BuildEmbedAsync(description, title, color);
-        return new InteractionMessageProperties
-        {
-            Embeds = [embed],
-            Flags = MessageFlags.Ephemeral,
-            Components = components,
-        };
-    }
-
+    // Every wizard step after the entry point edits the same ephemeral message via ModifyMessage
+    // (the wizard experience the legacy bot had) instead of stacking a fresh ephemeral per step.
     private async Task<InteractionCallbackProperties<MessageOptions>> EphemeralEmbedModifyAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null)
     {
         var embed = await BuildEmbedAsync(description, title);
@@ -51,41 +37,38 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
     // once it's done — this sends the loading state itself and edits it in place, rather
     // than returning a value for the framework to send only once everything is ready.
     [ComponentInteraction("absence-manage")]
-    public async Task ManageAbsences()
-    {
-        var loadingMessage = await EphemeralEmbedAsync("Abwesenheiten werden gesucht...",
-            title: "Abwesenheiten verwalten", color: EmbedBranding.InformationColor);
-        await Context.Interaction.SendResponseAsync(InteractionCallback.Message(loadingMessage));
-
-        var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
-        var hasOwn = own.Count > 0;
-
-        // Edit/Delete are always shown, just disabled when there's nothing to act on yet —
-        // matches the legacy bot's behavior instead of hiding the buttons outright.
-        var buttons = new List<ButtonProperties>
+    public Task ManageAbsences() =>
+        Context.Interaction.SendDelayedEditAsync(async () =>
         {
-            new("absence-create", "Abwesenheit erfassen", EmojiProperties.Standard("➕"), ButtonStyle.Success),
-            new ButtonProperties("absence-edit", "Abwesenheit bearbeiten", EmojiProperties.Standard("✏️"), ButtonStyle.Primary) { Disabled = !hasOwn },
-            new ButtonProperties("absence-delete", "Abwesenheit löschen", EmojiProperties.Standard("✖️"), ButtonStyle.Danger) { Disabled = !hasOwn },
-        };
+            var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
+            var hasOwn = own.Count > 0;
 
-        var description = $"Commander {CommanderName.Of(Context.User)}, hier sind Deine künftigen Abwesenheiten:\n\n" +
-            $"{AbsenceService.BuildOwnListText(own)}\n\n" +
-            "Wie lautet Dein Befehl, Commander?";
+            // Edit/Delete are always shown, just disabled when there's nothing to act on yet —
+            // matches the legacy bot's behavior instead of hiding the buttons outright.
+            var buttons = new List<ButtonProperties>
+            {
+                new("absence-create", "Abwesenheit erfassen", EmojiProperties.Standard("➕"), ButtonStyle.Success),
+                new ButtonProperties("absence-edit", "Abwesenheit bearbeiten", EmojiProperties.Standard("✏️"), ButtonStyle.Primary) { Disabled = !hasOwn },
+                new ButtonProperties("absence-delete", "Abwesenheit löschen", EmojiProperties.Standard("✖️"), ButtonStyle.Danger) { Disabled = !hasOwn },
+            };
 
-        var finalEmbed = await BuildEmbedAsync(description, title: "Abwesenheiten verwalten");
+            var description = CommanderName.Greeting(Context.User) + "hier sind Deine künftigen Abwesenheiten:\n\n" +
+                $"{AbsenceService.BuildOwnListText(own)}\n\n" +
+                "Wie lautet Dein Befehl, Commander?";
 
-        await Context.Interaction.ModifyResponseAsync(m =>
-        {
-            m.Embeds = [finalEmbed];
-            m.Components = [new ActionRowProperties(buttons)];
+            var finalEmbed = await BuildEmbedAsync(description, title: "Abwesenheiten verwalten");
+
+            return m =>
+            {
+                m.Embeds = [finalEmbed];
+                m.Components = [new ActionRowProperties(buttons)];
+            };
         });
-    }
 
     [ComponentInteraction("absence-create")]
     public Task<InteractionCallbackProperties<MessageOptions>> CreatePrompt() =>
         EphemeralEmbedModifyAsync(
-            $"Commander {CommanderName.Of(Context.User)}, darf ich Deine Abwesenheit der Allianz melden oder soll nur der Führungsstab informiert werden?",
+            CommanderName.Address(Context.User, "darf ich Deine Abwesenheit der Allianz melden oder soll nur der Führungsstab informiert werden?"),
             [
                 new ActionRowProperties(
                 [
@@ -128,61 +111,48 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
     // brand-new message — this is itself a follow-up step within the wizard, not the entry
     // point, so both the loading state and the final response edit the same message.
     [ComponentInteraction("absence-edit")]
-    public async Task EditPrompt()
-    {
-        var loadingEmbed = await BuildEmbedAsync("Abwesenheiten werden gesucht...",
-            title: "Abwesenheit bearbeiten", color: EmbedBranding.InformationColor);
-        await Context.Interaction.SendResponseAsync(InteractionCallback.ModifyMessage(m =>
+    public Task EditPrompt() =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
-            m.Embeds = [loadingEmbed];
-            m.Components = [];
-        }));
+            var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
+            var finalEmbed = await BuildEmbedAsync(CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du bearbeiten?"),
+                title: "Abwesenheit bearbeiten");
 
-        var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
-        var finalEmbed = await BuildEmbedAsync($"Commander {CommanderName.Of(Context.User)}, welche Abwesenheitsmeldung willst Du bearbeiten?",
-            title: "Abwesenheit bearbeiten");
-
-        await Context.Interaction.ModifyResponseAsync(m =>
-        {
-            m.Embeds = [finalEmbed];
-            m.Components = [new StringMenuProperties("absence-edit-target", own.Select(AbsenceService.BuildOption))];
+            return m =>
+            {
+                m.Embeds = [finalEmbed];
+                m.Components = [new StringMenuProperties("absence-edit-target", own.Select(AbsenceService.BuildOption))];
+            };
         });
-    }
 
-    // Same loading-then-edit pattern as EditPrompt.
     [ComponentInteraction("absence-delete")]
-    public async Task DeletePrompt()
-    {
-        var loadingEmbed = await BuildEmbedAsync("Abwesenheiten werden gesucht...",
-            title: "Abwesenheit löschen", color: EmbedBranding.InformationColor);
-        await Context.Interaction.SendResponseAsync(InteractionCallback.ModifyMessage(m =>
+    public Task DeletePrompt() =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
-            m.Embeds = [loadingEmbed];
-            m.Components = [];
-        }));
+            var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
+            var finalEmbed = await BuildEmbedAsync(CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du löschen?"),
+                title: "Abwesenheit löschen");
 
-        var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
-        var finalEmbed = await BuildEmbedAsync($"Commander {CommanderName.Of(Context.User)}, welche Abwesenheitsmeldung willst Du löschen?",
-            title: "Abwesenheit löschen");
-
-        await Context.Interaction.ModifyResponseAsync(m =>
-        {
-            m.Embeds = [finalEmbed];
-            m.Components = [new StringMenuProperties("absence-delete-target", own.Select(AbsenceService.BuildOption))];
+            return m =>
+            {
+                m.Embeds = [finalEmbed];
+                m.Components = [new StringMenuProperties("absence-delete-target", own.Select(AbsenceService.BuildOption))];
+            };
         });
-    }
 
     [ComponentInteraction("absence-confirm")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> Confirm(int draftId)
-    {
-        var result = await absenceService.ConfirmDraftAsync(draftId, Context.User.Id);
-        return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
-    }
+    public Task Confirm(int draftId) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var result = await absenceService.ConfirmDraftAsync(draftId, Context.User.Id);
+            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+        });
 
     [ComponentInteraction("absence-cancel")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> Cancel(int draftId)
-    {
-        var result = await absenceService.CancelDraftAsync(draftId, Context.User.Id);
-        return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
-    }
+    public Task Cancel(int draftId) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var result = await absenceService.CancelDraftAsync(draftId, Context.User.Id);
+            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+        });
 }

@@ -21,14 +21,15 @@ public class StfcNewsModalModule(StfcNewsService service) : ComponentInteraction
             return;
         }
 
-        await Context.Interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of("⏳ Processing...")));
-
-        var outcome = await service.SubmitDateAsync(postId, date, Context.User.Id);
-        await Context.Interaction.ModifyResponseAsync(m => m.Content = outcome switch
+        await Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            StfcNewsActionOutcome.NotFound => "This post could no longer be found.",
-            StfcNewsActionOutcome.AlreadyResolved => "This event date has already been confirmed.",
-            _ => $"Thanks — your date ({date:dd.MM.yyyy}) has been submitted. Other admins can now confirm it.",
+            var outcome = await service.SubmitDateAsync(postId, date, Context.User.Id);
+            return outcome switch
+            {
+                StfcNewsActionOutcome.NotFound => "This post could no longer be found.",
+                StfcNewsActionOutcome.AlreadyResolved => "This event date has already been confirmed.",
+                _ => $"Thanks — your date ({date:dd.MM.yyyy}) has been submitted. Other admins can now confirm it.",
+            };
         });
     }
 

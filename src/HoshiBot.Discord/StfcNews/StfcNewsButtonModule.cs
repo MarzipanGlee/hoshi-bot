@@ -28,18 +28,17 @@ public class StfcNewsButtonModule(StfcNewsService service) : ComponentInteractio
     // everyone) is updated separately, inside the service, via a plain direct REST edit — kept
     // fully independent of this reply so the two can never conflict.
     [ComponentInteraction("stfc-news-confirm")]
-    public async Task Confirm(int postId)
-    {
-        await Context.Interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of("⏳ Processing...")));
-
-        var (outcome, count, required) = await service.ConfirmDateAsync(postId, Context.User.Id);
-        await Context.Interaction.ModifyResponseAsync(m => m.Content = outcome switch
+    public Task Confirm(int postId) =>
+        Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            StfcNewsActionOutcome.NotFound => "This post could no longer be found.",
-            StfcNewsActionOutcome.AlreadyResolved => "This event date has already been confirmed.",
-            StfcNewsActionOutcome.CannotConfirmOwnSubmission => "You submitted this date — another admin needs to confirm it.",
-            StfcNewsActionOutcome.Resolved => "Thanks — that was the final confirmation needed. The event date has been confirmed!",
-            _ => $"Thanks — your confirmation has been recorded. ({count}/{required} confirmed).",
+            var (outcome, count, required) = await service.ConfirmDateAsync(postId, Context.User.Id);
+            return outcome switch
+            {
+                StfcNewsActionOutcome.NotFound => "This post could no longer be found.",
+                StfcNewsActionOutcome.AlreadyResolved => "This event date has already been confirmed.",
+                StfcNewsActionOutcome.CannotConfirmOwnSubmission => "You submitted this date — another admin needs to confirm it.",
+                StfcNewsActionOutcome.Resolved => "Thanks — that was the final confirmation needed. The event date has been confirmed!",
+                _ => $"Thanks — your confirmation has been recorded. ({count}/{required} confirmed).",
+            };
         });
-    }
 }

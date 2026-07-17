@@ -13,20 +13,20 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     // All four Publish buttons and Cancel live on AnnouncementMessageCommandModule.Preview's
     // own ephemeral message, so ModifyMessage is safe here — never the public hub.
     [ComponentInteraction("announcement-publish-normal")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishNormal(ulong channelId, ulong messageId, string audience) =>
-        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Normal);
+    public Task PublishNormal(ulong channelId, ulong messageId, string audience) =>
+        Context.Interaction.ModifyDelayedResponseAsync(() => PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Normal));
 
     [ComponentInteraction("announcement-publish-elevated")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishElevated(ulong channelId, ulong messageId, string audience) =>
-        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Elevated);
+    public Task PublishElevated(ulong channelId, ulong messageId, string audience) =>
+        Context.Interaction.ModifyDelayedResponseAsync(() => PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Elevated));
 
     [ComponentInteraction("announcement-publish-high")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishHigh(ulong channelId, ulong messageId, string audience) =>
-        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.High);
+    public Task PublishHigh(ulong channelId, ulong messageId, string audience) =>
+        Context.Interaction.ModifyDelayedResponseAsync(() => PublishAsync(channelId, messageId, audience, AnnouncementSeverity.High));
 
     [ComponentInteraction("announcement-publish-direct")]
-    public Task<InteractionCallbackProperties<MessageOptions>> PublishDirect(ulong channelId, ulong messageId, string audience) =>
-        PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Direct);
+    public Task PublishDirect(ulong channelId, ulong messageId, string audience) =>
+        Context.Interaction.ModifyDelayedResponseAsync(() => PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Direct));
 
     [ComponentInteraction("announcement-cancel")]
     public InteractionCallbackProperties<MessageOptions> Cancel() =>
@@ -37,25 +37,28 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         InteractionCallback.ModifyMessage(BuildSeverityPromptModifier(channelId, messageId, Enum.Parse<GuildAudience>(audience)));
 
     [ComponentInteraction("announcement-read")]
-    public async Task<InteractionMessageProperties> MarkRead(int announcementId)
-    {
-        var (wasNew, count) = await announcementService.MarkReadAsync(announcementId, Context.Guild!.Id, Context.User.Id);
-
-        try
+    public Task MarkRead(int announcementId) =>
+        Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            await gatewayClient.Rest.ModifyMessageAsync(Context.Channel.Id, Context.Message.Id,
-                m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcementId, count)])]);
-        }
-        catch (RestException)
-        {
-            // The periodic AnnouncementCounterRefreshJob will pick this up if the inline
-            // edit fails (e.g. transient rate limit) — not worth failing the interaction for.
-        }
+            var (wasNew, count) = await announcementService.MarkReadAsync(announcementId, Context.Guild!.Id, Context.User.Id);
 
-        return EphemeralReply.Of(wasNew ? "Danke, deine Lesebestätigung wurde erfasst." : "Du hast diese Ankündigung bereits bestätigt.");
-    }
+            try
+            {
+                // The shared announcement message (public) is edited via a separate direct REST
+                // call, kept independent of this personal ephemeral ack.
+                await gatewayClient.Rest.ModifyMessageAsync(Context.Channel.Id, Context.Message.Id,
+                    m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcementId, count)])]);
+            }
+            catch (RestException)
+            {
+                // The periodic AnnouncementCounterRefreshJob will pick this up if the inline
+                // edit fails (e.g. transient rate limit) — not worth failing the interaction for.
+            }
 
-    private async Task<InteractionCallbackProperties<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity)
+            return wasNew ? "Danke, deine Lesebestätigung wurde erfasst." : "Du hast diese Ankündigung bereits bestätigt.";
+        });
+
+    private async Task<Action<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity)
     {
         var parsedAudience = Enum.Parse<GuildAudience>(audience);
         // Phase 1: the Alliance audience maps to the guild's primary linked alliance.
@@ -66,7 +69,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
             || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
         {
             var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements);
-            return InteractionCallback.ModifyMessage(m => { m.Content = disabledMessage; m.Embeds = []; m.Components = []; });
+            return m => { m.Content = disabledMessage; m.Embeds = []; m.Components = []; };
         }
 
         // Re-fetching live (rather than carrying the draft's content in the custom-id,
@@ -74,7 +77,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         // between preview and publish is naturally picked up.
         var draft = await gatewayClient.Rest.GetMessageAsync(channelId, messageId);
         var result = await announcementService.PublishAsync(Context.Guild!.Id, parsedAudience, guildAllianceId, draft, severity, Context.User.Id);
-        return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
+        return m => { m.Content = result; m.Embeds = []; m.Components = []; };
     }
 
     // Shared with AnnouncementMessageCommandModule.Preview, which needs the same prompts

@@ -12,45 +12,45 @@ public class AbsenceModalModule(AbsenceService absenceService) : ComponentIntera
     // resolves it against the message the modal's originating component belonged to, so the
     // wizard keeps editing that same ephemeral message instead of posting a new one.
     [ComponentInteraction("absence-create-modal")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> CreateAbsence(string visibility, bool suppressNotifications)
-    {
-        var values = TextInputValues();
-        if (!TryParseRange(values, out var startsAt, out var endsAt, out var error))
-            return ErrorReply(error!);
-
-        var reason = values.GetValueOrDefault("reason");
-        var draft = await absenceService.CreateDraftAsync(Context.Guild!.Id, Context.User.Id, startsAt, endsAt,
-            string.IsNullOrWhiteSpace(reason) ? null : reason, Enum.Parse<AbsenceVisibility>(visibility), suppressNotifications);
-
-        return DraftReply(draft);
-    }
-
-    [ComponentInteraction("absence-edit-modal")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> EditAbsence(int absenceId)
-    {
-        var values = TextInputValues();
-        if (!TryParseRange(values, out var startsAt, out var endsAt, out var error))
-            return ErrorReply(error!);
-
-        var reason = values.GetValueOrDefault("reason");
-        var draft = await absenceService.CreateEditDraftAsync(absenceId, Context.User.Id, startsAt, endsAt,
-            string.IsNullOrWhiteSpace(reason) ? null : reason);
-
-        return draft is null
-            ? ErrorReply("Abwesenheit nicht gefunden oder keine Berechtigung.")
-            : DraftReply(draft);
-    }
-
-    private static InteractionCallbackProperties<MessageOptions> DraftReply(Absence draft) =>
-        InteractionCallback.ModifyMessage(m =>
+    public Task CreateAbsence(string visibility, bool suppressNotifications) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
-            m.Content = AbsenceService.BuildDraftSummary(draft);
-            m.Embeds = [];
-            m.Components = [new ActionRowProperties([AbsenceService.ConfirmButton(draft.Id), AbsenceService.CancelButton(draft.Id)])];
+            var values = TextInputValues();
+            if (!TryParseRange(values, out var startsAt, out var endsAt, out var error))
+                return ErrorEdit(error!);
+
+            var reason = values.GetValueOrDefault("reason");
+            var draft = await absenceService.CreateDraftAsync(Context.Guild!.Id, Context.User.Id, startsAt, endsAt,
+                string.IsNullOrWhiteSpace(reason) ? null : reason, Enum.Parse<AbsenceVisibility>(visibility), suppressNotifications);
+
+            return DraftEdit(draft);
         });
 
-    private static InteractionCallbackProperties<MessageOptions> ErrorReply(string message) =>
-        InteractionCallback.ModifyMessage(m => { m.Content = message; m.Embeds = []; m.Components = []; });
+    [ComponentInteraction("absence-edit-modal")]
+    public Task EditAbsence(int absenceId) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var values = TextInputValues();
+            if (!TryParseRange(values, out var startsAt, out var endsAt, out var error))
+                return ErrorEdit(error!);
+
+            var reason = values.GetValueOrDefault("reason");
+            var draft = await absenceService.CreateEditDraftAsync(absenceId, Context.User.Id, startsAt, endsAt,
+                string.IsNullOrWhiteSpace(reason) ? null : reason);
+
+            return draft is null
+                ? ErrorEdit("Abwesenheit nicht gefunden oder keine Berechtigung.")
+                : DraftEdit(draft);
+        });
+
+    private static Action<MessageOptions> DraftEdit(Absence draft) => m =>
+    {
+        m.Content = AbsenceService.BuildDraftSummary(draft);
+        m.Embeds = [];
+        m.Components = [new ActionRowProperties([AbsenceService.ConfirmButton(draft.Id), AbsenceService.CancelButton(draft.Id)])];
+    };
+
+    private static Action<MessageOptions> ErrorEdit(string message) => m => { m.Content = message; m.Embeds = []; m.Components = []; };
 
     // Dates/times are interpreted as UTC directly (Zurich-local precision is explicitly
     // deferred elsewhere in this project too, e.g. Territory Capture) — format TBD

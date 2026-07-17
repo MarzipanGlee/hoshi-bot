@@ -6,14 +6,15 @@ namespace HoshiBot.Discord.Tickets;
 public class TicketUserMenuModule(TicketService ticketService) : ComponentInteractionModule<UserMenuInteractionContext>
 {
     [ComponentInteraction("ticket-add-commander")]
-    public async Task<InteractionMessageProperties> AddCommander(int ticketId)
-    {
-        var results = new List<string>();
-        foreach (var user in Context.SelectedValues)
+    public Task AddCommander(int ticketId) =>
+        Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            results.Add(await ticketService.AddCommanderAsync(ticketId, user.Id));
-        }
+            var results = new List<string>();
+            foreach (var user in Context.SelectedValues)
+            {
+                results.Add(await ticketService.AddCommanderAsync(ticketId, user.Id));
+            }
 
-        return EphemeralReply.Of(string.Join('\n', results));
-    }
+            return string.Join('\n', results);
+        });
 }

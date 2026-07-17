@@ -11,21 +11,22 @@ public class TicketModalModule(TicketService ticketService, GuildAllianceService
     // Always opened from CommandBridgeButtonModule.ContactCommandStaffPrompt's ephemeral
     // wizard message, so ModifyMessage is safe here — never the public hub.
     [ComponentInteraction("ticket-open-modal")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> OpenTicket(string audience)
-    {
-        var subject = Context.Components
-            .OfType<Label>()
-            .Select(l => l.Component)
-            .OfType<TextInput>()
-            .ToDictionary(i => i.CustomId, i => i.Value)
-            .GetValueOrDefault("subject") ?? "";
+    public Task OpenTicket(string audience) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var subject = Context.Components
+                .OfType<Label>()
+                .Select(l => l.Component)
+                .OfType<TextInput>()
+                .ToDictionary(i => i.CustomId, i => i.Value)
+                .GetValueOrDefault("subject") ?? "";
 
-        var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        var guildAllianceId = parsedAudience == GuildAudience.Alliance
-            ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
-            : null;
-        var result = await ticketService.OpenTicketAsync(
-            Context.Guild!.Id, parsedAudience, guildAllianceId, Context.User.Id, CommanderName.Of(Context.User), subject);
-        return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
-    }
+            var parsedAudience = Enum.Parse<GuildAudience>(audience);
+            var guildAllianceId = parsedAudience == GuildAudience.Alliance
+                ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
+                : null;
+            var result = await ticketService.OpenTicketAsync(
+                Context.Guild!.Id, parsedAudience, guildAllianceId, Context.User.Id, CommanderName.Of(Context.User), subject);
+            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+        });
 }

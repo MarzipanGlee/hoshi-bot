@@ -51,13 +51,14 @@ public class CommandBridgeStaffButtonModule(
     // Enable/disable buttons live on this module's own ephemeral wizard message (posted by the
     // mute user-menu step), so ModifyMessage is safe.
     [ComponentInteraction("staff-shield-mute-set")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> SetMute(ulong targetUserId, string action)
-    {
-        var muted = action == "on";
-        var result = await alertService.SetShieldMutedAsync(Context.Guild!.Id, targetUserId, muted);
-        var embed = await BuildEmbedAsync(result, title: "Öffentliche Schildablaufwarnungen verwalten");
-        return InteractionCallback.ModifyMessage(m => { m.Embeds = [embed]; m.Components = []; });
-    }
+    public Task SetMute(ulong targetUserId, string action) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var muted = action == "on";
+            var result = await alertService.SetShieldMutedAsync(Context.Guild!.Id, targetUserId, muted);
+            var embed = await BuildEmbedAsync(result, title: "Öffentliche Schildablaufwarnungen verwalten");
+            return m => { m.Embeds = [embed]; m.Components = []; };
+        });
 
     private async Task<InteractionMessageProperties> EphemeralEmbedAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null)
     {

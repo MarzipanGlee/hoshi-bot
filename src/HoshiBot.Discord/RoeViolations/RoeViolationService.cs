@@ -38,7 +38,7 @@ public class RoeViolationService(
     // closing line are built here (not baked into the step consts) so the report's own alliance
     // diplomat role can be mentioned inline — matching the legacy post's format.
     private static string BuildInstructions(string reporterName, bool reporterIsVictim, string diplomatMention) =>
-        $"Commander {reporterName}, danke für Deine Meldung! Bitte beachte die nachfolgenden Anweisungen und hole fehlende Punkte nach:\n\n" +
+        CommanderName.Greeting(reporterName) + "danke für Deine Meldung! Bitte beachte die nachfolgenden Anweisungen und hole fehlende Punkte nach:\n\n" +
         (reporterIsVictim ? VictimSteps : OffenderSteps) +
         $"\n\nSobald Du alles erledigt hast, bestätige das mit der entsprechenden Schaltfläche unten und {diplomatMention} nimmt sich dem Fall an.";
 

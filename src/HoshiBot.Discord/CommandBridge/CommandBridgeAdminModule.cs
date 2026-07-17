@@ -25,32 +25,33 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService)
 {
     [SlashCommand("post-command-bridge", "Post or refresh the Command Bridge hub message(s)",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
-    public async Task<InteractionMessageProperties> PostCommandBridge(CommandBridgeChoice bridge = CommandBridgeChoice.All)
-    {
-        var guildId = Context.Guild!.Id;
-
-        var bridges = bridge switch
+    public Task PostCommandBridge(CommandBridgeChoice bridge = CommandBridgeChoice.All) =>
+        Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            CommandBridgeChoice.User => [CommandBridgeKind.User],
-            CommandBridgeChoice.Staff => [CommandBridgeKind.Staff],
-            CommandBridgeChoice.Friends => [CommandBridgeKind.Friends],
-            _ => new[] { CommandBridgeKind.User, CommandBridgeKind.Staff, CommandBridgeKind.Friends },
-        };
+            var guildId = Context.Guild!.Id;
 
-        var lines = new List<string>();
-        foreach (var target in bridges)
-        {
-            var result = await hubService.PublishAsync(guildId, target);
-            lines.Add(result switch
+            var bridges = bridge switch
             {
-                CommandBridgePublishResult.Updated => $"✅ {Label(target)}: hub message updated.",
-                CommandBridgePublishResult.Posted => $"✅ {Label(target)}: hub message posted.",
-                _ => $"⚠️ {Label(target)}: no channel set — configure it on the Command Bridge admin page first.",
-            });
-        }
+                CommandBridgeChoice.User => [CommandBridgeKind.User],
+                CommandBridgeChoice.Staff => [CommandBridgeKind.Staff],
+                CommandBridgeChoice.Friends => [CommandBridgeKind.Friends],
+                _ => new[] { CommandBridgeKind.User, CommandBridgeKind.Staff, CommandBridgeKind.Friends },
+            };
 
-        return EphemeralReply.Of(string.Join('\n', lines));
-    }
+            var lines = new List<string>();
+            foreach (var target in bridges)
+            {
+                var result = await hubService.PublishAsync(guildId, target);
+                lines.Add(result switch
+                {
+                    CommandBridgePublishResult.Updated => $"✅ {Label(target)}: hub message updated.",
+                    CommandBridgePublishResult.Posted => $"✅ {Label(target)}: hub message posted.",
+                    _ => $"⚠️ {Label(target)}: no channel set — configure it on the Command Bridge admin page first.",
+                });
+            }
+
+            return string.Join('\n', lines);
+        });
 
     private static string Label(CommandBridgeKind bridge) => bridge switch
     {

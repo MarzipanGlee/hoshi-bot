@@ -42,10 +42,11 @@ public class AbsenceStringMenuModule(AbsenceService absenceService, EmbedBrandin
     }
 
     [ComponentInteraction("absence-delete-target")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> DeleteTarget()
-    {
-        var absenceId = int.Parse(Context.SelectedValues[0]);
-        var result = await absenceService.DeleteAsync(absenceId, Context.User.Id);
-        return InteractionCallback.ModifyMessage(m => { m.Content = result; m.Embeds = []; m.Components = []; });
-    }
+    public Task DeleteTarget() =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var absenceId = int.Parse(Context.SelectedValues[0]);
+            var result = await absenceService.DeleteAsync(absenceId, Context.User.Id);
+            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+        });
 }

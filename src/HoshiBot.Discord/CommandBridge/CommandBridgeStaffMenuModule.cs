@@ -26,35 +26,36 @@ public class CommandBridgeStaffMenuModule(AlertService alertService, EmbedBrandi
 
     // Mute management: member chosen → show current state with enable/disable buttons.
     [ComponentInteraction("staff-shield-mute-target")]
-    public async Task<InteractionCallbackProperties<MessageOptions>> ShieldMuteTarget()
-    {
-        var target = Context.SelectedValues[0];
-        var muted = await alertService.GetShieldMutedAsync(Context.Guild!.Id, target.Id);
-
-        var status = muted
-            ? "EIN — öffentliche Benachrichtigungen bei Schildablauf deaktiviert"
-            : "AUS — öffentliche Benachrichtigungen bei Schildablauf aktiviert";
-
-        var embed = new EmbedProperties
+    public Task ShieldMuteTarget() =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
-            Title = "Öffentliche Schildablaufwarnungen verwalten",
-            Description = $"Die Stummschaltung der Schildablaufwarnungen für <@{target.Id}> ist aktuell:\n\n- **{status}**",
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(Context.Guild!.Id),
-            Footer = embedBranding.BuildFooter(Context.Guild!.Id),
-        };
+            var target = Context.SelectedValues[0];
+            var muted = await alertService.GetShieldMutedAsync(Context.Guild!.Id, target.Id);
 
-        return InteractionCallback.ModifyMessage(m =>
-        {
-            m.Embeds = [embed];
-            m.Components =
-            [
-                new ActionRowProperties(
+            var status = muted
+                ? "EIN — öffentliche Benachrichtigungen bei Schildablauf deaktiviert"
+                : "AUS — öffentliche Benachrichtigungen bei Schildablauf aktiviert";
+
+            var embed = new EmbedProperties
+            {
+                Title = "Öffentliche Schildablaufwarnungen verwalten",
+                Description = $"Die Stummschaltung der Schildablaufwarnungen für <@{target.Id}> ist aktuell:\n\n- **{status}**",
+                Color = EmbedBranding.BotColor,
+                Author = await embedBranding.BuildAuthorAsync(Context.Guild!.Id),
+                Footer = embedBranding.BuildFooter(Context.Guild!.Id),
+            };
+
+            return m =>
+            {
+                m.Embeds = [embed];
+                m.Components =
                 [
-                    new ButtonProperties($"staff-shield-mute-set:{target.Id}:on", "Stummschaltung aktivieren", EmojiProperties.Standard("🔕"), ButtonStyle.Primary) { Disabled = muted },
-                    new ButtonProperties($"staff-shield-mute-set:{target.Id}:off", "Stummschaltung deaktivieren", EmojiProperties.Standard("🔔"), ButtonStyle.Secondary) { Disabled = !muted },
-                ]),
-            ];
+                    new ActionRowProperties(
+                    [
+                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:on", "Stummschaltung aktivieren", EmojiProperties.Standard("🔕"), ButtonStyle.Primary) { Disabled = muted },
+                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:off", "Stummschaltung deaktivieren", EmojiProperties.Standard("🔔"), ButtonStyle.Secondary) { Disabled = !muted },
+                    ]),
+                ];
+            };
         });
-    }
 }
