@@ -32,6 +32,13 @@ public static class GuildFeatureAudiences
         // between those pages.
         GuildFeature.StfcNews => GuildAudience.Alliance,
         GuildFeature.ClientRelease => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
+        // AI chat is available under any audience — its listen/knowledge channel lists are
+        // per-audience (like Announcements/Tickets). The guild-wide scalars (API key, system
+        // prompt, model) are stored separately at the None/null scope, so multi-audience here only
+        // governs the channel buckets and the per-audience enable toggle. AiChatKnowledge mirrors
+        // the same audiences so its channel bucket lines up with AiChat's per audience.
+        GuildFeature.AiChat => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        GuildFeature.AiChatKnowledge => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         _ => GuildAudience.None,
     };
 

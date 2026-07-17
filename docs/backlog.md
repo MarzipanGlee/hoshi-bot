@@ -2,6 +2,28 @@
 
 Deferred ideas / follow-ups, not scheduled yet.
 
+## Encrypt per-guild secrets stored in the DB
+
+The AI-chat feature (`GuildFeature.AiChat`) stores each guild's Google Gemini **API key** as
+**plaintext** in `GuildFeatureSettingText` (`AiChatSettingKeys.ApiKey`), configured in the Web
+admin panel. This was a deliberate "start simple" choice — the DB now holds a live third-party
+secret in the clear.
+
+Future direction: set a symmetric **encryption key in the bot's config JSON**
+(`appsettings`/`IConfiguration`, e.g. `Secrets:EncryptionKey`, injected via env/user-secrets
+like `Discord:Token`) and encrypt/decrypt secret-typed settings at rest — ideally transparently
+inside `GuildFeatureSettingsService` (or a thin wrapper) so callers still read/write a plain
+string. Applies to any future per-guild secret, not just the AI-chat key. Until then, treat DB
+dumps/backups as containing live API keys.
+
+## AI chat — richer retrieval (RAG) and persistent memory
+
+The first AI-chat version grounds answers only in recent channel history plus recent messages
+from the configured knowledge channels (fetched live per question, no index). Deferred:
+full RAG (embeddings + vector search) over guild content, and a persistent conversation-history
+table if the recent-history window proves too short for good multi-turn memory. Also: per-user /
+per-channel rate limiting and cost controls once real usage is observed.
+
 ## Multi-alliance: per-alliance contact buttons & announcements
 
 The multi-alliance work made feature settings/toggles and most Discord behaviour per-alliance

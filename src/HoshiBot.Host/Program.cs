@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord;
 using HoshiBot.Discord.Absences;
+using HoshiBot.Discord.AiChat;
 using HoshiBot.Discord.AnonymousMessages;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.CommandBridge;
@@ -41,7 +42,12 @@ builder.Services
     // privileged Server Members Intent enabled for this bot application in the Discord
     // Developer Portal, or member fetches will fail/return incomplete data regardless of
     // this flag.
-    .AddDiscordGateway(options => options.Intents = GatewayIntents.Guilds | GatewayIntents.GuildUsers)
+    // GuildMessages + MessageContent power the AI chat feature (AiChatMessageHandler reads
+    // arbitrary member messages). MessageContent is a PRIVILEGED intent — it must also be
+    // enabled for this bot application in the Discord Developer Portal, or message.Content
+    // arrives empty and the AI never sees anything to answer.
+    .AddDiscordGateway(options => options.Intents =
+        GatewayIntents.Guilds | GatewayIntents.GuildUsers | GatewayIntents.GuildMessages | GatewayIntents.MessageContent)
     .AddApplicationCommands()
     .AddComponentInteractions<ButtonInteraction, ButtonInteractionContext>()
     .AddComponentInteractions<UserMenuInteraction, UserMenuInteractionContext>()
@@ -68,6 +74,8 @@ builder.Services.AddScoped<GuildAllianceService>();
 builder.Services.AddScoped<CommandBridgeHubService>();
 builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();
+builder.Services.AddScoped<GeminiClient>();
+builder.Services.AddScoped<AiChatService>();
 
 // A bare, User-Agent-less HttpClient gets a 403 from startrekfleetcommand.com's WordPress
 // bot protection (confirmed against the real feed) — both of these hit external sites with

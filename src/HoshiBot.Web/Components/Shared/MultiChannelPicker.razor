@@ -32,6 +32,15 @@
     <EditForm Model="this" FormName="@($"add-feature-channel-{Feature}-{Audience}")" OnValidSubmit="AddAsync" class="d-flex flex-column gap-2">
         <select class="form-select" @bind="newChannelIdInput">
             <option value="">— select channel —</option>
+            @if (AllowCategories)
+            {
+                <optgroup label="Ganze Kategorie">
+                    @foreach (var category in CategoryOptions)
+                    {
+                        <option value="@category.Id">📁 @category.Name</option>
+                    }
+                </optgroup>
+            }
             @foreach (var group in NormalChannelGroups)
             {
                 @if (group.Category is not null)
@@ -63,6 +72,11 @@
     [Parameter] public string Title { get; set; } = "Channels";
     [Parameter] public string? Usage { get; set; }
 
+    // When true, whole categories can also be added (stored by their category id). The consumer
+    // is responsible for expanding a category id to its member channels at read time — see
+    // AiChatService.ExpandKnowledgeChannelsAsync.
+    [Parameter] public bool AllowCategories { get; set; }
+
     private List<ulong> channelIds = [];
     private List<IGuildChannel> channels = [];
     private string? newChannelIdInput;
@@ -93,6 +107,9 @@
 
     // Every consumer posts via a plain SendMessageAsync (never a private thread), so Normal is
     // always right here — same reasoning as AlertChannelListEditor.
+    private List<CategoryGuildChannel> CategoryOptions =>
+        channels.OfType<CategoryGuildChannel>().OrderBy(c => c.Name).ToList();
+
     private List<ChannelGroup> NormalChannelGroups =>
         DiscordGuildDataService.GroupChannelsForDisplay(channels
                 .Where(c => c is CategoryGuildChannel || DiscordGuildDataService.IsAllowedChannel(c, ChannelKind.Normal))
@@ -105,6 +122,7 @@
 
     private static string ChannelLabel(IGuildChannel channel) => channel switch
     {
+        CategoryGuildChannel => $"📁 {channel.Name} (ganze Kategorie)",
         VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
         ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
         _ => $"# {channel.Name}",

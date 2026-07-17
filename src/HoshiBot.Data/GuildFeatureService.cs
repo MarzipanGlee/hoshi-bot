@@ -174,6 +174,8 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         GuildFeature.StfcNews => "STFC-News-Benachrichtigungen",
         GuildFeature.AllianceTournament => "Allianz-Turnier-Benachrichtigungen",
         GuildFeature.ClientRelease => "Client-Versions-Benachrichtigungen",
+        GuildFeature.AiChat => "KI-Chat",
+        GuildFeature.AiChatKnowledge => "KI-Chat: Wissensquellen",
         _ => feature.ToString(),
     };
 }

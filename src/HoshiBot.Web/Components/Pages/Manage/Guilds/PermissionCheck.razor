@@ -342,6 +342,17 @@ else
     // publish) as well as written — View + Send + Read Message History, but no embeds posted there.
     private const Permissions DraftPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.ReadMessageHistory;
 
+    // AiChat listen channels: the bot reads recent messages back (Read Message History — this is
+    // what lets it see any content at all) and posts plain-text replies (Send, no embeds). A
+    // listen channel missing Read Message History is the classic "the bot stays silent for no
+    // obvious reason" case.
+    private const Permissions AiChatListenPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.ReadMessageHistory;
+
+    // AiChat knowledge-source channels are only ever read, never posted to — View + Read Message
+    // History. (A knowledge entry can also be a whole category; granting these on the category
+    // propagates to its synced child channels.)
+    private const Permissions AiChatKnowledgePermissions = Permissions.ViewChannel | Permissions.ReadMessageHistory;
+
     private static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
 
     private static bool IsManage(Permissions perms) =>
@@ -689,7 +700,18 @@ else
                     .Select(c => new { c.ChannelId, c.Feature })
                     .ToListAsync();
                 foreach (var fc in featureChannels)
-                    Add(fc.ChannelId, $"Feature: {fc.Feature}", PostPermissions);
+                {
+                    // Most features post embeds; AiChat instead reads message history (and, for
+                    // its listen channels, posts plain-text replies) — so it needs Read Message
+                    // History rather than Embed Links.
+                    var perms = fc.Feature switch
+                    {
+                        GuildFeature.AiChat => AiChatListenPermissions,
+                        GuildFeature.AiChatKnowledge => AiChatKnowledgePermissions,
+                        _ => PostPermissions,
+                    };
+                    Add(fc.ChannelId, $"Feature: {fc.Feature}", perms);
+                }
 
                 var alertChannels = await db.GuildAlertChannels
                     .Where(c => c.GuildId == ParsedGuildId)

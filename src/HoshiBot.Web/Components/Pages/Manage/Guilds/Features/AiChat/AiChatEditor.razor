@@ -1,0 +1,109 @@
+@inherits FeatureEditorBase
+@inject GuildFeatureSettingsService SettingsService
+
+<p class="form-text">
+    The bot listens to every message in the <strong>listen channels</strong> and answers with Google
+    Gemini when it has a genuinely helpful reply (staying silent otherwise). It always answers when
+    addressed by its nickname or @@mention. Answers are grounded in the recent conversation plus the
+    configured <strong>knowledge channels</strong>. Requires this guild's own Gemini API key.
+</p>
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="Gemini API Key">
+        <label class="form-label">
+            Dieser Gilde eigener Google-Gemini-API-Schlüssel. Wird für alle KI-Antworten verwendet und
+            im Klartext gespeichert.
+        </label>
+        @if (hasKey)
+        {
+            <p class="form-text mb-1 text-success">Ein Schlüssel ist gespeichert. Neuen Wert eingeben, um ihn zu ersetzen.</p>
+        }
+        <div class="d-flex gap-2">
+            <input type="password" class="form-control" autocomplete="off"
+                   placeholder="@(hasKey ? "•••••••• (gespeichert)" : "API-Schlüssel eingeben")"
+                   @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
+            @if (hasKey)
+            {
+                <button type="button" class="btn btn-outline-danger" @onclick="ClearApiKeyAsync">Löschen</button>
+            }
+        </div>
+    </SettingsCard>
+
+    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChat" Audience="ResolvedAudience"
+        Title="Zuhör-Kanäle" Usage="Kanäle, in denen der Bot mitliest und antwortet." />
+
+    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChatKnowledge" Audience="ResolvedAudience"
+        AllowCategories="true"
+        Title="Wissensquellen-Kanäle" Usage="Kanäle (oder ganze Kategorien), deren aktuelle Nachrichten der Bot als Wissensbasis für Antworten heranzieht." />
+
+    <SettingsCard Title="System-Prompt (optional)">
+        <label for="aiChatSystemPrompt" class="form-label">
+            Zusätzliche Persönlichkeits-/Verhaltensanweisung, die dem Standard-Prompt vorangestellt wird.
+        </label>
+        <textarea id="aiChatSystemPrompt" class="form-control flex-grow-1" rows="4"
+                  @bind="systemPromptInput" @bind:after="SaveSystemPromptAsync"></textarea>
+    </SettingsCard>
+
+    <SettingsCard Title="Modell (optional)">
+        <label for="aiChatModel" class="form-label">
+            Gemini-Modell. Leer lassen für den Standard (@AiChatSettingKeys.DefaultModel).
+        </label>
+        <input id="aiChatModel" class="form-control" placeholder="@AiChatSettingKeys.DefaultModel"
+               @bind="modelInput" @bind:after="SaveModelAsync" />
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.AiChat;
+
+    private bool hasKey;
+    private string? apiKeyInput;
+    private string? systemPromptInput;
+    private string? modelInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        // The stored API key is never echoed back into the field — we only track whether one
+        // exists and let the admin overwrite it.
+        hasKey = !string.IsNullOrWhiteSpace(await GetText(AiChatSettingKeys.ApiKey));
+        systemPromptInput = await GetText(AiChatSettingKeys.SystemPrompt);
+        modelInput = await GetText(AiChatSettingKeys.Model);
+    }
+
+    // The API key, system prompt, and model are guild-wide (one Gemini account per guild), so
+    // they're stored at the None/null scope and shown identically on every audience tab — only the
+    // channel lists below are per-audience. Mirrors ClientRelease's guild-wide platform roles.
+    private Task<string?> GetText(string key) =>
+        SettingsService.GetTextAsync(GuildId, Feature, GuildAudience.None, null, key);
+
+    private Task SetText(string key, string? value) =>
+        SettingsService.SetTextAsync(GuildId, Feature, GuildAudience.None, null, key, value);
+
+    private async Task SaveApiKeyAsync()
+    {
+        // Blank submit leaves the existing key untouched (use "Löschen" to remove it).
+        if (string.IsNullOrWhiteSpace(apiKeyInput))
+            return;
+
+        await SetText(AiChatSettingKeys.ApiKey, apiKeyInput.Trim());
+        apiKeyInput = null;
+        hasKey = true;
+    }
+
+    private async Task ClearApiKeyAsync()
+    {
+        await SetText(AiChatSettingKeys.ApiKey, null);
+        apiKeyInput = null;
+        hasKey = false;
+    }
+
+    private Task SaveSystemPromptAsync() => SetText(AiChatSettingKeys.SystemPrompt, systemPromptInput);
+
+    private Task SaveModelAsync() => SetText(AiChatSettingKeys.Model, modelInput);
+}

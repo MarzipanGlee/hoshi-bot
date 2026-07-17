@@ -25,6 +25,19 @@ public class EmbedBranding(GatewayClient gatewayClient, EmbedBrandingOptions opt
 
     public async Task<EmbedAuthorProperties> BuildAuthorAsync(ulong guildId)
     {
+        return new EmbedAuthorProperties
+        {
+            Name = await GetBotDisplayNameAsync(guildId),
+            IconUrl = $"{options.PublicWebBaseUrl}/images/officers/{ResolveOfficerIconFileName(guildId)}",
+            Url = AuthorUrl,
+        };
+    }
+
+    // The bot's live display name in a guild — its per-guild nickname if set, else the global
+    // name/username. Shared by the embed author line and the AI-chat name trigger (which reacts
+    // when a message addresses the bot by this name), so both see the same name a member does.
+    public async Task<string> GetBotDisplayNameAsync(ulong guildId)
+    {
         string? nickname = null;
 
         if (gatewayClient.Cache.Guilds.TryGetValue(guildId, out var cachedGuild)
@@ -50,14 +63,7 @@ public class EmbedBranding(GatewayClient gatewayClient, EmbedBrandingOptions opt
         }
 
         var currentUser = gatewayClient.Cache.User;
-        var name = nickname ?? currentUser?.GlobalName ?? currentUser?.Username ?? "Hoshi Bot";
-
-        return new EmbedAuthorProperties
-        {
-            Name = name,
-            IconUrl = $"{options.PublicWebBaseUrl}/images/officers/{ResolveOfficerIconFileName(guildId)}",
-            Url = AuthorUrl,
-        };
+        return nickname ?? currentUser?.GlobalName ?? currentUser?.Username ?? "Hoshi Bot";
     }
 
     public EmbedFooterProperties BuildFooter(ulong guildId)

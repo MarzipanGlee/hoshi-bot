@@ -1,4 +1,5 @@
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Absences;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AiChat;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AlertsOptIn;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AllianceTournament;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Announcements;
@@ -30,6 +31,7 @@ public static class FeatureCatalog
     public static readonly IFeatureModule[] All =
     [
         new AbsencesFeature(),
+        new AiChatFeature(),
         new AlertsOptInFeature(),
         new AllianceTournamentFeature(),
         new AnnouncementsFeature(),
