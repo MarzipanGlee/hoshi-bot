@@ -302,20 +302,30 @@ public class AbsenceService(
         }
     }
 
-    private async Task<EmbedProperties> BuildReportEmbedAsync(ulong guildId, List<Absence> active, List<Absence> upcoming, bool isStaffView) =>
-        new()
+    private async Task<EmbedProperties> BuildReportEmbedAsync(ulong guildId, List<Absence> active, List<Absence> upcoming, bool isStaffView)
+    {
+        // Link to the Command Bridge where members submit absences (falls back to plain text if
+        // this guild hasn't configured one yet).
+        var settings = await db.GuildSettings.FindAsync(guildId);
+        var bridge = settings?.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : "Kommandobrücke";
+
+        return new EmbedProperties
         {
             Title = "Abwesenheiten",
+            Description = $"Bitte meldet Euch frühzeitig auf der {bridge} ab, solltet Ihr mehrere Tage verhindert sein.",
             Fields =
             [
                 new EmbedFieldProperties { Name = "Aktuelle Abwesenheiten", Value = BuildSection(active, isStaffView) },
                 new EmbedFieldProperties { Name = "Kommende Abwesenheiten", Value = BuildSection(upcoming, isStaffView) },
+                // In-body Discord timestamp (localized per viewer), not the embed footer — a
+                // <t:…> stamp only renders in the body, and the members here span time zones.
+                new EmbedFieldProperties { Name = "Stand", Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:f>" },
             ],
             Color = EmbedBranding.BotColor,
             Author = await embedBranding.BuildAuthorAsync(guildId),
             Footer = embedBranding.BuildFooter(guildId),
-            Timestamp = DateTimeOffset.UtcNow,
         };
+    }
 
     // Staff view always shows full detail regardless of Visibility (staff need it for
     // coverage planning); the public view shows full detail only for Public rows and
@@ -337,7 +347,9 @@ public class AbsenceService(
     }
 
     private static string DetailLine(Absence a) =>
-        $"<@{a.DiscordUserId}> — {a.StartsAt:dd.MM. HH:mm} bis {a.EndsAt:dd.MM. HH:mm}"
+        // Discord <t:…> timestamps so each member sees the absence window in their own time zone,
+        // rather than one fixed wall-clock string.
+        $"<@{a.DiscordUserId}> — <t:{a.StartsAt.ToUnixTimeSeconds()}:f> bis <t:{a.EndsAt.ToUnixTimeSeconds()}:f>"
         + (string.IsNullOrWhiteSpace(a.Reason) ? "" : $" ({a.Reason})")
         + (a.SuppressNotifications ? " 🔔" : "")
         + (a.Visibility == AbsenceVisibility.StaffOnly ? " 🙂 Privat" : "");
