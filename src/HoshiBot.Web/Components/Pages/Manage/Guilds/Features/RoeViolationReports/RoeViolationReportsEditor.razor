@@ -11,15 +11,15 @@
     <label class="form-check-label">Enabled</label>
 </div>
 
-@if (createRoleError is not null)
+@if (createError is not null)
 {
-    <p class="text-danger">@createRoleError</p>
+    <p class="text-danger">@createError</p>
 }
 
 <div class="card-grid mt-1">
     <SettingsCard Title="RoE Violations">
         <ChannelPicker Label="RoE Violations" ShowLabel="false" Usage="Where /report-roe-violation reports are posted — must be a Forum channel." Kind="ChannelKind.Forum"
-            @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+            CreateChannelName="roe-verstösse" @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
     </SettingsCard>
 
     <SettingsCard Title="Diplomat">
@@ -40,7 +40,7 @@
     private List<Role> roles = [];
     private string? channelIdInput;
     private string? diplomatRoleIdInput;
-    private string? createRoleError;
+    private string? createError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -50,12 +50,27 @@
         diplomatRoleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Diplomacy, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.DiplomatRole))?.ToString();
     }
 
-    private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, RoeViolationReportsSettingKeys.Channel, ParseId(channelIdInput));
+    private async Task SaveChannelAsync()
+    {
+        createError = null;
+        try
+        {
+            var channelId = await DiscordData.EnsureChannelAsync(GuildId, channelIdInput, "roe-verstösse", ChannelType.ForumGuildChannel);
+            channelIdInput = channelId?.ToString();
+            channels = await DiscordData.GetChannelsAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, RoeViolationReportsSettingKeys.Channel, channelId);
+        }
+        catch (RestException)
+        {
+            createError = "Could not create a channel on Discord — does the bot have Manage Channels permission in this server?";
+            if (channelIdInput == ChannelPicker.CreateSentinel)
+                channelIdInput = null;
+        }
+    }
 
     private async Task SaveDiplomatRoleAsync()
     {
-        createRoleError = null;
+        createError = null;
         try
         {
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, "Diplomat");
@@ -65,7 +80,7 @@
         }
         catch (RestException)
         {
-            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
             if (diplomatRoleIdInput == RolePicker.CreateSentinel)
                 diplomatRoleIdInput = null;
         }

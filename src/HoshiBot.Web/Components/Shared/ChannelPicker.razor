@@ -9,26 +9,43 @@
     }
     <select class="form-select" value="@Value" @onchange="OnChangeAsync">
         <option value="">@PlaceholderText</option>
+        @* Create action — a distinct sentinel value (not the blank option, which stays a valid
+           "none"/"server root" choice), hidden once a channel/category by this exact name exists. *@
+        @if (CreateChannelName is not null && !ChannelWithCreateNameExists)
+        {
+            <option value="@CreateSentinel">— create "@CreateChannelName" —</option>
+        }
         @if (IsUnknown)
         {
             <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
         }
-        @foreach (var group in FilteredGroups)
+        @if (CategorySelect)
         {
-            @if (group.Category is not null)
+            @* Categories are the selectable options themselves here (not <optgroup> headers). *@
+            @foreach (var category in Channels.OfType<CategoryGuildChannel>())
             {
-                <optgroup label="@group.Category.Name">
+                <option value="@category.Id">@category.Name</option>
+            }
+        }
+        else
+        {
+            @foreach (var group in FilteredGroups)
+            {
+                @if (group.Category is not null)
+                {
+                    <optgroup label="@group.Category.Name">
+                        @foreach (var channel in group.Channels)
+                        {
+                            <option value="@channel.Id">@ChannelLabel(channel)</option>
+                        }
+                    </optgroup>
+                }
+                else
+                {
                     @foreach (var channel in group.Channels)
                     {
                         <option value="@channel.Id">@ChannelLabel(channel)</option>
                     }
-                </optgroup>
-            }
-            else
-            {
-                @foreach (var channel in group.Channels)
-                {
-                    <option value="@channel.Id">@ChannelLabel(channel)</option>
                 }
             }
         }
@@ -60,6 +77,20 @@
     // Tickets create a private thread under the channel instead, which narrows this to plain
     // text channels only (TextOnly) — see DiscordGuildDataService.IsAllowedChannel.
     [Parameter] public ChannelKind Kind { get; set; } = ChannelKind.Normal;
+
+    // When set, adds a "— create "{name}" —" action option (value = CreateSentinel). The caller's
+    // save handler detects the sentinel and creates the channel/category of the right type via
+    // DiscordGuildDataService.EnsureChannelAsync — mirrors RolePicker.CreateRoleName.
+    [Parameter] public string? CreateChannelName { get; set; }
+
+    // Category picker mode: the Channels passed are categories, and each is rendered as a flat,
+    // selectable option (not an <optgroup> header). Used by the Default Channel Category setting.
+    [Parameter] public bool CategorySelect { get; set; }
+
+    public const string CreateSentinel = "__create_channel__";
+
+    private bool ChannelWithCreateNameExists =>
+        CreateChannelName is not null && Channels.Any(c => string.Equals(c.Name, CreateChannelName, StringComparison.OrdinalIgnoreCase));
 
     private bool IsUnknown =>
         !string.IsNullOrEmpty(Value) && ulong.TryParse(Value, out var id) && !Channels.Any(c => c.Id == id);

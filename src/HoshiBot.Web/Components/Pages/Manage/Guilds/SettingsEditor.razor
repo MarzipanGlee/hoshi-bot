@@ -40,14 +40,14 @@
         <ChannelPicker Label="Command Staff Jobs" ShowLabel="false" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="SaveCommandStaffJobsChannelAsync" Channels="channels" />
     </SettingsCard>
     <SettingsCard Title="Default Channel Category">
-        <ChannelPicker Label="Default Channel Category" ShowLabel="false" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
+        <ChannelPicker Label="Default Channel Category" ShowLabel="false" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." CategorySelect="true" CreateChannelName="Hoshi Bot" @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
     </SettingsCard>
 </div>
 
 <h2 class="mt-4">Roles</h2>
-@if (createRoleError is not null)
+@if (createError is not null)
 {
-    <p class="text-danger">@createRoleError</p>
+    <p class="text-danger">@createError</p>
 }
 <div class="card-grid mt-1">
     <SettingsCard Title="Member">
@@ -74,7 +74,7 @@
     private List<IGuildChannel> channels = [];
     private List<CategoryGuildChannel> categories = [];
     private List<Role> roles = [];
-    private string? createRoleError;
+    private string? createError;
 
     private string? logChannelIdInput;
     private string? adminChannelIdInput;
@@ -150,7 +150,23 @@
     private Task SaveUserNotificationsChannelAsync() => SaveAsync(s => s.UserNotificationsChannelId = ParseId(userNotificationsChannelIdInput));
     private Task SaveBotSupportChannelAsync() => SaveAsync(s => s.BotSupportChannelId = ParseId(botSupportChannelIdInput));
     private Task SaveCommandStaffJobsChannelAsync() => SaveAsync(s => s.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput));
-    private Task SaveDefaultChannelCategoryAsync() => SaveAsync(s => s.DefaultChannelCategoryId = ParseId(defaultChannelCategoryIdInput));
+    private async Task SaveDefaultChannelCategoryAsync()
+    {
+        createError = null;
+        try
+        {
+            var categoryId = await DiscordData.EnsureChannelAsync(GuildId, defaultChannelCategoryIdInput, "Hoshi Bot", ChannelType.CategoryChannel);
+            defaultChannelCategoryIdInput = categoryId?.ToString();
+            categories = await DiscordData.GetCategoriesAsync(GuildId);
+            await SaveAsync(s => s.DefaultChannelCategoryId = categoryId);
+        }
+        catch (RestException)
+        {
+            createError = "Could not create a category on Discord — does the bot have Manage Channels permission in this server?";
+            if (defaultChannelCategoryIdInput == ChannelPicker.CreateSentinel)
+                defaultChannelCategoryIdInput = null;
+        }
+    }
 
     // A blank selection creates a new role instead of just saving null — named after the
     // setting so it's clear at a glance what it's for. Mirrors AlertsOptIn/Diplomacy/
@@ -159,7 +175,7 @@
     // EnsureRoleAsync rather than a local create-or-modify-if-changed one.
     private async Task SaveRoleAsync(Action<GuildSettings, ulong?> setter, string? currentInput, Action<string?> setInput, string defaultName)
     {
-        createRoleError = null;
+        createError = null;
         try
         {
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, defaultName);
@@ -169,7 +185,7 @@
         }
         catch (RestException)
         {
-            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
             if (currentInput == RolePicker.CreateSentinel)
                 setInput(null);
         }

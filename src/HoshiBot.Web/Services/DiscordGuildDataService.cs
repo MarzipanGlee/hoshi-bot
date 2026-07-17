@@ -249,6 +249,27 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
         return created.Id;
     }
 
+    // ChannelPicker counterpart of the simple EnsureRoleAsync: reuse an existing channel by ID,
+    // create a channel/category of the given type when ChannelPicker's "create" sentinel was
+    // picked, or return null (keep "none") for a genuinely blank selection. Categories ignore
+    // categoryId (they have no parent); everything else nests under it when provided.
+    public async Task<ulong?> EnsureChannelAsync(ulong guildId, string? currentInput, string defaultName, ChannelType type, ulong? categoryId = null)
+    {
+        if (ulong.TryParse(currentInput, out var existingId))
+            return existingId;
+
+        if (currentInput != ChannelPicker.CreateSentinel)
+            return null;
+
+        var properties = new GuildChannelProperties(defaultName, type);
+        if (type != ChannelType.CategoryChannel)
+            properties.ParentId = categoryId;
+
+        var created = await botRestClient.CreateGuildChannelAsync(guildId, properties);
+        InvalidateCache(guildId);
+        return created.Id;
+    }
+
     // null = Discord's own "Default" (raw color value 0) — can't just omit Colors when
     // modifying an existing role, since Discord's API treats an omitted field as "leave
     // unchanged," not "clear", so resetting to Default needs this explicit raw-0 value.
