@@ -263,7 +263,10 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         if (await roeViolationService.IsCommandStaffAsync(Context.Guild!.Id, Context.User.Id))
             buttons.Add(new ButtonProperties("roe-violation-other", "Von eigenem Spieler", ButtonStyle.Secondary));
 
-        return await EphemeralEmbedAsync("Wurde der Verstoss an Dir oder von Dir begangen?", [new ActionRowProperties(buttons)]);
+        return await EphemeralEmbedAsync(
+            $"Commander {CommanderName.Of(Context.User)}, wurde der Verstoss an Dir oder von Dir begangen?",
+            [new ActionRowProperties(buttons)],
+            title: "RoE-Verstoss melden");
     }
 
     [ComponentInteraction("roe-violation-to")]
