@@ -27,7 +27,8 @@ else
     }
 
     <div class="alert @(botHasManageRoles ? "alert-info" : "alert-danger")">
-        <strong>Bot's highest role:</strong> @(botTopRoleName ?? "—") (position @botHighestRolePosition) ·
+        <strong>Bot's highest role:</strong> @(botTopRoleName ?? "—")
+        @(botRolesAbove == 0 ? "(highest role in the server)" : $"({botRolesAbove} role{(botRolesAbove == 1 ? "" : "s")} above it)") ·
         <strong>Manage Roles:</strong> @(botHasManageRoles ? "Yes" : "No — Fix actions will fail entirely")
         <div class="mt-1">
             Tip: for Hoshi Bot to reliably manage every role's channel permissions, place its role directly
@@ -280,6 +281,7 @@ else
     private GuildUser? botMember;
     private Permissions botPermissions;
     private int botHighestRolePosition;
+    private int botRolesAbove;
     private string? botTopRoleName;
     private ulong botUserId;
     private ulong? botTopRoleId;
@@ -361,6 +363,11 @@ else
         botHighestRolePosition = topRole?.RawPosition ?? 0;
         botTopRoleId = topRole?.Id;
         botTopRoleName = topRole is { Id: var id } && id != guildId ? topRole.Name : "@everyone";
+
+        // How many roles sit above the bot's highest — the intuitive "rank from the top" a user
+        // sees in Server Settings → Roles, not Discord's opaque RawPosition. These are exactly
+        // the roles the bot can't manage (and so can't fix here).
+        botRolesAbove = allRolesById.Values.Count(r => r.RawPosition > botHighestRolePosition);
     }
 
     private static string ChannelLabel(IGuildChannel channel) => channel switch
