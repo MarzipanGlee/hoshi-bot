@@ -83,9 +83,9 @@ else
                                         <div class="d-flex flex-wrap gap-2">
                                             @if (result.ParentCategoryId is { } categoryId)
                                             {
-                                                <button class="btn btn-sm btn-warning" @onclick="() => FixBotAccessAsync(result, categoryId, true)">Fix on category (@CategoryName(categoryId))</button>
+                                                <button class="btn btn-sm btn-primary" @onclick="() => FixBotAccessAsync(result, categoryId, true)">Fix on category (@CategoryName(categoryId))</button>
                                             }
-                                            <button class="btn btn-sm @(result.ParentCategoryId is null ? "btn-warning" : "btn-outline-warning")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
+                                            <button class="btn btn-sm @(result.ParentCategoryId is null ? "btn-primary" : "btn-outline-dark")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
                                         </div>
                                     }
                                     else
@@ -576,6 +576,18 @@ else
                     .ToListAsync();
                 foreach (var ac in alertChannels)
                     Add(ac.ChannelId, $"Alert: {ac.Kind}");
+
+                // Per-feature channel settings (Absences report channels, Territory Capture
+                // digest, Announcements/Tickets/etc.) live in the generic settings table, not a
+                // dedicated channel table — by convention every channel-typed key ends in
+                // "Channel" (role keys end in "Role", message-id keys in "MessageId"), so that's
+                // how we tell a channel value apart from the roles stored alongside it.
+                var settingChannels = await db.GuildFeatureSettingSnowflakes
+                    .Where(s => s.GuildId == ParsedGuildId && s.Key.EndsWith("Channel"))
+                    .Select(s => new { s.Feature, s.Key, s.Value })
+                    .ToListAsync();
+                foreach (var sc in settingChannels)
+                    Add(sc.Value, $"Feature: {sc.Feature} ({sc.Key})");
 
                 var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
                 if (settings is not null)

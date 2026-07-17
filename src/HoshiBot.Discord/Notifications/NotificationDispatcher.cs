@@ -251,7 +251,7 @@ public class NotificationDispatcher(
         {
             var embed = new EmbedProperties
             {
-                Description = $"⚠️ Der Bot konnte {context} nicht ausführen ({missingPermissionHint}). Bitte Berechtigungen prüfen.",
+                Description = $"⚠️ Der Bot konnte folgende Aktion nicht ausführen: {context} ({missingPermissionHint}). Bitte Berechtigungen prüfen.",
                 Color = EmbedBranding.DangerColor,
                 Author = await embedBranding.BuildAuthorAsync(guildId),
                 Footer = embedBranding.BuildFooter(guildId),
