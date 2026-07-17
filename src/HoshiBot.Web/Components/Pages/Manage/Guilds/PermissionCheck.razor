@@ -55,6 +55,30 @@ else
         }
         else
         {
+            @if (botAccessResults.Any(r => !r.CanView))
+            {
+                <div class="alert alert-info mt-3">
+                    <strong>Some channels can't be fixed from here — what to do</strong>
+                    <p class="mb-2 mt-1">
+                        When a row says <em>Can't see channel</em> and offers no working fix button, Discord is
+                        hiding that channel from the bot entirely. Discord won't let a bot change a channel it can't
+                        even see, so you have to grant access once by hand in Discord — after that, the fix buttons
+                        on this page take over. In Discord:
+                    </p>
+                    <ol class="mb-2">
+                        <li>Right-click the <strong>category</strong> the channel sits in (its name is on the blue “Fix on category” button) → <strong>Edit Category</strong> → <strong>Permissions</strong>.</li>
+                        <li>Click the <strong>＋</strong> next to “Roles/Members” and add the <strong>Hoshi Bot</strong> role.</li>
+                        <li>Turn on <strong>View Channel</strong> (and <strong>Send Messages</strong> if the bot should post there) — the green ✓.</li>
+                        <li>If a channel still shows red afterwards, right-click that <strong>channel</strong> → <strong>Edit Channel</strong> → <strong>Permissions</strong> → <strong>Sync Now</strong> so it inherits the category, then hit <em>Re-check</em> here.</li>
+                    </ol>
+                    <p class="mb-0">
+                        Don't want to touch each category? Giving the <strong>Hoshi Bot</strong> role the
+                        <strong>Administrator</strong> permission also works and skips all of this — but it removes
+                        every channel restriction for the bot, so the steps above are the safer choice.
+                    </p>
+                </div>
+            }
+
             <table class="table mt-3">
                 <thead><tr><th>Channel</th><th>Used by</th><th>Status</th><th></th></tr></thead>
                 <tbody>
