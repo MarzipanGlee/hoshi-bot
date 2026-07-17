@@ -20,13 +20,13 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
             var reporterId = Context.User.Id;
             var reporterName = CommanderName.Of(Context.User);
 
-            string result;
+            EmbedProperties embed;
             switch (branch)
             {
                 case "to":
                     {
                         var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, reporterName);
-                        result = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
+                        embed = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                             attackerTag: otherTag, attackerName: otherName,
                             defenderTag: ownTag, defenderName: ownName,
                             attackerDiscordUserId: null, reporterIsVictim: true);
@@ -35,7 +35,7 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
                 case "from":
                     {
                         var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, reporterName);
-                        result = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
+                        embed = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                             attackerTag: ownTag, attackerName: ownName,
                             defenderTag: otherTag, defenderName: otherName,
                             attackerDiscordUserId: null, reporterIsVictim: false);
@@ -44,18 +44,18 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
                 case "other":
                     {
                         var (attackerTag, attackerName) = await roeViolationService.ResolveIdentityAsync(otherUserId, $"Commander {otherUserId}");
-                        result = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
+                        embed = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                             attackerTag, attackerName,
                             defenderTag: otherTag, defenderName: otherName,
                             attackerDiscordUserId: otherUserId, reporterIsVictim: false);
                         break;
                     }
                 default:
-                    result = "Unbekannter Meldetyp.";
+                    embed = await roeViolationService.ResultEmbedAsync(guildId, "RoE-Verstoss", "Unbekannter Meldetyp.");
                     break;
             }
 
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            return m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; };
         });
 
     private Dictionary<string, string> TextInputValues() =>

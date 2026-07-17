@@ -91,7 +91,19 @@ public class RoeViolationService(
         return (userPlayer.StfcPlayer.Alliance?.Tag ?? "-", userPlayer.StfcPlayer.Name);
     }
 
-    public async Task<string> CreateReportAsync(ulong guildId, ulong reporterId, string reporterDisplayName, string attackerTag, string attackerName,
+    // Branded confirmation embed shown back to the reporter after the modal — matches the rest
+    // of the bot's author/footer styling (the legacy report post did the same). Public so the
+    // modal module's fallback branch can build one too.
+    public async Task<EmbedProperties> ResultEmbedAsync(ulong guildId, string title, string description) => new()
+    {
+        Title = title,
+        Description = description,
+        Color = EmbedBranding.BotColor,
+        Author = await embedBranding.BuildAuthorAsync(guildId),
+        Footer = embedBranding.BuildFooter(guildId),
+    };
+
+    public async Task<EmbedProperties> CreateReportAsync(ulong guildId, ulong reporterId, string reporterDisplayName, string attackerTag, string attackerName,
         string defenderTag, string defenderName, ulong? attackerDiscordUserId, bool reporterIsVictim)
     {
         // The report belongs to the reporter's own linked alliance; if they have no resolvable
@@ -103,7 +115,7 @@ public class RoeViolationService(
             : await settingsService.GetSnowflakeAsync(
                 guildId, GuildFeature.RoeViolationReports, GuildAudience.Alliance, guildAllianceId, RoeViolationReportsSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
-            return "Der RoE-Verstoss-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
+            return await ResultEmbedAsync(guildId, "RoE-Verstoss", "Der RoE-Verstoss-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).");
 
         // Mentioned inline in the instructions so the reporter knows who picks the case up; the
         // same per-alliance Diplomat role that SetReadyForDiplomatAsync pings later.
@@ -166,7 +178,7 @@ public class RoeViolationService(
             db.RoeViolationReports.Remove(report);
             await db.SaveChangesAsync();
             await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "einen RoE-Verstoss melden", $"fehlende Berechtigung (Forum-Post erstellen) in <#{channelId}>?");
-            return "Das RoE-Verstoss-System ist aktuell falsch konfiguriert — ein Admin wurde informiert.";
+            return await ResultEmbedAsync(guildId, "RoE-Verstoss", "Das RoE-Verstoss-System ist aktuell falsch konfiguriert — ein Admin wurde informiert.");
         }
 
         report.ThreadId = thread.Id;
@@ -184,7 +196,8 @@ public class RoeViolationService(
             await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "die RoE-Verstoss-Nutzer hinzufügen", $"fehlende Berechtigung im Thread <#{thread.Id}>?");
         }
 
-        return $"RoE-Verstoss gemeldet: <#{thread.Id}>";
+        return await ResultEmbedAsync(guildId, "RoE-Verstoss erstellt",
+            CommanderName.Address(reporterDisplayName, $"bitte wechsle in den Post <#{thread.Id}>, um Deine Meldung abzuschliessen und sie an einen Diplomaten zu übergeben."));
     }
 
     public async Task<string> SetReadyForDiplomatAsync(int reportId, ulong callerId)
