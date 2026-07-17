@@ -147,12 +147,13 @@ app.MapPost("/logout", async (HttpContext http) =>
 // sync, and creating roles from the Setup Wizard), ManageChannels (creating channels/
 // categories from the Setup Wizard), ManageNicknames (nickname sync), ManageMessages
 // (pinning the weekly TC digest), ManageThreads (closing/removing threads), EmbedLinks
-// (digest/report embeds), SendMessages/ViewChannel (posting at all).
+// (digest/report embeds), ReadMessageHistory (reading announcement drafts back to publish
+// them), SendMessages/ViewChannel (posting at all).
 app.MapGet("/invite", (IConfiguration config, ulong? guildId) =>
 {
     const Permissions botPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.EmbedLinks |
         Permissions.ManageMessages | Permissions.ManageThreads | Permissions.ManageRoles | Permissions.ManageNicknames |
-        Permissions.ManageChannels;
+        Permissions.ManageChannels | Permissions.ReadMessageHistory;
 
     var clientId = config["Discord:ClientId"];
     var url = $"https://discord.com/oauth2/authorize?client_id={clientId}&permissions={(ulong)botPermissions}&scope=bot%20applications.commands";
