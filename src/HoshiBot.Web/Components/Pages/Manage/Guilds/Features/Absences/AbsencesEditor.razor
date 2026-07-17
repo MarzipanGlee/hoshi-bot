@@ -12,12 +12,12 @@
 
 <div class="card-grid mt-1">
     <SettingsCard Title="Absences Report">
-        <ChannelPicker Label="Absences Report" ShowLabel="false" Usage="Where the public, kept-updated absence report is posted."
+        <ChannelPicker Label="Absences Report" ShowLabel="false" Usage="Where the public, kept-updated absence report is posted. Each entry respects the member's chosen privacy setting."
             @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
     </SettingsCard>
 
     <SettingsCard Title="Absences Report (Staff)">
-        <ChannelPicker Label="Absences Report (Staff)" ShowLabel="false" Usage="A second copy of the report, for a staff-only channel."
+        <ChannelPicker Label="Absences Report (Staff)" ShowLabel="false" Usage="A staff-only copy of the report that always shows every absence in full, ignoring members' privacy settings."
             @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
     </SettingsCard>
 </div>
