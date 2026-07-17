@@ -24,23 +24,29 @@ public class RoeViolationService(
     GuildFeatureSettingsService settingsService,
     GuildAllianceService allianceService)
 {
-    private const string VictimInstructions =
-        "Bitte prüfe zuerst Folgendes, bevor der Fall weiterverfolgt wird:\n" +
-        "- Überprüfe den entstandenen Verlust genau.\n" +
-        "- Schliesse aus, dass es sich um einen Zero-Node-Angriff handelte.\n" +
-        "- Kontaktiere den Angreifer direkt und setze eine angemessene Frist zur Klärung.\n" +
-        "- Bleibt der Fall ungeklärt, sichere Beweise per Screenshot.\n\n" +
-        "Sobald alle Vorgaben erfüllt sind, klicke auf \"✅ Alle Vorgaben erfüllt\". Ist der Verstoss geklärt, klicke auf \"❌ Verstoss geklärt\".";
+    private const string VictimSteps =
+        "1. Überprüfe den entstandenen Verlust genau.\n" +
+        "2. War es mit Sicherheit keine Zero-Node? Öffne den Chat des Angreifers, um dies zu verifizieren.\n" +
+        "3. Kontaktiere den Angreifer direkt und bitte um Aufklärung. Gib ihm ein paar Stunden Zeit, um reagieren zu können.\n" +
+        "4. Wird keine Einigung erzielt, poste hier Screenshots mit allen relevanten Informationen. Dazu gehören Kampf, Kampfprotokoll und Kommunikation mit dem Spieler.";
 
-    private const string OffenderInstructions =
-        "Bitte kontaktiere die betroffene Partei und kläre den Vorfall in gegenseitigem Einvernehmen.\n\n" +
-        "Sobald alle Vorgaben erfüllt sind, klicke auf \"✅ Alle Vorgaben erfüllt\". Ist der Verstoss geklärt, klicke auf \"❌ Verstoss geklärt\".";
+    private const string OffenderSteps =
+        "1. Kontaktiere die betroffene Partei direkt und kläre den Vorfall in gegenseitigem Einvernehmen.\n" +
+        "2. Wird keine Einigung erzielt, poste hier Screenshots mit allen relevanten Informationen. Dazu gehören Kampf, Kampfprotokoll und Kommunikation mit dem Spieler.";
+
+    // Reporter-addressed instructions for the forum post. The "Commander {name}," intro and the
+    // closing line are built here (not baked into the step consts) so the report's own alliance
+    // diplomat role can be mentioned inline — matching the legacy post's format.
+    private static string BuildInstructions(string reporterName, bool reporterIsVictim, string diplomatMention) =>
+        $"Commander {reporterName}, danke für Deine Meldung! Bitte beachte die nachfolgenden Anweisungen und hole fehlende Punkte nach:\n\n" +
+        (reporterIsVictim ? VictimSteps : OffenderSteps) +
+        $"\n\nSobald Du alles erledigt hast, bestätige das mit der entsprechenden Schaltfläche unten und {diplomatMention} nimmt sich dem Fall an.";
 
     public static ButtonProperties ReadyButton(int reportId) =>
         new($"roe-violation-ready:{reportId}", "Alle Vorgaben erfüllt", EmojiProperties.Standard("✅"), ButtonStyle.Success);
 
     public static ButtonProperties DoneButton(int reportId) =>
-        new($"roe-violation-done:{reportId}", "Verstoss geklärt", EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
+        new($"roe-violation-done:{reportId}", "Verstoss geklärt", EmojiProperties.Standard("❌"), ButtonStyle.Danger);
 
     // Shared by both entry points that open this modal (CommandBridgeButtonModule for the
     // to/from branches, RoeViolationUserMenuModule for the other branch) — same 2-field
@@ -85,7 +91,7 @@ public class RoeViolationService(
         return (userPlayer.StfcPlayer.Alliance?.Tag ?? "-", userPlayer.StfcPlayer.Name);
     }
 
-    public async Task<string> CreateReportAsync(ulong guildId, ulong reporterId, string attackerTag, string attackerName,
+    public async Task<string> CreateReportAsync(ulong guildId, ulong reporterId, string reporterDisplayName, string attackerTag, string attackerName,
         string defenderTag, string defenderName, ulong? attackerDiscordUserId, bool reporterIsVictim)
     {
         // The report belongs to the reporter's own linked alliance; if they have no resolvable
@@ -98,6 +104,14 @@ public class RoeViolationService(
                 guildId, GuildFeature.RoeViolationReports, GuildAudience.Alliance, guildAllianceId, RoeViolationReportsSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
             return "Der RoE-Verstoss-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
+
+        // Mentioned inline in the instructions so the reporter knows who picks the case up; the
+        // same per-alliance Diplomat role that SetReadyForDiplomatAsync pings later.
+        var diplomatRoleId = guildAllianceId is null
+            ? null
+            : await settingsService.GetSnowflakeAsync(
+                guildId, GuildFeature.Diplomacy, GuildAudience.Alliance, guildAllianceId, DiplomacySettingKeys.DiplomatRole);
+        var diplomatMention = diplomatRoleId is { } diplomatId ? $"<@&{diplomatId}>" : "ein Diplomat";
 
         var report = new RoeViolationReport
         {
@@ -124,11 +138,17 @@ public class RoeViolationService(
         var embed = new EmbedProperties
         {
             Title = $"[{attackerTag}] {attackerName} - [{defenderTag}] {defenderName}",
-            Description = reporterIsVictim ? VictimInstructions : OffenderInstructions,
+            Description = BuildInstructions(reporterDisplayName, reporterIsVictim, diplomatMention),
             Color = EmbedBranding.BotColor,
             Author = await embedBranding.BuildAuthorAsync(guildId),
             Footer = embedBranding.BuildFooter(guildId),
         };
+
+        // Ping the reporter (and the reported own player, if known) in the starter message so
+        // they're pulled into the forum post and notified — same as pinging them by hand.
+        var mentions = new List<string> { $"<@{reporterId}>" };
+        if (attackerDiscordUserId is { } mentionedAttackerId && mentionedAttackerId != reporterId)
+            mentions.Add($"<@{mentionedAttackerId}>");
 
         ForumGuildThread thread;
         try
@@ -136,6 +156,7 @@ public class RoeViolationService(
             thread = await gatewayClient.Rest.CreateForumGuildThreadAsync(channelId, new ForumGuildThreadProperties(threadName,
                 new ForumGuildThreadMessageProperties
                 {
+                    Content = string.Join(' ', mentions),
                     Embeds = [embed],
                     Components = [new ActionRowProperties([ReadyButton(report.Id), DoneButton(report.Id)])],
                 }));

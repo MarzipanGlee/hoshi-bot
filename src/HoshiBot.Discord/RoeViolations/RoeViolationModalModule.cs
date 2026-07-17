@@ -17,14 +17,15 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
         var otherName = values.GetValueOrDefault("name") ?? "";
         var guildId = Context.Guild!.Id;
         var reporterId = Context.User.Id;
+        var reporterName = CommanderName.Of(Context.User);
 
         string result;
         switch (branch)
         {
             case "to":
                 {
-                    var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, CommanderName.Of(Context.User));
-                    result = await roeViolationService.CreateReportAsync(guildId, reporterId,
+                    var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, reporterName);
+                    result = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                         attackerTag: otherTag, attackerName: otherName,
                         defenderTag: ownTag, defenderName: ownName,
                         attackerDiscordUserId: null, reporterIsVictim: true);
@@ -32,8 +33,8 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
                 }
             case "from":
                 {
-                    var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, CommanderName.Of(Context.User));
-                    result = await roeViolationService.CreateReportAsync(guildId, reporterId,
+                    var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, reporterName);
+                    result = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                         attackerTag: ownTag, attackerName: ownName,
                         defenderTag: otherTag, defenderName: otherName,
                         attackerDiscordUserId: null, reporterIsVictim: false);
@@ -42,7 +43,7 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
             case "other":
                 {
                     var (attackerTag, attackerName) = await roeViolationService.ResolveIdentityAsync(otherUserId, $"Commander {otherUserId}");
-                    result = await roeViolationService.CreateReportAsync(guildId, reporterId,
+                    result = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                         attackerTag, attackerName,
                         defenderTag: otherTag, defenderName: otherName,
                         attackerDiscordUserId: otherUserId, reporterIsVictim: false);
