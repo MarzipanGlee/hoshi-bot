@@ -21,14 +21,17 @@ namespace HoshiBot.Discord.AiChat;
 // Populated two ways: live (AiChatMessageHandler indexes each incoming knowledge-channel message)
 // and by AiChatIndexJob (periodic backfill of history/forums + re-index to catch edits). Both this
 // service and AiChatService reuse RenderMessageText/FetchRecentAsync, which live here.
-public class AiChatIndexService(
+public partial class AiChatIndexService(
     IDbContextFactory<HoshiBotDbContext> dbFactory,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureChannelService channelService,
     ILogger<AiChatIndexService> logger)
 {
-    private const int BackfillPerChannelLimit = 100;
+    // How deep the periodic backfill reaches per channel/thread. Deep enough that older but still
+    // relevant posts (e.g. a 2025 announcement in a busy channel) are indexed, not just the last
+    // page — the FTS query then ranks by relevance so age doesn't matter once indexed.
+    private const int BackfillPerChannelLimit = 300;
     private const int FallbackPerChannelLimit = 20;
     private const int MaxKnowledgeSources = 25;
     private const int ForumArchivedThreadLimit = 10;
@@ -39,7 +42,11 @@ public class AiChatIndexService(
     // Full-text search this guild's index for the question's terms; newest matches first.
     public async Task<List<KnowledgeHit>> SearchAsync(ulong guildId, string language, string queryText, int limit, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(queryText))
+        // A user's question is a whole sentence; websearch_to_tsquery ANDs its words, so requiring
+        // every word to co-occur in one message matches almost nothing. Turn it into an OR of the
+        // significant terms (recall) and let ts_rank surface the best matches (precision).
+        var search = ToOrQuery(queryText);
+        if (string.IsNullOrWhiteSpace(search))
             return [];
 
         language = FtsLanguage.Normalize(language);
@@ -47,8 +54,13 @@ public class AiChatIndexService(
         var rows = await db.AiChatIndexedMessages
             .Where(m => m.GuildId == guildId
                 && EF.Functions.ToTsVector(language, m.Content)
-                    .Matches(EF.Functions.WebSearchToTsQuery(language, queryText)))
-            .OrderByDescending(m => m.CreatedAt)
+                    .Matches(EF.Functions.WebSearchToTsQuery(language, search)))
+            // Order by relevance (ts_rank), not recency — otherwise the newest matches crowd out an
+            // older but more relevant one (e.g. a question about a 2025 post loses to newer chatter
+            // that merely shares a word). Recency is only the tie-break.
+            .OrderByDescending(m => EF.Functions.ToTsVector(language, m.Content)
+                .Rank(EF.Functions.WebSearchToTsQuery(language, search)))
+            .ThenByDescending(m => m.CreatedAt)
             .Take(limit)
             .Select(m => new { m.ChannelName, m.Content })
             .ToListAsync(cancellationToken);
@@ -382,6 +394,22 @@ public class AiChatIndexService(
         _ => null,
     };
 
+    // Turns a free-text question into an OR of its significant terms for websearch_to_tsquery
+    // (which otherwise ANDs them). "or"/"and" are dropped so they aren't taken as operators;
+    // per-term stemming/stopword removal is still handled by the text-search config.
+    private static string ToOrQuery(string text)
+    {
+        var terms = TokenSplitter().Split(text)
+            .Where(t => t.Length >= 3
+                && !t.Equals("or", StringComparison.OrdinalIgnoreCase)
+                && !t.Equals("and", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        return string.Join(" or ", terms);
+    }
+
     private static string Truncate(string text) =>
         text.Length <= MaxContentLength ? text : text[..MaxContentLength];
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"[^\p{L}\p{N}]+")]
+    private static partial System.Text.RegularExpressions.Regex TokenSplitter();
 }
