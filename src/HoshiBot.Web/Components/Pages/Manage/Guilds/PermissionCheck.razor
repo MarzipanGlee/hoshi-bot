@@ -31,12 +31,16 @@ else
         <strong>Bot's highest role:</strong> @(botTopRoleName ?? "—")
         @(botRolesAbove == 0 ? "(highest role in the server)" : $"({botRolesAbove} role{(botRolesAbove == 1 ? "" : "s")} above it)") ·
         <strong>Manage Roles:</strong> @(botHasManageRoles ? "Yes" : "No — Fix actions will fail entirely")
-        <div class="mt-1">
-            Tip: for Hoshi Bot to reliably manage every role's channel permissions, place its role directly
-            below your top admin/owner role in Server Settings → Roles. Any role positioned above the bot's
-            role can't be fixed here — Discord requires a bot's own role to outrank a role before it can
-            manage that role's permissions.
-        </div>
+        @if (botNonAdminRolesAbove > 0)
+        {
+            <div class="mt-1">
+                Tip: for Hoshi Bot to reliably manage every role's channel permissions, place its role directly
+                below your top admin/owner role in Server Settings → Roles. Any role positioned above the bot's
+                role can't be fixed here — Discord requires a bot's own role to outrank a role before it can
+                manage that role's permissions. (Roles above it that have Administrator are fine — they bypass
+                channel permissions entirely, so the bot never needs to manage them.)
+            </div>
+        }
     </div>
 
     <h2 class="mt-4">Bot Posting Access</h2>
@@ -343,6 +347,7 @@ else
     private Permissions botPermissions;
     private int botHighestRolePosition;
     private int botRolesAbove;
+    private int botNonAdminRolesAbove;
     private string? botTopRoleName;
     private ulong botUserId;
     private ulong? botTopRoleId;
@@ -427,8 +432,12 @@ else
 
         // How many roles sit above the bot's highest — the intuitive "rank from the top" a user
         // sees in Server Settings → Roles, not Discord's opaque RawPosition. These are exactly
-        // the roles the bot can't manage (and so can't fix here).
-        botRolesAbove = allRolesById.Values.Count(r => r.RawPosition > botHighestRolePosition);
+        // the roles the bot can't manage (and so can't fix here). Roles above that hold
+        // Administrator don't matter: admin bypasses every channel overwrite, so the bot never
+        // needs to manage their permissions — only a non-admin role above is a real concern.
+        var rolesAbove = allRolesById.Values.Where(r => r.RawPosition > botHighestRolePosition).ToList();
+        botRolesAbove = rolesAbove.Count;
+        botNonAdminRolesAbove = rolesAbove.Count(r => !r.Permissions.HasFlag(Permissions.Administrator));
     }
 
     private static string ChannelLabel(IGuildChannel channel) => channel switch
