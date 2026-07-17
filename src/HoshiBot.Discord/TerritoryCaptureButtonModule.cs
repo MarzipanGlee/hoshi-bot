@@ -20,7 +20,7 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db) : ComponentInter
             .AnyAsync(a => a.GuildId == guildId && a.DiscordUserId == userId
                 && a.StartsAt < end && a.EndsAt > start);
         if (overlapping)
-            return EphemeralReply.Of("Du hast für diesen Zeitraum bereits eine Abwesenheit erfasst.");
+            return EphemeralReply.Of($"Commander {CommanderName.Of(Context.User)}, Du hast für diesen Zeitraum bereits eine Abwesenheit erfasst.");
 
         if (await db.DiscordUsers.FindAsync(userId) is null)
             db.DiscordUsers.Add(new DiscordUser { DiscordUserId = userId });
@@ -42,6 +42,6 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db) : ComponentInter
 
         await db.SaveChangesAsync();
 
-        return EphemeralReply.Of("Deine Abwesenheit wurde erfasst. Besten Dank für Deine Meldung!");
+        return EphemeralReply.Of($"Commander {CommanderName.Of(Context.User)}, Deine Abwesenheit wurde erfasst. Besten Dank für Deine Meldung!");
     }
 }

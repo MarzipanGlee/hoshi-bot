@@ -221,7 +221,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
         if (unread.Count == 0)
         {
-            var doneEmbed = await BuildEmbedAsync("Du hast alle Ankündigungen gelesen. 🎉", title: "Ungelesene Ankündigungen");
+            var doneEmbed = await BuildEmbedAsync($"Commander {CommanderName.Of(Context.User)}, Du hast alle Ankündigungen gelesen. 🎉", title: "Ungelesene Ankündigungen");
             await Context.Interaction.ModifyResponseAsync(m => { m.Embeds = [doneEmbed]; m.Components = []; });
             return;
         }
@@ -237,7 +237,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         var lines = unread.Select(a =>
             $"{SeverityEmoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
 
-        var finalEmbed = await BuildEmbedAsync("Deine ungelesenen Ankündigungen:\n" + string.Join('\n', lines), title: "Ungelesene Ankündigungen");
+        var finalEmbed = await BuildEmbedAsync($"Commander {CommanderName.Of(Context.User)}, Deine ungelesenen Ankündigungen:\n" + string.Join('\n', lines), title: "Ungelesene Ankündigungen");
         await Context.Interaction.ModifyResponseAsync(m => { m.Embeds = [finalEmbed]; m.Components = rows; });
     }
 
@@ -279,7 +279,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
     [ComponentInteraction("roe-violation-other")]
     public Task<InteractionCallbackProperties<MessageOptions>> ReportRoeViolationOtherPrompt() =>
-        EphemeralEmbedModifyAsync("Wähle den Commander, der den Verstoss begangen hat.", [new UserMenuProperties("roe-violation-other-target")]);
+        EphemeralEmbedModifyAsync($"Commander {CommanderName.Of(Context.User)}, wähle den Commander, der den Verstoss begangen hat.", [new UserMenuProperties("roe-violation-other-target")]);
 
     [ComponentInteraction("anonymous-message")]
     public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)
