@@ -33,21 +33,21 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, ILogger<AiC
             await index.MaybeIndexIncomingAsync(message, CancellationToken.None);
 
             var aiChat = scope.ServiceProvider.GetRequiredService<AiChatService>();
-            var reply = await aiChat.TryBuildReplyAsync(message, CancellationToken.None);
-            if (reply is null)
+            if (await aiChat.TryBuildReplyAsync(message, CancellationToken.None) is not { } reply)
                 return;
 
             await message.ReplyAsync(new ReplyMessageProperties
             {
-                Content = reply,
-                // The AI writes plain prose — never let its output ping @everyone, roles, or the
-                // replied-to user.
+                Content = reply.Text,
+                // Never let the AI's output ping @everyone, roles, or the replied-to user; only the
+                // specific conversation participants it was told about may actually be pinged (so a
+                // stray/hallucinated <@id> can't ping a random member).
                 AllowedMentions = new AllowedMentionsProperties
                 {
                     Everyone = false,
                     ReplyMention = false,
                     AllowedRoles = [],
-                    AllowedUsers = [],
+                    AllowedUsers = reply.AllowedUserIds,
                 },
             });
         }

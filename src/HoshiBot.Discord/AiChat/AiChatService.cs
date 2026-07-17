@@ -46,8 +46,13 @@ public partial class AiChatService(
     // overlapping (and billable) Gemini calls for a burst of messages in the same channel.
     private static readonly ConcurrentDictionary<ulong, byte> InFlightChannels = new();
 
+    // The reply text plus the exact set of user ids the reply is allowed to actually ping — the
+    // conversation participants we told the model about. Discord's allowed_mentions is set to just
+    // these, so a hallucinated or unknown <@id> in the text can never ping a random member.
+    public readonly record struct AiChatReply(string Text, IReadOnlyList<ulong> AllowedUserIds);
+
     // Returns the reply to post, or null to stay silent.
-    public async Task<string?> TryBuildReplyAsync(Message message, CancellationToken cancellationToken)
+    public async Task<AiChatReply?> TryBuildReplyAsync(Message message, CancellationToken cancellationToken)
     {
         if (message.GuildId is not { } guildId)
             return null;
@@ -93,6 +98,15 @@ public partial class AiChatService(
             history.Reverse(); // chronological
             var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
 
+            // The users the bot may ping: the conversation's participants. The model is given
+            // "name: <@id>" for these and told to only ping from this list; the handler restricts
+            // Discord's allowed_mentions to exactly these ids.
+            var mentionable = new Dictionary<ulong, string>();
+            foreach (var m in history)
+                if (m.Author.Id != botId)
+                    mentionable[m.Author.Id] = CommanderName.Of(m.Author);
+            mentionable[message.Author.Id] = CommanderName.Of(message.Author);
+
             // Prior context from the recent window (the short conversational memory), excluding the
             // triggering message — we append that ourselves below so the actual question is always
             // the final user turn even if the REST fetch hasn't caught up to it yet.
@@ -111,23 +125,23 @@ public partial class AiChatService(
 
             turns.Add(new GeminiClient.Turn("user", $"{CommanderName.Of(message.Author)}: {content}"));
 
-            var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, cancellationToken);
+            var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, cancellationToken);
 
             // Show a typing indicator while the (slow) generation runs.
             try { await gatewayClient.Rest.TriggerTypingAsync(message.ChannelId, cancellationToken: cancellationToken); }
             catch (RestException) { /* non-fatal */ }
 
             var answer = await gemini.GenerateAsync(apiKey, model, systemInstruction, turns, cancellationToken);
-            var reply = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author);
+            var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author);
 
             // One line per handled message so a "why did it stay silent / only give the fallback"
             // question is answerable straight from the logs.
             logger.LogInformation(
                 "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} turns={Turns} model={Model} → gemini={GeminiChars} reply={Reply}",
                 guildId, message.ChannelId, addressed, inListenChannel, turns.Count, model,
-                answer?.Length.ToString() ?? "null", reply is null ? "silent" : "posted");
+                answer?.Length.ToString() ?? "null", replyText is null ? "silent" : "posted");
 
-            return reply;
+            return replyText is null ? null : new AiChatReply(replyText, mentionable.Keys.ToList());
         }
         finally
         {
@@ -161,7 +175,7 @@ public partial class AiChatService(
         return botSpokeBefore ? char.ToUpper(body[0]) + body[1..] : CommanderName.Greeting(author) + body;
     }
 
-    private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, CancellationToken cancellationToken)
+    private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Du bist {botName}, ein hilfreicher Assistent für diese Discord-Community (ein Star-Trek-Fleet-Command-Allianz-Server).");
@@ -171,6 +185,14 @@ public partial class AiChatService(
         {
             sb.AppendLine();
             sb.AppendLine(systemExtra.Trim());
+        }
+
+        if (mentionable.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Bekannte Nutzer. Um jemanden zu erwähnen oder anzupingen, verwende exakt die Syntax <@ID> mit einer ID aus dieser Liste (niemals eine ID erfinden, niemals @Name als reinen Text schreiben):");
+            foreach (var (id, name) in mentionable)
+                sb.AppendLine($"- {name}: <@{id}>");
         }
 
         var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, cancellationToken);
