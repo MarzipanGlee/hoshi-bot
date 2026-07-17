@@ -71,6 +71,7 @@ public class NotificationDispatcher(
                 logger.LogWarning("Skipped alert channel {ChannelId} for guild {GuildId}: {StatusCode}",
                     channel.ChannelId, guildId, ex.StatusCode);
                 results.Add((channel.ChannelId, null));
+                await LogSkippedChannelAsync(guildId, channel.ChannelId, ex.StatusCode);
                 await NotifyAdminOfPermissionIssueAsync(guildId, "eine Alarm-Nachricht senden", $"fehlende Berechtigung in <#{channel.ChannelId}>?");
             }
         }
@@ -105,6 +106,7 @@ public class NotificationDispatcher(
                 logger.LogWarning("Skipped feature channel {ChannelId} for guild {GuildId}: {StatusCode}",
                     channelId, guildId, ex.StatusCode);
                 results.Add((channelId, null));
+                await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode);
                 await NotifyAdminOfPermissionIssueAsync(guildId, "eine Alarm-Nachricht senden", $"fehlende Berechtigung in <#{channelId}>?");
             }
         }
@@ -175,6 +177,42 @@ public class NotificationDispatcher(
         {
             logger.LogInformation("Could not DM user {UserId}: {StatusCode}", userId, ex.StatusCode);
             return null;
+        }
+    }
+
+    // Records a skipped (undeliverable) channel send in the guild's general activity log
+    // channel (GuildSettings.LogChannelId), separate from the throttled, admin-facing
+    // NotifyAdminOfPermissionIssueAsync above: this is an untimed, per-occurrence activity-log
+    // line so a guild admin watching that channel sees exactly which posts didn't go out and
+    // where. No-op when no LogChannelId is configured, and a Forbidden/NotFound on the log
+    // channel itself is swallowed (it's very likely the same guild-wide permission gap that
+    // caused the original skip).
+    private async Task LogSkippedChannelAsync(ulong guildId, ulong channelId, HttpStatusCode statusCode)
+    {
+        var settings = await db.GuildSettings.FindAsync(guildId);
+        if (settings?.LogChannelId is not { } logChannelId)
+            return;
+
+        var reason = statusCode == HttpStatusCode.Forbidden
+            ? "fehlende Berechtigung (der Bot kann dort nicht schreiben)"
+            : "der Kanal wurde nicht gefunden";
+
+        try
+        {
+            var embed = new EmbedProperties
+            {
+                Description = $"⚠️ Eine Nachricht konnte nicht in <#{channelId}> gesendet werden — {reason}. " +
+                              "Bitte die Kanal-Berechtigungen des Bots prüfen (Permission Check).",
+                Color = EmbedBranding.DangerColor,
+                Author = await embedBranding.BuildAuthorAsync(guildId),
+                Footer = embedBranding.BuildFooter(guildId),
+            };
+            await gatewayClient.Rest.SendMessageAsync(logChannelId, new MessageProperties { Embeds = [embed] });
+        }
+        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            logger.LogWarning("Could not write a skipped-channel entry to log channel {LogChannelId} for guild {GuildId}: {StatusCode}",
+                logChannelId, guildId, ex.StatusCode);
         }
     }
 

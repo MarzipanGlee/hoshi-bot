@@ -39,7 +39,7 @@
         <label for="territoryCaptureInstructions" class="form-label">
             Free-text "Anweisungen von {Command Staff}" section shown on the weekly/daily digest (e.g. attendance/armada expectations).
         </label>
-        <textarea id="territoryCaptureInstructions" class="form-control" rows="4"
+        <textarea id="territoryCaptureInstructions" class="form-control flex-grow-1" rows="4"
                   @bind="instructionsInput" @bind:after="SaveInstructionsAsync"></textarea>
     </SettingsCard>
 </div>

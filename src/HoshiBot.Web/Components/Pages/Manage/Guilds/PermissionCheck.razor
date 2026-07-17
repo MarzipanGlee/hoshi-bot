@@ -37,7 +37,75 @@ else
         </div>
     </div>
 
-    <h2>Expected Permissions</h2>
+    <h2 class="mt-4">Bot Posting Access</h2>
+    <p>
+        Every channel the bot is configured to post to (feature channels, alert channels, and the
+        guild's Settings channels), checked for the bot's own View Channel + Send Messages access.
+        A channel the bot can't post to is silently skipped at send time — this is where that shows up.
+    </p>
+    <button class="btn btn-primary" disabled="@checkingBotAccess" @onclick="ReCheckBotAccessAsync">@(checkingBotAccess ? "Checking..." : "Re-check")</button>
+
+    @if (botAccessResults is not null)
+    {
+        @if (botAccessResults.Count == 0)
+        {
+            <p class="text-muted mt-3">No post-to channels are configured for this guild yet.</p>
+        }
+        else
+        {
+            <table class="table mt-3">
+                <thead><tr><th>Channel</th><th>Used by</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var result in botAccessResults)
+                    {
+                        <tr class="@(result.CanPost ? "table-success" : "table-danger")">
+                            <td>@ChannelName(result.ChannelId)</td>
+                            <td>@result.Sources</td>
+                            <td>
+                                @if (result.CanPost)
+                                {
+                                    <span>✅ Can post</span>
+                                }
+                                else if (!result.CanView)
+                                {
+                                    <span>🚫 Can't see channel</span>
+                                }
+                                else
+                                {
+                                    <span>🚫 Can't send messages</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!result.CanPost)
+                                {
+                                    @if (result.CanFix)
+                                    {
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @if (result.ParentCategoryId is { } categoryId)
+                                            {
+                                                <button class="btn btn-sm btn-warning" @onclick="() => FixBotAccessAsync(result, categoryId, true)">Fix on category (@CategoryName(categoryId))</button>
+                                            }
+                                            <button class="btn btn-sm @(result.ParentCategoryId is null ? "btn-warning" : "btn-outline-warning")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger">⚠ @result.BlockReason</span>
+                                    }
+                                }
+                                @if (fixStatus.TryGetValue(result.ChannelId, out var status))
+                                {
+                                    <div class="small mt-1">@status</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+
+    <h2 class="mt-4">Expected Permissions</h2>
     <table class="table">
         <thead><tr><th>Channel</th><th>Role</th><th>Allow</th><th>Deny</th><th></th></tr></thead>
         <tbody>
@@ -184,6 +252,12 @@ else
         bool CanFix,
         string? BlockReason);
 
+    // One configured post-to channel and whether the bot can actually deliver to it. Sources is
+    // the human-readable list of what points here (a feature, an alert kind, a GuildSettings slot).
+    private record BotAccessResult(ulong ChannelId, ulong? ParentCategoryId, string Sources, bool CanView, bool CanPost, bool CanFix, string? BlockReason);
+
+    private const Permissions PostPermissions = Permissions.ViewChannel | Permissions.SendMessages;
+
     private static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
 
     private List<ChannelPermissionExpectation> expectations = [];
@@ -199,11 +273,21 @@ else
     private bool auditing;
     private List<AuditResult>? auditResults;
 
+    private bool checkingBotAccess;
+    private List<BotAccessResult>? botAccessResults;
+
     private Dictionary<ulong, Role> allRolesById = [];
+    private GuildUser? botMember;
     private Permissions botPermissions;
     private int botHighestRolePosition;
     private string? botTopRoleName;
+    private ulong botUserId;
+    private ulong? botTopRoleId;
     private bool botHasManageRoles => botPermissions.HasFlag(Permissions.Administrator) || botPermissions.HasFlag(Permissions.ManageRoles);
+
+    // Per-channel outcome line from the last Fix, so the escalation (category → re-check →
+    // channel) can explain each step in place. Keyed by the configured channel id.
+    private readonly Dictionary<ulong, string> fixStatus = [];
 
     protected override async Task OnAuthorizedParametersSetAsync() => await LoadAsync();
 
@@ -216,6 +300,7 @@ else
             .ToListAsync();
 
         await LoadDiscordDataAsync();
+        await RunBotAccessCheckAsync();
     }
 
     private async Task LoadDiscordDataAsync()
@@ -253,8 +338,8 @@ else
         // (/users/@me/guilds/{id}/member) and BotRestClient here is a plain bot-token
         // client with no OAuth session behind it, so it always fails. Fetch by the bot's
         // own ID instead, same as EmbedBranding.BuildAuthorAsync does.
-        var botUserId = ulong.Parse(Configuration["Discord:ClientId"]!);
-        var botMember = await Cache.GetOrCreateAsync($"discord-bot-member:{guildId}", async entry =>
+        botUserId = ulong.Parse(Configuration["Discord:ClientId"]!);
+        botMember = await Cache.GetOrCreateAsync($"discord-bot-member:{guildId}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
             return await BotRestClient.GetGuildUserAsync(guildId, botUserId);
@@ -266,6 +351,7 @@ else
             .Select(r => r!)
             .ToList();
 
+        // @everyone always applies to every member — Discord's guild-permission baseline.
         if (allRolesById.TryGetValue(guildId, out var everyoneRole))
             botRoles.Add(everyoneRole);
 
@@ -273,6 +359,7 @@ else
 
         var topRole = botRoles.OrderByDescending(r => r.RawPosition).FirstOrDefault();
         botHighestRolePosition = topRole?.RawPosition ?? 0;
+        botTopRoleId = topRole?.Id;
         botTopRoleName = topRole is { Id: var id } && id != guildId ? topRole.Name : "@everyone";
     }
 
@@ -285,6 +372,9 @@ else
 
     private string ChannelName(ulong id) =>
         channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+
+    private string CategoryName(ulong id) =>
+        channels.FirstOrDefault(c => c.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
 
     private string RoleName(ulong id) =>
         roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
@@ -441,6 +531,185 @@ else
             return (false, $"Bot doesn't hold these permissions itself, so it can't grant them: {string.Join(", ", ungrantable)}.");
 
         return (true, null);
+    }
+
+    // Every channel the bot is configured to post to (feature channel lists, alert channel
+    // rows, and the guild-wide GuildSettings slots), audited for the bot's own View Channel +
+    // Send Messages access — the check that would have surfaced the "message only reached one
+    // channel" ClientRelease case (a second channel the bot silently couldn't post to).
+    // Manual re-check clears the per-fix outcome lines for a fresh look; auto-run and post-fix
+    // re-checks call RunBotAccessCheckAsync directly so their status lines survive.
+    private async Task ReCheckBotAccessAsync()
+    {
+        fixStatus.Clear();
+        await RunBotAccessCheckAsync();
+    }
+
+    private async Task RunBotAccessCheckAsync()
+    {
+        checkingBotAccess = true;
+        botAccessResults = null;
+        try
+        {
+            var sources = new Dictionary<ulong, SortedSet<string>>();
+            void Add(ulong? id, string label)
+            {
+                if (id is not { } channelId || channelId == 0)
+                    return;
+                if (!sources.TryGetValue(channelId, out var set))
+                    sources[channelId] = set = [];
+                set.Add(label);
+            }
+
+            await using (var db = await DbFactory.CreateDbContextAsync())
+            {
+                var featureChannels = await db.GuildFeatureChannels
+                    .Where(c => c.GuildId == ParsedGuildId)
+                    .Select(c => new { c.ChannelId, c.Feature })
+                    .ToListAsync();
+                foreach (var fc in featureChannels)
+                    Add(fc.ChannelId, $"Feature: {fc.Feature}");
+
+                var alertChannels = await db.GuildAlertChannels
+                    .Where(c => c.GuildId == ParsedGuildId)
+                    .Select(c => new { c.ChannelId, c.Kind })
+                    .ToListAsync();
+                foreach (var ac in alertChannels)
+                    Add(ac.ChannelId, $"Alert: {ac.Kind}");
+
+                var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
+                if (settings is not null)
+                {
+                    Add(settings.LogChannelId, "Log");
+                    Add(settings.AdminChannelId, "Admin");
+                    Add(settings.UserLogChannelId, "User Log");
+                    Add(settings.AllianceBoardingChannelId, "Alliance Boarding");
+                    Add(settings.CommandBridgeChannelId, "Command Bridge");
+                    Add(settings.StaffCommandBridgeChannelId, "Staff Command Bridge");
+                    Add(settings.FriendsCommandBridgeChannelId, "Friends Command Bridge");
+                    Add(settings.RemindersAlliesChannelId, "Reminders (Allies)");
+                    Add(settings.RemindersServicesChannelId, "Reminders (Services)");
+                    Add(settings.RulesDeChannelId, "Rules (DE)");
+                    Add(settings.RulesEnChannelId, "Rules (EN)");
+                    Add(settings.UserNotificationsChannelId, "User Notifications");
+                    Add(settings.BotSupportChannelId, "Bot Support");
+                    Add(settings.CommandStaffJobsChannelId, "Command Staff Jobs");
+                }
+            }
+
+            var results = new List<BotAccessResult>();
+            foreach (var (channelId, labels) in sources)
+            {
+                var sourceLabel = string.Join(", ", labels);
+                var channel = channels.FirstOrDefault(c => c.Id == channelId);
+                if (channel is null)
+                {
+                    // Configured but not present in the live channel list — deleted, or the bot
+                    // can't even see it. Either way it's undeliverable and not auto-fixable here.
+                    results.Add(new BotAccessResult(channelId, null, sourceLabel, false, false, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
+                    continue;
+                }
+
+                var parentCategoryId = DiscordGuildDataService.GetParentCategoryId(channel);
+                var (canView, canPost) = BotPostAbility(channel);
+                var (canFix, blockReason) = canPost ? (true, (string?)null) : EvaluateBotAccessFixability();
+                results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, canView, canPost, canFix, blockReason));
+            }
+
+            // Problems first, then alphabetically by what points at the channel.
+            botAccessResults = results.OrderBy(r => r.CanPost).ThenBy(r => r.Sources, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        finally
+        {
+            checkingBotAccess = false;
+        }
+    }
+
+    // Effective channel permissions for the bot, via NetCord's own resolver (base guild perms +
+    // the channel's @everyone/role/member overwrites, Administrator bypassing all). A channel
+    // synced with its category already carries the category's overwrites on itself, so this one
+    // channel-scoped call reflects the true result without walking to the parent.
+    private Permissions BotChannelPermissions(IGuildChannel channel) =>
+        botMember?.GetChannelPermissions(botPermissions, channel) ?? botPermissions;
+
+    private (bool CanView, bool CanPost) BotPostAbility(IGuildChannel channel)
+    {
+        var perms = BotChannelPermissions(channel);
+        var canView = perms.HasFlag(Permissions.ViewChannel);
+        return (canView, canView && perms.HasFlag(Permissions.SendMessages));
+    }
+
+    // The Fix grants the bot's own top role View Channel + Send Messages via a channel overwrite,
+    // so the same guardrails as EvaluateFixability apply: needs Manage Roles, and (unless
+    // Administrator) can only grant permissions the bot already holds itself.
+    private (bool CanFix, string? Reason) EvaluateBotAccessFixability()
+    {
+        if (!botHasManageRoles)
+            return (false, "Bot lacks Manage Roles permission in this server.");
+
+        if (botPermissions.HasFlag(Permissions.Administrator))
+            return (true, null);
+
+        if (botTopRoleId is null)
+            return (false, "Bot has no assignable role to grant a channel override to.");
+
+        var missing = new[] { Permissions.ViewChannel, Permissions.SendMessages }
+            .Where(p => !botPermissions.HasFlag(p))
+            .ToList();
+        if (missing.Count > 0)
+            return (false, $"Bot doesn't hold these permissions itself, so it can't grant them: {string.Join(", ", missing)}.");
+
+        return (true, null);
+    }
+
+    // One fix step. targetId is either the channel itself or its parent category: a category
+    // grant fixes every channel under it that syncs its permissions in one go, a channel grant
+    // touches only that channel. After applying, this re-reads live permissions and reports
+    // whether the bot can now post — so the admin can escalate step by step (fix the category,
+    // re-check, and only drop to the channel level if that channel doesn't sync).
+    private async Task FixBotAccessAsync(BotAccessResult result, ulong targetId, bool viaCategory)
+    {
+        if (botTopRoleId is not { } roleId)
+            return;
+
+        // Preserve any existing overwrite for the bot's role on the target; only add the post
+        // permissions to Allow and clear them from Deny.
+        Permissions existingAllow = default, existingDeny = default;
+        if (channels.FirstOrDefault(c => c.Id == targetId) is { } target
+            && target.PermissionOverwrites.TryGetValue(roleId, out var overwrite))
+        {
+            existingAllow = overwrite.Allowed;
+            existingDeny = overwrite.Denied;
+        }
+
+        try
+        {
+            await BotRestClient.ModifyGuildChannelPermissionsAsync(targetId,
+                new PermissionOverwriteProperties(roleId, PermissionOverwriteType.Role)
+                {
+                    Allowed = existingAllow | PostPermissions,
+                    Denied = existingDeny & ~PostPermissions,
+                });
+
+            Cache.Remove($"discord-guild-channels:{ParsedGuildId}");
+            await LoadDiscordDataAsync();
+
+            var channelNow = channels.FirstOrDefault(c => c.Id == result.ChannelId);
+            var canPostNow = channelNow is not null && BotPostAbility(channelNow).CanPost;
+            fixStatus[result.ChannelId] = (viaCategory, canPostNow) switch
+            {
+                (true, true) => "✅ Fixed via the category — the bot can now post here.",
+                (true, false) => "⚠ Category updated, but this channel still blocks the bot — its permissions aren't synced with the category. Use \"Fix on channel\".",
+                (false, true) => "✅ Fixed on the channel — the bot can now post here.",
+                (false, false) => "⚠ Overwrite applied on the channel, but the bot still can't post. Check that its role isn't out-ranked and that another overwrite doesn't deny View Channel / Send Messages.",
+            };
+
+            await RunBotAccessCheckAsync();
+        }
+        catch (RestException)
+        {
+            discordDataError = "Could not update the bot's channel permission overwrite on Discord — does the bot have Manage Roles/Manage Channels permission in this server?";
+        }
     }
 
     private async Task FixAsync(AuditResult result)
