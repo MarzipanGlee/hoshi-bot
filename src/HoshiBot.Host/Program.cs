@@ -75,6 +75,7 @@ builder.Services.AddScoped<CommandBridgeHubService>();
 builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();
 builder.Services.AddScoped<GeminiClient>();
+builder.Services.AddScoped<AiChatIndexService>();
 builder.Services.AddScoped<AiChatService>();
 
 // A bare, User-Agent-less HttpClient gets a 403 from startrekfleetcommand.com's WordPress
@@ -95,6 +96,14 @@ builder.Services.AddQuartz(quartz =>
         .AddTrigger(trigger => trigger
             .ForJob(heartbeatJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
+
+    // Rebuilds the AI-chat knowledge search index (history + forum threads + edit reconcile);
+    // live indexing keeps new messages fresh between these hourly runs.
+    var aiChatIndexJobKey = new JobKey(nameof(AiChatIndexJob));
+    quartz.AddJob<AiChatIndexJob>(aiChatIndexJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(aiChatIndexJobKey)
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(60).RepeatForever()));
 
     var nicknameSyncJobKey = new JobKey(nameof(NicknameSyncJob));
     quartz.AddJob<NicknameSyncJob>(nicknameSyncJobKey)

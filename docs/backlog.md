@@ -16,13 +16,25 @@ inside `GuildFeatureSettingsService` (or a thin wrapper) so callers still read/w
 string. Applies to any future per-guild secret, not just the AI-chat key. Until then, treat DB
 dumps/backups as containing live API keys.
 
-## AI chat — richer retrieval (RAG) and persistent memory
+## AI chat — semantic retrieval and persistent memory
 
-The first AI-chat version grounds answers only in recent channel history plus recent messages
-from the configured knowledge channels (fetched live per question, no index). Deferred:
-full RAG (embeddings + vector search) over guild content, and a persistent conversation-history
-table if the recent-history window proves too short for good multi-turn memory. Also: per-user /
-per-channel rate limiting and cost controls once real usage is observed.
+A Postgres full-text **content index** now grounds answers (`AiChatIndexedMessage` +
+`AiChatIndexService`): knowledge-channel messages are indexed live + by an hourly backfill job,
+and questions are matched with per-guild-language full-text search — so retrieval spans all
+indexed history, not just recent messages. Still deferred:
+
+- **Semantic retrieval** — embeddings + vector search (pgvector + Gemini embeddings) for
+  meaning-based matching beyond keywords. `AiChatIndexService.SearchAsync` is the seam a vector
+  backend would slot into.
+- **Persistent conversation memory** — a conversation-history table if the short recent-history
+  window proves too small for good multi-turn memory (today's memory is the live recent-message
+  fetch of the current channel).
+- **Edit/delete reconcile** — prune index rows for deleted messages; catch edits beyond the
+  backfill's recent-message re-index window.
+- **Rate limiting / cost controls** — per-user / per-channel, once real usage is observed.
+- **Index query performance** — no GIN index (per-guild language rules out a single constant
+  config); fine at per-guild knowledge scale, revisit (functional GIN per language, or a stored
+  tsvector repopulated on language change) if a guild's index grows very large.
 
 ## Multi-alliance: per-alliance contact buttons & announcements
 

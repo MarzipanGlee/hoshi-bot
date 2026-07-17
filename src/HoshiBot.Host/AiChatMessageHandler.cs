@@ -26,8 +26,13 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, ILogger<AiC
         try
         {
             using var scope = scopeFactory.CreateScope();
-            var aiChat = scope.ServiceProvider.GetRequiredService<AiChatService>();
 
+            // Live-index the message if it's in a knowledge channel (keeps the search index fresh
+            // between periodic backfills). Independent of whether we reply.
+            var index = scope.ServiceProvider.GetRequiredService<AiChatIndexService>();
+            await index.MaybeIndexIncomingAsync(message, CancellationToken.None);
+
+            var aiChat = scope.ServiceProvider.GetRequiredService<AiChatService>();
             var reply = await aiChat.TryBuildReplyAsync(message, CancellationToken.None);
             if (reply is null)
                 return;

@@ -12,8 +12,9 @@ namespace HoshiBot.Discord.AiChat;
 
 // The per-guild AI chat brain. Given an incoming guild message it decides whether to answer and,
 // if so, builds the reply text — gathering recent channel history (the short conversational
-// memory) plus the configured knowledge channels as grounding, then calling Gemini. Returns null
-// whenever the bot should stay silent, so the gateway handler stays a thin "reply if non-null".
+// memory) plus the relevant knowledge (via the full-text index, AiChatIndexService), then calling
+// Gemini. Returns null whenever the bot should stay silent, so the gateway handler stays a thin
+// "reply if non-null".
 //
 // Gating: the AiChat feature must be enabled for the guild, and the message must be in a
 // configured listen channel OR directly address the bot (by @mention or by its nickname / a part
@@ -27,23 +28,18 @@ public partial class AiChatService(
     GuildFeatureSettingsService settingsService,
     EmbedBranding embedBranding,
     GeminiClient gemini,
+    AiChatIndexService indexService,
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
     private const int HistoryLimit = 15;
-    private const int KnowledgeLimitPerChannel = 20;
+    private const int MaxKnowledgeSnippets = 12;
     private const int DiscordMessageLimit = 2000;
 
-    // Bounds on knowledge gathering so a big forum / many channels can't explode the prompt (and
-    // per-answer REST/Gemini cost): at most this many resolved sources, and this many archived
-    // threads per forum.
-    private const int MaxKnowledgeSources = 25;
-    private const int ForumArchivedThreadLimit = 10;
-
-    // The three scalar settings (API key, system prompt, model) are guild-wide — one Gemini
-    // account per guild — so they live at the None/null scope regardless of which audiences the
-    // feature is enabled for (same pattern as ClientRelease's guild-wide platform roles). The
-    // channel lists, by contrast, are per-audience (see GetEnabledAudienceChannelsAsync).
+    // The three scalar settings (API key, system prompt, model) plus the search language are
+    // guild-wide — one Gemini account per guild — so they live at the None/null scope regardless of
+    // which audiences the feature is enabled for (same pattern as ClientRelease's guild-wide
+    // platform roles). The channel lists, by contrast, are per-audience.
     private const GuildAudience SettingsScope = GuildAudience.None;
 
     // One in-flight answer per channel — a passive listener could otherwise fire several
@@ -93,7 +89,7 @@ public partial class AiChatService(
 
             var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
 
-            var history = await FetchRecentAsync(message.ChannelId, HistoryLimit, cancellationToken);
+            var history = await indexService.FetchRecentAsync(message.ChannelId, HistoryLimit, cancellationToken);
             history.Reverse(); // chronological
             var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
 
@@ -105,7 +101,7 @@ public partial class AiChatService(
             {
                 if (m.Id == message.Id)
                     continue;
-                var text = RenderMessageText(m);
+                var text = AiChatIndexService.RenderMessageText(m);
                 if (string.IsNullOrEmpty(text))
                     continue;
                 turns.Add(m.Author.Id == botId
@@ -115,7 +111,7 @@ public partial class AiChatService(
 
             turns.Add(new GeminiClient.Turn("user", $"{CommanderName.Of(message.Author)}: {content}"));
 
-            var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, cancellationToken);
+            var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, cancellationToken);
 
             // Show a typing indicator while the (slow) generation runs.
             try { await gatewayClient.Rest.TriggerTypingAsync(message.ChannelId, cancellationToken: cancellationToken); }
@@ -165,7 +161,7 @@ public partial class AiChatService(
         return botSpokeBefore ? char.ToUpper(body[0]) + body[1..] : CommanderName.Greeting(author) + body;
     }
 
-    private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, CancellationToken cancellationToken)
+    private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Du bist {botName}, ein hilfreicher Assistent für diese Discord-Community (ein Star-Trek-Fleet-Command-Allianz-Server).");
@@ -177,11 +173,11 @@ public partial class AiChatService(
             sb.AppendLine(systemExtra.Trim());
         }
 
-        var knowledge = await BuildKnowledgeBlockAsync(guildId, cancellationToken);
+        var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, cancellationToken);
         if (knowledge.Length > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("Wissensquellen (aktuelle Auszüge aus den konfigurierten Kanälen):");
+            sb.AppendLine("Wissensquellen (relevante Auszüge aus den konfigurierten Kanälen):");
             sb.Append(knowledge);
         }
 
@@ -193,185 +189,34 @@ public partial class AiChatService(
         return sb.ToString();
     }
 
-    private async Task<string> BuildKnowledgeBlockAsync(ulong guildId, CancellationToken cancellationToken)
+    // The grounding block: the messages from the guild's knowledge index most relevant to the
+    // question (full-text search). Falls back to a live gather only while the index has no content
+    // for the guild yet (before the first backfill), so early questions still work.
+    private async Task<string> BuildKnowledgeBlockAsync(ulong guildId, string questionText, CancellationToken cancellationToken)
     {
-        // Knowledge channels are per-audience; gather them for every audience AiChat is enabled
-        // for (AiChatKnowledge itself is never "enabled" — it's a storage-only channel bucket, so
-        // we key it off AiChat's enabled audiences).
-        var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.AiChat);
-        var configured = new List<ulong>();
-        foreach (var audience in enabledAudiences)
-            configured.AddRange(await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledge, audience));
-        configured = configured.Distinct().ToList();
-        if (configured.Count == 0)
-            return "";
+        if (!await indexService.HasIndexedContentAsync(guildId, cancellationToken))
+            return await indexService.GetRecentKnowledgeFallbackAsync(guildId, cancellationToken);
 
-        var channels = await ExpandKnowledgeChannelsAsync(guildId, configured, cancellationToken);
-        if (channels.Count == 0)
-            return "";
+        var language = await ResolveSearchLanguageAsync(guildId);
+        var hits = await indexService.SearchAsync(guildId, language, questionText, MaxKnowledgeSnippets, cancellationToken);
 
         var sb = new StringBuilder();
-        foreach (var channelId in channels.Take(MaxKnowledgeSources))
-        {
-            var messages = await FetchRecentAsync(channelId, KnowledgeLimitPerChannel, cancellationToken);
-            messages.Reverse();
-            foreach (var m in messages)
-            {
-                var text = RenderMessageText(m);
-                if (!string.IsNullOrEmpty(text))
-                    sb.AppendLine($"- {text}");
-            }
-        }
+        foreach (var hit in hits)
+            sb.AppendLine(hit.ChannelName is null ? $"- {hit.Content}" : $"- [#{hit.ChannelName}] {hit.Content}");
 
         return sb.ToString();
     }
 
-    // Resolves the configured knowledge entries to concrete message-source ids (plain text
-    // channels and forum THREADS — a forum channel itself holds no messages, its content lives in
-    // its posts/threads). A category expands to every readable text channel and forum under it;
-    // the bot silently reads what it can (FetchRecentAsync returns empty for anything it can't
-    // access).
-    private async Task<List<ulong>> ExpandKnowledgeChannelsAsync(ulong guildId, List<ulong> configured, CancellationToken cancellationToken)
+    // Per-guild FTS config: the explicit setting, else derived from the guild's Discord locale,
+    // else "simple". Always normalized against the supported whitelist before use.
+    private async Task<string> ResolveSearchLanguageAsync(ulong guildId)
     {
-        IReadOnlyList<IGuildChannel> all;
-        if (gatewayClient.Cache.Guilds.TryGetValue(guildId, out var cachedGuild) && cachedGuild.Channels.Count > 0)
-        {
-            all = cachedGuild.Channels.Values.ToList();
-        }
-        else
-        {
-            try { all = await gatewayClient.Rest.GetGuildChannelsAsync(guildId, cancellationToken: cancellationToken); }
-            catch (RestException) { all = []; }
-        }
+        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SearchLanguage);
+        if (!string.IsNullOrWhiteSpace(configured))
+            return FtsLanguage.Normalize(configured);
 
-        var byId = all.ToDictionary(c => c.Id);
-        var resolved = new List<ulong>();
-        foreach (var id in configured)
-        {
-            if (byId.GetValueOrDefault(id) is CategoryGuildChannel)
-            {
-                foreach (var child in all.Where(c => ParentIdOf(c) == id))
-                    await AddSourceAsync(guildId, child, resolved, cancellationToken);
-            }
-            else if (byId.GetValueOrDefault(id) is { } channel)
-            {
-                await AddSourceAsync(guildId, channel, resolved, cancellationToken);
-            }
-            else
-            {
-                // Not in the guild's channel list (e.g. an already-thread id) — try it directly.
-                resolved.Add(id);
-            }
-        }
-
-        return resolved.Distinct().ToList();
-    }
-
-    // Adds one channel as a message source: a forum contributes its threads, a plain text channel
-    // contributes itself, voice/stage contribute nothing.
-    private async Task AddSourceAsync(ulong guildId, IGuildChannel channel, List<ulong> resolved, CancellationToken cancellationToken)
-    {
-        switch (channel)
-        {
-            case ForumGuildChannel:
-                resolved.AddRange(await GetForumThreadIdsAsync(guildId, channel.Id, cancellationToken));
-                break;
-            case VoiceGuildChannel or StageGuildChannel:
-                break;
-            case TextGuildChannel:
-                resolved.Add(channel.Id);
-                break;
-        }
-    }
-
-    // A forum's readable posts: its active threads plus a capped page of recently-archived ones.
-    private async Task<List<ulong>> GetForumThreadIdsAsync(ulong guildId, ulong forumId, CancellationToken cancellationToken)
-    {
-        var threadIds = new List<ulong>();
-        try
-        {
-            var active = await gatewayClient.Rest.GetActiveGuildThreadsAsync(guildId, cancellationToken: cancellationToken);
-            threadIds.AddRange(active.Where(t => t.ParentId == forumId).Select(t => t.Id));
-        }
-        catch (RestException ex)
-        {
-            logger.LogDebug(ex, "Could not fetch active threads for forum {ForumId}", forumId);
-        }
-
-        try
-        {
-            var count = 0;
-            await foreach (var thread in gatewayClient.Rest.GetPublicArchivedGuildThreadsAsync(forumId).WithCancellation(cancellationToken))
-            {
-                threadIds.Add(thread.Id);
-                if (++count >= ForumArchivedThreadLimit)
-                    break;
-            }
-        }
-        catch (RestException ex)
-        {
-            logger.LogDebug(ex, "Could not fetch archived threads for forum {ForumId}", forumId);
-        }
-
-        return threadIds.Distinct().ToList();
-    }
-
-    private static ulong? ParentIdOf(IGuildChannel channel) => channel switch
-    {
-        TextGuildChannel t => t.ParentId,
-        ForumGuildChannel f => f.ParentId,
-        _ => null,
-    };
-
-    // A message's readable text: its content plus any embed text (title/description/fields/
-    // footer/author) — many info channels (RoE, rules, announcements) post ONLY embeds, so
-    // reading just Content would see nothing there.
-    private static string RenderMessageText(RestMessage message)
-    {
-        var sb = new StringBuilder();
-        if (!string.IsNullOrWhiteSpace(message.Content))
-            sb.AppendLine(message.Content.Trim());
-
-        foreach (var embed in message.Embeds)
-        {
-            if (!string.IsNullOrWhiteSpace(embed.Author?.Name))
-                sb.AppendLine(embed.Author!.Name);
-            if (!string.IsNullOrWhiteSpace(embed.Title))
-                sb.AppendLine(embed.Title);
-            if (!string.IsNullOrWhiteSpace(embed.Description))
-                sb.AppendLine(embed.Description);
-            foreach (var field in embed.Fields)
-            {
-                if (!string.IsNullOrWhiteSpace(field.Name) || !string.IsNullOrWhiteSpace(field.Value))
-                    sb.AppendLine($"{field.Name}: {field.Value}");
-            }
-            if (!string.IsNullOrWhiteSpace(embed.Footer?.Text))
-                sb.AppendLine(embed.Footer!.Text);
-        }
-
-        return sb.ToString().Trim();
-    }
-
-    // Newest-first list of up to `limit` recent messages; empty on any REST error (missing
-    // permissions etc. must never crash the message pump).
-    private async Task<List<RestMessage>> FetchRecentAsync(ulong channelId, int limit, CancellationToken cancellationToken)
-    {
-        var messages = new List<RestMessage>();
-        try
-        {
-            await foreach (var m in gatewayClient.Rest.GetMessagesAsync(channelId).WithCancellation(cancellationToken))
-            {
-                messages.Add(m);
-                if (messages.Count >= limit)
-                    break;
-            }
-        }
-        catch (RestException ex)
-        {
-            logger.LogDebug(ex, "Could not fetch messages from channel {ChannelId}", channelId);
-        }
-
-        return messages;
+        var locale = gatewayClient.Cache.Guilds.GetValueOrDefault(guildId)?.PreferredLocale;
+        return FtsLanguage.FromDiscordLocale(locale);
     }
 
     private static bool MentionsBotByName(string content, string botName)

@@ -91,6 +91,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<GuildFeatureChannel> GuildFeatureChannels => Set<GuildFeatureChannel>();
 
+    public DbSet<AiChatIndexedMessage> AiChatIndexedMessages => Set<AiChatIndexedMessage>();
+
     public DbSet<ChannelPermissionExpectation> ChannelPermissionExpectations => Set<ChannelPermissionExpectation>();
 
     public DbSet<StfcServerStatus> StfcServerStatuses => Set<StfcServerStatus>();

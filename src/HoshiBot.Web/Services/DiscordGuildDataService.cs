@@ -121,6 +121,25 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
         return groups;
     }
 
+    // The guild's Discord preferred locale (e.g. "de", "en-US"), or null if it can't be read —
+    // used to default the AI-chat full-text search language. Cached briefly like the channel list.
+    public async Task<string?> GetPreferredLocaleAsync(ulong guildId)
+    {
+        return await cache.GetOrCreateAsync($"discord-guild-locale:{guildId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
+            try
+            {
+                var guild = await botRestClient.GetGuildAsync(guildId);
+                return guild.PreferredLocale;
+            }
+            catch (RestException)
+            {
+                return null;
+            }
+        });
+    }
+
     private async Task<IReadOnlyList<IGuildChannel>> GetCachedChannelsAsync(ulong guildId)
     {
         var allChannels = await cache.GetOrCreateAsync($"discord-guild-channels:{guildId}", async entry =>

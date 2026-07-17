@@ -22,4 +22,9 @@ public static class AiChatSettingKeys
 
     // Optional Gemini model override; falls back to GeminiClient.DefaultModel when unset.
     public const string Model = "Model";
+
+    // The Postgres full-text-search config used to index/search this guild's knowledge content
+    // (a regconfig name like "german"/"english"/"simple"). Unset falls back to a value derived
+    // from the guild's Discord preferred locale — see FtsLanguage.
+    public const string SearchLanguage = "SearchLanguage";
 }
