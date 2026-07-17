@@ -88,21 +88,21 @@ else
                 <tbody>
                     @foreach (var result in botAccessResults)
                     {
-                        <tr class="@(result.CanPost ? "table-success" : "table-danger")">
+                        <tr class="@(result.HasAccess ? "table-success" : "table-danger")">
                             <td>@ChannelName(result.ChannelId)</td>
                             <td>@result.Sources</td>
                             <td>
-                                @if (result.CanPost)
+                                @if (result.HasAccess)
                                 {
-                                    <span>✅ Can post</span>
+                                    <span>✅ OK</span>
                                 }
                                 else
                                 {
-                                    <div>🚫 Can't post</div>
-                                    <div class="small text-nowrap">Channel — @Mark(result.ChannelView) View · @Mark(result.ChannelSend) Send</div>
+                                    <div>🚫 Missing access</div>
+                                    <div class="small text-nowrap">Channel — @PermsSummary(result.Required, result.ChannelEffective)</div>
                                     @if (result.Category is { } cat)
                                     {
-                                        <div class="small text-nowrap">Category — @Mark(cat.View) View · @Mark(cat.Send) Send</div>
+                                        <div class="small text-nowrap">Category — @PermsSummary(result.Required, cat.Effective)</div>
                                     }
                                 }
                             </td>
@@ -111,7 +111,7 @@ else
                                    returns Missing Access on any edit to a channel/category it can't view, so a
                                    button there would always fail. When it can see neither, the only route is a
                                    manual grant in Discord (the callout above). *@
-                                @if (!result.CanPost)
+                                @if (!result.HasAccess)
                                 {
                                     @if (result.CanFix && (result.CanFixChannel || result.CanFixCategory))
                                     {
@@ -130,7 +130,7 @@ else
                                     {
                                         <div class="small text-danger mt-1">
                                             This channel can't be fixed automatically from here — grant the Hoshi Bot
-                                            role access (View Channel + Send Messages) to the channel itself in Discord
+                                            role the permissions listed under Status to the channel itself in Discord
                                             (see the note above), then Re-check.
                                         </div>
                                     }
@@ -298,36 +298,64 @@ else
         bool CanFix,
         string? BlockReason);
 
-    // One configured post-to channel and whether the bot can actually deliver to it. Sources is
-    // the human-readable list of what points here (a feature, an alert kind, a GuildSettings slot).
-    // ChannelView/ChannelSend are the bot's effective permissions on the channel itself; Category
-    // is the same pair resolved on the parent category (null if none) — shown side by side so a
-    // sync mismatch (category grants View, channel doesn't) is visible at a glance.
+    // One configured channel and whether the bot has the permissions it actually needs there.
+    // Sources is the human-readable list of what points here; Required is the union of what those
+    // uses need (most just post → View + Send; the Announcements draft is read → also Read Message
+    // History). ChannelEffective/Category.Effective are the bot's resolved permissions on the
+    // channel and its parent category, shown side by side so a sync mismatch is visible.
     private record BotAccessResult(
         ulong ChannelId, ulong? ParentCategoryId, string Sources,
-        bool ChannelView, bool ChannelSend, bool ChannelManage,
-        (bool View, bool Send, bool Manage)? Category,
+        Permissions Required,
+        Permissions ChannelEffective, bool ChannelManage,
+        (Permissions Effective, bool Manage)? Category,
         bool CanFix, string? BlockReason)
     {
-        public bool CanView => ChannelView;
-        public bool CanPost => ChannelView && ChannelSend;
+        public bool CanView => ChannelEffective.HasFlag(Permissions.ViewChannel);
+        public Permissions ChannelMissing => Required & ~ChannelEffective;
+        public bool HasAccess => ChannelMissing == default;
 
         // A fix at a given level only works if the bot can both see it and manage its
         // permissions there — Discord 403s an overwrite edit otherwise. So a button is offered
         // only where both hold; anything else needs a manual grant in Discord.
-        public bool CanFixChannel => ChannelView && ChannelManage;
+        public bool CanFixChannel => CanView && ChannelManage;
 
-        // Category fix is also pointless when the category already grants View + Send: the child
-        // is blocked by its own (unsynced) overwrite, so re-granting on the category changes
-        // nothing. Only offer it when the category itself is still missing something to grant.
-        public bool CanFixCategory => Category is { View: true, Send: false, Manage: true };
+        // Category fix is also pointless when the category already grants everything required: the
+        // child is blocked by its own (unsynced) overwrite, so re-granting on the category changes
+        // nothing. Only offer it when the category can be managed and is itself still missing part
+        // of what's required.
+        public bool CanFixCategory => Category is { } cat
+            && cat.Manage
+            && cat.Effective.HasFlag(Permissions.ViewChannel)
+            && (Required & ~cat.Effective) != default;
     }
 
     private static string Mark(bool granted) => granted ? "✅" : "❌";
 
     private const Permissions PostPermissions = Permissions.ViewChannel | Permissions.SendMessages;
 
+    // The Announcements draft channel is read (staff post drafts, the bot reads them back to
+    // publish) as well as written, so it needs Read Message History on top of View + Send.
+    private const Permissions DraftPermissions = PostPermissions | Permissions.ReadMessageHistory;
+
     private static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
+
+    private static bool IsManage(Permissions perms) =>
+        perms.HasFlag(Permissions.Administrator) || perms.HasFlag(Permissions.ManageRoles);
+
+    private static string PermLabel(Permissions permission) => permission switch
+    {
+        Permissions.ViewChannel => "View Channel",
+        Permissions.SendMessages => "Send Messages",
+        Permissions.ReadMessageHistory => "Read Message History",
+        Permissions.AddReactions => "Add Reactions",
+        _ => permission.ToString(),
+    };
+
+    // Each individual required permission with its granted state, e.g. "✅ View Channel · ❌ Send Messages".
+    private static string PermsSummary(Permissions required, Permissions effective) =>
+        string.Join(" · ", AllPermissions
+            .Where(p => p != default && required.HasFlag(p))
+            .Select(p => $"{Mark(effective.HasFlag(p))} {PermLabel(p)}"));
 
     private List<ChannelPermissionExpectation> expectations = [];
     private List<IGuildChannel> channels = [];
@@ -637,13 +665,15 @@ else
         try
         {
             var sources = new Dictionary<ulong, SortedSet<string>>();
-            void Add(ulong? id, string label)
+            var required = new Dictionary<ulong, Permissions>();
+            void Add(ulong? id, string label, Permissions perms)
             {
                 if (id is not { } channelId || channelId == 0)
                     return;
                 if (!sources.TryGetValue(channelId, out var set))
                     sources[channelId] = set = [];
                 set.Add(label);
+                required[channelId] = required.GetValueOrDefault(channelId) | perms;
             }
 
             await using (var db = await DbFactory.CreateDbContextAsync())
@@ -653,44 +683,51 @@ else
                     .Select(c => new { c.ChannelId, c.Feature })
                     .ToListAsync();
                 foreach (var fc in featureChannels)
-                    Add(fc.ChannelId, $"Feature: {fc.Feature}");
+                    Add(fc.ChannelId, $"Feature: {fc.Feature}", PostPermissions);
 
                 var alertChannels = await db.GuildAlertChannels
                     .Where(c => c.GuildId == ParsedGuildId)
                     .Select(c => new { c.ChannelId, c.Kind })
                     .ToListAsync();
                 foreach (var ac in alertChannels)
-                    Add(ac.ChannelId, $"Alert: {ac.Kind}");
+                    Add(ac.ChannelId, $"Alert: {ac.Kind}", PostPermissions);
 
                 // Per-feature channel settings (Absences report channels, Territory Capture
                 // digest, Announcements/Tickets/etc.) live in the generic settings table, not a
                 // dedicated channel table — by convention every channel-typed key ends in
                 // "Channel" (role keys end in "Role", message-id keys in "MessageId"), so that's
-                // how we tell a channel value apart from the roles stored alongside it.
+                // how we tell a channel value apart from the roles stored alongside it. Most are
+                // post targets; the Announcements draft is also read back by the bot, so it needs
+                // Read Message History on top of View + Send.
                 var settingChannels = await db.GuildFeatureSettingSnowflakes
                     .Where(s => s.GuildId == ParsedGuildId && s.Key.EndsWith("Channel"))
                     .Select(s => new { s.Feature, s.Key, s.Value })
                     .ToListAsync();
                 foreach (var sc in settingChannels)
-                    Add(sc.Value, $"Feature: {sc.Feature} ({sc.Key})");
+                {
+                    var perms = sc is { Feature: GuildFeature.Announcements, Key: AnnouncementsSettingKeys.DraftChannel }
+                        ? DraftPermissions
+                        : PostPermissions;
+                    Add(sc.Value, $"Feature: {sc.Feature} ({sc.Key})", perms);
+                }
 
                 var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
                 if (settings is not null)
                 {
-                    Add(settings.LogChannelId, "Log");
-                    Add(settings.AdminChannelId, "Admin");
-                    Add(settings.UserLogChannelId, "User Log");
-                    Add(settings.AllianceBoardingChannelId, "Alliance Boarding");
-                    Add(settings.CommandBridgeChannelId, "Command Bridge");
-                    Add(settings.StaffCommandBridgeChannelId, "Staff Command Bridge");
-                    Add(settings.FriendsCommandBridgeChannelId, "Friends Command Bridge");
-                    Add(settings.RemindersAlliesChannelId, "Reminders (Allies)");
-                    Add(settings.RemindersServicesChannelId, "Reminders (Services)");
-                    Add(settings.RulesDeChannelId, "Rules (DE)");
-                    Add(settings.RulesEnChannelId, "Rules (EN)");
-                    Add(settings.UserNotificationsChannelId, "User Notifications");
-                    Add(settings.BotSupportChannelId, "Bot Support");
-                    Add(settings.CommandStaffJobsChannelId, "Command Staff Jobs");
+                    Add(settings.LogChannelId, "Log", PostPermissions);
+                    Add(settings.AdminChannelId, "Admin", PostPermissions);
+                    Add(settings.UserLogChannelId, "User Log", PostPermissions);
+                    Add(settings.AllianceBoardingChannelId, "Alliance Boarding", PostPermissions);
+                    Add(settings.CommandBridgeChannelId, "Command Bridge", PostPermissions);
+                    Add(settings.StaffCommandBridgeChannelId, "Staff Command Bridge", PostPermissions);
+                    Add(settings.FriendsCommandBridgeChannelId, "Friends Command Bridge", PostPermissions);
+                    Add(settings.RemindersAlliesChannelId, "Reminders (Allies)", PostPermissions);
+                    Add(settings.RemindersServicesChannelId, "Reminders (Services)", PostPermissions);
+                    Add(settings.RulesDeChannelId, "Rules (DE)", PostPermissions);
+                    Add(settings.RulesEnChannelId, "Rules (EN)", PostPermissions);
+                    Add(settings.UserNotificationsChannelId, "User Notifications", PostPermissions);
+                    Add(settings.BotSupportChannelId, "Bot Support", PostPermissions);
+                    Add(settings.CommandStaffJobsChannelId, "Command Staff Jobs", PostPermissions);
                 }
             }
 
@@ -698,27 +735,33 @@ else
             foreach (var (channelId, labels) in sources)
             {
                 var sourceLabel = string.Join(", ", labels);
+                var req = required[channelId];
                 var channel = channels.FirstOrDefault(c => c.Id == channelId);
                 if (channel is null)
                 {
                     // Configured but not present in the live channel list — deleted, or the bot
                     // can't even see it. Either way it's undeliverable and not auto-fixable here.
-                    results.Add(new BotAccessResult(channelId, null, sourceLabel, false, false, false, null, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
+                    results.Add(new BotAccessResult(channelId, null, sourceLabel, req, default, false, null, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
                     continue;
                 }
 
                 var parentCategoryId = DiscordGuildDataService.GetParentCategoryId(channel);
-                var (view, send, manage) = BotChannelAccess(channel);
-                (bool View, bool Send, bool Manage)? category = parentCategoryId is { } catId
-                    && channels.FirstOrDefault(c => c.Id == catId) is { } categoryChannel
-                        ? BotChannelAccess(categoryChannel)
-                        : null;
-                var (canFix, blockReason) = (view && send) ? (true, (string?)null) : EvaluateBotAccessFixability();
-                results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, view, send, manage, category, canFix, blockReason));
+                var channelEffective = BotChannelPermissions(channel);
+
+                (Permissions Effective, bool Manage)? category = null;
+                if (parentCategoryId is { } catId && channels.FirstOrDefault(c => c.Id == catId) is { } categoryChannel)
+                {
+                    var categoryEffective = BotChannelPermissions(categoryChannel);
+                    category = (categoryEffective, IsManage(categoryEffective));
+                }
+
+                var hasAccess = (req & ~channelEffective) == default;
+                var (canFix, blockReason) = hasAccess ? (true, (string?)null) : EvaluateBotAccessFixability(req);
+                results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, req, channelEffective, IsManage(channelEffective), category, canFix, blockReason));
             }
 
             // Problems first, then alphabetically by what points at the channel.
-            botAccessResults = results.OrderBy(r => r.CanPost).ThenBy(r => r.Sources, StringComparer.OrdinalIgnoreCase).ToList();
+            botAccessResults = results.OrderBy(r => r.HasAccess).ThenBy(r => r.Sources, StringComparer.OrdinalIgnoreCase).ToList();
         }
         finally
         {
@@ -733,22 +776,10 @@ else
     private Permissions BotChannelPermissions(IGuildChannel channel) =>
         botMember?.GetChannelPermissions(botPermissions, channel) ?? botPermissions;
 
-    // View/Send are what we're checking (and would grant); Manage is whether the bot could
-    // actually apply an overwrite at this level — editing a channel's permissions needs Manage
-    // Roles effective there, so a fix is pointless (Discord 403s) without it.
-    private (bool View, bool Send, bool Manage) BotChannelAccess(IGuildChannel channel)
-    {
-        var perms = BotChannelPermissions(channel);
-        return (
-            perms.HasFlag(Permissions.ViewChannel),
-            perms.HasFlag(Permissions.SendMessages),
-            perms.HasFlag(Permissions.Administrator) || perms.HasFlag(Permissions.ManageRoles));
-    }
-
-    // The Fix grants the bot's own top role View Channel + Send Messages via a channel overwrite,
+    // The Fix grants the bot's own top role the required permissions via a channel overwrite,
     // so the same guardrails as EvaluateFixability apply: needs Manage Roles, and (unless
     // Administrator) can only grant permissions the bot already holds itself.
-    private (bool CanFix, string? Reason) EvaluateBotAccessFixability()
+    private (bool CanFix, string? Reason) EvaluateBotAccessFixability(Permissions required)
     {
         if (!botHasManageRoles)
             return (false, "Bot lacks Manage Roles permission in this server.");
@@ -759,8 +790,9 @@ else
         if (botTopRoleId is null)
             return (false, "Bot has no assignable role to grant a channel override to.");
 
-        var missing = new[] { Permissions.ViewChannel, Permissions.SendMessages }
-            .Where(p => !botPermissions.HasFlag(p))
+        var missing = AllPermissions
+            .Where(p => p != default && required.HasFlag(p) && !botPermissions.HasFlag(p))
+            .Select(PermLabel)
             .ToList();
         if (missing.Count > 0)
             return (false, $"Bot doesn't hold these permissions itself, so it can't grant them: {string.Join(", ", missing)}.");
@@ -778,8 +810,8 @@ else
         if (botTopRoleId is not { } roleId)
             return;
 
-        // Preserve any existing overwrite for the bot's role on the target; only add the post
-        // permissions to Allow and clear them from Deny.
+        // Preserve any existing overwrite for the bot's role on the target; only add the
+        // required permissions to Allow and clear them from Deny.
         Permissions existingAllow = default, existingDeny = default;
         if (channels.FirstOrDefault(c => c.Id == targetId) is { } target
             && target.PermissionOverwrites.TryGetValue(roleId, out var overwrite))
@@ -793,23 +825,25 @@ else
             await BotRestClient.ModifyGuildChannelPermissionsAsync(targetId,
                 new PermissionOverwriteProperties(roleId, PermissionOverwriteType.Role)
                 {
-                    Allowed = existingAllow | PostPermissions,
-                    Denied = existingDeny & ~PostPermissions,
+                    Allowed = existingAllow | result.Required,
+                    Denied = existingDeny & ~result.Required,
                 });
 
             Cache.Remove($"discord-guild-channels:{ParsedGuildId}");
             await LoadDiscordDataAsync();
 
             var channelNow = channels.FirstOrDefault(c => c.Id == result.ChannelId);
-            var (viewNow, sendNow, _) = channelNow is null ? (false, false, false) : BotChannelAccess(channelNow);
-            fixStatus[result.ChannelId] = (viaCategory, viewNow && sendNow, viewNow) switch
+            var effectiveNow = channelNow is null ? default : BotChannelPermissions(channelNow);
+            var viewNow = effectiveNow.HasFlag(Permissions.ViewChannel);
+            var hasAccessNow = (result.Required & ~effectiveNow) == default;
+            fixStatus[result.ChannelId] = (viaCategory, hasAccessNow, viewNow) switch
             {
                 (_, true, _) => viaCategory
-                    ? "✅ Fixed via the category — the bot can now post here."
-                    : "✅ Fixed on the channel — the bot can now post here.",
-                (true, false, true) => "Category granted View Channel, but Send Messages is still missing on the channel itself — use \"Fix on channel\".",
+                    ? "✅ Fixed via the category — the bot now has the access it needs here."
+                    : "✅ Fixed on the channel — the bot now has the access it needs here.",
+                (true, false, true) => "Category updated, but the channel is still missing some of what it needs — use \"Fix on channel\".",
                 (true, false, false) => "⚠ Category updated, but this channel doesn't inherit from it (its permissions aren't synced). A channel the bot can't see can't be fixed automatically — grant Hoshi Bot access to it manually in Discord.",
-                (false, false, _) => "⚠ Overwrite applied on the channel, but the bot still can't post. Check that its role isn't out-ranked and that another overwrite doesn't deny View Channel / Send Messages.",
+                (false, false, _) => "⚠ Overwrite applied on the channel, but the bot still lacks the required access. Check that its role isn't out-ranked and that another overwrite doesn't deny the needed permissions.",
             };
 
             await RunBotAccessCheckAsync();
@@ -818,7 +852,7 @@ else
         {
             var level = viaCategory ? "category" : "channel";
             var targetChannel = channels.FirstOrDefault(c => c.Id == targetId);
-            var canSeeTarget = targetChannel is not null && BotChannelAccess(targetChannel).View;
+            var canSeeTarget = targetChannel is not null && BotChannelPermissions(targetChannel).HasFlag(Permissions.ViewChannel);
             fixStatus[result.ChannelId] = ex.StatusCode == HttpStatusCode.Forbidden
                 ? canSeeTarget
                     ? $"⚠ Discord refused the change — the bot can see this {level} but isn't allowed to change its permissions here (it needs the Manage Permissions right on it). Grant Hoshi Bot access to this {level} manually in Discord."
