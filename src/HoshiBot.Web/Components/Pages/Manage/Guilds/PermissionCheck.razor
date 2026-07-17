@@ -103,30 +103,32 @@ else
                                 }
                             </td>
                             <td>
+                                @* A fix button is only shown for a level the bot can actually see: Discord
+                                   returns Missing Access on any edit to a channel/category it can't view, so a
+                                   button there would always fail. When it can see neither, the only route is a
+                                   manual grant in Discord (the callout above). *@
                                 @if (!result.CanPost)
                                 {
-                                    @if (result.CanFix)
+                                    @if (result.CanFix && (result.CanView || (result.ParentCategoryId is not null && result.CategoryViewable)))
                                     {
                                         <div class="d-flex flex-wrap gap-2">
-                                            @if (result.ParentCategoryId is { } categoryId)
+                                            @if (result.ParentCategoryId is { } categoryId && result.CategoryViewable)
                                             {
                                                 <button class="btn btn-sm btn-primary" @onclick="() => FixBotAccessAsync(result, categoryId, true)">Fix on category (@CategoryName(categoryId))</button>
                                             }
-                                            @* A channel the bot can't even see can't be edited via the API
-                                               (Discord returns Missing Access), so a channel-level fix is only
-                                               offered once the bot can already see the channel. *@
                                             @if (result.CanView)
                                             {
-                                                <button class="btn btn-sm @(result.ParentCategoryId is null ? "btn-primary" : "btn-outline-dark")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
+                                                <button class="btn btn-sm @(result.ParentCategoryId is not null && result.CategoryViewable ? "btn-outline-dark" : "btn-primary")" @onclick="() => FixBotAccessAsync(result, result.ChannelId, false)">Fix on channel</button>
                                             }
                                         </div>
-                                        @if (!result.CanView && result.ParentCategoryId is null)
-                                        {
-                                            <div class="small text-danger mt-1">
-                                                The bot can't see this channel and it has no category to inherit from —
-                                                grant Hoshi Bot access to it manually in Discord.
-                                            </div>
-                                        }
+                                    }
+                                    else if (result.CanFix)
+                                    {
+                                        <div class="small text-danger mt-1">
+                                            The bot can't see this channel or its category, so it can't be fixed from
+                                            here — grant the Hoshi Bot role View Channel in Discord (see the note
+                                            above), then Re-check.
+                                        </div>
                                     }
                                     else
                                     {
@@ -304,6 +306,10 @@ else
     {
         public bool CanView => ChannelView;
         public bool CanPost => ChannelView && ChannelSend;
+
+        // A fix at a given level only works if the bot can see (and thus edit) that level —
+        // Discord refuses edits to a channel/category the bot can't view.
+        public bool CategoryViewable => Category?.View == true;
     }
 
     private static string Mark(bool granted) => granted ? "✓" : "✗";
