@@ -90,6 +90,9 @@ builder.Services.AddHttpClient(nameof(OllamaClient), client =>
     client.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue<int?>("Ollama:TimeoutSeconds") ?? 120);
 });
 
+// Preloads the in-use Ollama models at startup so the first reply/search isn't cold (see the service).
+builder.Services.AddHostedService<OllamaWarmupService>();
+
 // A bare, User-Agent-less HttpClient gets a 403 from startrekfleetcommand.com's WordPress
 // bot protection (confirmed against the real feed) — both of these hit external sites with
 // similar bot-detection surfaces (a WordPress-hosted blog; Google/Apple's app stores), so a

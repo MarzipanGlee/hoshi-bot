@@ -97,12 +97,13 @@ services:
     ports:
       - "127.0.0.1:11434:11434"
     environment:
-      # Single-guild-at-a-time usage pattern: don't hold multiple models resident, and don't
-      # reserve KV-cache for concurrent request slots (both save RAM). Keep the one model warm
-      # for 30m so replies after the first skip the (slow, CPU-only) reload.
-      - OLLAMA_MAX_LOADED_MODELS=1
+      # Keep the in-use models resident so replies are consistently fast: a chat guild uses its chat
+      # model AND embeddinggemma (search), so allow several loaded at once (they'd otherwise evict
+      # each other) and never unload them. The bot preloads them at startup (OllamaWarmupService).
+      # NUM_PARALLEL stays 1 (one request at a time). Lower these on a RAM-constrained host.
+      - OLLAMA_MAX_LOADED_MODELS=3
       - OLLAMA_NUM_PARALLEL=1
-      - OLLAMA_KEEP_ALIVE=30m
+      - OLLAMA_KEEP_ALIVE=-1
     volumes:
       - ollama-data:/root/.ollama
     # deploy:
