@@ -74,9 +74,20 @@ builder.Services.AddScoped<GuildAllianceService>();
 builder.Services.AddScoped<CommandBridgeHubService>();
 builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();
-builder.Services.AddScoped<GeminiClient>();
+builder.Services.AddScoped<IAiChatProvider, GeminiClient>();
+builder.Services.AddScoped<IAiChatProvider, OllamaClient>();
 builder.Services.AddScoped<AiChatIndexService>();
 builder.Services.AddScoped<AiChatService>();
+
+// The shared local Ollama server (compose service `ollama`); base URL is deployment config
+// (Ollama:BaseUrl), not a per-guild secret. Long, configurable timeout — local model generation
+// is slow, especially the first (cold-load) request or an 8B+ model on CPU-only hardware. Tune
+// Ollama:TimeoutSeconds up for big models on CPU, or use a small model for usable latency.
+builder.Services.AddHttpClient(nameof(OllamaClient), client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Ollama:BaseUrl"] ?? "http://localhost:11434");
+    client.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue<int?>("Ollama:TimeoutSeconds") ?? 120);
+});
 
 // A bare, User-Agent-less HttpClient gets a 403 from startrekfleetcommand.com's WordPress
 // bot protection (confirmed against the real feed) — both of these hit external sites with

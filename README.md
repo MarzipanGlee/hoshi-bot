@@ -87,10 +87,23 @@ dotnet user-secrets set "Discord:ClientSecret" "<oauth-client-secret>" --project
 
 ## Production deployment
 
-`compose.yaml` runs four services: `bot` (HoshiBot.Host), `web` (HoshiBot.Web), `migrator`
-(HoshiBot.Migrator, profile `migrate` — only runs on demand, not part of `up`), and
-`postgres`. Both app services read secrets from environment variables — see `compose.yaml`
-for the full list (`DISCORD_TOKEN`, `POSTGRES_PASSWORD`, `PUBLIC_WEB_BASE_URL`, etc.).
+`compose.yaml` runs five services: `bot` (HoshiBot.Host), `web` (HoshiBot.Web), `migrator`
+(HoshiBot.Migrator, profile `migrate` — only runs on demand, not part of `up`), `postgres`,
+and `ollama` (local LLM backend for the AI-chat feature's Ollama provider). Both app services
+read secrets from environment variables — see `compose.yaml` for the full list (`DISCORD_TOKEN`,
+`POSTGRES_PASSWORD`, `PUBLIC_WEB_BASE_URL`, etc.).
+
+The AI-chat feature answers per guild via **Google Gemini** (guild-supplied API key) **or**
+**Ollama** (the shared local `ollama` service, no key). Ollama does not auto-pull models on
+first use, so after the stack is up pull the default model once (and again for any model a guild
+overrides to):
+
+```bash
+docker compose exec ollama ollama pull llama3.1:8b
+```
+
+The default model is set via `Ollama__DefaultModel` (env, `bot` service); base URL via
+`Ollama__BaseUrl`. For GPU acceleration, uncomment the `deploy` block on the `ollama` service.
 
 `bot`/`web` logs are bind-mounted to `./logs/bot`/`./logs/web` on the host (rolling daily
 files, 14 days retained) — see [DEBUG.md](DEBUG.md) for how to pull them for debugging.

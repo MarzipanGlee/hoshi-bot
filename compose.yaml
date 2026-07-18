@@ -8,11 +8,17 @@ services:
       - ConnectionStrings__HoshiBotDbContext=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
       - Discord__Token=${DISCORD_TOKEN}
       - PublicWebBaseUrl=${PUBLIC_WEB_BASE_URL}
+      # AI chat: guilds set to the Ollama provider answer via this shared local server.
+      - Ollama__BaseUrl=http://ollama:11434
+      - Ollama__DefaultModel=llama3.1:8b
+      - Ollama__TimeoutSeconds=300
     volumes:
       - ./logs/bot:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
+      ollama:
+        condition: service_started
     restart: unless-stopped
 
   web:
@@ -70,6 +76,37 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # Local LLM backend for the AI-chat feature's Ollama provider. Only guilds that pick the
+  # Ollama provider use it; Gemini guilds ignore it entirely. Models are NOT auto-pulled on
+  # /api/chat — pull the default once after first start:
+  #   docker compose exec ollama ollama pull llama3.1:8b
+  # For GPU acceleration, uncomment the `deploy` block (requires the NVIDIA container toolkit).
+  ollama:
+    image: ollama/ollama:latest
+    # Publish on loopback only so host-run local dev (`dotnet run` against
+    # Ollama:BaseUrl=http://localhost:11434) can reach it; in production the
+    # bot reaches it over the compose network via http://ollama:11434 instead.
+    ports:
+      - "127.0.0.1:11434:11434"
+    environment:
+      # Single-guild-at-a-time usage pattern: don't hold multiple models resident, and don't
+      # reserve KV-cache for concurrent request slots (both save RAM). Keep the one model warm
+      # for 30m so replies after the first skip the (slow, CPU-only) reload.
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_KEEP_ALIVE=30m
+    volumes:
+      - ollama-data:/root/.ollama
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   web-dpkeys:
+  ollama-data:

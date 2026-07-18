@@ -27,7 +27,7 @@ public partial class AiChatService(
     GuildFeatureChannelService channelService,
     GuildFeatureSettingsService settingsService,
     EmbedBranding embedBranding,
-    GeminiClient gemini,
+    IEnumerable<IAiChatProvider> providers,
     AiChatIndexService indexService,
     ILogger<AiChatService> logger)
 {
@@ -77,8 +77,11 @@ public partial class AiChatService(
         if (!inListenChannel && !addressed)
             return null;
 
+        var provider = await ResolveProviderAsync(guildId);
         var apiKey = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
-        if (string.IsNullOrWhiteSpace(apiKey))
+
+        // Only Gemini authenticates per guild — the shared local Ollama needs no key.
+        if (provider.Kind == AiProvider.Gemini && string.IsNullOrWhiteSpace(apiKey))
         {
             logger.LogWarning("AiChat enabled for guild {GuildId} but no Gemini API key is configured; staying silent.", guildId);
             return null;
@@ -90,7 +93,7 @@ public partial class AiChatService(
         try
         {
             var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Model);
-            model = string.IsNullOrWhiteSpace(model) ? GeminiClient.DefaultModel : model.Trim();
+            model = string.IsNullOrWhiteSpace(model) ? provider.DefaultModel : model.Trim();
 
             var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
 
@@ -110,7 +113,7 @@ public partial class AiChatService(
             // Prior context from the recent window (the short conversational memory), excluding the
             // triggering message — we append that ourselves below so the actual question is always
             // the final user turn even if the REST fetch hasn't caught up to it yet.
-            var turns = new List<GeminiClient.Turn>();
+            var turns = new List<AiChatTurn>();
             foreach (var m in history)
             {
                 if (m.Id == message.Id)
@@ -119,11 +122,11 @@ public partial class AiChatService(
                 if (string.IsNullOrEmpty(text))
                     continue;
                 turns.Add(m.Author.Id == botId
-                    ? new GeminiClient.Turn("model", text)
-                    : new GeminiClient.Turn("user", $"{CommanderName.Of(m.Author)}: {text}"));
+                    ? new AiChatTurn(AiChatRole.Assistant, text)
+                    : new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(m.Author)}: {text}"));
             }
 
-            turns.Add(new GeminiClient.Turn("user", $"{CommanderName.Of(message.Author)}: {content}"));
+            turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(message.Author)}: {content}"));
 
             var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, cancellationToken);
 
@@ -131,14 +134,15 @@ public partial class AiChatService(
             try { await gatewayClient.Rest.TriggerTypingAsync(message.ChannelId, cancellationToken: cancellationToken); }
             catch (RestException) { /* non-fatal */ }
 
-            var answer = await gemini.GenerateAsync(apiKey, model, systemInstruction, turns, cancellationToken);
+            var answer = await provider.GenerateAsync(
+                new AiChatCompletionRequest(model, systemInstruction, turns, apiKey), cancellationToken);
             var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author);
 
             // One line per handled message so a "why did it stay silent / only give the fallback"
             // question is answerable straight from the logs.
             logger.LogInformation(
-                "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} turns={Turns} model={Model} → gemini={GeminiChars} reply={Reply}",
-                guildId, message.ChannelId, addressed, inListenChannel, turns.Count, model,
+                "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} turns={Turns} provider={Provider} model={Model} → answer={AnswerChars} reply={Reply}",
+                guildId, message.ChannelId, addressed, inListenChannel, turns.Count, provider.Kind, model,
                 answer?.Length.ToString() ?? "null", replyText is null ? "silent" : "posted");
 
             return replyText is null ? null : new AiChatReply(replyText, mentionable.Keys.ToList());
@@ -227,6 +231,15 @@ public partial class AiChatService(
             sb.AppendLine(hit.ChannelName is null ? $"- {hit.Content}" : $"- [#{hit.ChannelName}] {hit.Content}");
 
         return sb.ToString();
+    }
+
+    // The guild's configured chat backend: the explicit Provider setting parsed to AiProvider
+    // (default Gemini on unset/unknown), matched against the registered providers.
+    private async Task<IAiChatProvider> ResolveProviderAsync(ulong guildId)
+    {
+        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Provider);
+        var kind = Enum.TryParse<AiProvider>(configured, ignoreCase: true, out var parsed) ? parsed : AiProvider.Gemini;
+        return providers.First(p => p.Kind == kind);
     }
 
     // Per-guild FTS config: the explicit setting, else derived from the guild's Discord locale,

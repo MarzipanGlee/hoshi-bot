@@ -5,9 +5,10 @@
 
 <p class="form-text">
     The bot listens to every message in the <strong>listen channels</strong> and answers with Google
-    Gemini when it has a genuinely helpful reply (staying silent otherwise). It always answers when
-    addressed by its nickname or @@mention. Answers are grounded in the recent conversation plus the
-    configured <strong>knowledge channels</strong>. Requires this guild's own Gemini API key.
+    Gemini <strong>or</strong> a local Ollama model when it has a genuinely helpful reply (staying
+    silent otherwise). It always answers when addressed by its nickname or @@mention. Answers are
+    grounded in the recent conversation plus the configured <strong>knowledge channels</strong>.
+    Gemini requires this guild's own API key; Ollama runs on the shared local server (no key).
 </p>
 
 <div class="form-switch mb-3">
@@ -17,25 +18,40 @@
 </div>
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Gemini API Key">
-        <label class="form-label">
-            Dieser Gilde eigener Google-Gemini-API-Schlüssel. Wird für alle KI-Antworten verwendet und
-            im Klartext gespeichert.
+    <SettingsCard Title="KI-Anbieter">
+        <label for="aiChatProvider" class="form-label">
+            Welches Sprachmodell diese Gilde nutzt. <strong>Gemini</strong> (Google-Cloud, eigener
+            API-Schlüssel nötig) oder <strong>Ollama</strong> (lokales Modell auf dem gemeinsamen
+            Server, kein Schlüssel nötig).
         </label>
-        @if (hasKey)
-        {
-            <p class="form-text mb-1 text-success">Ein Schlüssel ist gespeichert. Neuen Wert eingeben, um ihn zu ersetzen.</p>
-        }
-        <div class="d-flex gap-2">
-            <input type="password" class="form-control" autocomplete="off"
-                   placeholder="@(hasKey ? "•••••••• (gespeichert)" : "API-Schlüssel eingeben")"
-                   @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
+        <select id="aiChatProvider" class="form-select" @bind="providerInput" @bind:after="SaveProviderAsync">
+            <option value="gemini">Google Gemini</option>
+            <option value="ollama">Ollama (lokal)</option>
+        </select>
+    </SettingsCard>
+
+    @if (providerInput != "ollama")
+    {
+        <SettingsCard Title="Gemini API Key">
+            <label class="form-label">
+                Dieser Gilde eigener Google-Gemini-API-Schlüssel. Wird für alle KI-Antworten verwendet und
+                im Klartext gespeichert.
+            </label>
             @if (hasKey)
             {
-                <button type="button" class="btn btn-outline-danger" @onclick="ClearApiKeyAsync">Löschen</button>
+                <p class="form-text mb-1 text-success">Ein Schlüssel ist gespeichert. Neuen Wert eingeben, um ihn zu ersetzen.</p>
             }
-        </div>
-    </SettingsCard>
+            <div class="d-flex gap-2">
+                <input type="password" class="form-control" autocomplete="off"
+                       placeholder="@(hasKey ? "•••••••• (gespeichert)" : "API-Schlüssel eingeben")"
+                       @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
+                @if (hasKey)
+                {
+                    <button type="button" class="btn btn-outline-danger" @onclick="ClearApiKeyAsync">Löschen</button>
+                }
+            </div>
+        </SettingsCard>
+    }
 
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChat" Audience="ResolvedAudience"
         Title="Zuhör-Kanäle" Usage="Kanäle, in denen der Bot mitliest und antwortet." />
@@ -53,11 +69,22 @@
     </SettingsCard>
 
     <SettingsCard Title="Modell (optional)">
-        <label for="aiChatModel" class="form-label">
-            Gemini-Modell. Leer lassen für den Standard (@AiChatSettingKeys.DefaultModel).
-        </label>
-        <input id="aiChatModel" class="form-control" placeholder="@AiChatSettingKeys.DefaultModel"
-               @bind="modelInput" @bind:after="SaveModelAsync" />
+        @if (providerInput == "ollama")
+        {
+            <label for="aiChatModel" class="form-label">
+                Ollama-Modell. Leer lassen für das Standardmodell des Servers.
+            </label>
+            <input id="aiChatModel" class="form-control" placeholder="Standardmodell des Servers"
+                   @bind="modelInput" @bind:after="SaveModelAsync" />
+        }
+        else
+        {
+            <label for="aiChatModel" class="form-label">
+                Gemini-Modell. Leer lassen für den Standard (@AiChatSettingKeys.DefaultModel).
+            </label>
+            <input id="aiChatModel" class="form-control" placeholder="@AiChatSettingKeys.DefaultModel"
+                   @bind="modelInput" @bind:after="SaveModelAsync" />
+        }
     </SettingsCard>
 
     <SettingsCard Title="Suchsprache">
@@ -79,6 +106,7 @@
 
     private bool hasKey;
     private string? apiKeyInput;
+    private string providerInput = "gemini";
     private string? systemPromptInput;
     private string? modelInput;
     private string? searchLanguageInput;
@@ -88,6 +116,9 @@
         // The stored API key is never echoed back into the field — we only track whether one
         // exists and let the admin overwrite it.
         hasKey = !string.IsNullOrWhiteSpace(await GetText(AiChatSettingKeys.ApiKey));
+        // Unset/unknown provider means Gemini (matches AiChatService's default).
+        var storedProvider = await GetText(AiChatSettingKeys.Provider);
+        providerInput = string.Equals(storedProvider, "ollama", StringComparison.OrdinalIgnoreCase) ? "ollama" : "gemini";
         systemPromptInput = await GetText(AiChatSettingKeys.SystemPrompt);
         modelInput = await GetText(AiChatSettingKeys.Model);
 
@@ -125,6 +156,8 @@
         apiKeyInput = null;
         hasKey = false;
     }
+
+    private Task SaveProviderAsync() => SetText(AiChatSettingKeys.Provider, providerInput);
 
     private Task SaveSystemPromptAsync() => SetText(AiChatSettingKeys.SystemPrompt, systemPromptInput);
 

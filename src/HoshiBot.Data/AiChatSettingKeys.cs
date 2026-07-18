@@ -17,6 +17,10 @@ public static class AiChatSettingKeys
     // "Encrypt per-guild secrets stored in the DB"); a guild with no key set stays silent.
     public const string ApiKey = "ApiKey";
 
+    // Which LLM backend this guild answers with: "gemini" (default) or "ollama". Parsed into
+    // AiProvider by AiChatService; unset/unknown falls back to Gemini.
+    public const string Provider = "Provider";
+
     // Optional extra persona / instructions prepended to the built system prompt.
     public const string SystemPrompt = "SystemPrompt";
 

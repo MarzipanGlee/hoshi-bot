@@ -16,6 +16,26 @@ inside `GuildFeatureSettingsService` (or a thin wrapper) so callers still read/w
 string. Applies to any future per-guild secret, not just the AI-chat key. Until then, treat DB
 dumps/backups as containing live API keys.
 
+## AI chat — Ollama provider: combine models & remote endpoints
+
+Ollama shipped as a **second, per-guild-selectable chat provider** (`IAiChatProvider` +
+`OllamaClient`, alongside `GeminiClient`; a guild picks via `AiChatSettingKeys.Provider`, reached
+via the shared `ollama` compose service at `Ollama:BaseUrl`). Deferred extensions:
+
+- **Combine models for best results** — (a) an Ollama **embedding model** (e.g. `nomic-embed-text`
+  / `embeddinggemma`) to drive **pgvector semantic retrieval**, slotting into the existing
+  `AiChatIndexService.SearchAsync` seam and merged with the current FTS ranking — this is the same
+  work as the "Semantic retrieval" bullet below, now with a local embeddings option; (b) a small
+  fast **gate** model deciding answerable/`[NO_ANSWER]` for passive listening + a stronger model for
+  the actual answer.
+- **Ollama Cloud / per-guild endpoint** — if a guild ever needs its own remote Ollama, promote the
+  base URL (+ optional key) from deployment config to a per-guild setting; the
+  `AiChatCompletionRequest.ApiKey` field already exists to carry a token.
+- **Model pull automation** — an init/sidecar that pulls the default model on stack up, instead of
+  the documented one-time `docker compose exec ollama ollama pull <model>`.
+- **Streaming responses** — Ollama `/api/chat` streaming for a live "typing" edit, if the current
+  post-once reply feels slow with local models.
+
 ## AI chat — semantic retrieval and persistent memory
 
 A Postgres full-text **content index** now grounds answers (`AiChatIndexedMessage` +
