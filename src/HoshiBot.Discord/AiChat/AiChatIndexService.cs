@@ -232,7 +232,14 @@ public partial class AiChatIndexService(
         }
         else
         {
-            existing.Content = content;
+            // A real content change (an edit) invalidates the stored embedding — drop it so the embed
+            // pass regenerates it from the new text, instead of leaving a vector for the old content.
+            if (existing.Content != content)
+            {
+                existing.Content = content;
+                existing.Embedding = null;
+                existing.EmbeddingModel = null;
+            }
             existing.ChannelName = channelName ?? existing.ChannelName;
             existing.AuthorName = CommanderName.Of(message.Author);
             existing.IndexedAt = now;
@@ -248,6 +255,19 @@ public partial class AiChatIndexService(
             // race — harmless, the other writer stored it.
             logger.LogDebug(ex, "AiChat index upsert conflict for message {MessageId}", message.Id);
         }
+    }
+
+    // Prune indexed rows for messages deleted in Discord (single or bulk). No-op for ids that were
+    // never indexed (non-knowledge channels, bot messages, etc.).
+    public async Task RemoveIndexedMessagesAsync(IReadOnlyCollection<ulong> messageIds, CancellationToken cancellationToken)
+    {
+        if (messageIds.Count == 0)
+            return;
+
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await db.AiChatIndexedMessages
+            .Where(m => messageIds.Contains(m.MessageId))
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     // Progressive full-history backfill for one guild. Per knowledge source, each run does two
@@ -348,7 +368,13 @@ public partial class AiChatIndexService(
         {
             if (existingById.TryGetValue(x.Msg.Id, out var row))
             {
-                row.Content = x.Text;
+                // Content changed (edit caught by the recent-catch-up pass) → drop the stale embedding.
+                if (row.Content != x.Text)
+                {
+                    row.Content = x.Text;
+                    row.Embedding = null;
+                    row.EmbeddingModel = null;
+                }
                 row.ChannelName = channelName ?? row.ChannelName;
                 row.AuthorName = CommanderName.Of(x.Msg.Author);
                 row.IndexedAt = now;
