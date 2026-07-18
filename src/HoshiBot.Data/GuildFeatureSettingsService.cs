@@ -36,9 +36,28 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
         var existing = await db.GuildFeatureSettingSnowflakes
             .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key)
             .ToListAsync();
-        db.GuildFeatureSettingSnowflakes.RemoveRange(existing);
 
-        if (value is not null)
+        if (value is null)
+        {
+            if (existing.Count == 0)
+                return;
+            db.GuildFeatureSettingSnowflakes.RemoveRange(existing);
+            await db.SaveChangesAsync();
+            return;
+        }
+
+        // Keep the row that already holds the target value (if any) and drop the rest, rather than
+        // delete-all + insert. EF Core doesn't guarantee the DELETE runs before the ADD within one
+        // SaveChanges, and this table's unique index includes Value — so re-adding the same value
+        // while its old row is being deleted collides (Postgres 23505; hit for real by the periodic
+        // jobs re-setting an unchanged id). Keeping the matching row sidesteps that and makes
+        // re-setting an unchanged value a no-op instead of churn.
+        var match = existing.FirstOrDefault(s => s.Value == value.Value);
+        var others = existing.Where(s => s != match).ToList();
+        if (others.Count > 0)
+            db.GuildFeatureSettingSnowflakes.RemoveRange(others);
+
+        if (match is null)
         {
             db.GuildFeatureSettingSnowflakes.Add(new GuildFeatureSettingSnowflake
             {
@@ -49,6 +68,10 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
                 Key = key,
                 Value = value.Value,
             });
+        }
+        else if (others.Count == 0)
+        {
+            return; // already exactly the desired single row — no write needed
         }
 
         await db.SaveChangesAsync();
@@ -128,9 +151,26 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
         var existing = await db.GuildFeatureSettingTexts
             .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key)
             .ToListAsync();
-        db.GuildFeatureSettingTexts.RemoveRange(existing);
 
-        if (!string.IsNullOrEmpty(value))
+        if (string.IsNullOrEmpty(value))
+        {
+            if (existing.Count == 0)
+                return;
+            db.GuildFeatureSettingTexts.RemoveRange(existing);
+            await db.SaveChangesAsync();
+            return;
+        }
+
+        // Update the existing row in place instead of delete + re-insert: this table's unique index
+        // is on the key columns, so re-inserting the same key while its old row is being deleted
+        // collides (EF Core doesn't guarantee DELETE-before-ADD within one SaveChanges → Postgres
+        // 23505). Updating also makes re-setting an unchanged value a no-op.
+        var primary = existing.FirstOrDefault();
+        var extras = existing.Skip(1).ToList();
+        if (extras.Count > 0)
+            db.GuildFeatureSettingTexts.RemoveRange(extras);
+
+        if (primary is null)
         {
             db.GuildFeatureSettingTexts.Add(new GuildFeatureSettingText
             {
@@ -141,6 +181,14 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
                 Key = key,
                 Value = value,
             });
+        }
+        else if (primary.Value != value)
+        {
+            primary.Value = value;
+        }
+        else if (extras.Count == 0)
+        {
+            return; // unchanged — no write needed
         }
 
         await db.SaveChangesAsync();
