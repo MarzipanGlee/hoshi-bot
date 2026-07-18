@@ -35,6 +35,16 @@
         <RolePicker Label="Slot 5" CreateRoleName="Slot 5" @bind-Value="zoneSlot5Input" @bind-Value:after="SaveZoneSlot5Async" Roles="roles" />
     </SettingsCard>
 
+    <SettingsCard Title="Weekly Mention Role">
+        <p class="form-text mb-0">
+            The role pinged on the <em>weekly</em> digest (the daily digest pings the specific
+            zone-slot roles for tomorrow instead). This is the alliance's absence-clean notification
+            role — the same setting as on the Absences page; editing it here updates it there too.
+        </p>
+        <RolePicker Label="Notification Role" ShowLabel="false"
+            @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
+    </SettingsCard>
+
     <SettingsCard Title="Digest Instructions">
         <label for="territoryCaptureInstructions" class="form-label">
             Free-text "Anweisungen von {Command Staff}" section shown on the weekly/daily digest (e.g. attendance/armada expectations).
@@ -55,6 +65,7 @@
     private string? zoneSlot3Input;
     private string? zoneSlot4Input;
     private string? zoneSlot5Input;
+    private string? notificationRoleInput;
     private string? instructionsInput;
     private string? createRoleError;
 
@@ -68,6 +79,7 @@
         zoneSlot3Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
         zoneSlot4Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot4Role))?.ToString();
         zoneSlot5Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
+        notificationRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Absences, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole))?.ToString();
         instructionsInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions);
     }
 
@@ -102,4 +114,8 @@
 
     private Task SaveInstructionsAsync() =>
         SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
+
+    // Stored under the Absences feature (its owner) so this and the Absences page edit one value.
+    private Task SaveNotificationRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Absences, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole, ParseId(notificationRoleInput));
 }

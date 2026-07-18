@@ -9,38 +9,43 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Keeps each guild's configured "notification role" (NotificationRoleKind.General) in sync
-// for members of any of the guild's linked alliances (GuildAlliance): removed while
-// they're on an absence that suppresses notifications (starting within 15 min or already
-// ongoing), added back otherwise.
+// Keeps each linked alliance's configured "notification role" (the per-alliance Absences
+// NotificationRole setting) in sync for that alliance's members: removed while they're on an
+// absence that suppresses notifications (starting within 15 min or already ongoing), added
+// back otherwise. The role is owned by the Absences feature but pinged by the Territory
+// Capture weekly digest and Announcements — see AbsencesSettingKeys.NotificationRole.
 public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gatewayClient, ILogger<NotificationRoleSyncJob> logger) : IJob
 {
     private static readonly TimeSpan LookAhead = TimeSpan.FromMinutes(15);
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var notificationRoles = await db.NotificationRoles
-            .Where(r => r.Kind == NotificationRoleKind.General)
+        var settings = await db.GuildFeatureSettingSnowflakes
+            .Where(s => s.Feature == GuildFeature.Absences
+                && s.Audience == GuildAudience.Alliance
+                && s.Key == AbsencesSettingKeys.NotificationRole
+                && s.GuildAllianceId != null)
+            .Select(s => new { s.GuildId, GuildAllianceId = s.GuildAllianceId!.Value, RoleId = s.Value })
             .ToListAsync();
 
-        foreach (var notificationRole in notificationRoles)
+        foreach (var setting in settings)
         {
-            await SyncGuildAsync(notificationRole);
+            await SyncAllianceAsync(setting.GuildId, setting.GuildAllianceId, setting.RoleId);
         }
     }
 
-    private async Task SyncGuildAsync(NotificationRole notificationRole)
+    private async Task SyncAllianceAsync(ulong guildId, int guildAllianceId, ulong roleId)
     {
-        var ourAllianceIds = await db.GuildAlliances
-            .Where(ga => ga.GuildId == notificationRole.GuildId)
-            .Select(ga => ga.StfcAllianceId)
-            .ToListAsync();
-        if (ourAllianceIds.Count == 0)
+        var stfcAllianceId = await db.GuildAlliances
+            .Where(ga => ga.Id == guildAllianceId)
+            .Select(ga => (int?)ga.StfcAllianceId)
+            .FirstOrDefaultAsync();
+        if (stfcAllianceId is not { } allianceId)
             return;
 
         var memberIds = await db.GuildMembers
-            .Where(gm => gm.GuildId == notificationRole.GuildId)
-            .Where(gm => gm.User.PlayerLinks.Any(up => up.IsMain && up.StfcPlayer.AllianceId != null && ourAllianceIds.Contains(up.StfcPlayer.AllianceId.Value)))
+            .Where(gm => gm.GuildId == guildId)
+            .Where(gm => gm.User.PlayerLinks.Any(up => up.IsMain && up.StfcPlayer.AllianceId == allianceId))
             .Select(gm => gm.DiscordUserId)
             .ToListAsync();
 
@@ -51,7 +56,7 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
         var cutoff = now.Add(LookAhead);
 
         var suppressedMemberIds = (await db.Absences
-            .Where(a => a.GuildId == notificationRole.GuildId && a.SuppressNotifications && a.Status == AbsenceStatus.Confirmed
+            .Where(a => a.GuildId == guildId && a.SuppressNotifications && a.Status == AbsenceStatus.Confirmed
                 && a.StartsAt <= cutoff && a.EndsAt > now)
             .Select(a => a.DiscordUserId)
             .ToListAsync())
@@ -59,7 +64,7 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
 
         foreach (var userId in memberIds)
         {
-            await SyncRoleAsync(notificationRole.GuildId, userId, notificationRole.DiscordRoleId,
+            await SyncRoleAsync(guildId, userId, roleId,
                 shouldHaveRole: !suppressedMemberIds.Contains(userId));
         }
     }

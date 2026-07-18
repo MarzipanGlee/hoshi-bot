@@ -26,18 +26,22 @@ public class TerritoryCaptureDigestService(
     // blew past this and every digest silently failed, see GetNeighbourOwnerTagsAsync).
     private const int MaxEmbedFieldLength = 1024;
 
-    public async Task SendWeeklyDigestsAsync()
+    public Task SendWeeklyDigestsAsync() => SendWeeklyDigestsAsync(DateTimeOffset.UtcNow, onlyGuildId: null);
+
+    // Test/replay seam: run the weekly digest as of an explicit instant and optionally for a single
+    // guild only. The Quartz job uses the parameterless overload ("now", all guilds).
+    public async Task SendWeeklyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId)
     {
-        var weekStart = TerritoryCaptureScheduler.GetWeekStart(DateTimeOffset.UtcNow);
+        var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
 
         foreach (var guildId in await GetEligibleGuildIdsAsync())
         {
+            if (onlyGuildId is { } only && guildId != only)
+                continue;
+
             var links = await GetTcEnabledLinksAsync(guildId);
             var weekEnd = weekStart.AddDays(6);
             var baseTitle = $"Gebietsübernahmen vom {weekStart.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy} bis {weekEnd.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy}";
-
-            var notificationRole = await db.NotificationRoles
-                .FirstOrDefaultAsync(r => r.GuildId == guildId && r.Kind == NotificationRoleKind.General);
 
             // One digest per TC-enabled alliance, each to its own configured digest channel;
             // the alliance tag is appended to the title only when the guild runs several.
@@ -57,8 +61,14 @@ public class TerritoryCaptureDigestService(
                 var slotted = known
                     .Select((z, i) => (SlotIndex: i + 1, z.Territory, z.Start, z.End))
                     .ToList();
-                var mentionRoleIds = notificationRole?.DiscordRoleId is { } generalRoleId
-                    ? new List<ulong> { generalRoleId }
+
+                // Mention this alliance's absence-clean notification role (owned by the Absences
+                // feature; kept in sync by NotificationRoleSyncJob). Weekly pings the whole alliance,
+                // unlike the daily which pings only the specific zone-slot roles for tomorrow.
+                var notifyRoleId = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.Absences, GuildAudience.Alliance, link.Id, AbsencesSettingKeys.NotificationRole);
+                var mentionRoleIds = notifyRoleId is { } roleId
+                    ? new List<ulong> { roleId }
                     : new List<ulong>();
 
                 var title = links.Count > 1 ? $"{baseTitle} — [{link.StfcAlliance.Tag}]" : baseTitle;
@@ -67,13 +77,21 @@ public class TerritoryCaptureDigestService(
         }
     }
 
-    public async Task SendDailyDigestsAsync()
+    public Task SendDailyDigestsAsync() => SendDailyDigestsAsync(DateTimeOffset.UtcNow, onlyGuildId: null);
+
+    // Test/replay seam: run the "tomorrow's zones" digest as of an explicit instant (so a full week
+    // can be replayed day by day) and optionally for a single guild only. The Quartz job uses the
+    // parameterless overload ("now", all guilds).
+    public async Task SendDailyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId)
     {
-        var tomorrow = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime).AddDays(1);
-        var weekStart = TerritoryCaptureScheduler.GetWeekStart(DateTimeOffset.UtcNow);
+        var tomorrow = DateOnly.FromDateTime(now.UtcDateTime).AddDays(1);
+        var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
 
         foreach (var guildId in await GetEligibleGuildIdsAsync())
         {
+            if (onlyGuildId is { } only && guildId != only)
+                continue;
+
             var links = await GetTcEnabledLinksAsync(guildId);
             foreach (var link in links)
             {

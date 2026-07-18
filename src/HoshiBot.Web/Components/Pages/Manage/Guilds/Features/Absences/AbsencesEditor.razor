@@ -20,20 +20,30 @@
         <ChannelPicker Label="Absences Report (Staff)" ShowLabel="false" Usage="A staff-only copy of the report that always shows every absence in full, ignoring members' privacy settings."
             @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
     </SettingsCard>
+
+    <SettingsCard Title="Notification Role">
+        <RolePicker Label="Notification Role" ShowLabel="false"
+            Usage="The role members opt into to be pinged for alliance activity (the Territory Capture weekly digest and Elevated announcements). Kept absence-clean automatically: a member with an active absence that suppresses notifications is removed from it until the absence ends. Also editable on the Territory Capture page — it's the same setting."
+            @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
+    </SettingsCard>
 </div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.Absences;
 
     private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
     private string? reportChannelIdInput;
     private string? staffChannelIdInput;
+    private string? notificationRoleInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
+        roles = await DiscordData.GetRolesAsync(GuildId);
         reportChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportChannel))?.ToString();
         staffChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportStaffChannel))?.ToString();
+        notificationRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole))?.ToString();
     }
 
     private Task SaveReportChannelAsync() =>
@@ -41,4 +51,7 @@
 
     private Task SaveStaffChannelAsync() =>
         SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportStaffChannel, ParseId(staffChannelIdInput));
+
+    private Task SaveNotificationRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole, ParseId(notificationRoleInput));
 }

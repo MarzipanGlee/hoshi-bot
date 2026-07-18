@@ -34,8 +34,6 @@ public class DiscordGuild
 
     public ICollection<GuildAdminRole> AdminRoles { get; set; } = [];
 
-    public ICollection<NotificationRole> NotificationRoles { get; set; } = [];
-
     public ICollection<ThreadRemovalRequest> ThreadRemovalRequests { get; set; } = [];
 
     public ICollection<CommandBridgeRepublishRequest> CommandBridgeRepublishRequests { get; set; } = [];

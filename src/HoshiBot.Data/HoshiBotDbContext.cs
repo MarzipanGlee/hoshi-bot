@@ -57,8 +57,6 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<GlobalAdmin> GlobalAdmins => Set<GlobalAdmin>();
 
-    public DbSet<NotificationRole> NotificationRoles => Set<NotificationRole>();
-
     public DbSet<Absence> Absences => Set<Absence>();
 
     public DbSet<ThreadRemovalRequest> ThreadRemovalRequests => Set<ThreadRemovalRequest>();
