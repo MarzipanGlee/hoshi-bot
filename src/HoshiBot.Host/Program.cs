@@ -109,13 +109,15 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(heartbeatJobKey)
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
 
-    // Rebuilds the AI-chat knowledge search index (history + forum threads + edit reconcile);
-    // live indexing keeps new messages fresh between these hourly runs.
+    // Rebuilds the AI-chat knowledge search index: progressive history backfill (a bounded step
+    // backward per run), edit catch-up, and the embedding pass (also per-run capped). Live indexing
+    // keeps brand-new messages fresh between runs. 20 min so history + embeddings catch up quickly;
+    // cheap at steady state (recent page only, completed channels skip history, embed pass no-ops).
     var aiChatIndexJobKey = new JobKey(nameof(AiChatIndexJob));
     quartz.AddJob<AiChatIndexJob>(aiChatIndexJobKey)
         .AddTrigger(trigger => trigger
             .ForJob(aiChatIndexJobKey)
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(60).RepeatForever()));
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(20).RepeatForever()));
 
     var nicknameSyncJobKey = new JobKey(nameof(NicknameSyncJob));
     quartz.AddJob<NicknameSyncJob>(nicknameSyncJobKey)
