@@ -54,9 +54,20 @@ public partial class AiChatService(
     // platform roles). The channel lists, by contrast, are per-audience.
     private const GuildAudience SettingsScope = GuildAudience.None;
 
-    // One in-flight answer per channel — a passive listener could otherwise fire several
-    // overlapping (and billable) Gemini calls for a burst of messages in the same channel.
-    private static readonly ConcurrentDictionary<ulong, byte> InFlightChannels = new();
+    // Serializes AI answers per channel: only one generation runs at a time (a burst can't fire
+    // overlapping, billable / CPU-thrashing generations), but a message that arrives while the
+    // channel is busy WAITS its turn instead of being silently dropped. Total in-flight (the active
+    // one + a small queue) is capped at MaxInFlightPerChannel so a chatter flood still can't pile up
+    // a backlog; a message queued longer than MaxQueueWait is treated as stale and skipped.
+    private sealed class ChannelSlot
+    {
+        public readonly SemaphoreSlim Gate = new(1, 1);
+        public int InFlight;
+    }
+
+    private static readonly ConcurrentDictionary<ulong, ChannelSlot> ChannelSlots = new();
+    private const int MaxInFlightPerChannel = 3; // one generating + up to two queued
+    private static readonly TimeSpan MaxQueueWait = TimeSpan.FromSeconds(90);
 
     // The reply text plus the exact set of user ids the reply is allowed to actually ping — the
     // conversation participants we told the model about. Discord's allowed_mentions is set to just
@@ -110,108 +121,133 @@ public partial class AiChatService(
             return null;
         }
 
-        if (!InFlightChannels.TryAdd(message.ChannelId, 0))
+        var slot = ChannelSlots.GetOrAdd(message.ChannelId, static _ => new ChannelSlot());
+
+        // Cap total in-flight (active + queued) per channel: over the cap we drop (chatter-flood
+        // guard); under it we wait our turn rather than dropping a message that just happened to
+        // arrive mid-answer.
+        if (Interlocked.Increment(ref slot.InFlight) > MaxInFlightPerChannel)
+        {
+            Interlocked.Decrement(ref slot.InFlight);
             return null;
+        }
 
         try
         {
-            // Passive-listening gate: a cheap small-model YES/NO classifier that runs BEFORE the
-            // expensive knowledge retrieval + main generation (and before the typing indicator, so a
-            // non-answer never shows phantom "typing…"). It only ever *suppresses* on a confident NO
-            // — a YES, an ambiguous verdict, or a gate failure all fall through to the main model
-            // (which can still emit [NO_ANSWER]), so the gate is strictly additive: quieter on
-            // obvious chatter, never less capable. A direct address skips it (it always answers).
-            var gateLabel = "skip";
-            if (!addressed)
+            // Wait our turn — only one generation per channel at a time. Give up if we've been
+            // queued long enough that the question is stale (a slow generation ahead of us).
+            if (!await slot.Gate.WaitAsync(MaxQueueWait, cancellationToken))
             {
-                var gateModel = await ResolveGateModelAsync(guildId, provider);
-                if (gateModel is null)
+                logger.LogInformation(
+                    "AiChat guild {Guild} ch {Channel}: dropped a queued message (waited > {WaitSeconds}s behind a slow answer)",
+                    guildId, message.ChannelId, MaxQueueWait.TotalSeconds);
+                return null;
+            }
+
+            try
+            {
+                // Passive-listening gate: a cheap small-model YES/NO classifier that runs BEFORE the
+                // expensive knowledge retrieval + main generation (and before the typing indicator, so a
+                // non-answer never shows phantom "typing…"). It only ever *suppresses* on a confident NO
+                // — a YES, an ambiguous verdict, or a gate failure all fall through to the main model
+                // (which can still emit [NO_ANSWER]), so the gate is strictly additive: quieter on
+                // obvious chatter, never less capable. A direct address skips it (it always answers).
+                var gateLabel = "skip";
+                if (!addressed)
                 {
-                    gateLabel = "off";
-                }
-                else
-                {
-                    var gate = await EvaluateGateAsync(gateModel, provider, apiKey, message.Author, content, cancellationToken);
-                    gateLabel = gate.ToString().ToLowerInvariant();
-                    if (gate == GateResult.No)
+                    var gateModel = await ResolveGateModelAsync(guildId, provider);
+                    if (gateModel is null)
                     {
-                        logger.LogInformation(
-                            "AiChat guild {Guild} ch {Channel}: passive gate={GateModel} → no → silent", guildId, message.ChannelId, gateModel);
-                        return null;
+                        gateLabel = "off";
+                    }
+                    else
+                    {
+                        var gate = await EvaluateGateAsync(gateModel, provider, apiKey, message.Author, content, cancellationToken);
+                        gateLabel = gate.ToString().ToLowerInvariant();
+                        if (gate == GateResult.No)
+                        {
+                            logger.LogInformation(
+                                "AiChat guild {Guild} ch {Channel}: passive gate={GateModel} → no → silent", guildId, message.ChannelId, gateModel);
+                            return null;
+                        }
                     }
                 }
-            }
 
-            var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Model);
-            model = string.IsNullOrWhiteSpace(model) ? provider.DefaultModel : model.Trim();
+                var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Model);
+                model = string.IsNullOrWhiteSpace(model) ? provider.DefaultModel : model.Trim();
 
-            var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
+                var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
 
-            var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken);
-            history.Reverse(); // chronological
-            var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
+                var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken);
+                history.Reverse(); // chronological
+                var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
 
-            // The users the bot may ping: the conversation's participants. The model is given
-            // "name: <@id>" for these and told to only ping from this list; the handler restricts
-            // Discord's allowed_mentions to exactly these ids.
-            var mentionable = new Dictionary<ulong, string>();
-            foreach (var m in history)
-                if (m.Author.Id != botId)
-                    mentionable[m.Author.Id] = CommanderName.Of(m.Author);
-            mentionable[message.Author.Id] = CommanderName.Of(message.Author);
+                // The users the bot may ping: the conversation's participants. The model is given
+                // "name: <@id>" for these and told to only ping from this list; the handler restricts
+                // Discord's allowed_mentions to exactly these ids.
+                var mentionable = new Dictionary<ulong, string>();
+                foreach (var m in history)
+                    if (m.Author.Id != botId)
+                        mentionable[m.Author.Id] = CommanderName.Of(m.Author);
+                mentionable[message.Author.Id] = CommanderName.Of(message.Author);
 
-            // Prior context from the recent window (the short conversational memory), excluding the
-            // triggering message — we append that ourselves below so the actual question is always
-            // the final user turn even if the REST fetch hasn't caught up to it yet.
-            var turns = new List<AiChatTurn>();
-            foreach (var m in history)
-            {
-                if (m.Id == message.Id)
-                    continue;
-                var text = AiChatIndexService.RenderMessageText(m);
-                if (string.IsNullOrEmpty(text))
-                    continue;
-                turns.Add(m.Author.Id == botId
-                    ? new AiChatTurn(AiChatRole.Assistant, text)
-                    : new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(m.Author)}: {text}"));
-            }
-
-            turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(message.Author)}: {content}"));
-
-            var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, cancellationToken);
-
-            // Keep the typing indicator alive for the whole (potentially minute-long, CPU-only)
-            // generation, then stop it as soon as we have an answer.
-            string? answer;
-            using (var typingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-            {
-                var typing = KeepTypingAsync(message.ChannelId, typingCts.Token);
-                try
+                // Prior context from the recent window (the short conversational memory), excluding the
+                // triggering message — we append that ourselves below so the actual question is always
+                // the final user turn even if the REST fetch hasn't caught up to it yet.
+                var turns = new List<AiChatTurn>();
+                foreach (var m in history)
                 {
-                    answer = await provider.GenerateAsync(
-                        new AiChatCompletionRequest(model, systemInstruction, turns, apiKey), cancellationToken);
+                    if (m.Id == message.Id)
+                        continue;
+                    var text = AiChatIndexService.RenderMessageText(m);
+                    if (string.IsNullOrEmpty(text))
+                        continue;
+                    turns.Add(m.Author.Id == botId
+                        ? new AiChatTurn(AiChatRole.Assistant, text)
+                        : new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(m.Author)}: {text}"));
                 }
-                finally
+
+                turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(message.Author)}: {content}"));
+
+                var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, cancellationToken);
+
+                // Keep the typing indicator alive for the whole (potentially minute-long, CPU-only)
+                // generation, then stop it as soon as we have an answer.
+                string? answer;
+                using (var typingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
-                    await typingCts.CancelAsync();
-                    try { await typing; } catch (OperationCanceledException) { /* expected on stop */ }
+                    var typing = KeepTypingAsync(message.ChannelId, typingCts.Token);
+                    try
+                    {
+                        answer = await provider.GenerateAsync(
+                            new AiChatCompletionRequest(model, systemInstruction, turns, apiKey), cancellationToken);
+                    }
+                    finally
+                    {
+                        await typingCts.CancelAsync();
+                        try { await typing; } catch (OperationCanceledException) { /* expected on stop */ }
+                    }
                 }
+
+                var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author, botName);
+
+                // One line per handled message so a "why did it stay silent / only give the fallback"
+                // question is answerable straight from the logs.
+                logger.LogInformation(
+                    "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} gate={Gate} turns={Turns} provider={Provider} model={Model} → answer={AnswerChars} reply={Reply}",
+                    guildId, message.ChannelId, addressed, inListenChannel, gateLabel, turns.Count, provider.Kind, model,
+                    answer?.Length.ToString() ?? "null", replyText is null ? "silent" : "posted");
+
+                return replyText is null ? null : new AiChatReply(replyText, mentionable.Keys.ToList());
             }
-
-            var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author, botName);
-
-            // One line per handled message so a "why did it stay silent / only give the fallback"
-            // question is answerable straight from the logs.
-            logger.LogInformation(
-                "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} gate={Gate} turns={Turns} provider={Provider} model={Model} → answer={AnswerChars} reply={Reply}",
-                guildId, message.ChannelId, addressed, inListenChannel, gateLabel, turns.Count, provider.Kind, model,
-                answer?.Length.ToString() ?? "null", replyText is null ? "silent" : "posted");
-
-            return replyText is null ? null : new AiChatReply(replyText, mentionable.Keys.ToList());
+            finally
+            {
+                slot.Gate.Release();
+            }
         }
         finally
         {
-            InFlightChannels.TryRemove(message.ChannelId, out _);
+            Interlocked.Decrement(ref slot.InFlight);
         }
     }
 
