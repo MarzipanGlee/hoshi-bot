@@ -27,6 +27,11 @@ public class OllamaClient(
     public string DefaultModel =>
         configuration["Ollama:DefaultModel"] is { Length: > 0 } m ? m : "llama3.1:8b";
 
+    // Local/CPU backend: prompt-eval of a big prompt is the dominant latency cost, so run lean.
+    // Tunable via config for deployments with more (or less) CPU headroom.
+    public int HistoryLimit => configuration.GetValue<int?>("Ollama:HistoryLimit") ?? 8;
+    public int KnowledgeSnippetLimit => configuration.GetValue<int?>("Ollama:KnowledgeSnippetLimit") ?? 6;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     // Cap the context window: our prompt (system instruction + knowledge snippets + short history)

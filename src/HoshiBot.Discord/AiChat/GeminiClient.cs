@@ -19,6 +19,10 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
 
     public string DefaultModel => AiChatSettingKeys.DefaultModel;
 
+    // Cloud backend: latency is network-bound, not prompt-eval-bound, so use the full window.
+    public int HistoryLimit => 15;
+    public int KnowledgeSnippetLimit => 12;
+
     private static readonly ConcurrentDictionary<string, Client> ClientsByApiKey = new();
 
     // Returns the model's text answer, or null on any failure/empty response (the caller decides

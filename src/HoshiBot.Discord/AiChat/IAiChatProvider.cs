@@ -38,6 +38,12 @@ public interface IAiChatProvider
     // The model used when a guild hasn't set an explicit Model override.
     string DefaultModel { get; }
 
+    // How much grounding context AiChatService assembles into the prompt for this backend. On
+    // CPU-only hardware the prompt-eval of a large prompt dominates latency, so local backends
+    // (Ollama) run leaner; cloud backends (Gemini) can afford the fuller window.
+    int HistoryLimit { get; }
+    int KnowledgeSnippetLimit { get; }
+
     // Returns the model's text answer, or null on any failure/empty response.
     Task<string?> GenerateAsync(AiChatCompletionRequest request, CancellationToken cancellationToken);
 }

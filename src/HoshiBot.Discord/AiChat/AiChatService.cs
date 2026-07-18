@@ -32,9 +32,11 @@ public partial class AiChatService(
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
-    private const int HistoryLimit = 15;
-    private const int MaxKnowledgeSnippets = 12;
     private const int DiscordMessageLimit = 2000;
+
+    // Discord's typing indicator lasts ~10s; re-trigger a bit before that so it stays visible
+    // across a slow (CPU-only Ollama) generation instead of stopping mid-wait.
+    private static readonly TimeSpan TypingRefreshInterval = TimeSpan.FromSeconds(8);
 
     // The three scalar settings (API key, system prompt, model) plus the search language are
     // guild-wide — one Gemini account per guild — so they live at the None/null scope regardless of
@@ -97,7 +99,7 @@ public partial class AiChatService(
 
             var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
 
-            var history = await indexService.FetchRecentAsync(message.ChannelId, HistoryLimit, cancellationToken);
+            var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken);
             history.Reverse(); // chronological
             var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
 
@@ -128,14 +130,26 @@ public partial class AiChatService(
 
             turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(message.Author)}: {content}"));
 
-            var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, cancellationToken);
+            var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, cancellationToken);
 
-            // Show a typing indicator while the (slow) generation runs.
-            try { await gatewayClient.Rest.TriggerTypingAsync(message.ChannelId, cancellationToken: cancellationToken); }
-            catch (RestException) { /* non-fatal */ }
+            // Keep the typing indicator alive for the whole (potentially minute-long, CPU-only)
+            // generation, then stop it as soon as we have an answer.
+            string? answer;
+            using (var typingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                var typing = KeepTypingAsync(message.ChannelId, typingCts.Token);
+                try
+                {
+                    answer = await provider.GenerateAsync(
+                        new AiChatCompletionRequest(model, systemInstruction, turns, apiKey), cancellationToken);
+                }
+                finally
+                {
+                    await typingCts.CancelAsync();
+                    try { await typing; } catch (OperationCanceledException) { /* expected on stop */ }
+                }
+            }
 
-            var answer = await provider.GenerateAsync(
-                new AiChatCompletionRequest(model, systemInstruction, turns, apiKey), cancellationToken);
             var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author);
 
             // One line per handled message so a "why did it stay silent / only give the fallback"
@@ -179,7 +193,23 @@ public partial class AiChatService(
         return botSpokeBefore ? char.ToUpper(body[0]) + body[1..] : CommanderName.Greeting(author) + body;
     }
 
-    private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, CancellationToken cancellationToken)
+    // Re-triggers the typing indicator every ~8s (it expires after ~10s) until cancelled, so it
+    // stays visible across a slow generation. Cancelled by the caller as soon as the answer is in.
+    private async Task KeepTypingAsync(ulong channelId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try { await gatewayClient.Rest.TriggerTypingAsync(channelId, cancellationToken: cancellationToken); }
+                catch (RestException) { /* non-fatal */ }
+                await Task.Delay(TypingRefreshInterval, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) { /* stopped once the answer is ready */ }
+    }
+
+    private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, int knowledgeSnippetLimit, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Du bist {botName}, ein hilfreicher Assistent für diese Discord-Community (ein Star-Trek-Fleet-Command-Allianz-Server).");
@@ -199,7 +229,7 @@ public partial class AiChatService(
                 sb.AppendLine($"- {name}: <@{id}>");
         }
 
-        var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, cancellationToken);
+        var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, knowledgeSnippetLimit, cancellationToken);
         if (knowledge.Length > 0)
         {
             sb.AppendLine();
@@ -218,13 +248,13 @@ public partial class AiChatService(
     // The grounding block: the messages from the guild's knowledge index most relevant to the
     // question (full-text search). Falls back to a live gather only while the index has no content
     // for the guild yet (before the first backfill), so early questions still work.
-    private async Task<string> BuildKnowledgeBlockAsync(ulong guildId, string questionText, CancellationToken cancellationToken)
+    private async Task<string> BuildKnowledgeBlockAsync(ulong guildId, string questionText, int knowledgeSnippetLimit, CancellationToken cancellationToken)
     {
         if (!await indexService.HasIndexedContentAsync(guildId, cancellationToken))
             return await indexService.GetRecentKnowledgeFallbackAsync(guildId, cancellationToken);
 
         var language = await ResolveSearchLanguageAsync(guildId);
-        var hits = await indexService.SearchAsync(guildId, language, questionText, MaxKnowledgeSnippets, cancellationToken);
+        var hits = await indexService.SearchAsync(guildId, language, questionText, knowledgeSnippetLimit, cancellationToken);
 
         var sb = new StringBuilder();
         foreach (var hit in hits)
