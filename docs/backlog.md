@@ -2,19 +2,21 @@
 
 Deferred ideas / follow-ups, not scheduled yet.
 
-## Encrypt per-guild secrets stored in the DB
+## Encrypt per-guild secrets stored in the DB — DONE
 
-The AI-chat feature (`GuildFeature.AiChat`) stores each guild's Google Gemini **API key** as
-**plaintext** in `GuildFeatureSettingText` (`AiChatSettingKeys.ApiKey`), configured in the Web
-admin panel. This was a deliberate "start simple" choice — the DB now holds a live third-party
-secret in the clear.
+The AI-chat feature stores each guild's Google Gemini **API key** in `GuildFeatureSettingText`
+(`AiChatSettingKeys.ApiKey`). It is now **encrypted at rest** (AES-256-GCM): a symmetric key from
+config (`Secrets:EncryptionKey`, injected via env/user-secrets like `Discord:Token`) is applied
+transparently inside `GuildFeatureSettingsService.GetSecretAsync`/`SetSecretAsync` via
+`SettingSecretProtector`, so callers still pass/receive a plain string. Stored form is
+`enc:v1:<base64>`; unprefixed values are treated as legacy plaintext and upgraded to ciphertext on
+first read once the key is configured. With no key configured (dev), values are stored plaintext —
+encryption is a deployment concern (`Secrets__EncryptionKey` in `.env`, wired to the `bot` + `web`
+services in `compose.yaml`). The mechanism is generic and reusable for any future per-guild secret.
 
-Future direction: set a symmetric **encryption key in the bot's config JSON**
-(`appsettings`/`IConfiguration`, e.g. `Secrets:EncryptionKey`, injected via env/user-secrets
-like `Discord:Token`) and encrypt/decrypt secret-typed settings at rest — ideally transparently
-inside `GuildFeatureSettingsService` (or a thin wrapper) so callers still read/write a plain
-string. Applies to any future per-guild secret, not just the AI-chat key. Until then, treat DB
-dumps/backups as containing live API keys.
+Possible follow-ups: key **rotation** (re-encrypt all secrets under a new key — today the key must
+stay stable) and moving the `Secrets:EncryptionKey` itself into a real secrets manager rather than
+an env var.
 
 ## AI chat — Ollama provider: combine models & remote endpoints
 

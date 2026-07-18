@@ -17,7 +17,7 @@ namespace HoshiBot.Data;
 // channel"), or the list methods for a many-per-key setting. Singularity for singular keys is
 // enforced here (upsert-by-replace), not by a DB-level distinction between "this key is a list"
 // and "this key is singular" — see GuildFeatureSettingSnowflake's doc comment.
-public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> dbFactory)
+public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> dbFactory, SettingSecretProtector secretProtector)
 {
     public async Task<ulong?> GetSnowflakeAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key)
     {
@@ -193,4 +193,29 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
 
         await db.SaveChangesAsync();
     }
+
+    // Secret-typed text setting (e.g. a third-party API key): same (Feature, Audience, Key) storage
+    // as GetText/SetText, but the value is transparently encrypted at rest via SettingSecretProtector
+    // so callers still pass/receive a plain string. See docs/backlog.md "Encrypt per-guild secrets".
+    public async Task<string?> GetSecretAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key)
+    {
+        var stored = await GetTextAsync(guildId, feature, audience, guildAllianceId, key);
+        if (string.IsNullOrEmpty(stored))
+            return stored;
+
+        // Upgrade a legacy plaintext value (stored before encryption existed) to ciphertext on first
+        // read once a key is configured, so it doesn't stay in the clear forever. One-time write:
+        // subsequent reads see the prefix and skip straight to decrypt.
+        if (secretProtector.IsConfigured && !SettingSecretProtector.IsProtected(stored))
+        {
+            await SetTextAsync(guildId, feature, audience, guildAllianceId, key, secretProtector.Protect(stored));
+            return stored;
+        }
+
+        return secretProtector.Unprotect(stored);
+    }
+
+    public Task SetSecretAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key, string? value) =>
+        SetTextAsync(guildId, feature, audience, guildAllianceId, key,
+            string.IsNullOrEmpty(value) ? null : secretProtector.Protect(value));
 }

@@ -41,7 +41,7 @@
     {
         <SettingsCard Title="Gemini API key">
             <label class="form-label">
-                This guild's own Google Gemini API key. Used for all AI answers and stored in plain text.
+                This guild's own Google Gemini API key. Used for all AI answers and stored encrypted at rest.
             </label>
             @if (hasKey)
             {
@@ -210,7 +210,8 @@
         if (string.IsNullOrWhiteSpace(apiKeyInput))
             return;
 
-        await SetText(AiChatSettingKeys.ApiKey, apiKeyInput.Trim());
+        // Encrypted at rest — write via the secret path, not the plain SetText helper.
+        await SettingsService.SetSecretAsync(GuildId, Feature, GuildAudience.None, null, AiChatSettingKeys.ApiKey, apiKeyInput.Trim());
         apiKeyInput = null;
         hasKey = true;
     }

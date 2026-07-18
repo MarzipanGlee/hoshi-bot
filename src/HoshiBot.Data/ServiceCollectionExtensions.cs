@@ -28,6 +28,11 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<HoshiBotDbContext>>().CreateDbContext());
 
+        // Encrypts secret-typed feature settings at rest (see GuildFeatureSettingsService.GetSecret/
+        // SetSecret). Registered here so both host processes (Host + Web) get it wherever they use
+        // the settings service; reads Secrets:EncryptionKey from their config.
+        services.AddSingleton<SettingSecretProtector>();
+
         return services;
     }
 

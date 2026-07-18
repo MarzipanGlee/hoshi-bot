@@ -101,7 +101,7 @@ public partial class AiChatService(
         }
 
         var provider = await ResolveProviderAsync(guildId);
-        var apiKey = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
+        var apiKey = await settingsService.GetSecretAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
 
         // Only Gemini authenticates per guild — the shared local Ollama needs no key.
         if (provider.Kind == AiProvider.Gemini && string.IsNullOrWhiteSpace(apiKey))

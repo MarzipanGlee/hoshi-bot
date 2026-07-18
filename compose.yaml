@@ -7,6 +7,9 @@ services:
       - DOTNET_ENVIRONMENT=Production
       - ConnectionStrings__HoshiBotDbContext=Host=postgres;Database=hoshibot;Username=hoshibot;Password=${POSTGRES_PASSWORD}
       - Discord__Token=${DISCORD_TOKEN}
+      # Encrypts secret feature settings at rest (the per-guild Gemini API key). Keep it stable —
+      # changing it makes existing encrypted keys undecryptable. Set SECRETS_ENCRYPTIONKEY in .env.
+      - Secrets__EncryptionKey=${SECRETS_ENCRYPTIONKEY}
       - PublicWebBaseUrl=${PUBLIC_WEB_BASE_URL}
       # AI chat: guilds set to the Ollama provider answer via this shared local server.
       - Ollama__BaseUrl=http://ollama:11434
@@ -43,6 +46,8 @@ services:
       - Discord__Token=${DISCORD_TOKEN}
       - Discord__ClientId=${DISCORD_CLIENT_ID}
       - Discord__ClientSecret=${DISCORD_CLIENT_SECRET}
+      # Same key as the bot — the web panel encrypts the API key it saves; the bot decrypts it to call Gemini.
+      - Secrets__EncryptionKey=${SECRETS_ENCRYPTIONKEY}
       - DataProtection__KeyPath=/keys
       - GlobalAdmins__DiscordUserIds__0=${GLOBAL_ADMIN_DISCORD_ID}
     ports:

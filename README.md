@@ -85,6 +85,12 @@ dotnet user-secrets set "Discord:ClientId" "<oauth-client-id>" --project src/Hos
 dotnet user-secrets set "Discord:ClientSecret" "<oauth-client-secret>" --project src/HoshiBot.Web
 ```
 
+Optionally set `Secrets:EncryptionKey` (any stable string) on **both** projects to encrypt
+secret-typed settings — currently the per-guild Gemini API key — at rest (AES-256-GCM). Leave it
+unset locally to store those values as plaintext (the same as before). Keep it stable: changing it
+makes existing encrypted values undecryptable. In production it's `SECRETS_ENCRYPTIONKEY` in `.env`,
+wired to the `bot` and `web` services in `compose.yaml`.
+
 ## Production deployment
 
 `compose.yaml` runs five services: `bot` (HoshiBot.Host), `web` (HoshiBot.Web), `migrator`
