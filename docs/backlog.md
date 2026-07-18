@@ -34,7 +34,12 @@ via the shared `ollama` compose service at `Ollama:BaseUrl`). Deferred extension
   the main model (+ its `[NO_ANSWER]`). Gemini defaults on (a flash-lite); Ollama is opt-in via
   `Ollama:GateModel` (the small model must be pulled). Possible follow-up: a `MaxOutputTokens` cap
   on `AiChatCompletionRequest` to hard-bound the gate response (today it relies on the one-word
-  prompt).
+  prompt). The *"stronger model for the actual answer"* half is also done via **complexity routing**
+  (`AiChatSettingKeys.RouterModel`): when set, a cheap classifier tags each answer SIMPLE/COMPLEX and
+  answers simple ones with the cheap model, escalating only complex ones to the main `Model`. Opt-in
+  per guild, provider-agnostic; motivated by Gemini's per-model RPD limits (flash-lite 500/day vs
+  flash 20/day). Possible follow-up: fold the router into the gate for passive messages (one 3-way
+  NO/SIMPLE/COMPLEX call instead of two).
 - **Ollama Cloud / per-guild endpoint** — if a guild ever needs its own remote Ollama, promote the
   base URL (+ optional key) from deployment config to a per-guild setting; the
   `AiChatCompletionRequest.ApiKey` field already exists to carry a token.

@@ -41,6 +41,14 @@ public static class AiChatSettingKeys
     // literal value "off" disables the gate for this guild (back to the main model deciding).
     public const string GateModel = "GateModel";
 
+    // Optional complexity-router model. When set, a cheap classifier (this model) decides SIMPLE vs
+    // COMPLEX for each answered message: SIMPLE questions are answered by this same model, COMPLEX
+    // ones escalate to the main Model. Empty / "off" (default) → routing off, everything uses Model.
+    // Motivated by Gemini's per-model request-per-day limits (flash-lite 500/day vs flash 20/day):
+    // set this to gemini-3.1-flash-lite so only genuinely complex questions spend the tiny flash
+    // quota. Provider-agnostic — an Ollama guild could point it at a smaller local model.
+    public const string RouterModel = "RouterModel";
+
     // The Postgres full-text-search config used to index/search this guild's knowledge content
     // (a regconfig name like "german"/"english"/"simple"). Unset falls back to a value derived
     // from the guild's Discord preferred locale — see FtsLanguage.

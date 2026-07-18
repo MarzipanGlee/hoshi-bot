@@ -133,6 +133,26 @@
         }
     </SettingsCard>
 
+    <SettingsCard Title="Router model (optional)">
+        <label for="aiChatRouterModel" class="form-label">
+            A small/cheap model that answers <em>simple</em> questions and classifies each question's
+            complexity; <em>complex</em> questions escalate to the main Model above. Leave empty to
+            always use the main Model.
+            @if (providerInput != "ollama")
+            {
+                <span>
+                    Free-tier tip: set <code>@AiChatSettingKeys.DefaultGateModel</code> here — it allows
+                    far more requests per day than the main flash model, so the small quota is only spent
+                    on genuinely complex questions.
+                </span>
+            }
+        </label>
+        <input id="aiChatRouterModel" class="form-control"
+               placeholder="@(providerInput == "ollama" ? "Off — a smaller pulled model to enable" : "Off — e.g. " + AiChatSettingKeys.DefaultGateModel)"
+               @bind="routerModelInput" @bind:after="SaveRouterModelAsync" />
+        <div class="form-text">Leave empty (or <code>off</code>) to always use the main Model. Enter a model to enable complexity routing.</div>
+    </SettingsCard>
+
     <SettingsCard Title="Search language">
         <label for="aiChatSearchLanguage" class="form-label">
             Language for the full-text search over the knowledge sources (controls word-stemming).
@@ -173,6 +193,7 @@
     private string? systemPromptInput;
     private string? modelInput;
     private string? gateModelInput;
+    private string? routerModelInput;
     private string? searchLanguageInput;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -186,6 +207,7 @@
         systemPromptInput = await GetText(AiChatSettingKeys.SystemPrompt);
         modelInput = await GetText(AiChatSettingKeys.Model);
         gateModelInput = await GetText(AiChatSettingKeys.GateModel);
+        routerModelInput = await GetText(AiChatSettingKeys.RouterModel);
 
         // Show the effective search language: the stored choice, or the default derived from the
         // guild's Discord locale when unset (matches what the bot resolves at query time).
@@ -230,6 +252,8 @@
     private Task SaveModelAsync() => SetText(AiChatSettingKeys.Model, modelInput);
 
     private Task SaveGateModelAsync() => SetText(AiChatSettingKeys.GateModel, gateModelInput);
+
+    private Task SaveRouterModelAsync() => SetText(AiChatSettingKeys.RouterModel, routerModelInput);
 
     private Task SaveSearchLanguageAsync() => SetText(AiChatSettingKeys.SearchLanguage, searchLanguageInput);
 }

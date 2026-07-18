@@ -48,6 +48,17 @@ public partial class AiChatService(
         "Antworte mit genau einem Wort: NO nur, wenn es eindeutig KEINE solche Frage ist (z. B. Begrüßung, Smalltalk, " +
         "Reaktion, Meinung, Aussage, Aufruf an die Allianz oder an andere Mitglieder). Sonst YES. Im Zweifel YES.";
 
+    // Complexity router: classifies a to-be-answered message so a cheap model handles simple ones and
+    // only complex ones escalate to the premium model. Biased toward SIMPLE on doubt (conserves the
+    // scarce premium quota — e.g. Gemini flash's 20 requests/day). See the routing block in
+    // TryBuildReplyAsync and ClassifyComplexity.
+    private const string RouterSystemPrompt =
+        "Du bist ein Klassifikator, der die Komplexität einer Frage an einen Discord-Assistenten " +
+        "(Star-Trek-Fleet-Command-Allianz) einschätzt. Antworte mit genau einem Wort: COMPLEX oder SIMPLE. " +
+        "COMPLEX = erfordert mehrschrittiges Schlussfolgern, Strategie/Planung, eine ausführliche Erklärung " +
+        "oder ist breit bzw. mehrdeutig. SIMPLE = eine konkrete, eng umrissene Sach- oder Faktenfrage mit " +
+        "kurzer Antwort. Im Zweifel SIMPLE.";
+
     // Discord's typing indicator lasts ~10s; re-trigger a bit before that so it stays visible
     // across a slow (CPU-only Ollama) generation instead of stopping mid-wait.
     private static readonly TimeSpan TypingRefreshInterval = TimeSpan.FromSeconds(8);
@@ -187,6 +198,20 @@ public partial class AiChatService(
                 var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Model);
                 model = string.IsNullOrWhiteSpace(model) ? provider.DefaultModel : model.Trim();
 
+                // Complexity routing (opt-in): a cheap classifier picks the answer model — simple
+                // questions are answered by the cheap router model, complex ones by the main model
+                // above. Errs to SIMPLE (see EvaluateComplexityAsync), so the premium model's scarce
+                // quota (e.g. Gemini flash's 20/day) is only spent when the question clearly needs it.
+                var routeLabel = "off";
+                var routerModel = await ResolveRouterModelAsync(guildId);
+                if (routerModel is not null)
+                {
+                    var complexity = await EvaluateComplexityAsync(routerModel, provider, apiKey, message.Author, content, cancellationToken);
+                    routeLabel = complexity.ToString().ToLowerInvariant();
+                    if (complexity == Complexity.Simple)
+                        model = routerModel;
+                }
+
                 var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
 
                 var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken);
@@ -254,8 +279,8 @@ public partial class AiChatService(
                 // One line per handled message so a "why did it stay silent / only give the fallback"
                 // question is answerable straight from the logs.
                 logger.LogInformation(
-                    "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} gate={Gate} turns={Turns} provider={Provider} model={Model} → answer={AnswerChars} reply={Reply}",
-                    guildId, message.ChannelId, addressed, inListenChannel, gateLabel, turns.Count, provider.Kind, model,
+                    "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} gate={Gate} route={Route} turns={Turns} provider={Provider} model={Model} → answer={AnswerChars} reply={Reply}",
+                    guildId, message.ChannelId, addressed, inListenChannel, gateLabel, routeLabel, turns.Count, provider.Kind, model,
                     answer?.Length.ToString() ?? "null", replyText is null ? "silent" : "posted");
 
                 return replyText is null ? null : new AiChatReply(replyText, mentionable.Keys.ToList());
@@ -521,6 +546,43 @@ public partial class AiChatService(
         return GateResult.Ambiguous;
     }
 
+    private enum Complexity { Simple, Complex }
+
+    // The complexity-router model for this guild, or null when routing is off (RouterModel unset or
+    // "off"). Opt-in: no provider fallback, so an existing guild's behaviour is unchanged until set.
+    private async Task<string?> ResolveRouterModelAsync(ulong guildId)
+    {
+        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.RouterModel);
+        if (string.IsNullOrWhiteSpace(configured))
+            return null;
+
+        var trimmed = configured.Trim();
+        return trimmed.Equals("off", StringComparison.OrdinalIgnoreCase) ? null : trimmed;
+    }
+
+    // One cheap classification call (message only) → SIMPLE or COMPLEX. Errs to SIMPLE on failure so a
+    // broken/missing router model never escalates to (and drains) the scarce premium-model quota.
+    private async Task<Complexity> EvaluateComplexityAsync(string routerModel, IAiChatProvider provider, string? apiKey, NetCord.User author, string content, CancellationToken cancellationToken)
+    {
+        var turn = new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(author)}: {content}");
+        var answer = await provider.GenerateAsync(new AiChatCompletionRequest(routerModel, RouterSystemPrompt, [turn], apiKey), cancellationToken);
+        if (answer is null)
+        {
+            logger.LogWarning("AiChat router model {RouterModel} (provider {Provider}) returned null; treating as SIMPLE.", routerModel, provider.Kind);
+            return Complexity.Simple;
+        }
+
+        return ClassifyComplexity(answer);
+    }
+
+    // Only a clear, unambiguous COMPLEX escalates to the premium model; SIMPLE, both words, or neither
+    // (garbage) stays on the cheap router model — the quota-conserving bias.
+    private static Complexity ClassifyComplexity(string answer)
+    {
+        var upper = answer.ToUpperInvariant();
+        return ComplexWord().IsMatch(upper) && !SimpleWord().IsMatch(upper) ? Complexity.Complex : Complexity.Simple;
+    }
+
     // Per-guild FTS config: the explicit setting, else derived from the guild's Discord locale,
     // else "simple". Always normalized against the supported whitelist before use.
     private async Task<string> ResolveSearchLanguageAsync(ulong guildId)
@@ -559,4 +621,11 @@ public partial class AiChatService(
 
     [GeneratedRegex(@"\b(YES|JA)\b")]
     private static partial Regex GateYes();
+
+    // Complexity-router verdict tokens, matched as whole words on the upper-cased answer.
+    [GeneratedRegex(@"\bCOMPLEX\b")]
+    private static partial Regex ComplexWord();
+
+    [GeneratedRegex(@"\bSIMPLE\b")]
+    private static partial Regex SimpleWord();
 }
