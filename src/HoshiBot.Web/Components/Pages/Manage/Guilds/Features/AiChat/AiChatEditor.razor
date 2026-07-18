@@ -133,6 +133,18 @@
         }
     </SettingsCard>
 
+    <SettingsCard Title="Response streaming">
+        <div class="form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="aiChatStreaming"
+                   checked="@streamResponses" @onchange="e => SaveStreamResponsesAsync((bool)e.Value!)" />
+            <label class="form-check-label" for="aiChatStreaming">Stream answers live</label>
+        </div>
+        <div class="form-text">
+            Post an answer as a placeholder / typing indicator and edit it in place as the model writes,
+            instead of one message at the end. Nice for slow local (Ollama) models; off by default.
+        </div>
+    </SettingsCard>
+
     <SettingsCard Title="Router model (optional)">
         <label for="aiChatRouterModel" class="form-label">
             A small/cheap model that answers <em>simple</em> questions and classifies each question's
@@ -194,6 +206,7 @@
     private string? modelInput;
     private string? gateModelInput;
     private string? routerModelInput;
+    private bool streamResponses;
     private string? searchLanguageInput;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -208,6 +221,7 @@
         modelInput = await GetText(AiChatSettingKeys.Model);
         gateModelInput = await GetText(AiChatSettingKeys.GateModel);
         routerModelInput = await GetText(AiChatSettingKeys.RouterModel);
+        streamResponses = string.Equals(await GetText(AiChatSettingKeys.StreamResponses), "true", StringComparison.OrdinalIgnoreCase);
 
         // Show the effective search language: the stored choice, or the default derived from the
         // guild's Discord locale when unset (matches what the bot resolves at query time).
@@ -254,6 +268,12 @@
     private Task SaveGateModelAsync() => SetText(AiChatSettingKeys.GateModel, gateModelInput);
 
     private Task SaveRouterModelAsync() => SetText(AiChatSettingKeys.RouterModel, routerModelInput);
+
+    private async Task SaveStreamResponsesAsync(bool value)
+    {
+        streamResponses = value;
+        await SetText(AiChatSettingKeys.StreamResponses, value ? "true" : null);
+    }
 
     private Task SaveSearchLanguageAsync() => SetText(AiChatSettingKeys.SearchLanguage, searchLanguageInput);
 }

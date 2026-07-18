@@ -250,15 +250,16 @@ public partial class AiChatService(
                 var request = new AiChatCompletionRequest(model, systemInstruction, turns, apiKey);
                 string? answer;
 
-                if (onPartial is not null)
+                var streaming = onPartial is not null && await IsStreamingEnabledAsync(guildId);
+                if (streaming)
                 {
                     // Stream the answer so a long (CPU-only) generation appears live instead of a minute
-                    // of "typing" then a wall of text. Works for both addressed and passive (gate=yes)
-                    // messages — StreamAnswerAsync handles the difference (an addressed message always
-                    // answers, so it shows an instant placeholder; a passive one may still end in
-                    // [NO_ANSWER] silence, so it bridges with the typing indicator and only posts once
-                    // real content streams in).
-                    answer = await StreamAnswerAsync(provider, request, onPartial, addressed, message.ChannelId, botSpokeBefore, message.Author, botName, cancellationToken);
+                    // of "typing" then a wall of text. Opt-in per guild (AiChatSettingKeys.StreamResponses).
+                    // Works for both addressed and passive (gate=yes) messages — StreamAnswerAsync handles
+                    // the difference (an addressed message always answers, so it shows an instant
+                    // placeholder; a passive one may still end in [NO_ANSWER] silence, so it bridges with
+                    // the typing indicator and only posts once real content streams in).
+                    answer = await StreamAnswerAsync(provider, request, onPartial!, addressed, message.ChannelId, botSpokeBefore, message.Author, botName, cancellationToken);
                 }
                 else
                 {
@@ -423,6 +424,14 @@ public partial class AiChatService(
     {
         var text = raw.Replace(NoAnswerSentinel, "", StringComparison.OrdinalIgnoreCase).Trim();
         text = StripSelfNamePrefix(text, botName);
+
+        // Drop the trailing (likely half-streamed) word so the live edits only ever show whole words,
+        // not "Gebiets" → "Gebietsübernahme". The final edit uses the complete answer, so nothing is
+        // lost. Until a word boundary exists we post nothing yet.
+        var lastBoundary = text.LastIndexOfAny([' ', '\n', '\t']);
+        if (lastBoundary <= 0)
+            return null;
+        text = text[..lastBoundary].TrimEnd();
         if (text.Length == 0)
             return null;
 
@@ -585,6 +594,14 @@ public partial class AiChatService(
         if (yes && !no)
             return GateResult.Yes;
         return GateResult.Ambiguous;
+    }
+
+    // Opt-in per guild: answers stream (placeholder/typing → live edits) only when StreamResponses is
+    // "true". Unset (default) → classic post-once.
+    private async Task<bool> IsStreamingEnabledAsync(ulong guildId)
+    {
+        var value = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.StreamResponses);
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private enum Complexity { Simple, Complex }

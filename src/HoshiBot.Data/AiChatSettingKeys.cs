@@ -41,6 +41,11 @@ public static class AiChatSettingKeys
     // literal value "off" disables the gate for this guild (back to the main model deciding).
     public const string GateModel = "GateModel";
 
+    // Opt-in live response streaming: when "true", answers are posted as a placeholder / typing
+    // indicator and edited in place as the model generates, instead of one message at the end. Unset
+    // (default) → off, classic post-once. Stored as the literal string "true".
+    public const string StreamResponses = "StreamResponses";
+
     // Optional complexity-router model. When set, a cheap classifier (this model) decides SIMPLE vs
     // COMPLEX for each answered message: SIMPLE questions are answered by this same model, COMPLEX
     // ones escalate to the main Model. Empty / "off" (default) → routing off, everything uses Model.
