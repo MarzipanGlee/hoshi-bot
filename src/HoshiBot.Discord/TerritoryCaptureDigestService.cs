@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
@@ -53,8 +52,17 @@ public class TerritoryCaptureDigestService(
                 if (known.Count == 0 && unknown.Count == 0)
                     continue;
 
+                // Slot index = position in the week's chronological order — the same numbering the
+                // daily digest and the zone-slot roles use, so the row number and button icon match.
+                var slotted = known
+                    .Select((z, i) => (SlotIndex: i + 1, z.Territory, z.Start, z.End))
+                    .ToList();
+                var mentionRoleIds = notificationRole?.DiscordRoleId is { } generalRoleId
+                    ? new List<ulong> { generalRoleId }
+                    : new List<ulong>();
+
                 var title = links.Count > 1 ? $"{baseTitle} — [{link.StfcAlliance.Tag}]" : baseTitle;
-                await SendDigestAsync(guildId, channelIdValue, link, title, known, unknown, notificationRole?.DiscordRoleId, pin: true);
+                await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true);
             }
         }
     }
@@ -79,13 +87,22 @@ public class TerritoryCaptureDigestService(
                 if (tomorrowSlots.Count == 0)
                     continue;
 
-                var mentionRoleId = await settingsService.GetSnowflakeAsync(
-                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id,
-                    TerritoryCaptureSettingKeys.ZoneSlotRole(tomorrowSlots[0].SlotIndex));
+                // Ping the zone-slot role for each of tomorrow's zones, keyed by the same slot index
+                // shown on the row and button — so the mention, the row number and the button icon all
+                // line up with the weekly preview's numbering.
+                var mentionRoleIds = new List<ulong>();
+                foreach (var slot in tomorrowSlots)
+                {
+                    var roleId = await settingsService.GetSnowflakeAsync(
+                        guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id,
+                        TerritoryCaptureSettingKeys.ZoneSlotRole(slot.SlotIndex));
+                    if (roleId is { } rid && !mentionRoleIds.Contains(rid))
+                        mentionRoleIds.Add(rid);
+                }
 
                 var title = links.Count > 1 ? $"Morgige Gebietsübernahmen — [{link.StfcAlliance.Tag}]" : "Morgige Gebietsübernahmen";
-                var known = tomorrowSlots.Select(s => (s.Territory, s.Start, s.End)).ToList();
-                await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleId, pin: false);
+                var known = tomorrowSlots.Select(s => (s.SlotIndex, s.Territory, s.Start, s.End)).ToList();
+                await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false);
             }
         }
     }
@@ -159,37 +176,40 @@ public class TerritoryCaptureDigestService(
     }
 
     private async Task SendDigestAsync(ulong guildId, ulong channelId, GuildAlliance link, string title,
-        List<(StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
-        ulong? mentionRoleId, bool pin)
+        List<(int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
+        IReadOnlyList<ulong> mentionRoleIds, bool pin)
     {
-        var table = new StringBuilder();
-        table.AppendLine("```");
-        table.AppendLine($"{"#",-3}{"Zone",-12}{"Tier",-5}{"Nachbarn",-24}{"Tag",-5}{"Zeit",-16}");
-
-        var index = 0;
-        foreach (var (territory, start, end) in known)
+        // Each row is its OWN inline-code span, with the time appended as real Discord timestamps
+        // (<t:unix:t>) OUTSIDE the span. Discord won't render a timestamp inside a code fence, so
+        // the legacy design keeps only the aligned columns fenced and lets the time show in each
+        // reader's local timezone — the whole reason this isn't one big ``` block.
+        var lines = new List<string> { "`#  Zone       Tier  Nachbarn                Tag`" };
+        foreach (var (slotIndex, territory, start, end) in known)
         {
-            index++;
-            var neighbours = await GetNeighbourOwnerTagsAsync(territory.Id, link.StfcAlliance.ServerId);
+            var neighbours = await GetNeighbourOwnerTagsAsync(territory.Id, link.StfcAlliance.ServerId, link.StfcAlliance.Tag);
             var day = start.ToString("ddd", CultureInfo.GetCultureInfo("de-DE"));
-            var time = $"{start:HH:mm}-{end:HH:mm}";
-            table.AppendLine($"{index,-3}{territory.Name,-12}{territory.Tier,-5}{string.Join(", ", neighbours),-24}{day,-5}{time,-16}");
+            lines.Add($"`{slotIndex}  {territory.Name,-9}  {territory.Tier}  {string.Join(", ", neighbours),-22}  {day} ` " +
+                $"<t:{start.ToUnixTimeSeconds()}:t>-<t:{end.ToUnixTimeSeconds()}:t>");
         }
-
-        table.AppendLine("```");
 
         if (unknown.Count > 0)
         {
-            table.AppendLine($"Zeit noch unbekannt: {string.Join(", ", unknown.Select(t => t.Name))}");
+            lines.Add($"Zeit noch unbekannt: {string.Join(", ", unknown.Select(t => t.Name))}");
         }
+
+        var commandBridgeChannelId = await db.GuildSettings
+            .Where(g => g.GuildId == guildId)
+            .Select(g => g.CommandBridgeChannelId)
+            .FirstOrDefaultAsync();
+        var bridgeMention = commandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : "Kommandobrücke";
 
         var embed = new EmbedProperties
         {
             Title = title,
-            Description = "Bitte haltet Euch diese Termine nach Möglichkeit frei oder meldet Euch für einzelne Termine hier oder generell auf der #kommandobrücke ab!",
+            Description = $"Bitte haltet Euch diese Termine nach Möglichkeit frei oder meldet Euch für einzelne Termine hier oder generell auf der {bridgeMention} ab!",
             Fields =
             [
-                new EmbedFieldProperties { Name = "Termine", Value = Clamp(table.ToString()) },
+                new EmbedFieldProperties { Name = "Termine", Value = Clamp(string.Join("\n", lines)) },
             ],
             Color = EmbedBranding.BotColor,
             Author = await embedBranding.BuildAuthorAsync(guildId),
@@ -208,12 +228,14 @@ public class TerritoryCaptureDigestService(
         }
 
         var buttons = known
-            .Select((z, i) => new ButtonProperties(
+            .Select(z => new ButtonProperties(
                 $"territory-capture-unsubscribe:{z.Territory.Id}:{z.Start.ToUnixTimeSeconds()}:{z.End.ToUnixTimeSeconds()}",
-                $"{i + 1} Abmelden für {z.Territory.Name}", ButtonStyle.Primary))
+                $"Abmelden für {z.Territory.Name}", EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
             .ToList();
 
-        var content = mentionRoleId is { } roleId ? $"<@&{roleId}>" : null;
+        var content = mentionRoleIds.Count > 0
+            ? string.Join(" ", mentionRoleIds.Select(id => $"<@&{id}>"))
+            : null;
 
         // Discord allows at most 5 buttons per action row and 5 rows per message; chunk so a
         // guild owning more than 5 zones doesn't produce an over-full row (another silent 400).
@@ -230,6 +252,11 @@ public class TerritoryCaptureDigestService(
                 Content = content,
                 Embeds = [embed],
                 Components = actionRows.Count == 0 ? null : actionRows,
+                // Explicitly whitelist the mentioned roles: without this a non-mentionable role
+                // renders coloured but never actually pings (the "mention doesn't work" symptom).
+                AllowedMentions = mentionRoleIds.Count > 0
+                    ? new AllowedMentionsProperties { Everyone = false, AllowedRoles = mentionRoleIds.ToArray() }
+                    : AllowedMentionsProperties.None,
             });
 
             if (pin)
@@ -257,7 +284,7 @@ public class TerritoryCaptureDigestService(
     // the ServerId filter this returned every alliance owning a same-ID territory across ALL ~100
     // game servers (200+ tags, 1000+ chars per zone), overflowing the embed field limit and making
     // every digest send fail with a swallowed 400.
-    private async Task<List<string>> GetNeighbourOwnerTagsAsync(int territoryId, int serverId)
+    private async Task<List<string>> GetNeighbourOwnerTagsAsync(int territoryId, int serverId, string ownerTag)
     {
         var neighbourTerritoryIds = await db.StfcTerritoryNeighbours
             .Where(n => n.TerritoryId == territoryId)
@@ -267,10 +294,28 @@ public class TerritoryCaptureDigestService(
         if (neighbourTerritoryIds.Count == 0)
             return [];
 
+        // Exclude the owning alliance's own tag — a zone that borders another of its own zones
+        // shouldn't list itself as a neighbour.
         return await db.StfcTerritoryOwnerships
-            .Where(o => o.ServerId == serverId && neighbourTerritoryIds.Contains(o.TerritoryId))
+            .Where(o => o.ServerId == serverId && neighbourTerritoryIds.Contains(o.TerritoryId) && o.Alliance.Tag != ownerTag)
             .Select(o => o.Alliance.Tag)
             .Distinct()
             .ToListAsync();
     }
+
+    // Keycap-digit emoji for a button icon (1️⃣ … 9️⃣), matching legacy's per-zone digit emoji.
+    // Slot indices are 1-5 in practice; the fallback only guards an unexpected value.
+    private static string DigitEmoji(int digit) => digit switch
+    {
+        1 => "1️⃣",
+        2 => "2️⃣",
+        3 => "3️⃣",
+        4 => "4️⃣",
+        5 => "5️⃣",
+        6 => "6️⃣",
+        7 => "7️⃣",
+        8 => "8️⃣",
+        9 => "9️⃣",
+        _ => "🔢",
+    };
 }
