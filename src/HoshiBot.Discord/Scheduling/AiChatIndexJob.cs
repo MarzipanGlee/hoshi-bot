@@ -36,6 +36,9 @@ public class AiChatIndexJob(
             try
             {
                 await indexService.BackfillGuildAsync(guildId, cancellationToken);
+                // Fill embeddings for newly/previously indexed rows (bounded per run) so the vector
+                // leg of hybrid search catches up alongside the progressive history backfill.
+                await indexService.EmbedPendingAsync(guildId, cancellationToken);
             }
             catch (Exception ex)
             {

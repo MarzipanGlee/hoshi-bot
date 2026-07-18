@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 var connectionString = Environment.GetEnvironmentVariable("HOSHIBOT_CONNECTIONSTRING")
     ?? throw new InvalidOperationException("Set the HOSHIBOT_CONNECTIONSTRING environment variable to the target PostgreSQL database.");
 
-var optionsBuilder = new DbContextOptionsBuilder<HoshiBotDbContext>().UseNpgsql(connectionString);
+var optionsBuilder = new DbContextOptionsBuilder<HoshiBotDbContext>().UseNpgsql(connectionString, o => o.UseVector());
 await using var db = new HoshiBotDbContext(optionsBuilder.Options);
 
 Console.WriteLine("Applying pending EF Core migrations...");

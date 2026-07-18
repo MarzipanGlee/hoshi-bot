@@ -11,7 +11,7 @@ public class HoshiBotDbContextFactory : IDesignTimeDbContextFactory<HoshiBotDbCo
             ?? "Host=localhost;Database=hoshibot;Username=hoshibot;Password=hoshibot;";
 
         var optionsBuilder = new DbContextOptionsBuilder<HoshiBotDbContext>()
-            .UseNpgsql(connectionString);
+            .UseNpgsql(connectionString, o => o.UseVector());
 
         return new HoshiBotDbContext(optionsBuilder.Options);
     }

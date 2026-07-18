@@ -16,6 +16,11 @@ public class AiChatIndexedMessageConfiguration : IEntityTypeConfiguration<AiChat
         // Every search scopes by guild first, so index it.
         builder.HasIndex(m => m.GuildId);
 
+        // Fixed 768-dim embedding (matches the default embeddinggemma model). No ANN index for v1
+        // — a sequential cosine scan is fine at per-guild knowledge scale (mirrors the no-GIN
+        // decision for the FTS side); revisit with HNSW/IVFFlat if a guild's index grows large.
+        builder.Property(m => m.Embedding).HasColumnType("vector(768)");
+
         builder.HasOne(m => m.Guild)
             .WithMany()
             .HasForeignKey(m => m.GuildId)

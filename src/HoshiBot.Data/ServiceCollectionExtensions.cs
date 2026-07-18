@@ -24,7 +24,7 @@ public static class ServiceCollectionExtensions
     {
         var connectionString = configuration.GetConnectionString("HoshiBotDbContext");
 
-        services.AddDbContextFactory<HoshiBotDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContextFactory<HoshiBotDbContext>(options => options.UseNpgsql(connectionString, o => o.UseVector()));
 
         services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<HoshiBotDbContext>>().CreateDbContext());
 

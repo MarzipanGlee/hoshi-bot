@@ -27,6 +27,9 @@
          hit CS1705 — the Sqlite package used to provide this pin incidentally. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <!-- pgvector EF Core integration (o => o.UseVector(), the vector column type mapping, and the
+         CosineDistance/L2Distance query operators). 0.3.0 supports EF Core 9 & 10. -->
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
   </ItemGroup>
 
   <PropertyGroup>

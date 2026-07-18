@@ -76,6 +76,7 @@ builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();
 builder.Services.AddScoped<IAiChatProvider, GeminiClient>();
 builder.Services.AddScoped<IAiChatProvider, OllamaClient>();
+builder.Services.AddScoped<AiChatEmbeddingService>();
 builder.Services.AddScoped<AiChatIndexService>();
 builder.Services.AddScoped<AiChatService>();
 

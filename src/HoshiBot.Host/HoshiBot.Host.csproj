@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-HoshiBot.Host-9456395d-60d3-4f58-b506-fba4e5f9e748</UserSecretsId>
+    <!-- Silences CS9057 from OllamaSharp's source-generator (skipped, newer Roslyn than the SDK),
+         which propagates here via the HoshiBot.Discord project reference. -->
+    <NoWarn>$(NoWarn);CS9057</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

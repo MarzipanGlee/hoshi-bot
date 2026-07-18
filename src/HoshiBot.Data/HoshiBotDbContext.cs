@@ -93,6 +93,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<AiChatIndexedMessage> AiChatIndexedMessages => Set<AiChatIndexedMessage>();
 
+    public DbSet<AiChatBackfillState> AiChatBackfillStates => Set<AiChatBackfillState>();
+
     public DbSet<ChannelPermissionExpectation> ChannelPermissionExpectations => Set<ChannelPermissionExpectation>();
 
     public DbSet<StfcServerStatus> StfcServerStatuses => Set<StfcServerStatus>();
@@ -115,6 +117,11 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // pgvector: registers the `vector` extension so the AiChatIndexedMessage.Embedding column
+        // (type vector(768)) and its distance operators are available (see AiChatEmbeddingService /
+        // AiChatIndexService hybrid search). Requires a pgvector-capable Postgres image.
+        modelBuilder.HasPostgresExtension("vector");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HoshiBotDbContext).Assembly);
     }
 }

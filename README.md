@@ -88,22 +88,35 @@ dotnet user-secrets set "Discord:ClientSecret" "<oauth-client-secret>" --project
 ## Production deployment
 
 `compose.yaml` runs five services: `bot` (HoshiBot.Host), `web` (HoshiBot.Web), `migrator`
-(HoshiBot.Migrator, profile `migrate` — only runs on demand, not part of `up`), `postgres`,
-and `ollama` (local LLM backend for the AI-chat feature's Ollama provider). Both app services
-read secrets from environment variables — see `compose.yaml` for the full list (`DISCORD_TOKEN`,
-`POSTGRES_PASSWORD`, `PUBLIC_WEB_BASE_URL`, etc.).
+(HoshiBot.Migrator, profile `migrate` — only runs on demand, not part of `up`), `postgres`
+(the `pgvector/pgvector:pg16` image — Postgres 16 with the `vector` extension the AI-chat
+semantic index needs), and `ollama` (local LLM backend for the AI-chat feature's Ollama
+provider and its embeddings). Both app services read secrets from environment variables — see
+`compose.yaml` for the full list (`DISCORD_TOKEN`, `POSTGRES_PASSWORD`, `PUBLIC_WEB_BASE_URL`, etc.).
 
 The AI-chat feature answers per guild via **Google Gemini** (guild-supplied API key) **or**
 **Ollama** (the shared local `ollama` service, no key). Ollama does not auto-pull models on
-first use, so after the stack is up pull the default model once (and again for any model a guild
-overrides to):
+first use, so after the stack is up pull the models once — the chat default plus the embedding
+model used for semantic knowledge search (and any model a guild overrides to):
 
 ```bash
-docker compose exec ollama ollama pull llama3.1:8b
+docker compose exec ollama ollama pull llama3.1:8b     # chat (Ollama provider)
+docker compose exec ollama ollama pull embeddinggemma  # semantic search embeddings (all guilds)
 ```
 
-The default model is set via `Ollama__DefaultModel` (env, `bot` service); base URL via
-`Ollama__BaseUrl`. For GPU acceleration, uncomment the `deploy` block on the `ollama` service.
+Chat/embedding models are set via `Ollama__DefaultModel` / `Ollama__EmbeddingModel` (env, `bot`
+service); base URL via `Ollama__BaseUrl`. Blanking `Ollama__EmbeddingModel` disables semantic
+search (knowledge retrieval falls back to keyword full-text search only). For GPU acceleration,
+uncomment the `deploy` block on the `ollama` service.
+
+**Postgres image note:** the `postgres` service uses `pgvector/pgvector:pg16` (Debian-based)
+rather than the previous `postgres:16-alpine`. On-disk data is compatible (same PG 16), but the
+libc changes (musl → glibc), which can invalidate text-index collation ordering — after the
+first switch on an existing volume, run a one-time reindex:
+
+```bash
+docker compose exec postgres psql -U hoshibot -d hoshibot -c 'REINDEX DATABASE hoshibot;'
+```
 
 `bot`/`web` logs are bind-mounted to `./logs/bot`/`./logs/web` on the host (rolling daily
 files, 14 days retained) — see [DEBUG.md](DEBUG.md) for how to pull them for debugging.
@@ -157,171 +170,5 @@ CONSTRAINT ...` for PK/FK names) instead.
 
 ## Roadmap / TODO
 
-Hoshi Bot currently serves **Alliance Discords** (the full feature set: absences, shield/raid
-alerts, Territory Capture, RoE violations, tickets, announcements, diplomacy, anonymous
-messages, Setup Wizard). The following is unbuilt — a raw backlog, not a scoped/prioritized
-spec, several items depend on each other (e.g. the boarding wizard feeds nickname tagging;
-RoE alliance lists feed the diplomacy channel structure).
-
-### General features (all audiences, not built yet)
-
-- Manage polls — a general-purpose poll creation/management tool usable by any Discord
-  (Alliance, Server, Community), not tied to one audience. Could later become the underlying
-  mechanism for the Council/RoE/Mediation vote channels below, rather than a separate
-  implementation, but stands on its own as a feature regardless.
-- Rate-limit visibility — NetCord (the Discord library) already handles rate limiting
-  automatically (per-route + global buckets, `Retry-After` aware), but nothing in the codebase
-  subscribes to its `RateLimited` event, so throttling happens silently. Subscribe to it and
-  surface an active-rate-limit banner in the web admin backend, purely for operator visibility
-  — not a correctness fix, since requests already succeed, just delayed.
-
-### Web admin UX (done)
-
-Settings is now one page per feature (`Components/Pages/Manage/Guilds/Features/`) plus a
-Global Settings page for what's genuinely guild-wide, each setting with a real description.
-The Dashboard lists every feature grouped by audience (Alliance / Server & Veil Group /
-Community) with an inline enable switch and a Configure link per card, independently
-toggleable per audience for the 5 features that serve more than one. The Setup Wizard asks
-which audience(s) a guild serves up front and skips the Scope step for Community-only
-guilds; per-feature enabling now happens from the Dashboard instead of a wizard step. Every
-feature's settings (channel/role IDs, and TerritoryCapture's instructions text) live in a
-generic per-(guild, feature, audience, key) store (`GuildFeatureSettingsService`) instead of
-flat `GuildSettings` columns — see that service's doc comment for the shape.
-
-### Web admin UX — audit plain-HTML pickers against BootstrapBlazor (engineering, not previously scoped)
-
-Every dropdown/input across `Components/Pages/Manage/**` and `Components/Shared/*Picker.razor`
-is plain HTML (`<select class="form-select">`, `<InputSelect>`) — BootstrapBlazor is an
-installed dependency (its bundle already loaded in `App.razor`) that went unused until the
-Guild Audience page's cascading region/server/alliance pickers became its first real
-consumer (`<Select>` with `ShowSearch`, `<Collapse>` for the per-audience accordion). Review
-the existing pickers (`RolePicker`, `ChannelPicker`, the Stfc catalog CRUD forms' selects,
-etc.) for replacement with BootstrapBlazor equivalents for consistency — not urgent, no
-functional gap, a quality-of-life pass for later.
-
-Once every guild page (`Components/Pages/Manage/Guilds/**`) has been through this pass,
-also revisit the Guild Overview page (`Guilds/Index.razor`, route `/manage/guilds/{id}`) —
-it wasn't in scope for the Audience/Scope rework and hasn't been checked against the
-BootstrapBlazor-first convention or against whatever UI patterns fall out of the other
-pages' passes.
-
-### Server & Veil Group Discords (new audience, not built yet)
-
-- Diplomacy group — a server-wide diplomacy construct (distinct from the existing per-alliance
-  diplomacy), grouping which alliances are allied/enemy/etc. at the whole-server level.
-- Diplomacy channel per alliance in that group — split into a "RoE Diplomacy" category
-  (per-alliance RoE compliance discussion) and a separate "Non-RoE Diplomacy" category (general
-  war declarations, general diplomacy chat). Confirmed pattern from a real reference server.
-- RoE alliances — a listing of alliances recognized under the server's Rules of Engagement,
-  with an application flow for alliances to join it.
-- No-RoE alliances — a separate tracked list of alliances explicitly excluded from the RoE.
-- Rogue players — two pieces: a published rogue-policy document (same versioned-document
-  pattern as RoE, below) plus a live rogue-listing (an actual tracked roster), plus a "no-id"
-  holding channel/role for members who haven't completed boarding yet.
-- **RoE governance workflow** (not just a static multilingual doc):
-  - Versioned with a change pipeline — proposal → discussion → council vote → publish with a
-    future effective date (a real reference server's RoE embed literally has "Last Change" and
-    "Validity from" timestamps in its footer).
-  - Structured content — numbered rules, an "Exceptions" sub-list per rule, and a Definitions
-    glossary section (e.g. Warship, Miner, OPC/UPC, Zero/D-Node, Full Cargo).
-  - Per-language **channels**, not a language switcher — separate channels per language, each
-    mirroring the same structured embed, kept in sync from one template.
-- Boarding wizard — new member picks alliance, server, and in-game player name, driving an
-  automatic Discord nickname change to match.
-- Role application with human confirmation — a role request is only granted after mod team or
-  alliance leadership approves it, not automatically.
-- Cross-Discord role sync — if a player's home alliance also runs Hoshi Bot in their own
-  Discord, sync that player's role/status between the server Discord and the alliance Discord.
-
-### Governance bodies (new, not previously scoped)
-
-Two distinct cross-alliance bodies, separate from any single alliance's own leadership:
-
-- **Alliances Council** — owns the RoE proposal/discussion/vote pipeline above; has its own
-  deliberation ("chamber") and voting channels.
-- **Mediation Council** — a separate dispute-resolution body with published guidelines, a
-  requests channel (alliances/players file mediation requests), and its own mediator vote
-  channel. Don't conflate this with the Alliances Council — different purpose and membership.
-
-### Cross-server events ("Incursions") — new, not previously scoped
-
-Recurring scheduled PvP events against another whole server, with a template-shaped
-announcement every time: event name/dates/duration, scoring-rule changes for the event, a
-pre-event safety window (shields drop above a system threshold), a "server purge" at a fixed
-offset before start (prevents cheesing), a declared ceasefire between the home server's
-alliances during the event, the opposing server's ID, and a temporary access-restricted
-channel group that only exists for the event window. Good fit for a reusable scheduled-event
-templating feature alongside the existing Quartz jobs in `HoshiBot.Discord/Scheduling/`.
-
-### Incursion advance-warning announcement (external API found, not built)
-
-An STFC stats site (`gilli.site`) exposes `/api/events` — one row per known recurring event
-type (`incursions`, `alliance_tournaments`, `sarris_invasions`, `flashpoint`) showing its most
-recent `event_start`/`event_end`/`active` state. Planned: poll it, and when `incursions`'
-`event_start` changes to a new future date not seen before, post a Discord announcement warning
-players ahead of time (ties into the "Cross-server events" item above). Two things unresolved
-before building: whether this API actually gets updated with advance notice at all (every row
-observed so far was a past, inactive event — needs watching over time to confirm), and whether
-to post through a new dedicated channel/setting or the existing Announcements pipeline.
-
-### Server up/down + maintenance notification (external API found, not built)
-
-The same stats site also exposes `/api/server-status` — one row per real STFC server (113
-total), shaped `{id, name, region: {id, description, num}, status, player_transfer_state:
-{transfer_in, transfer_out, authenticated}, priority, maintenance}`. Server 164 confirmed
-present (region `eu-west-1`, "Ireland (EU)"). Planned: poll it and post a Discord announcement
-when `status`/`maintenance` changes for the tracked server, so players know a maintenance
-window is why the game is unreachable instead of assuming something's broken locally. Checked
-2026-07-08: every server showed `status:1`/`maintenance:"0"` (all up) — the actual down/
-maintenance values are unconfirmed, need a real state change to verify. `player_transfer_state`
-looks like a separate server-merge/transfer concern, not needed for basic up/down/maintenance.
-
-### Applies to all server-type Discords (Server + Veil Group)
-
-- Per-channel default language, not just per-guild.
-- stfc.pro sync — alliance/player name synchronization against the external stfc.pro data
-  source, not just in-guild data.
-- Conditional nickname tagging — format as `[server][alliance-tag] Player Name`, conditionally:
-  no tags for a player from the Discord's own home alliance/server, but foreign players (from
-  another server or an external allied alliance) get both tags to disambiguate.
-- Anonymous coordinate/violation reporting — likely reuses the already-built Anonymous Messages
-  feature (built for alliances) rather than needing new engineering, just exposed server-wide.
-
-### Enhancements to the existing Alliance Discord feature set
-
-- Allied-alliance channel/group — dedicated channel or category for allied alliances inside an
-  alliance's own Discord, driven by the existing diplomacy status data.
-- Player-left-alliance leadership warning — when stfc.pro sync detects a player has left the
-  alliance, warn alliance leadership and prompt them to reassign/remove that player's Discord
-  roles (human-confirmed, not automatic). The server-Discord equivalent should auto-correct the
-  player's roles/tags instead of just warning, since it isn't the player's home alliance.
-
-### Engineering requirement learned from a legacy bot failure
-
-A reference server's legacy (YAGPDB-based) self-service "claim your alliance tag" command
-broke in production when a moderator role got reordered above another role in the guild's
-hierarchy — Discord bots can only manage roles/nicknames positioned below their own top role.
-It failed with a cryptic error rather than a clear one. **Hoshi Bot's boarding/tag-claiming
-implementation must detect this failure mode explicitly and surface a clear error to mods**,
-not fail silently/cryptically.
-
-### Guild removal cleanup (engineering, not previously scoped)
-
-No handler exists yet for the bot losing access to a guild — `GuildSyncHandler`
-(`HoshiBot.Host`) only handles the gateway's guild-create event (join/reconnect), with no
-symmetric handler for the bot being kicked, banned, leaving, or the guild being deleted
-outright. Discord's own gateway event doesn't distinguish "bot removed" from "guild
-deleted" — both surface identically; the only thing to filter out is the event's
-`unavailable: true` case, which means a temporary Discord-side outage, not real removal.
-Every per-guild entity built so far already cascade-deletes from `DiscordGuilds`, so the
-DB-level cleanup mechanism already exists — what's missing is the trigger. Main open design
-question before building: delete immediately on the event (simple, but loses all config if
-the bot is kicked and re-invited by accident within minutes), or a grace-period soft-delete
-(mark a `PendingRemovalAt` timestamp, a cleanup job finalizes the delete after N days,
-cancelled if the guild-create event fires again first) — safer, but adds a new sweep job
-and a cancel-path to get right.
-
-### Community Discords (new audience, no concrete feature set yet)
-
-Not tied to one alliance, server, or veil group. Existing generic features (announcements,
-tickets, anonymous messages) already carry over; no community-specific features are scoped yet.
+The unbuilt-feature backlog (planned features, engineering follow-ups, and deferred ideas)
+lives in [docs/backlog.md](docs/backlog.md).

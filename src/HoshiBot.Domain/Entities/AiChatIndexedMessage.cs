@@ -1,3 +1,5 @@
+using Pgvector;
+
 namespace HoshiBot.Domain.Entities;
 
 // One indexed Discord message from a guild's AI-chat knowledge channels — the persistent search
@@ -34,4 +36,13 @@ public class AiChatIndexedMessage
 
     // When this row was last (re)indexed.
     public DateTimeOffset IndexedAt { get; set; }
+
+    // The semantic embedding of Content (pgvector, fixed vector(768)) — powers the vector leg of
+    // the hybrid search alongside the query-time full-text match. Null until the backfill job's
+    // embedding pass fills it (search degrades to FTS-only for un-embedded rows).
+    public Vector? Embedding { get; set; }
+
+    // Which embedding model produced Embedding. Lets the embedding pass detect a changed
+    // Ollama:EmbeddingModel and re-embed stale rows (self-healing). Null when not yet embedded.
+    public string? EmbeddingModel { get; set; }
 }

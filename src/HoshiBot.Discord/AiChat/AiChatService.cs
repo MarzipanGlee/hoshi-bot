@@ -269,8 +269,10 @@ public partial class AiChatService(
         if (knowledge.Length > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("Wissensquellen (relevante Auszüge aus den konfigurierten Kanälen):");
+            sb.AppendLine("Wissensquellen (relevante Auszüge; der Herkunftskanal steht als Link <#ID> in eckigen Klammern voran):");
             sb.Append(knowledge);
+            sb.AppendLine();
+            sb.AppendLine("Wenn du auf einen Kanal verweist, verwende exakt die Discord-Link-Syntax <#ID> mit einer ID aus den Wissensquellen (Discord macht daraus einen klickbaren Link). Schreibe niemals [#Name] oder #Name als reinen Text und erfinde keine IDs.");
         }
 
         sb.AppendLine();
@@ -294,7 +296,7 @@ public partial class AiChatService(
 
         var sb = new StringBuilder();
         foreach (var hit in hits)
-            sb.AppendLine(hit.ChannelName is null ? $"- {hit.Content}" : $"- [#{hit.ChannelName}] {hit.Content}");
+            sb.AppendLine(hit.ChannelId != 0 ? $"- [<#{hit.ChannelId}>] {hit.Content}" : $"- {hit.Content}");
 
         return sb.ToString();
     }
