@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -46,10 +47,10 @@ public class OllamaClient(
     // we neither need nor want to pay for on CPU-only hardware.
     private const int NumCtx = 4096;
 
-    public async Task<string?> GenerateAsync(AiChatCompletionRequest request, CancellationToken cancellationToken)
+    // The system prompt is a leading system-role message, then the conversation turns mapped to
+    // user/assistant.
+    private static ChatRequest BuildChatRequest(AiChatCompletionRequest request, bool stream)
     {
-        // The system prompt is a leading system-role message, then the conversation turns mapped to
-        // user/assistant.
         var messages = new List<Message>(request.Turns.Count + 1)
         {
             new(ChatRole.System, request.SystemInstruction),
@@ -57,13 +58,18 @@ public class OllamaClient(
         foreach (var turn in request.Turns)
             messages.Add(new(turn.Role == AiChatRole.Assistant ? ChatRole.Assistant : ChatRole.User, turn.Text));
 
-        var chatRequest = new ChatRequest
+        return new ChatRequest
         {
             Model = request.Model,
             Messages = messages,
-            Stream = false,
+            Stream = stream,
             Options = new RequestOptions { NumCtx = NumCtx },
         };
+    }
+
+    public async Task<string?> GenerateAsync(AiChatCompletionRequest request, CancellationToken cancellationToken)
+    {
+        var chatRequest = BuildChatRequest(request, stream: false);
 
         try
         {
@@ -93,6 +99,35 @@ public class OllamaClient(
         {
             logger.LogWarning(ex, "Ollama request failed (model {Model}): {Error}", request.Model, ex.Message);
             return null;
+        }
+    }
+
+    public async IAsyncEnumerable<string> GenerateStreamAsync(AiChatCompletionRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var chatRequest = BuildChatRequest(request, stream: true);
+        var client = new OllamaApiClient(httpClientFactory.CreateClient(nameof(OllamaClient)));
+
+        // Iterate the stream by hand so a mid-stream failure (server drop, timeout) can be swallowed
+        // like GenerateAsync does — you can't `yield` inside a try/catch, so the catch wraps only the
+        // MoveNext and the yield happens outside it.
+        await using var enumerator = client.ChatAsync(chatRequest, cancellationToken).GetAsyncEnumerator(cancellationToken);
+        while (true)
+        {
+            string? delta = null;
+            try
+            {
+                if (!await enumerator.MoveNextAsync())
+                    break;
+                delta = enumerator.Current?.Message?.Content;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "Ollama stream failed (model {Model}): {Error}", request.Model, ex.Message);
+                yield break;
+            }
+
+            if (!string.IsNullOrEmpty(delta))
+                yield return delta;
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using HoshiBot.Data;
@@ -48,6 +49,10 @@ public partial class AiChatService(
     // across a slow (CPU-only Ollama) generation instead of stopping mid-wait.
     private static readonly TimeSpan TypingRefreshInterval = TimeSpan.FromSeconds(8);
 
+    // How often a streamed answer's message is edited with the text-so-far. Discord rate-limits
+    // message edits, so coalesce the token stream to at most one edit per this interval.
+    private const int StreamEditIntervalMs = 1250;
+
     // The three scalar settings (API key, system prompt, model) plus the search language are
     // guild-wide — one Gemini account per guild — so they live at the None/null scope regardless of
     // which audiences the feature is enabled for (same pattern as ClientRelease's guild-wide
@@ -74,8 +79,11 @@ public partial class AiChatService(
     // these, so a hallucinated or unknown <@id> in the text can never ping a random member.
     public readonly record struct AiChatReply(string Text, IReadOnlyList<ulong> AllowedUserIds);
 
-    // Returns the reply to post, or null to stay silent.
-    public async Task<AiChatReply?> TryBuildReplyAsync(Message message, CancellationToken cancellationToken)
+    // Returns the reply to post, or null to stay silent. For a directly-addressed message, if
+    // `onPartial` is supplied it's called with the answer-so-far as it streams in (throttled), so the
+    // caller can post a placeholder and edit it live; the final returned reply is the authoritative
+    // text for a last edit. Passive messages never stream (they may end in [NO_ANSWER] silence).
+    public async Task<AiChatReply?> TryBuildReplyAsync(Message message, Func<string, ValueTask>? onPartial, CancellationToken cancellationToken)
     {
         if (message.GuildId is not { } guildId)
             return null;
@@ -211,16 +219,25 @@ public partial class AiChatService(
 
                 var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, cancellationToken);
 
-                // Keep the typing indicator alive for the whole (potentially minute-long, CPU-only)
-                // generation, then stop it as soon as we have an answer.
+                var request = new AiChatCompletionRequest(model, systemInstruction, turns, apiKey);
                 string? answer;
-                using (var typingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+
+                if (addressed && onPartial is not null)
                 {
+                    // Stream a directly-addressed answer so a long (CPU-only) generation appears live
+                    // instead of a minute of "typing" then a wall of text. No typing indicator here —
+                    // the growing message is the indicator.
+                    answer = await StreamAnswerAsync(provider, request, onPartial, botSpokeBefore, message.Author, botName, cancellationToken);
+                }
+                else
+                {
+                    // Non-streamed (passive, or no sink): keep the typing indicator alive for the whole
+                    // (potentially minute-long) generation, then stop it as soon as we have an answer.
+                    using var typingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     var typing = KeepTypingAsync(message.ChannelId, typingCts.Token);
                     try
                     {
-                        answer = await provider.GenerateAsync(
-                            new AiChatCompletionRequest(model, systemInstruction, turns, apiKey), cancellationToken);
+                        answer = await provider.GenerateAsync(request, cancellationToken);
                     }
                     finally
                     {
@@ -316,6 +333,34 @@ public partial class AiChatService(
             }
         }
         catch (OperationCanceledException) { /* stopped once the answer is ready */ }
+    }
+
+    // Streams the answer, pushing the finalized text-so-far to `onPartial` at most every
+    // StreamEditIntervalMs (Discord edit-rate friendly). Returns the raw accumulated answer; the
+    // caller applies the authoritative FinalizeAnswer to it for the last edit.
+    private async Task<string?> StreamAnswerAsync(IAiChatProvider provider, AiChatCompletionRequest request,
+        Func<string, ValueTask> onPartial, bool botSpokeBefore, NetCord.User author, string botName, CancellationToken cancellationToken)
+    {
+        // Immediate placeholder so the reply appears the moment we commit to answering, before the
+        // (CPU-only) model has produced its first token.
+        await onPartial("…");
+
+        var sb = new StringBuilder();
+        var sinceEdit = Stopwatch.StartNew();
+
+        await foreach (var delta in provider.GenerateStreamAsync(request, cancellationToken))
+        {
+            sb.Append(delta);
+            if (sinceEdit.ElapsedMilliseconds < StreamEditIntervalMs)
+                continue;
+
+            var partial = FinalizeAnswer(sb.ToString(), addressed: true, botSpokeBefore, author, botName);
+            if (!string.IsNullOrEmpty(partial))
+                await onPartial(partial);
+            sinceEdit.Restart();
+        }
+
+        return sb.Length > 0 ? sb.ToString() : null;
     }
 
     private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, int knowledgeSnippetLimit, CancellationToken cancellationToken)

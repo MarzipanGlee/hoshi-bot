@@ -54,4 +54,10 @@ public interface IAiChatProvider
 
     // Returns the model's text answer, or null on any failure/empty response.
     Task<string?> GenerateAsync(AiChatCompletionRequest request, CancellationToken cancellationToken);
+
+    // Streaming variant: yields the answer incrementally as text *deltas* (each item is the new
+    // fragment, not the running total — the caller accumulates). Same never-throw contract as
+    // GenerateAsync: on any API/network error it logs and stops yielding, so the caller keeps
+    // whatever arrived so far. Used for the live-typing UX on directly-addressed messages.
+    IAsyncEnumerable<string> GenerateStreamAsync(AiChatCompletionRequest request, CancellationToken cancellationToken);
 }

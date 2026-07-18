@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using Google.GenAI;
 using Google.GenAI.Types;
 using HoshiBot.Data;
@@ -73,6 +74,50 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
         {
             logger.LogWarning(ex, "Gemini request failed (model {Model}): {Error}", request.Model, ex.Message);
             return null;
+        }
+    }
+
+    public async IAsyncEnumerable<string> GenerateStreamAsync(AiChatCompletionRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.ApiKey))
+        {
+            logger.LogWarning("Gemini stream requested without an API key; staying silent.");
+            yield break;
+        }
+
+        var client = ClientsByApiKey.GetOrAdd(request.ApiKey, key => new Client(apiKey: key));
+
+        var config = new GenerateContentConfig
+        {
+            SystemInstruction = new Content { Parts = [new Part { Text = request.SystemInstruction }] },
+        };
+
+        var contents = request.Turns
+            .Select(t => new Content { Role = ToGeminiRole(t.Role), Parts = [new Part { Text = t.Text }] })
+            .ToList();
+
+        // Iterate by hand so a mid-stream failure is swallowed (never-throw contract) — `yield` can't
+        // sit inside a try/catch, so the catch wraps only MoveNext.
+        await using var enumerator = client.Models
+            .GenerateContentStreamAsync(request.Model, contents, config, cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
+        while (true)
+        {
+            string? delta = null;
+            try
+            {
+                if (!await enumerator.MoveNextAsync())
+                    break;
+                delta = enumerator.Current?.Text;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "Gemini stream failed (model {Model}): {Error}", request.Model, ex.Message);
+                yield break;
+            }
+
+            if (!string.IsNullOrEmpty(delta))
+                yield return delta;
         }
     }
 

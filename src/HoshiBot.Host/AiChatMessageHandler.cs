@@ -7,14 +7,18 @@ namespace HoshiBot.Host;
 
 // Listens to every guild message (MESSAGE_CREATE) and lets AiChatService decide whether to
 // answer. Kept deliberately thin: all the gating/gathering/LLM logic lives in the scoped
-// AiChatService — this singleton handler just resolves a scope per message and posts the reply
-// when one comes back. Auto-registered by AddGatewayHandlers(typeof(Program).Assembly), same as
-// GuildSyncHandler.
+// AiChatService — this singleton handler owns only the Discord message lifecycle (post/edit).
+// Auto-registered by AddGatewayHandlers(typeof(Program).Assembly), same as GuildSyncHandler.
+//
+// Directly-addressed answers stream: the service calls back with the answer-so-far, and we post a
+// placeholder then edit it in place so a long generation appears live instead of a minute of
+// "typing" then a wall of text. Passive answers don't stream (they may end in [NO_ANSWER] silence)
+// — those come back as a single reply we post once.
 //
 // Requires the privileged Message Content intent (GatewayIntents.MessageContent, also enabled in
 // the Discord Developer Portal) — without it message.Content arrives empty and the bot never
 // finds anything to answer.
-public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, ILogger<AiChatMessageHandler> logger)
+public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClient gatewayClient, ILogger<AiChatMessageHandler> logger)
     : IMessageCreateGatewayHandler
 {
     public async ValueTask HandleAsync(Message message)
@@ -33,23 +37,48 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, ILogger<AiC
             await index.MaybeIndexIncomingAsync(message, CancellationToken.None);
 
             var aiChat = scope.ServiceProvider.GetRequiredService<AiChatService>();
-            if (await aiChat.TryBuildReplyAsync(message, CancellationToken.None) is not { } reply)
-                return;
 
-            await message.ReplyAsync(new ReplyMessageProperties
+            // Streaming sink: post the placeholder on the first partial, then edit in place. No
+            // mention pings on the streamed message — the reply already notifies the asker, and
+            // editing shouldn't re-ping on every chunk.
+            RestMessage? streamed = null;
+            async ValueTask OnPartial(string partial)
             {
-                Content = reply.Text,
-                // Never let the AI's output ping @everyone, roles, or the replied-to user; only the
-                // specific conversation participants it was told about may actually be pinged (so a
-                // stray/hallucinated <@id> can't ping a random member).
-                AllowedMentions = new AllowedMentionsProperties
+                if (streamed is null)
+                    streamed = await message.ReplyAsync(new ReplyMessageProperties { Content = partial, AllowedMentions = AllowedMentionsProperties.None });
+                else
+                    await gatewayClient.Rest.ModifyMessageAsync(streamed.ChannelId, streamed.Id,
+                        m => { m.Content = partial; m.AllowedMentions = AllowedMentionsProperties.None; });
+            }
+
+            var reply = await aiChat.TryBuildReplyAsync(message, OnPartial, CancellationToken.None);
+
+            if (streamed is not null)
+            {
+                // Already streamed: one last edit with the authoritative finalized text. (An addressed
+                // message always yields a reply, so the null case is only defensive — leave the last
+                // partial in place.)
+                if (reply is { } finalReply)
+                    await gatewayClient.Rest.ModifyMessageAsync(streamed.ChannelId, streamed.Id,
+                        m => { m.Content = finalReply.Text; m.AllowedMentions = AllowedMentionsProperties.None; });
+            }
+            else if (reply is { } r)
+            {
+                // Not streamed (passive): post once. Never let the AI's output ping @everyone, roles,
+                // or the replied-to user; only the specific conversation participants it was told about
+                // may be pinged (so a stray/hallucinated <@id> can't ping a random member).
+                await message.ReplyAsync(new ReplyMessageProperties
                 {
-                    Everyone = false,
-                    ReplyMention = false,
-                    AllowedRoles = [],
-                    AllowedUsers = reply.AllowedUserIds,
-                },
-            });
+                    Content = r.Text,
+                    AllowedMentions = new AllowedMentionsProperties
+                    {
+                        Everyone = false,
+                        ReplyMention = false,
+                        AllowedRoles = [],
+                        AllowedUsers = r.AllowedUserIds,
+                    },
+                });
+            }
         }
         catch (RestException ex)
         {
