@@ -283,9 +283,14 @@ guild-configurable — and possibly per-alliance, since a guild can run several 
 (each already has its own `DigestChannel`/`Instructions`/zone-slot settings via
 `GuildFeatureSettingSnowflake`/`Text`). Design notes: store the time (and probably an IANA
 time-zone id) as a per-`(guild, alliance)` feature setting; the Quartz cron triggers are global
-and code-defined, so per-guild times can't be plain static cron triggers — either (a) one
-frequent sweep job that checks "is it any guild's configured digest minute now?" and sends for
-the matching links, or (b) dynamically scheduled per-guild triggers managed when settings change.
-(a) is simpler and fits the existing job model; (b) is more precise but needs trigger lifecycle
-management. Also expose it in the Web feature-settings UI. Until then the hard-coded 09:00/19:00
+and code-defined, so per-guild times can't be plain static cron triggers.
+
+Chosen approach: a single sweep job on a cron aligned to the half hour — every 30 min starting
+from the full hour, i.e. `0 0,30 * * * ?` (fires at :00 and :30). Each run resolves "now" to each
+alliance's configured time zone and sends the digest for every `(guild, alliance)` whose
+configured digest time matches the current half-hour slot. Configurable times are therefore
+constrained to :00/:30 granularity (fine for this feature) and there's no per-guild trigger
+lifecycle to manage — the daily and weekly digests become two such sweeps (or one job that checks
+both). Keep the same misfire-replay + persistent-store behaviour the hard-coded triggers now have.
+Also expose the time (+ zone) in the Web feature-settings UI. Until then the hard-coded 09:00/19:00
 Europe/Zurich is the default for everyone.
