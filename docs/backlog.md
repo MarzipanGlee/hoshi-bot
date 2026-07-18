@@ -40,8 +40,11 @@ via the shared `ollama` compose service at `Ollama:BaseUrl`). Deferred extension
   `AiChatCompletionRequest.ApiKey` field already exists to carry a token.
 - **Model pull automation** — an init/sidecar that pulls the default model on stack up, instead of
   the documented one-time `docker compose exec ollama ollama pull <model>`.
-- **Streaming responses** — Ollama `/api/chat` streaming for a live "typing" edit, if the current
-  post-once reply feels slow with local models.
+- **Streaming responses** — ✅ **done**: `IAiChatProvider.GenerateStreamAsync` (Ollama `Stream=true`
+  / Gemini `GenerateContentStreamAsync`); directly-addressed answers post a placeholder then edit it
+  in place as the answer streams (throttled to Discord's edit rate). Passive answers stay post-once
+  (they may end in `[NO_ANSWER]` silence). Also fixed alongside: the concurrent-question drop (a 2nd
+  question posted mid-answer now queues instead of being dropped — bounded per channel).
 
 ## AI chat — retrieval quality & memory
 
@@ -63,8 +66,14 @@ history progressively** (paging backward in bounded per-run steps, tracked per c
 - **Persistent conversation memory** — a conversation-history table if the short recent-history
   window proves too small for good multi-turn memory (today's memory is the live recent-message
   fetch of the current channel).
-- **Edit/delete reconcile** — prune index rows for deleted messages; catch edits beyond the
-  backfill's recent-message re-index window.
+- **Edit/delete reconcile** — ✅ **done**: `AiChatIndexReconcileHandler` handles MESSAGE_UPDATE
+  (re-index, dropping the stale embedding when the text changed) and MESSAGE_DELETE/_BULK (prune the
+  rows), so edits to older messages and deletions no longer leave stale content in the index.
+- **Structured-data answers** — ✅ **done** (first cut): `AiChatService.BuildTerritoryCaptureFacts`
+  injects this week's owned zones (tier + capture window as `<t:…:t>` timestamps) for the guild's
+  TC-enabled alliances into the prompt as authoritative "facts", so the bot answers "which zones do
+  we hold / when's the next capture?" directly instead of deflecting to the digest. Extendable to
+  other structured tables (rosters, server status, events) the same way.
 - **Rate limiting / cost controls** — per-user / per-channel, once real usage is observed.
 - **FTS GIN index** — still none (per-guild language rules out a single constant config); revisit
   (functional GIN per language, or a stored tsvector repopulated on language change) only if needed.

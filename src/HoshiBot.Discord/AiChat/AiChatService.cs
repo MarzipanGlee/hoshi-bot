@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -30,6 +32,7 @@ public partial class AiChatService(
     EmbedBranding embedBranding,
     IEnumerable<IAiChatProvider> providers,
     AiChatIndexService indexService,
+    TerritoryCaptureDigestService territoryCaptureDigest,
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
@@ -367,7 +370,7 @@ public partial class AiChatService(
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Du bist {botName}, ein hilfreicher Assistent für diese Discord-Community (ein Star-Trek-Fleet-Command-Allianz-Server).");
-        sb.AppendLine("Antworte auf Deutsch, freundlich und knapp. Nutze zum Beantworten in erster Linie die unten angegebenen Wissensquellen und den bisherigen Chatverlauf.");
+        sb.AppendLine("Antworte auf Deutsch, freundlich und knapp. Nutze zum Beantworten in erster Linie die unten angegebenen verlässlichen Fakten, Wissensquellen und den bisherigen Chatverlauf.");
 
         if (!string.IsNullOrWhiteSpace(systemExtra))
         {
@@ -381,6 +384,14 @@ public partial class AiChatService(
             sb.AppendLine("Bekannte Nutzer. Um jemanden zu erwähnen oder anzupingen, verwende exakt die Syntax <@ID> mit einer ID aus dieser Liste (niemals eine ID erfinden, niemals @Name als reinen Text schreiben):");
             foreach (var (id, name) in mentionable)
                 sb.AppendLine($"- {name}: <@{id}>");
+        }
+
+        var facts = await BuildTerritoryCaptureFactsAsync(guildId, cancellationToken);
+        if (facts.Length > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Verlässliche Fakten aus der Datenbank (bevorzuge diese vor allgemeinem Wissen und vor unsicheren Chat-Auszügen). Gib Zeitangaben in der Form <t:UNIX:t> unverändert weiter — Discord zeigt sie dann automatisch in der Lokalzeit jedes Nutzers:");
+            sb.Append(facts);
         }
 
         var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, knowledgeSnippetLimit, cancellationToken);
@@ -415,6 +426,39 @@ public partial class AiChatService(
         var sb = new StringBuilder();
         foreach (var hit in hits)
             sb.AppendLine(hit.ChannelId != 0 ? $"- [<#{hit.ChannelId}>] {hit.Content}" : $"- {hit.Content}");
+
+        return sb.ToString();
+    }
+
+    // Structured, authoritative grounding straight from the DB (not fuzzy chat snippets): this week's
+    // Territory Capture zones for the guild's TC-enabled alliances — owned zone, tier and capture
+    // window — so the bot can answer "which zones do we hold / when is the next capture?" directly
+    // instead of deferring to the digest channel. Times are pre-rendered as Discord timestamps so the
+    // model can relay them verbatim and Discord localizes them for each reader. Empty when the guild
+    // runs no Territory Capture alliances (then this block is simply omitted).
+    private async Task<string> BuildTerritoryCaptureFactsAsync(ulong guildId, CancellationToken cancellationToken)
+    {
+        var links = await territoryCaptureDigest.GetTcEnabledLinksAsync(guildId);
+        if (links.Count == 0)
+            return "";
+
+        var weekStart = TerritoryCaptureScheduler.GetWeekStart(DateTimeOffset.UtcNow);
+        var german = CultureInfo.GetCultureInfo("de-DE");
+        var sb = new StringBuilder();
+
+        foreach (var link in links)
+        {
+            var slots = await territoryCaptureDigest.GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart);
+            if (slots.Count == 0)
+                continue;
+
+            sb.AppendLine($"Gebietsübernahmen dieser Woche für die Allianz [{link.StfcAlliance.Tag}]:");
+            foreach (var (_, territory, start, end) in slots)
+            {
+                var day = start.ToString("dddd", german);
+                sb.AppendLine($"- {territory.Name} (Tier {territory.Tier}): {day}, <t:{start.ToUnixTimeSeconds()}:t>–<t:{end.ToUnixTimeSeconds()}:t>");
+            }
+        }
 
         return sb.ToString();
     }
