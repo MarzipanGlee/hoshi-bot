@@ -16,6 +16,11 @@ services:
       # Blank it to disable semantic search (retrieval stays FTS-only). Pull it once:
       #   docker compose exec ollama ollama pull embeddinggemma
       - Ollama__EmbeddingModel=embeddinggemma
+      # Passive-listening gate for Ollama-provider guilds: a small/fast YES/NO pre-screen so the bot
+      # doesn't run a full answer on every non-question. Opt-in — leave unset to keep it off (Gemini
+      # guilds default to a flash-lite gate regardless). Pull it once:
+      #   docker compose exec ollama ollama pull gemma3:1b
+      - Ollama__GateModel=gemma3:1b
     volumes:
       - ./logs/bot:/app/logs
     depends_on:
