@@ -250,17 +250,20 @@ public partial class AiChatService(
                 var request = new AiChatCompletionRequest(model, systemInstruction, turns, apiKey);
                 string? answer;
 
-                if (addressed && onPartial is not null)
+                if (onPartial is not null)
                 {
-                    // Stream a directly-addressed answer so a long (CPU-only) generation appears live
-                    // instead of a minute of "typing" then a wall of text. No typing indicator here —
-                    // the growing message is the indicator.
-                    answer = await StreamAnswerAsync(provider, request, onPartial, botSpokeBefore, message.Author, botName, cancellationToken);
+                    // Stream the answer so a long (CPU-only) generation appears live instead of a minute
+                    // of "typing" then a wall of text. Works for both addressed and passive (gate=yes)
+                    // messages — StreamAnswerAsync handles the difference (an addressed message always
+                    // answers, so it shows an instant placeholder; a passive one may still end in
+                    // [NO_ANSWER] silence, so it bridges with the typing indicator and only posts once
+                    // real content streams in).
+                    answer = await StreamAnswerAsync(provider, request, onPartial, addressed, message.ChannelId, botSpokeBefore, message.Author, botName, cancellationToken);
                 }
                 else
                 {
-                    // Non-streamed (passive, or no sink): keep the typing indicator alive for the whole
-                    // (potentially minute-long) generation, then stop it as soon as we have an answer.
+                    // No streaming sink (no interactive caller): keep the typing indicator alive for the
+                    // whole (potentially minute-long) generation, then stop it as soon as we have an answer.
                     using var typingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     var typing = KeepTypingAsync(message.ChannelId, typingCts.Token);
                     try
@@ -363,32 +366,70 @@ public partial class AiChatService(
         catch (OperationCanceledException) { /* stopped once the answer is ready */ }
     }
 
-    // Streams the answer, pushing the finalized text-so-far to `onPartial` at most every
-    // StreamEditIntervalMs (Discord edit-rate friendly). Returns the raw accumulated answer; the
-    // caller applies the authoritative FinalizeAnswer to it for the last edit.
+    // Streams the answer, pushing the text-so-far to `onPartial` at most every StreamEditIntervalMs
+    // (Discord edit-rate friendly). Returns the raw accumulated answer; the caller applies the
+    // authoritative FinalizeAnswer to it for the last edit.
+    //
+    // Addressed vs passive: an addressed message always answers, so it posts an instant "…" placeholder
+    // for immediate feedback. A passive (gate=yes) message can still resolve to [NO_ANSWER] silence, so
+    // it must NOT post upfront — instead it runs the typing indicator to bridge the (CPU-only)
+    // prompt-eval gap and only posts once RenderStreamedPartial yields real content (never for a
+    // still-empty/[NO_ANSWER] buffer), so a punted passive answer stays silent with no orphaned message.
     private async Task<string?> StreamAnswerAsync(IAiChatProvider provider, AiChatCompletionRequest request,
-        Func<string, ValueTask> onPartial, bool botSpokeBefore, NetCord.User author, string botName, CancellationToken cancellationToken)
+        Func<string, ValueTask> onPartial, bool addressed, ulong channelId, bool botSpokeBefore, NetCord.User author, string botName, CancellationToken cancellationToken)
     {
-        // Immediate placeholder so the reply appears the moment we commit to answering, before the
-        // (CPU-only) model has produced its first token.
-        await onPartial("…");
-
         var sb = new StringBuilder();
         var sinceEdit = Stopwatch.StartNew();
 
-        await foreach (var delta in provider.GenerateStreamAsync(request, cancellationToken))
-        {
-            sb.Append(delta);
-            if (sinceEdit.ElapsedMilliseconds < StreamEditIntervalMs)
-                continue;
+        using var typingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var typing = Task.CompletedTask;
+        if (addressed)
+            await onPartial("…");
+        else
+            typing = KeepTypingAsync(channelId, typingCts.Token);
 
-            var partial = FinalizeAnswer(sb.ToString(), addressed: true, botSpokeBefore, author, botName);
-            if (!string.IsNullOrEmpty(partial))
-                await onPartial(partial);
-            sinceEdit.Restart();
+        try
+        {
+            await foreach (var delta in provider.GenerateStreamAsync(request, cancellationToken))
+            {
+                sb.Append(delta);
+                if (sinceEdit.ElapsedMilliseconds < StreamEditIntervalMs)
+                    continue;
+
+                var partial = RenderStreamedPartial(sb.ToString(), botSpokeBefore, author, botName);
+                if (partial is not null)
+                {
+                    if (!typingCts.IsCancellationRequested)
+                        await typingCts.CancelAsync(); // real content is up — stop the bridge typing
+                    await onPartial(partial);
+                }
+                sinceEdit.Restart();
+            }
+        }
+        finally
+        {
+            if (!typingCts.IsCancellationRequested)
+                await typingCts.CancelAsync();
+            try { await typing; } catch (OperationCanceledException) { /* expected on stop */ }
         }
 
         return sb.Length > 0 ? sb.ToString() : null;
+    }
+
+    // Live-partial rendering: like FinalizeAnswer but returns null (⇒ don't post/edit) whenever there's
+    // no real content yet — so a passive stream that's still just an empty/[NO_ANSWER] buffer never
+    // posts a premature message, and an addressed placeholder isn't blanked mid-stream.
+    private static string? RenderStreamedPartial(string raw, bool botSpokeBefore, NetCord.User author, string botName)
+    {
+        var text = raw.Replace(NoAnswerSentinel, "", StringComparison.OrdinalIgnoreCase).Trim();
+        text = StripSelfNamePrefix(text, botName);
+        if (text.Length == 0)
+            return null;
+
+        if (!botSpokeBefore && !text.StartsWith("Commander", StringComparison.OrdinalIgnoreCase))
+            text = CommanderName.Greeting(author) + text;
+
+        return Truncate(text);
     }
 
     private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, int knowledgeSnippetLimit, CancellationToken cancellationToken)
