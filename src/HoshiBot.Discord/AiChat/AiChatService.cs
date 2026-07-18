@@ -79,6 +79,17 @@ public partial class AiChatService(
         if (!inListenChannel && !addressed)
             return null;
 
+        // Passive listening only. A message that pings other members, a role, or @everyone/@here
+        // is a member-to-member call (e.g. rallying the alliance to a task) — not a question for
+        // the bot — so stay out of it. A direct address (bot @mention or nickname) still always
+        // answers, even if it also mentions others.
+        if (!addressed && (message.MentionEveryone
+            || message.MentionedRoleIds.Count > 0
+            || message.MentionedUsers.Any(u => u.Id != botId)))
+        {
+            return null;
+        }
+
         var provider = await ResolveProviderAsync(guildId);
         var apiKey = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
 
@@ -240,7 +251,7 @@ public partial class AiChatService(
         sb.AppendLine();
         sb.AppendLine(addressed
             ? "Du wirst in dieser Nachricht direkt angesprochen. Antworte immer. Wenn du etwas nicht sicher weißt, sage das ehrlich."
-            : $"Antworte NUR, wenn du eine wirklich hilfreiche, fundierte Antwort geben kannst. Wenn die Nachricht keine beantwortbare Frage ist oder du keine fundierte Antwort hast, antworte ausschließlich mit exakt {NoAnswerSentinel} und sonst nichts.");
+            : $"Du liest in diesem Kanal nur mit und mischst dich NICHT ins Gespräch ein. Antworte ausschließlich dann, wenn die Nachricht eine klare Sachfrage ist, die dir (oder allgemein) gestellt wird und die du mit den Wissensquellen fundiert beantworten kannst. Bei Aussagen, Meinungen, Aufrufen an die Allianz oder an andere Mitglieder, Begrüßungen, Smalltalk, Reaktionen oder allem, was keine an dich gerichtete, beantwortbare Sachfrage ist, antworte ausschließlich mit exakt {NoAnswerSentinel} und sonst nichts. Im Zweifel immer {NoAnswerSentinel}.");
 
         return sb.ToString();
     }
