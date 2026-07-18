@@ -117,15 +117,19 @@
         </label>
         @if (providerInput == "ollama")
         {
-            <input id="aiChatGateModel" class="form-control" placeholder="Off — set a small pulled model (e.g. gemma3:1b) to enable"
+            <input id="aiChatGateModel" class="form-control" placeholder="Server default"
                    @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
-            <div class="form-text">Leave empty to keep the gate off (needs a small model pulled on the Ollama server). Enter <code>off</code> to force it off.</div>
+            <div class="form-text">
+                Leave empty to use the server's default (the <code>Ollama__GateModel</code> deployment
+                setting — the gate is off only if that's unset too). Enter a pulled model to override it
+                for this guild, or <code>off</code> to disable the gate here.
+            </div>
         }
         else
         {
-            <input id="aiChatGateModel" class="form-control" placeholder="@AiChatSettingKeys.DefaultGateModel"
+            <input id="aiChatGateModel" class="form-control" placeholder="Default (@AiChatSettingKeys.DefaultGateModel)"
                    @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
-            <div class="form-text">Leave empty for the default (<code>@AiChatSettingKeys.DefaultGateModel</code>). Enter <code>off</code> to disable the gate.</div>
+            <div class="form-text">Leave empty for the default (<code>@AiChatSettingKeys.DefaultGateModel</code>). Enter a model to override it, or <code>off</code> to disable the gate.</div>
         }
     </SettingsCard>
 
