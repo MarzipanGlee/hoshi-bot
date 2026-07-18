@@ -107,6 +107,28 @@
         }
     </SettingsCard>
 
+    <SettingsCard Title="Gate model (optional)">
+        <label for="aiChatGateModel" class="form-label">
+            A small, fast model that pre-screens messages in listen channels: it decides whether a
+            message the bot wasn't directly asked is even worth a full answer, so the bot doesn't run
+            (and show "typing…" for) an expensive answer on every bit of chatter. It only ever stays
+            <em>quiet</em> on clear non-questions — anything unsure still gets a full answer. Direct
+            @@mentions always answer and skip this.
+        </label>
+        @if (providerInput == "ollama")
+        {
+            <input id="aiChatGateModel" class="form-control" placeholder="Off — set a small pulled model (e.g. gemma3:1b) to enable"
+                   @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
+            <div class="form-text">Leave empty to keep the gate off (needs a small model pulled on the Ollama server). Enter <code>off</code> to force it off.</div>
+        }
+        else
+        {
+            <input id="aiChatGateModel" class="form-control" placeholder="@AiChatSettingKeys.DefaultGateModel"
+                   @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
+            <div class="form-text">Leave empty for the default (<code>@AiChatSettingKeys.DefaultGateModel</code>). Enter <code>off</code> to disable the gate.</div>
+        }
+    </SettingsCard>
+
     <SettingsCard Title="Search language">
         <label for="aiChatSearchLanguage" class="form-label">
             Language for the full-text search over the knowledge sources (controls word-stemming).
@@ -146,6 +168,7 @@
     private string providerInput = "gemini";
     private string? systemPromptInput;
     private string? modelInput;
+    private string? gateModelInput;
     private string? searchLanguageInput;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -158,6 +181,7 @@
         providerInput = string.Equals(storedProvider, "ollama", StringComparison.OrdinalIgnoreCase) ? "ollama" : "gemini";
         systemPromptInput = await GetText(AiChatSettingKeys.SystemPrompt);
         modelInput = await GetText(AiChatSettingKeys.Model);
+        gateModelInput = await GetText(AiChatSettingKeys.GateModel);
 
         // Show the effective search language: the stored choice, or the default derived from the
         // guild's Discord locale when unset (matches what the bot resolves at query time).
@@ -199,6 +223,8 @@
     private Task SaveSystemPromptAsync() => SetText(AiChatSettingKeys.SystemPrompt, systemPromptInput);
 
     private Task SaveModelAsync() => SetText(AiChatSettingKeys.Model, modelInput);
+
+    private Task SaveGateModelAsync() => SetText(AiChatSettingKeys.GateModel, gateModelInput);
 
     private Task SaveSearchLanguageAsync() => SetText(AiChatSettingKeys.SearchLanguage, searchLanguageInput);
 }

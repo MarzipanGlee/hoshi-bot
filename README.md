@@ -102,12 +102,16 @@ model used for semantic knowledge search (and any model a guild overrides to):
 ```bash
 docker compose exec ollama ollama pull llama3.1:8b     # chat (Ollama provider)
 docker compose exec ollama ollama pull embeddinggemma  # semantic search embeddings (all guilds)
+docker compose exec ollama ollama pull gemma3:1b       # optional: passive-listening gate (see Ollama__GateModel)
 ```
 
 Chat/embedding models are set via `Ollama__DefaultModel` / `Ollama__EmbeddingModel` (env, `bot`
 service); base URL via `Ollama__BaseUrl`. Blanking `Ollama__EmbeddingModel` disables semantic
-search (knowledge retrieval falls back to keyword full-text search only). For GPU acceleration,
-uncomment the `deploy` block on the `ollama` service.
+search (knowledge retrieval falls back to keyword full-text search only). Setting
+`Ollama__GateModel` to a small pulled model (e.g. `gemma3:1b`) enables the passive-listening gate —
+a cheap YES/NO pre-screen so the bot doesn't run a full answer on every non-question in a listen
+channel; left unset the gate is off for Ollama guilds (Gemini guilds default to a flash-lite gate).
+For GPU acceleration, uncomment the `deploy` block on the `ollama` service.
 
 **Postgres image note:** the `postgres` service uses `pgvector/pgvector:pg16` (Debian-based)
 rather than the previous `postgres:16-alpine`. On-disk data is compatible (same PG 16), but the

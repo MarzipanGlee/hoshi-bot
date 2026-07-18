@@ -25,8 +25,14 @@ via the shared `ollama` compose service at `Ollama:BaseUrl`). Deferred extension
 - **Combine models for best results** — (a) an Ollama **embedding model** driving **pgvector
   semantic retrieval** — ✅ **done** (see "semantic retrieval" below: `embeddinggemma` +
   hybrid FTS/vector RRF in `AiChatIndexService.SearchAsync`); (b) a small fast **gate** model
-  deciding answerable/`[NO_ANSWER]` for passive listening + a stronger model for the actual answer
-  — still deferred.
+  deciding answerable for passive listening + a stronger model for the actual answer — ✅ **done**:
+  `AiChatService` runs a one-word YES/NO gate (`AiChatSettingKeys.GateModel` / provider
+  `DefaultGateModel`) before the expensive retrieval + main generation on non-addressed messages.
+  Strictly additive — it only suppresses on a confident NO; YES/ambiguous/failure fall through to
+  the main model (+ its `[NO_ANSWER]`). Gemini defaults on (a flash-lite); Ollama is opt-in via
+  `Ollama:GateModel` (the small model must be pulled). Possible follow-up: a `MaxOutputTokens` cap
+  on `AiChatCompletionRequest` to hard-bound the gate response (today it relies on the one-word
+  prompt).
 - **Ollama Cloud / per-guild endpoint** — if a guild ever needs its own remote Ollama, promote the
   base URL (+ optional key) from deployment config to a per-guild setting; the
   `AiChatCompletionRequest.ApiKey` field already exists to carry a token.

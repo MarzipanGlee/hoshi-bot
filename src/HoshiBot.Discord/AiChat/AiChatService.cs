@@ -34,6 +34,16 @@ public partial class AiChatService(
     private const string NoAnswerSentinel = "[NO_ANSWER]";
     private const int DiscordMessageLimit = 2000;
 
+    // Passive-listening gate: a one-word YES/NO classifier prompt (the message only, no knowledge
+    // retrieval). Biased toward YES on doubt so only *obvious* non-questions are suppressed —
+    // borderline cases fall through to the main model + [NO_ANSWER]. See the gate block in
+    // TryBuildReplyAsync and ClassifyGate.
+    private const string GateSystemPrompt =
+        "Du bist ein Klassifikator für einen Discord-Assistenten einer Star-Trek-Fleet-Command-Allianz. " +
+        "Entscheide, ob die folgende Nachricht eine an den Assistenten oder allgemein gerichtete, beantwortbare Sachfrage ist. " +
+        "Antworte mit genau einem Wort: NO nur, wenn es eindeutig KEINE solche Frage ist (z. B. Begrüßung, Smalltalk, " +
+        "Reaktion, Meinung, Aussage, Aufruf an die Allianz oder an andere Mitglieder). Sonst YES. Im Zweifel YES.";
+
     // Discord's typing indicator lasts ~10s; re-trigger a bit before that so it stays visible
     // across a slow (CPU-only Ollama) generation instead of stopping mid-wait.
     private static readonly TimeSpan TypingRefreshInterval = TimeSpan.FromSeconds(8);
@@ -105,6 +115,33 @@ public partial class AiChatService(
 
         try
         {
+            // Passive-listening gate: a cheap small-model YES/NO classifier that runs BEFORE the
+            // expensive knowledge retrieval + main generation (and before the typing indicator, so a
+            // non-answer never shows phantom "typing…"). It only ever *suppresses* on a confident NO
+            // — a YES, an ambiguous verdict, or a gate failure all fall through to the main model
+            // (which can still emit [NO_ANSWER]), so the gate is strictly additive: quieter on
+            // obvious chatter, never less capable. A direct address skips it (it always answers).
+            var gateLabel = "skip";
+            if (!addressed)
+            {
+                var gateModel = await ResolveGateModelAsync(guildId, provider);
+                if (gateModel is null)
+                {
+                    gateLabel = "off";
+                }
+                else
+                {
+                    var gate = await EvaluateGateAsync(gateModel, provider, apiKey, message.Author, content, cancellationToken);
+                    gateLabel = gate.ToString().ToLowerInvariant();
+                    if (gate == GateResult.No)
+                    {
+                        logger.LogInformation(
+                            "AiChat guild {Guild} ch {Channel}: passive gate={GateModel} → no → silent", guildId, message.ChannelId, gateModel);
+                        return null;
+                    }
+                }
+            }
+
             var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Model);
             model = string.IsNullOrWhiteSpace(model) ? provider.DefaultModel : model.Trim();
 
@@ -166,8 +203,8 @@ public partial class AiChatService(
             // One line per handled message so a "why did it stay silent / only give the fallback"
             // question is answerable straight from the logs.
             logger.LogInformation(
-                "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} turns={Turns} provider={Provider} model={Model} → answer={AnswerChars} reply={Reply}",
-                guildId, message.ChannelId, addressed, inListenChannel, turns.Count, provider.Kind, model,
+                "AiChat guild {Guild} ch {Channel}: addressed={Addressed} inListen={InListen} gate={Gate} turns={Turns} provider={Provider} model={Model} → answer={AnswerChars} reply={Reply}",
+                guildId, message.ChannelId, addressed, inListenChannel, gateLabel, turns.Count, provider.Kind, model,
                 answer?.Length.ToString() ?? "null", replyText is null ? "silent" : "posted");
 
             return replyText is null ? null : new AiChatReply(replyText, mentionable.Keys.ToList());
@@ -310,6 +347,55 @@ public partial class AiChatService(
         return providers.First(p => p.Kind == kind);
     }
 
+    // Outcome of the passive-listening gate. Only No suppresses; the rest fall through to the main
+    // model (Failed = the gate call errored/returned nothing, so we degrade to today's behaviour).
+    private enum GateResult { Yes, No, Ambiguous, Failed }
+
+    // The gate model for this guild: the explicit GateModel setting (the literal "off" disables the
+    // gate), else the provider's default gate model (null when the provider has none — e.g. Ollama
+    // with no Ollama:GateModel configured). Null ⇒ no gate, current behaviour.
+    private async Task<string?> ResolveGateModelAsync(ulong guildId, IAiChatProvider provider)
+    {
+        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.GateModel);
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            var trimmed = configured.Trim();
+            return trimmed.Equals("off", StringComparison.OrdinalIgnoreCase) ? null : trimmed;
+        }
+
+        return provider.DefaultGateModel;
+    }
+
+    // One cheap classification call — the message only, no knowledge retrieval and no typing
+    // indicator. A null answer (provider error / model not pulled / empty) is treated as Failed and
+    // falls through to the main model, so a missing/wrong gate model never breaks passive listening.
+    private async Task<GateResult> EvaluateGateAsync(string gateModel, IAiChatProvider provider, string? apiKey, NetCord.User author, string content, CancellationToken cancellationToken)
+    {
+        var turn = new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(author)}: {content}");
+        var answer = await provider.GenerateAsync(new AiChatCompletionRequest(gateModel, GateSystemPrompt, [turn], apiKey), cancellationToken);
+        if (answer is null)
+        {
+            logger.LogWarning("AiChat gate model {GateModel} (provider {Provider}) returned null; falling through to the main model.", gateModel, provider.Kind);
+            return GateResult.Failed;
+        }
+
+        return ClassifyGate(answer);
+    }
+
+    // Lenient parse of the gate's one-word verdict: only a clear, unambiguous NO suppresses. A YES,
+    // both words, or neither (garbage) errs toward answering — the strictly-additive bias.
+    private static GateResult ClassifyGate(string answer)
+    {
+        var upper = answer.ToUpperInvariant();
+        var no = GateNo().IsMatch(upper);
+        var yes = GateYes().IsMatch(upper);
+        if (no && !yes)
+            return GateResult.No;
+        if (yes && !no)
+            return GateResult.Yes;
+        return GateResult.Ambiguous;
+    }
+
     // Per-guild FTS config: the explicit setting, else derived from the guild's Discord locale,
     // else "simple". Always normalized against the supported whitelist before use.
     private async Task<string> ResolveSearchLanguageAsync(ulong guildId)
@@ -340,4 +426,12 @@ public partial class AiChatService(
 
     [GeneratedRegex(@"[^\p{L}\p{N}]+")]
     private static partial Regex NonWord();
+
+    // Gate-verdict tokens, matched as whole words on the upper-cased answer (JA/NEIN included in
+    // case a model answers in German despite the one-word YES/NO instruction).
+    [GeneratedRegex(@"\b(NO|NEIN)\b")]
+    private static partial Regex GateNo();
+
+    [GeneratedRegex(@"\b(YES|JA)\b")]
+    private static partial Regex GateYes();
 }

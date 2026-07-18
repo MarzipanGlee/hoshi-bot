@@ -28,6 +28,13 @@ public class OllamaClient(
     public string DefaultModel =>
         configuration["Ollama:DefaultModel"] is { Length: > 0 } m ? m : "llama3.1:8b";
 
+    // Ollama gate is opt-in: the small classifier model must be pulled first (docker compose exec
+    // ollama ollama pull <model>), so there's no baked-in default — the gate stays off until a
+    // deployment sets Ollama:GateModel (or a guild sets AiChatSettingKeys.GateModel). Null keeps the
+    // current behaviour (main model decides via [NO_ANSWER]).
+    public string? DefaultGateModel =>
+        configuration["Ollama:GateModel"] is { Length: > 0 } m ? m : null;
+
     // Local/CPU backend: prompt-eval of a big prompt is the dominant latency cost, so run lean.
     // Tunable via config for deployments with more (or less) CPU headroom.
     public int HistoryLimit => configuration.GetValue<int?>("Ollama:HistoryLimit") ?? 8;
