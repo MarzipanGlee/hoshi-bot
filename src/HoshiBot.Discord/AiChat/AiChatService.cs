@@ -161,7 +161,7 @@ public partial class AiChatService(
                 }
             }
 
-            var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author);
+            var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author, botName);
 
             // One line per handled message so a "why did it stay silent / only give the fallback"
             // question is answerable straight from the logs.
@@ -178,13 +178,17 @@ public partial class AiChatService(
         }
     }
 
-    private string? FinalizeAnswer(string? answer, bool addressed, bool botSpokeBefore, NetCord.User author)
+    private string? FinalizeAnswer(string? answer, bool addressed, bool botSpokeBefore, NetCord.User author, string botName)
     {
         if (answer is null)
             return addressed ? PolitelyUnsure(botSpokeBefore, author) : null;
 
         var punted = answer.Contains(NoAnswerSentinel, StringComparison.OrdinalIgnoreCase);
         answer = answer.Replace(NoAnswerSentinel, "", StringComparison.OrdinalIgnoreCase).Trim();
+
+        // Small models sometimes echo the "Name: text" roster format and open with their own
+        // name (e.g. "Hoshi Sato: ..."). Strip that self-prefix before anything else.
+        answer = StripSelfNamePrefix(answer, botName);
 
         if (punted || answer.Length == 0)
             return addressed ? PolitelyUnsure(botSpokeBefore, author) : null;
@@ -194,6 +198,27 @@ public partial class AiChatService(
             answer = CommanderName.Greeting(author) + answer;
 
         return Truncate(answer);
+    }
+
+    // Removes a leading "<bot name>:" (the full display name or its first token, optional space
+    // before the colon), case-insensitive — a habit small models pick up from the roster format.
+    private static string StripSelfNamePrefix(string answer, string botName)
+    {
+        var candidates = new List<string> { botName };
+        var firstToken = botName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        if (!string.IsNullOrEmpty(firstToken) && !string.Equals(firstToken, botName, StringComparison.Ordinal))
+            candidates.Add(firstToken);
+
+        foreach (var name in candidates)
+        {
+            if (!answer.StartsWith(name, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var rest = answer[name.Length..].TrimStart();
+            if (rest.StartsWith(':'))
+                return rest[1..].TrimStart();
+        }
+
+        return answer;
     }
 
     // When the bot is addressed directly it must always say something, even if it has no real
