@@ -4,6 +4,7 @@ using HoshiBot.Data;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -18,8 +19,14 @@ public class TerritoryCaptureDigestService(
     GatewayClient gatewayClient,
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
-    GuildFeatureSettingsService settingsService)
+    GuildFeatureSettingsService settingsService,
+    ILogger<TerritoryCaptureDigestService> logger)
 {
+    // Discord's hard limit on a single embed field's Value; exceeding it makes the whole
+    // SendMessageAsync throw a 400 RestException (hit for real — the neighbour-tag list once
+    // blew past this and every digest silently failed, see GetNeighbourOwnerTagsAsync).
+    private const int MaxEmbedFieldLength = 1024;
+
     public async Task SendWeeklyDigestsAsync()
     {
         var weekStart = TerritoryCaptureScheduler.GetWeekStart(DateTimeOffset.UtcNow);
@@ -126,10 +133,15 @@ public class TerritoryCaptureDigestService(
     private async Task<(List<(StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> Known, List<StfcTerritory> Unknown)> GetOwnedZonesAsync(
         int stfcAllianceId, DateOnly weekStart)
     {
-        var territories = await db.StfcTerritoryOwnerships
+        // DistinctBy guards against duplicate ownership rows for the same territory (the table
+        // has historically held exact-duplicate rows from concurrent seeding); without it a zone
+        // would be listed — and get a duplicate unsubscribe button — once per duplicate row.
+        var territories = (await db.StfcTerritoryOwnerships
             .Where(o => o.AllianceId == stfcAllianceId)
             .Select(o => o.Territory)
-            .ToListAsync();
+            .ToListAsync())
+            .DistinctBy(t => t.Id)
+            .ToList();
 
         var known = new List<(StfcTerritory, DateTimeOffset, DateTimeOffset)>();
         var unknown = new List<StfcTerritory>();
@@ -158,7 +170,7 @@ public class TerritoryCaptureDigestService(
         foreach (var (territory, start, end) in known)
         {
             index++;
-            var neighbours = await GetNeighbourOwnerTagsAsync(territory.Id);
+            var neighbours = await GetNeighbourOwnerTagsAsync(territory.Id, link.StfcAlliance.ServerId);
             var day = start.ToString("ddd", CultureInfo.GetCultureInfo("de-DE"));
             var time = $"{start:HH:mm}-{end:HH:mm}";
             table.AppendLine($"{index,-3}{territory.Name,-12}{territory.Tier,-5}{string.Join(", ", neighbours),-24}{day,-5}{time,-16}");
@@ -177,7 +189,7 @@ public class TerritoryCaptureDigestService(
             Description = "Bitte haltet Euch diese Termine nach Möglichkeit frei oder meldet Euch für einzelne Termine hier oder generell auf der #kommandobrücke ab!",
             Fields =
             [
-                new EmbedFieldProperties { Name = "Termine", Value = table.ToString() },
+                new EmbedFieldProperties { Name = "Termine", Value = Clamp(table.ToString()) },
             ],
             Color = EmbedBranding.BotColor,
             Author = await embedBranding.BuildAuthorAsync(guildId),
@@ -191,7 +203,7 @@ public class TerritoryCaptureDigestService(
             embed.Fields = embed.Fields.Append(new EmbedFieldProperties
             {
                 Name = $"Anweisungen von {link.StfcAlliance.Tag}-Führungsstab",
-                Value = instructions,
+                Value = Clamp(instructions),
             });
         }
 
@@ -203,26 +215,49 @@ public class TerritoryCaptureDigestService(
 
         var content = mentionRoleId is { } roleId ? $"<@&{roleId}>" : null;
 
+        // Discord allows at most 5 buttons per action row and 5 rows per message; chunk so a
+        // guild owning more than 5 zones doesn't produce an over-full row (another silent 400).
+        var actionRows = buttons
+            .Chunk(5)
+            .Take(5)
+            .Select(chunk => new ActionRowProperties(chunk))
+            .ToList();
+
         try
         {
             var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
             {
                 Content = content,
                 Embeds = [embed],
-                Components = buttons.Count == 0 ? null : [new ActionRowProperties(buttons)],
+                Components = actionRows.Count == 0 ? null : actionRows,
             });
 
             if (pin)
                 await gatewayClient.Rest.PinMessageAsync(channelId, message.Id);
         }
-        catch (RestException)
+        catch (RestException ex)
         {
-            // Channel unreachable (missing permissions, deleted, etc.) — skip this guild
-            // rather than throwing and blocking every other guild's digest.
+            // Channel unreachable (missing permissions, deleted, etc.) — skip this guild rather
+            // than throwing and blocking every other guild's digest. Logged (not swallowed
+            // silently) so a genuine failure is visible: a bare catch here once hid a 400 from an
+            // oversized embed field for weeks, so no digest was ever posted and nothing showed up
+            // in the logs.
+            logger.LogWarning(ex,
+                "Failed to send Territory Capture digest to channel {ChannelId} for guild {GuildId} (alliance {AllianceTag})",
+                channelId, guildId, link.StfcAlliance.Tag);
         }
     }
 
-    private async Task<List<string>> GetNeighbourOwnerTagsAsync(int territoryId)
+    // Clamps a value to Discord's embed-field length limit so an unexpectedly long value degrades
+    // to a truncated field instead of a hard 400 that fails (and silently hides) the whole send.
+    private static string Clamp(string value) =>
+        value.Length <= MaxEmbedFieldLength ? value : value[..(MaxEmbedFieldLength - 1)] + "…";
+
+    // Owning-alliance tags of a zone's neighbours, scoped to the alliance's own server. Without
+    // the ServerId filter this returned every alliance owning a same-ID territory across ALL ~100
+    // game servers (200+ tags, 1000+ chars per zone), overflowing the embed field limit and making
+    // every digest send fail with a swallowed 400.
+    private async Task<List<string>> GetNeighbourOwnerTagsAsync(int territoryId, int serverId)
     {
         var neighbourTerritoryIds = await db.StfcTerritoryNeighbours
             .Where(n => n.TerritoryId == territoryId)
@@ -233,7 +268,7 @@ public class TerritoryCaptureDigestService(
             return [];
 
         return await db.StfcTerritoryOwnerships
-            .Where(o => neighbourTerritoryIds.Contains(o.TerritoryId))
+            .Where(o => o.ServerId == serverId && neighbourTerritoryIds.Contains(o.TerritoryId))
             .Select(o => o.Alliance.Tag)
             .Distinct()
             .ToListAsync();

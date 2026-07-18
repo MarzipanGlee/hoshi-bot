@@ -10,9 +10,11 @@ public class StfcTerritoryOwnershipConfiguration : IEntityTypeConfiguration<Stfc
     {
         builder.HasKey(o => o.Id);
 
-        // Uniqueness on (TerritoryId, ServerId) is enforced in application code, not
-        // here — see the entity's comment for why. Non-unique index for lookup speed.
-        builder.HasIndex(o => new { o.TerritoryId, o.ServerId });
+        // A territory on a server has exactly one owner, so this pair is unique. Enforced at the
+        // DB level (not just in app code) after concurrent Host/Web seeding silently doubled every
+        // row — see the entity comment. Both columns are non-null, so a plain (not filtered)
+        // unique index is enough.
+        builder.HasIndex(o => new { o.TerritoryId, o.ServerId }).IsUnique();
 
         builder.HasOne(o => o.Territory)
             .WithMany(t => t.Ownerships)

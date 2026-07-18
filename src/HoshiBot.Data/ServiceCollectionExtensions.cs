@@ -332,7 +332,17 @@ public static class ServiceCollectionExtensions
             });
         }
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // HoshiBot.Host and HoshiBot.Web both seed on startup; if they race an empty table the
+            // loser hits the (TerritoryId, ServerId) unique index and its whole insert rolls back.
+            // That's benign — the winner already seeded the full snapshot — so treat it as done
+            // rather than crashing startup. (This race used to double every row before the index.)
+        }
     }
 
     // Seeds a one-time snapshot of every server's alliance roster from StfcAllianceSeedData,

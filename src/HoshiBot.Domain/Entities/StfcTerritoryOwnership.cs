@@ -1,7 +1,10 @@
 namespace HoshiBot.Domain.Entities;
 
-// Uniqueness on (TerritoryId, ServerId) is enforced in application code, not a
-// filtered unique index — simpler, and sufficient for a personal-scale bot.
+// A territory on a given server has exactly one owning alliance, so (TerritoryId, ServerId) is
+// unique — enforced by a DB unique index (StfcTerritoryOwnershipConfiguration). App-code-only
+// enforcement proved insufficient: HoshiBot.Host and HoshiBot.Web both run the ownership seeder
+// on startup, and when they raced an empty table both inserted the full snapshot, silently
+// doubling every row (and later breaking the ownership import, which keys by this pair).
 public class StfcTerritoryOwnership
 {
     public int Id { get; set; }

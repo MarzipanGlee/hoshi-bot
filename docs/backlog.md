@@ -274,3 +274,18 @@ and a cancel-path to get right.
 
 Not tied to one alliance, server, or veil group. Existing generic features (announcements,
 tickets, anonymous messages) already carry over; no community-specific features are scoped yet.
+
+### Configurable Territory Capture digest times (per guild, maybe per alliance)
+
+The weekly/daily Territory Capture digest fire times are currently hard-coded in `Program.cs`
+(`0 0 9 ? * MON` and `0 0 19 * * ?`, pinned to `Europe/Zurich`). They should be
+guild-configurable — and possibly per-alliance, since a guild can run several alliance links
+(each already has its own `DigestChannel`/`Instructions`/zone-slot settings via
+`GuildFeatureSettingSnowflake`/`Text`). Design notes: store the time (and probably an IANA
+time-zone id) as a per-`(guild, alliance)` feature setting; the Quartz cron triggers are global
+and code-defined, so per-guild times can't be plain static cron triggers — either (a) one
+frequent sweep job that checks "is it any guild's configured digest minute now?" and sends for
+the matching links, or (b) dynamically scheduled per-guild triggers managed when settings change.
+(a) is simpler and fits the existing job model; (b) is more precise but needs trigger lifecycle
+management. Also expose it in the Web feature-settings UI. Until then the hard-coded 09:00/19:00
+Europe/Zurich is the default for everyone.
