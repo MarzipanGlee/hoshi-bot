@@ -39,6 +39,9 @@ public static class GuildFeatureAudiences
         // the same audiences so its channel bucket lines up with AiChat's per audience.
         GuildFeature.AiChat => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.AiChatKnowledge => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        // Preferred/LastResort knowledge tiers mirror AiChatKnowledge's audiences (same channel buckets).
+        GuildFeature.AiChatKnowledgePreferred => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        GuildFeature.AiChatKnowledgeLastResort => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         _ => GuildAudience.None,
     };
 

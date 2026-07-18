@@ -30,5 +30,14 @@ public enum GuildFeature
     // is never enabled via GuildEnabledFeature; it only ever appears as a (GuildId, Feature,
     // Audience) key on GuildFeatureChannel rows so the same MultiChannelPicker/service can back
     // the knowledge-channel list. Keep it last so its ordinal never shifts existing rows.
+    // AiChatKnowledge itself is the "Normal" priority tier for knowledge retrieval.
     AiChatKnowledge,
+
+    // Two more storage-only knowledge buckets (same shape/rules as AiChatKnowledge) expressing a
+    // per-channel retrieval PRIORITY: Preferred sources are boosted and LastResort sources are
+    // down-ranked (used only when better sources have no answer) during AI-chat search. The
+    // indexed knowledge set is the union of all three buckets. Keep these last so ordinals never
+    // shift existing GuildFeatureChannel rows.
+    AiChatKnowledgePreferred,
+    AiChatKnowledgeLastResort,
 }

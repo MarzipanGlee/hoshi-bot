@@ -11,6 +11,14 @@
     Gemini requires this guild's own API key; Ollama runs on the shared local server (no key).
 </p>
 
+<p class="form-text">
+    <strong>Knowledge channels</strong> (or whole categories) are the sources the bot draws on to
+    ground its answers. Their <strong>priority</strong> controls which sources the answer search
+    prefers — <em>Preferred</em> is boosted, <em>Last resort</em> is only used when the higher tiers
+    have no answer. A channel belongs to exactly <em>one</em> tier (adding it to one removes it from
+    the others).
+</p>
+
 <div class="form-switch mb-3">
     <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
            @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
@@ -18,79 +26,91 @@
 </div>
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="KI-Anbieter">
+    <SettingsCard Title="AI provider">
         <label for="aiChatProvider" class="form-label">
-            Welches Sprachmodell diese Gilde nutzt. <strong>Gemini</strong> (Google-Cloud, eigener
-            API-Schlüssel nötig) oder <strong>Ollama</strong> (lokales Modell auf dem gemeinsamen
-            Server, kein Schlüssel nötig).
+            Which language model this guild uses. <strong>Gemini</strong> (Google Cloud, needs its own
+            API key) or <strong>Ollama</strong> (local model on the shared server, no key needed).
         </label>
         <select id="aiChatProvider" class="form-select" @bind="providerInput" @bind:after="SaveProviderAsync">
             <option value="gemini">Google Gemini</option>
-            <option value="ollama">Ollama (lokal)</option>
+            <option value="ollama">Ollama (local)</option>
         </select>
     </SettingsCard>
 
     @if (providerInput != "ollama")
     {
-        <SettingsCard Title="Gemini API Key">
+        <SettingsCard Title="Gemini API key">
             <label class="form-label">
-                Dieser Gilde eigener Google-Gemini-API-Schlüssel. Wird für alle KI-Antworten verwendet und
-                im Klartext gespeichert.
+                This guild's own Google Gemini API key. Used for all AI answers and stored in plain text.
             </label>
             @if (hasKey)
             {
-                <p class="form-text mb-1 text-success">Ein Schlüssel ist gespeichert. Neuen Wert eingeben, um ihn zu ersetzen.</p>
+                <p class="form-text mb-1 text-success">A key is saved. Enter a new value to replace it.</p>
             }
             <div class="d-flex gap-2">
                 <input type="password" class="form-control" autocomplete="off"
-                       placeholder="@(hasKey ? "•••••••• (gespeichert)" : "API-Schlüssel eingeben")"
+                       placeholder="@(hasKey ? "•••••••• (saved)" : "Enter API key")"
                        @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
                 @if (hasKey)
                 {
-                    <button type="button" class="btn btn-outline-danger" @onclick="ClearApiKeyAsync">Löschen</button>
+                    <button type="button" class="btn btn-outline-danger" @onclick="ClearApiKeyAsync">Delete</button>
                 }
             </div>
         </SettingsCard>
     }
 
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChat" Audience="ResolvedAudience"
-        Title="Zuhör-Kanäle" Usage="Kanäle, in denen der Bot mitliest und antwortet." />
+        Title="Listen channels" Usage="Channels the bot reads and answers in." />
 
-    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChatKnowledge" Audience="ResolvedAudience"
-        AllowCategories="true"
-        Title="Wissensquellen-Kanäle" Usage="Kanäle (oder ganze Kategorien), deren aktuelle Nachrichten der Bot als Wissensbasis für Antworten heranzieht." />
+    <MultiChannelPicker @ref="preferredPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledgePreferred"
+        Audience="ResolvedAudience" AllowCategories="true"
+        ExclusiveWith="PreferredExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
+        Title="Knowledge – preferred"
+        Usage="Curated/internal channels. Hits here are boosted in the answer search." />
 
-    <SettingsCard Title="System-Prompt (optional)">
+    <MultiChannelPicker @ref="normalPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledge"
+        Audience="ResolvedAudience" AllowCategories="true"
+        ExclusiveWith="NormalExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
+        Title="Knowledge – normal"
+        Usage="The bot's standard knowledge sources." />
+
+    <MultiChannelPicker @ref="lastResortPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledgeLastResort"
+        Audience="ResolvedAudience" AllowCategories="true"
+        ExclusiveWith="LastResortExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
+        Title="Knowledge – last resort"
+        Usage="E.g. external content (content creators / Scopely). Used only when the preferred/normal sources have no answer." />
+
+    <SettingsCard Title="System prompt (optional)">
         <label for="aiChatSystemPrompt" class="form-label">
-            Zusätzliche Persönlichkeits-/Verhaltensanweisung, die dem Standard-Prompt vorangestellt wird.
+            Extra personality/behaviour instruction, prepended to the default prompt.
         </label>
         <textarea id="aiChatSystemPrompt" class="form-control flex-grow-1" rows="4"
                   @bind="systemPromptInput" @bind:after="SaveSystemPromptAsync"></textarea>
     </SettingsCard>
 
-    <SettingsCard Title="Modell (optional)">
+    <SettingsCard Title="Model (optional)">
         @if (providerInput == "ollama")
         {
             <label for="aiChatModel" class="form-label">
-                Ollama-Modell. Leer lassen für das Standardmodell des Servers.
+                Ollama model. Leave empty for the server's default model.
             </label>
-            <input id="aiChatModel" class="form-control" placeholder="Standardmodell des Servers"
+            <input id="aiChatModel" class="form-control" placeholder="Server default model"
                    @bind="modelInput" @bind:after="SaveModelAsync" />
         }
         else
         {
             <label for="aiChatModel" class="form-label">
-                Gemini-Modell. Leer lassen für den Standard (@AiChatSettingKeys.DefaultModel).
+                Gemini model. Leave empty for the default (@AiChatSettingKeys.DefaultModel).
             </label>
             <input id="aiChatModel" class="form-control" placeholder="@AiChatSettingKeys.DefaultModel"
                    @bind="modelInput" @bind:after="SaveModelAsync" />
         }
     </SettingsCard>
 
-    <SettingsCard Title="Suchsprache">
+    <SettingsCard Title="Search language">
         <label for="aiChatSearchLanguage" class="form-label">
-            Sprache für die Volltextsuche in den Wissensquellen (bestimmt die Wortstamm-Erkennung).
-            Vorbelegt aus der Server-Sprache.
+            Language for the full-text search over the knowledge sources (controls word-stemming).
+            Prefilled from the server language.
         </label>
         <select id="aiChatSearchLanguage" class="form-select" @bind="searchLanguageInput" @bind:after="SaveSearchLanguageAsync">
             @foreach (var lang in FtsLanguage.SupportedConfigs)
@@ -103,6 +123,23 @@
 
 @code {
     protected override GuildFeature Feature => GuildFeature.AiChat;
+
+    // The three knowledge-priority tier pickers; a channel lives in exactly one. Each declares the
+    // other two as ExclusiveWith so adding a channel moves it, and OnChanged refreshes all three.
+    private MultiChannelPicker? preferredPicker;
+    private MultiChannelPicker? normalPicker;
+    private MultiChannelPicker? lastResortPicker;
+
+    private static readonly GuildFeature[] PreferredExclusiveWith = [GuildFeature.AiChatKnowledge, GuildFeature.AiChatKnowledgeLastResort];
+    private static readonly GuildFeature[] NormalExclusiveWith = [GuildFeature.AiChatKnowledgePreferred, GuildFeature.AiChatKnowledgeLastResort];
+    private static readonly GuildFeature[] LastResortExclusiveWith = [GuildFeature.AiChatKnowledge, GuildFeature.AiChatKnowledgePreferred];
+
+    private async Task RefreshKnowledgePickersAsync()
+    {
+        if (preferredPicker is not null) await preferredPicker.ReloadAsync();
+        if (normalPicker is not null) await normalPicker.ReloadAsync();
+        if (lastResortPicker is not null) await lastResortPicker.ReloadAsync();
+    }
 
     private bool hasKey;
     private string? apiKeyInput;

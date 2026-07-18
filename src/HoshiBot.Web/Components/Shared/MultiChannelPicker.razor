@@ -77,6 +77,15 @@
     // AiChatService.ExpandKnowledgeChannelsAsync.
     [Parameter] public bool AllowCategories { get; set; }
 
+    // When set, adding a channel first removes it from these sibling features (same guild/audience),
+    // so the channel lives in exactly one of the mutually-exclusive buckets (e.g. the AI-chat
+    // knowledge priority tiers). Null = plain add (today's behaviour).
+    [Parameter] public IReadOnlyList<GuildFeature>? ExclusiveWith { get; set; }
+
+    // Raised after any add/remove so a parent hosting several mutually-exclusive pickers can refresh
+    // the siblings (via ReloadAsync) — a moved channel then disappears from the other lists.
+    [Parameter] public EventCallback OnChanged { get; set; }
+
     private List<ulong> channelIds = [];
     private List<IGuildChannel> channels = [];
     private string? newChannelIdInput;
@@ -89,21 +98,36 @@
         channels = await DiscordData.GetChannelsAsync(GuildId);
     }
 
+    // Reload from storage and re-render — called by a parent to refresh sibling pickers after one of
+    // them changed (see OnChanged / ExclusiveWith).
+    public async Task ReloadAsync()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
     private async Task AddAsync()
     {
         if (!ulong.TryParse(newChannelIdInput, out var channelId))
             return;
 
-        await FeatureChannelService.AddAsync(GuildId, Feature, Audience, channelId);
+        if (ExclusiveWith is { Count: > 0 })
+            await FeatureChannelService.AddExclusiveAsync(GuildId, Feature, Audience, channelId, ExclusiveWith);
+        else
+            await FeatureChannelService.AddAsync(GuildId, Feature, Audience, channelId);
         newChannelIdInput = null;
         await LoadAsync();
+        await NotifyChangedAsync();
     }
 
     private async Task RemoveAsync(ulong channelId)
     {
         await FeatureChannelService.RemoveAsync(GuildId, Feature, Audience, channelId);
         await LoadAsync();
+        await NotifyChangedAsync();
     }
+
+    private Task NotifyChangedAsync() => OnChanged.HasDelegate ? OnChanged.InvokeAsync() : Task.CompletedTask;
 
     // Every consumer posts via a plain SendMessageAsync (never a private thread), so Normal is
     // always right here — same reasoning as AlertChannelListEditor.

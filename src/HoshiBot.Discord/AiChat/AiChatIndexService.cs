@@ -43,6 +43,16 @@ public partial class AiChatIndexService(
     // Reciprocal Rank Fusion constant (standard 60): score += 1 / (RrfK + rank).
     private const int RrfK = 60;
 
+    // Per-channel knowledge priority tiers (soft down-rank): after RRF fusion a candidate's score is
+    // multiplied by its channel's tier factor, so Preferred sources win ties/near-ties and LastResort
+    // sources only surface when nothing better matches. Values are tunable.
+    private const double PreferredBoost = 1.5;
+    private const double LastResortPenalty = 0.25;
+
+    // The three knowledge buckets whose union is indexed; AiChatKnowledge is the Normal tier.
+    private static readonly GuildFeature[] KnowledgeBuckets =
+        [GuildFeature.AiChatKnowledge, GuildFeature.AiChatKnowledgePreferred, GuildFeature.AiChatKnowledgeLastResort];
+
     private const int FallbackPerChannelLimit = 20;
     // Bound on how many resolved sources the FALLBACK live-gather stuffs into the prompt (used
     // only before a guild's index is first built) — keeps that prompt from exploding.
@@ -98,11 +108,26 @@ public partial class AiChatIndexService(
         Fuse(ftsCandidates);
         Fuse(vectorCandidates);
 
+        // Soft down-rank by channel priority tier: multiply each fused score by its tier factor, so
+        // Preferred sources win ties/near-ties and LastResort sources only surface when nothing
+        // better matches. A tier is resolved from the candidate's own channel first, then its parent
+        // (category/forum) — so a child explicitly placed in a tier overrides its category's tier.
+        var (preferred, lastResort) = await GetKnowledgePrioritySetsAsync(guildId);
+        double TierFactor(Candidate c)
+        {
+            var parent = ResolveParentId(guildId, c.ChannelId);
+            if (preferred.Contains(c.ChannelId) || (parent is { } pp && preferred.Contains(pp)))
+                return PreferredBoost;
+            if (lastResort.Contains(c.ChannelId) || (parent is { } pl && lastResort.Contains(pl)))
+                return LastResortPenalty;
+            return 1.0;
+        }
+
         return scores
-            .OrderByDescending(kv => kv.Value)
+            .Select(kv => (Hit: byId[kv.Key], Score: kv.Value * TierFactor(byId[kv.Key])))
+            .OrderByDescending(x => x.Score)
             .Take(limit)
-            .Select(kv => byId[kv.Key])
-            .Select(c => new KnowledgeHit(c.ChannelId, c.ChannelName, c.Content))
+            .Select(x => new KnowledgeHit(x.Hit.ChannelId, x.Hit.ChannelName, x.Hit.Content))
             .ToList();
     }
 
@@ -429,12 +454,29 @@ public partial class AiChatIndexService(
 
     private async Task<List<ulong>> GetConfiguredKnowledgeChannelIdsAsync(ulong guildId)
     {
-        // AiChatKnowledge is a storage-only bucket keyed off AiChat's enabled audiences.
+        // The knowledge buckets are storage-only, keyed off AiChat's enabled audiences. The indexed
+        // set is the union of all three priority tiers (Normal/Preferred/LastResort).
         var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.AiChat);
         var configured = new List<ulong>();
         foreach (var audience in enabledAudiences)
-            configured.AddRange(await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledge, audience));
+            foreach (var bucket in KnowledgeBuckets)
+                configured.AddRange(await channelService.GetChannelsAsync(guildId, bucket, audience));
         return configured.Distinct().ToList();
+    }
+
+    // The configured channel/category ids for the Preferred and LastResort tiers (across AiChat's
+    // enabled audiences). Everything else configured is Normal. Used by SearchAsync to weight hits.
+    private async Task<(HashSet<ulong> Preferred, HashSet<ulong> LastResort)> GetKnowledgePrioritySetsAsync(ulong guildId)
+    {
+        var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.AiChat);
+        var preferred = new HashSet<ulong>();
+        var lastResort = new HashSet<ulong>();
+        foreach (var audience in enabledAudiences)
+        {
+            preferred.UnionWith(await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledgePreferred, audience));
+            lastResort.UnionWith(await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledgeLastResort, audience));
+        }
+        return (preferred, lastResort);
     }
 
     // Resolves configured entries to concrete message sources with a display name: categories to

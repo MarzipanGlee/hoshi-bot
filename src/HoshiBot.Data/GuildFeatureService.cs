@@ -176,6 +176,8 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         GuildFeature.ClientRelease => "Client-Versions-Benachrichtigungen",
         GuildFeature.AiChat => "KI-Chat",
         GuildFeature.AiChatKnowledge => "KI-Chat: Wissensquellen",
+        GuildFeature.AiChatKnowledgePreferred => "KI-Chat: Wissensquellen (bevorzugt)",
+        GuildFeature.AiChatKnowledgeLastResort => "KI-Chat: Wissensquellen (letzte Wahl)",
         _ => feature.ToString(),
     };
 }

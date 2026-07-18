@@ -60,4 +60,16 @@ public class GuildFeatureChannelService(IDbContextFactory<HoshiBotDbContext> dbF
             .Where(c => c.GuildId == guildId && c.Feature == feature && c.Audience == audience && c.ChannelId == channelId)
             .ExecuteDeleteAsync();
     }
+
+    // Adds a channel to one feature bucket while ensuring it's in ONLY that bucket among a set of
+    // mutually-exclusive sibling features (same guild + audience) — e.g. the three AI-chat
+    // knowledge-priority tiers, where a channel belongs to exactly one tier. Removes it from the
+    // siblings first, then adds (both idempotent), so re-assigning a channel to another tier "moves"
+    // it rather than duplicating it.
+    public async Task AddExclusiveAsync(ulong guildId, GuildFeature feature, GuildAudience audience, ulong channelId, IReadOnlyList<GuildFeature> exclusiveWith)
+    {
+        foreach (var sibling in exclusiveWith)
+            await RemoveAsync(guildId, sibling, audience, channelId);
+        await AddAsync(guildId, feature, audience, channelId);
+    }
 }
