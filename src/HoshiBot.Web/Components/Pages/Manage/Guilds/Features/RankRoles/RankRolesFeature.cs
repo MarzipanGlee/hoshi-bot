@@ -11,8 +11,8 @@ public class RankRolesFeature : IFeatureModule
 
     public string Description =>
         "Assigns each member one of five Discord roles matching their current STFC in-alliance rank " +
-        "(Admiral/Commodore/Premier/Operative/Agent), kept in sync from imported player data — usable by " +
-        "any audience.";
+        "(Admiral/Commodore/Premier/Operative/Agent), kept in sync from imported player data — one set " +
+        "of roles for the whole guild.";
 
     public string Icon => "oi-badge";
     public Type EditorComponentType => typeof(RankRolesEditor);

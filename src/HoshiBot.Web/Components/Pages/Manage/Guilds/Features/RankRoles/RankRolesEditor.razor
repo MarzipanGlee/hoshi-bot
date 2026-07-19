@@ -83,8 +83,20 @@
     // (and failed) to create a role Discord already had.
     private async Task LoadRankRoleAsync(RankRoleState state)
     {
-        state.RoleId = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, GuildAllianceId, state.SettingKey))?.ToString()
-            ?? roles.FirstOrDefault(r => r.Name == state.DefaultName)?.Id.ToString();
+        var saved = await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, GuildAllianceId, state.SettingKey);
+        if (saved is { } savedId)
+        {
+            state.RoleId = savedId.ToString();
+        }
+        else if (roles.FirstOrDefault(r => r.Name == state.DefaultName) is { } role)
+        {
+            // Persist the name-matched fallback right away: the picker shows it as the current
+            // selection, so re-picking the same role fires no change event and it would
+            // otherwise never be saved (nor picked up by the role-sync job).
+            state.RoleId = role.Id.ToString();
+            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.RankRoles, Audience, GuildAllianceId, state.SettingKey, role.Id);
+        }
+
         ApplyRoleDisplayState(state);
     }
 

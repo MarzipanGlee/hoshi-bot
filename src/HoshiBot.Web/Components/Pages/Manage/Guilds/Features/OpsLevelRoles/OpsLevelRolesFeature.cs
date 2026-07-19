@@ -11,7 +11,7 @@ public class OpsLevelRolesFeature : IFeatureModule
 
     public string Description =>
         "Assigns each member one of seven Discord roles matching their current STFC Ops Level " +
-        "tier (G1-G7), kept in sync from imported player data — usable by any audience.";
+        "tier (G1-G7), kept in sync from imported player data — one set of roles for the whole guild.";
 
     public string Icon => "oi-graph";
     public Type EditorComponentType => typeof(OpsLevelRolesEditor);
