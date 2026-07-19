@@ -13,38 +13,38 @@
 }
 else if (loading)
 {
-    <p>Lade Mitglieder…</p>
+    <p>Loading members…</p>
 }
 else
 {
-    <h1>Spielerzuordnung</h1>
+    <h1>Player Assignment</h1>
     <p class="text-muted">
-        Ordne jedes Mitglied seinem/seinen In-Game-Spieler(n) zu. Die Zuordnung gilt <strong>global für die
-        Person</strong> — sie wirkt in jedem Server, den sie mit Hoshi teilt, und steuert die automatische
-        Rollenvergabe (Rang, Ops-Level, Nickname). Ein Spieler kann mehreren Discord-Konten zugeordnet sein
-        (z. B. Zweitaccounts).
+        Assign each member to their in-game player(s). The assignment is <strong>global to the
+        person</strong> — it applies in every server they share with Hoshi, and drives the automatic
+        role assignment (rank, ops level, nickname). A player can be linked to multiple Discord accounts
+        (e.g. alt accounts).
     </p>
 
     <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
         <div style="max-width:22rem;flex:1 1 16rem">
-            <label class="form-label small mb-1">Mitglied suchen</label>
+            <label class="form-label small mb-1">Search member</label>
             <input class="form-control form-control-sm" placeholder="Name…" value="@memberFilter"
                    @oninput="e => memberFilter = e.Value?.ToString() ?? string.Empty" />
         </div>
-        <div class="form-check form-switch">
+        <div class="form-switch">
             <input class="form-check-input" type="checkbox" role="switch" id="onlyUnlinked"
                    checked="@onlyUnlinked" @onchange="e => onlyUnlinked = (bool)e.Value!" />
-            <label class="form-check-label" for="onlyUnlinked">Nur ohne Zuordnung</label>
+            <label class="form-check-label" for="onlyUnlinked">Only unassigned</label>
         </div>
-        <span class="text-muted small">@FilteredMembers.Count / @members.Count Mitglieder</span>
+        <span class="text-muted small">@FilteredMembers.Count / @members.Count members</span>
     </div>
 
     <div class="table-responsive">
         <table class="table align-middle">
             <thead>
                 <tr>
-                    <th style="min-width:12rem">Mitglied (Nickname)</th>
-                    <th>Zugeordnete Spieler</th>
+                    <th style="min-width:12rem">Member (Nickname)</th>
+                    <th>Assigned Players</th>
                 </tr>
             </thead>
             <tbody>
@@ -59,22 +59,22 @@ else
                                     <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
                                         @if (link.IsMain)
                                         {
-                                            <span title="Hauptspieler">★</span>
+                                            <span title="Main player">★</span>
                                         }
                                         <span>@PlayerLabel(link.Name, link.ServerName, link.AllianceTag)</span>
                                         @if (!link.IsMain)
                                         {
                                             <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                    title="Als Hauptspieler setzen" @onclick="() => SetMainAsync(m.Id, link.PlayerId)">☆</button>
+                                                    title="Set as main player" @onclick="() => SetMainAsync(m.Id, link.PlayerId)">☆</button>
                                         }
                                         <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                title="Entfernen" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
+                                                title="Remove" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
                                     </span>
                                 }
                                 @if (addingForUserId == m.Id)
                                 {
                                     <div class="d-inline-flex flex-column" style="min-width:18rem">
-                                        <input class="form-control form-control-sm" placeholder="Spieler suchen…" value="@searchTerm"
+                                        <input class="form-control form-control-sm" placeholder="Search player…" value="@searchTerm"
                                                @oninput="OnSearchInputAsync" autofocus />
                                         @if (searchResults.Count > 0)
                                         {
@@ -93,7 +93,7 @@ else
                                 else
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => StartAdding(m.Id)">
-                                        + Spieler
+                                        + Player
                                     </button>
                                 }
                             </div>
