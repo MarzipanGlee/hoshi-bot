@@ -112,6 +112,24 @@ public static class TerritoryCaptureSettingKeys
     };
 }
 
+public static class MemberLoreSettingKeys
+{
+    // The role a user must hold to be DM-interviewed (snowflake). Unset → fall back to the linked
+    // alliance's GuildAlliance.MemberRoleId.
+    public const string MemberRole = "MemberRole";
+
+    // Max interview invites the bot sends per day (text int, e.g. "10"), to stay clear of Discord's
+    // DM rate/anti-spam limits. Unset → a conservative default.
+    public const string MaxInterviewsPerDay = "MaxInterviewsPerDay";
+
+    // The invite job's go-signal ("true"): staff flip this on (after posting the announcement) to
+    // start DMing members. Off/unset → the feature is configured but no DMs go out.
+    public const string CampaignActive = "CampaignActive";
+
+    // Optional role (snowflake) granted to a member once they finish their interview. Unset → none.
+    public const string CompletedRole = "CompletedRole";
+}
+
 public static class RankRolesSettingKeys
 {
     public const string AdmiralRole = "AdmiralRole";

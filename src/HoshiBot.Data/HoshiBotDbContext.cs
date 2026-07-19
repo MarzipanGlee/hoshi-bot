@@ -93,6 +93,10 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<AiChatBackfillState> AiChatBackfillStates => Set<AiChatBackfillState>();
 
+    public DbSet<MemberInterview> MemberInterviews => Set<MemberInterview>();
+
+    public DbSet<MemberInterviewMessage> MemberInterviewMessages => Set<MemberInterviewMessage>();
+
     public DbSet<ChannelPermissionExpectation> ChannelPermissionExpectations => Set<ChannelPermissionExpectation>();
 
     public DbSet<StfcServerStatus> StfcServerStatuses => Set<StfcServerStatus>();

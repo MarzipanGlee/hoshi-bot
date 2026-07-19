@@ -5,6 +5,7 @@ using HoshiBot.Discord.AiChat;
 using HoshiBot.Discord.AnonymousMessages;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.CommandBridge;
+using HoshiBot.Discord.MemberLore;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Discord.Scheduling;
@@ -47,7 +48,10 @@ builder.Services
     // enabled for this bot application in the Discord Developer Portal, or message.Content
     // arrives empty and the AI never sees anything to answer.
     .AddDiscordGateway(options => options.Intents =
-        GatewayIntents.Guilds | GatewayIntents.GuildUsers | GatewayIntents.GuildMessages | GatewayIntents.MessageContent)
+        GatewayIntents.Guilds | GatewayIntents.GuildUsers | GatewayIntents.GuildMessages | GatewayIntents.MessageContent
+        // DirectMessages: receive MESSAGE_CREATE for DMs (member-lore interview replies). Not a
+        // privileged intent (no portal toggle); DM content always arrives without MessageContent.
+        | GatewayIntents.DirectMessages)
     .AddApplicationCommands()
     .AddComponentInteractions<ButtonInteraction, ButtonInteractionContext>()
     .AddComponentInteractions<UserMenuInteraction, UserMenuInteractionContext>()
@@ -79,6 +83,8 @@ builder.Services.AddScoped<IAiChatProvider, OllamaClient>();
 builder.Services.AddScoped<AiChatEmbeddingService>();
 builder.Services.AddScoped<AiChatIndexService>();
 builder.Services.AddScoped<AiChatService>();
+builder.Services.AddScoped<AiChatModelResolver>();
+builder.Services.AddScoped<MemberInterviewService>();
 
 // The shared local Ollama server (compose service `ollama`); base URL is deployment config
 // (Ollama:BaseUrl), not a per-guild secret. Long, configurable timeout — local model generation
@@ -225,6 +231,13 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(territoryCaptureRoleSyncJobKey)
             .WithIdentity($"{territoryCaptureRoleSyncJobKey.Name}-trigger")
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+
+    var memberInterviewInviteJobKey = new JobKey(nameof(MemberInterviewInviteJob));
+    quartz.AddJob<MemberInterviewInviteJob>(memberInterviewInviteJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(memberInterviewInviteJobKey)
+            .WithIdentity($"{memberInterviewInviteJobKey.Name}-trigger")
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(20).RepeatForever()));
 
     var rankRoleSyncJobKey = new JobKey(nameof(RankRoleSyncJob));
     quartz.AddJob<RankRoleSyncJob>(rankRoleSyncJobKey)

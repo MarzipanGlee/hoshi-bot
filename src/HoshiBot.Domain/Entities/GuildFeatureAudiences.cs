@@ -9,6 +9,7 @@ public static class GuildFeatureAudiences
     public static GuildAudience RelevantAudiences(GuildFeature feature) => feature switch
     {
         GuildFeature.Absences => GuildAudience.Alliance,
+        GuildFeature.MemberLore => GuildAudience.Alliance,
         GuildFeature.ShieldReminders => GuildAudience.Alliance,
         GuildFeature.TerritoryCapture => GuildAudience.Alliance,
         GuildFeature.RoeViolationReports => GuildAudience.Alliance,

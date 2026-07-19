@@ -1,14 +1,15 @@
 using HoshiBot.Discord.AiChat;
+using HoshiBot.Discord.MemberLore;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
 using NetCord.Rest;
 
 namespace HoshiBot.Host;
 
-// Listens to every guild message (MESSAGE_CREATE) and lets AiChatService decide whether to
-// answer. Kept deliberately thin: all the gating/gathering/LLM logic lives in the scoped
-// AiChatService — this singleton handler owns only the Discord message lifecycle (post/edit).
-// Auto-registered by AddGatewayHandlers(typeof(Program).Assembly), same as GuildSyncHandler.
+// The single MESSAGE_CREATE handler. Guild messages go to AiChatService (decide whether/how to
+// answer); direct messages (no guild) go to the member-lore interview if one is active. Kept thin:
+// the gating/gathering/LLM logic lives in the scoped services — this owns only the Discord message
+// lifecycle (post/edit). Auto-registered by AddGatewayHandlers(typeof(Program).Assembly).
 //
 // Directly-addressed answers stream: the service calls back with the answer-so-far, and we post a
 // placeholder then edit it in place so a long generation appears live instead of a minute of
@@ -23,9 +24,15 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClie
 {
     public async ValueTask HandleAsync(Message message)
     {
-        // Cheap pre-filters before spinning up a DI scope for the common no-op case.
-        if (message.GuildId is null || message.Author.IsBot)
+        if (message.Author.IsBot)
             return;
+
+        // Direct messages (no guild) → the member-lore interview, when one is active for this user.
+        if (message.GuildId is null)
+        {
+            await HandleDirectMessageAsync(message);
+            return;
+        }
 
         try
         {
@@ -83,6 +90,24 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClie
         catch (RestException ex)
         {
             logger.LogWarning(ex, "AiChat failed to post a reply in channel {ChannelId}", message.ChannelId);
+        }
+    }
+
+    private async ValueTask HandleDirectMessageAsync(Message message)
+    {
+        var content = message.Content?.Trim();
+        if (string.IsNullOrEmpty(content))
+            return;
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var interviews = scope.ServiceProvider.GetRequiredService<MemberInterviewService>();
+            await interviews.HandleReplyAsync(message.Author.Id, content, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Member-interview DM handling failed for user {UserId}", message.Author.Id);
         }
     }
 }

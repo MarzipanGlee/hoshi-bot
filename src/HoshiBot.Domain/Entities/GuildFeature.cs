@@ -40,4 +40,8 @@ public enum GuildFeature
     // shift existing GuildFeatureChannel rows.
     AiChatKnowledgePreferred,
     AiChatKnowledgeLastResort,
+
+    // Member lore: the bot DM-interviews members to learn who they are (name, interests, stories
+    // about others) so it can act like a real member of the community. See docs/ai-chat-member-lore.md.
+    MemberLore,
 }
