@@ -41,29 +41,22 @@ public class MemberOnboardingHandler(IServiceScopeFactory scopeFactory, ILogger<
 
             await EnsureGuildMemberAsync(db, user.GuildId, user.Id);
 
-            var linkIds = await featureService.GetEnabledAllianceIdsAsync(user.GuildId, GuildFeature.PlayerLink);
-            foreach (var linkId in linkIds)
+            if (!await featureService.IsEnabledAsync(user.GuildId, GuildFeature.PlayerLink))
+                return;
+
+            var outcome = await playerLinkService.ProcessMemberAsync(user.GuildId, user.Id, CommanderName.Of(user));
+
+            // Ambiguous/unmatched → if MemberOnboarding is on and its campaign is active, DM the member
+            // now rather than waiting for the paced job. SendOutreachAsync flips the row to DmSent, so
+            // the periodic job won't double-DM.
+            if (outcome == PlayerLinkOutcome.Queued
+                && await featureService.IsEnabledAsync(user.GuildId, GuildFeature.MemberOnboarding)
+                && await IsCampaignActiveAsync(settingsService, user.GuildId))
             {
-                var link = await db.GuildAlliances.FirstOrDefaultAsync(ga => ga.Id == linkId);
-                var memberRole = await settingsService.GetSnowflakeAsync(user.GuildId, GuildFeature.PlayerLink, GuildAudience.Alliance, linkId, PlayerLinkSettingKeys.MemberRole)
-                    ?? link?.MemberRoleId;
-                if (memberRole is not { } memberRoleId || !user.RoleIds.Contains(memberRoleId))
-                    continue;
-
-                var outcome = await playerLinkService.ProcessMemberAsync(user.GuildId, linkId, user.Id, CommanderName.Of(user));
-
-                // Ambiguous/unmatched → if MemberOnboarding is on and its campaign is active, DM the
-                // member now rather than waiting for the paced job. SendOutreachAsync flips the row to
-                // DmSent, so the periodic job won't double-DM.
-                if (outcome == PlayerLinkOutcome.Queued
-                    && await featureService.IsEnabledAsync(user.GuildId, GuildFeature.MemberOnboarding, GuildAudience.Alliance, linkId)
-                    && await IsCampaignActiveAsync(settingsService, user.GuildId, linkId))
-                {
-                    var review = await db.PlayerLinkReviews.FirstOrDefaultAsync(
-                        r => r.GuildId == user.GuildId && r.DiscordUserId == user.Id && r.Status == PlayerLinkReviewStatus.Unresolved);
-                    if (review is not null)
-                        await onboarding.SendOutreachAsync(review, CancellationToken.None);
-                }
+                var review = await db.PlayerLinkReviews.FirstOrDefaultAsync(
+                    r => r.GuildId == user.GuildId && r.DiscordUserId == user.Id && r.Status == PlayerLinkReviewStatus.Unresolved);
+                if (review is not null)
+                    await onboarding.SendOutreachAsync(review, CancellationToken.None);
             }
         }
         catch (Exception ex)
@@ -72,9 +65,9 @@ public class MemberOnboardingHandler(IServiceScopeFactory scopeFactory, ILogger<
         }
     }
 
-    private static async Task<bool> IsCampaignActiveAsync(GuildFeatureSettingsService settings, ulong guildId, int linkId) =>
+    private static async Task<bool> IsCampaignActiveAsync(GuildFeatureSettingsService settings, ulong guildId) =>
         string.Equals(
-            await settings.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Alliance, linkId, MemberOnboardingSettingKeys.CampaignActive),
+            await settings.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Community, null, MemberOnboardingSettingKeys.CampaignActive),
             "true", StringComparison.OrdinalIgnoreCase);
 
     private static async Task EnsureGuildMemberAsync(HoshiBotDbContext db, ulong guildId, ulong userId)

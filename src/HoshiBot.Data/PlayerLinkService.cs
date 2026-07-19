@@ -3,43 +3,82 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Data;
 
-// The pure-DB core of automated player↔member assignment (the PlayerLink / MemberOnboarding
-// features): resolves an StfcPlayer candidate set from a member's display name, creates the
-// UserPlayer link that drives every role-sync job, and maintains the PlayerLinkReview admin queue.
-// Lives in HoshiBot.Data (no NetCord/Quartz) so the Discord jobs/handlers AND the Web admin table can
-// all call it — Web must not reference HoshiBot.Discord. Discord-layer callers pass a tag-stripped
-// nickname (CommanderName.Of); this service does no Discord I/O of its own.
+// The pure-DB core of player↔member assignment. Player links live on the user globally
+// (DiscordUser.PlayerLinks / UserPlayer), so a person's players are known in every guild Hoshi shares
+// with them — this service creates/edits those links, drives the guild-wide auto-matcher, backs the
+// full-catalog search + admin assignment page, and maintains the PlayerLinkReview onboarding queue.
+// Lives in HoshiBot.Data (no NetCord/Quartz) so the Discord jobs/handlers AND the Web page can all
+// call it. Discord-layer callers pass a tag-stripped nickname (CommanderName.Of); no Discord I/O here.
 public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
 {
-    // Player candidates for a display name within one linked alliance's server, in-alliance first.
-    public async Task<List<StfcPlayer>> ResolveCandidatesAsync(int guildAllianceId, string playerName)
+    // Global exact-name matches for a display name, ordered with the guild's linked-alliance players
+    // first. Used by the auto-matcher and the onboarding DM's candidate resolution.
+    public async Task<List<StfcPlayer>> ResolveCandidatesAsync(ulong guildId, string name)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await ResolveCandidatesAsync(db, guildAllianceId, playerName);
+        var allianceIds = await GuildStfcAllianceIdsAsync(db, guildId);
+        return await ResolveCandidatesAsync(db, allianceIds, name);
     }
 
-    private static async Task<List<StfcPlayer>> ResolveCandidatesAsync(HoshiBotDbContext db, int guildAllianceId, string playerName)
+    private static async Task<List<StfcPlayer>> ResolveCandidatesAsync(HoshiBotDbContext db, HashSet<int> guildStfcAllianceIds, string name)
     {
-        var link = await db.GuildAlliances
-            .Include(ga => ga.StfcAlliance)
-            .FirstOrDefaultAsync(ga => ga.Id == guildAllianceId);
-        if (link is null)
-            return [];
-
-        var lowered = playerName.Trim().ToLower();
+        var lowered = name.Trim().ToLower();
         if (lowered.Length == 0)
             return [];
 
-        var serverId = link.StfcAlliance.ServerId;
-        var stfcAllianceId = link.StfcAllianceId;
         var matches = await db.StfcPlayers
-            .Where(p => p.ServerId == serverId && p.Name.ToLower() == lowered)
+            .Where(p => p.Name.ToLower() == lowered)
             .ToListAsync();
 
-        // In-alliance players first (the confident case); same-name players elsewhere on the server after.
         return matches
-            .OrderByDescending(p => p.AllianceId == stfcAllianceId)
+            .OrderByDescending(p => p.AllianceId != null && guildStfcAllianceIds.Contains(p.AllianceId.Value))
+            .ThenBy(p => p.Name)
             .ToList();
+    }
+
+    // Search-as-you-type over the whole player catalog for the assignment page's picker — capped, and
+    // it never excludes a player already linked to another user (multi-account owners are legitimate).
+    public async Task<List<PlayerSearchResult>> SearchPlayersAsync(string term, int limit = 25)
+    {
+        var t = term.Trim().ToLower();
+        if (t.Length == 0)
+            return [];
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.StfcPlayers
+            .Where(p => p.Name.ToLower().Contains(t))
+            .OrderBy(p => p.Name)
+            .Take(limit)
+            .Select(p => new PlayerSearchResult(p.Id, p.Name, p.Server.Name, p.Alliance != null ? p.Alliance.Tag : null))
+            .ToListAsync();
+    }
+
+    // Every linked player for each of the given users (for the assignment page), main first.
+    public async Task<Dictionary<ulong, List<MemberPlayerLink>>> GetLinksForUsersAsync(IEnumerable<ulong> userIds)
+    {
+        var ids = userIds.ToList();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var rows = await db.UserPlayers
+            .Where(up => ids.Contains(up.DiscordUserId))
+            .Select(up => new
+            {
+                up.DiscordUserId,
+                up.IsMain,
+                PlayerId = up.StfcPlayerId,
+                up.StfcPlayer.Name,
+                ServerName = up.StfcPlayer.Server.Name,
+                AllianceTag = up.StfcPlayer.Alliance != null ? up.StfcPlayer.Alliance.Tag : null,
+            })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(r => r.DiscordUserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(r => new MemberPlayerLink(r.PlayerId, r.Name, r.ServerName, r.AllianceTag, r.IsMain))
+                    .OrderByDescending(l => l.IsMain)
+                    .ThenBy(l => l.Name)
+                    .ToList());
     }
 
     // Idempotently link a Discord user to an StfcPlayer. Creates the DiscordUser row if missing and
@@ -70,11 +109,70 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         });
     }
 
-    // The matcher run by the on-join handler and the backfill job for one member. A confident single
-    // in-alliance match → link silently (no review, no message). Anything else → upsert an Unresolved
-    // review row for the admin table. No-op if the member is already linked or already has a
-    // terminal review (Resolved/Ignored/Declined). Returns the outcome for logging/onboarding.
-    public async Task<PlayerLinkOutcome> ProcessMemberAsync(ulong guildId, int guildAllianceId, ulong userId, string nickname)
+    // Make one of a user's linked players their main (unsets the others). No-op if not linked.
+    public async Task SetMainAsync(ulong userId, int stfcPlayerId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var links = await db.UserPlayers.Where(up => up.DiscordUserId == userId).ToListAsync();
+        if (links.All(up => up.StfcPlayerId != stfcPlayerId))
+            return;
+
+        foreach (var link in links)
+            link.IsMain = link.StfcPlayerId == stfcPlayerId;
+        await db.SaveChangesAsync();
+    }
+
+    // Remove one link; if it was the main and other links remain, promote the oldest to main so a user
+    // is never left with links but no main.
+    public async Task UnlinkAsync(ulong userId, int stfcPlayerId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var link = await db.UserPlayers.FirstOrDefaultAsync(up => up.DiscordUserId == userId && up.StfcPlayerId == stfcPlayerId);
+        if (link is null)
+            return;
+
+        var wasMain = link.IsMain;
+        db.UserPlayers.Remove(link);
+        await db.SaveChangesAsync();
+
+        if (!wasMain)
+            return;
+
+        var next = await db.UserPlayers.Where(up => up.DiscordUserId == userId).OrderBy(up => up.Id).FirstOrDefaultAsync();
+        if (next is not null)
+        {
+            next.IsMain = true;
+            await db.SaveChangesAsync();
+        }
+    }
+
+    // Flip all of a user's non-terminal review rows (across guilds) to Resolved — "has a link" is a
+    // global fact, so once linked no guild should still flag or DM them.
+    public async Task MarkUserResolvedAsync(ulong userId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var reviews = await db.PlayerLinkReviews
+            .Where(r => r.DiscordUserId == userId
+                && r.Status != PlayerLinkReviewStatus.Resolved
+                && r.Status != PlayerLinkReviewStatus.Ignored)
+            .ToListAsync();
+        if (reviews.Count == 0)
+            return;
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var review in reviews)
+        {
+            review.Status = PlayerLinkReviewStatus.Resolved;
+            review.UpdatedAt = now;
+        }
+        await db.SaveChangesAsync();
+    }
+
+    // The auto-matcher run by the on-join/update handler and the backfill job for one member. Links
+    // silently on a globally-unique nickname match OR a unique match within the guild's alliances;
+    // anything else becomes an Unresolved PlayerLinkReview for onboarding. No-op if already linked or
+    // terminally reviewed. Returns the outcome for logging/onboarding.
+    public async Task<PlayerLinkOutcome> ProcessMemberAsync(ulong guildId, ulong userId, string nickname)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
 
@@ -86,21 +184,16 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         if (review is { Status: PlayerLinkReviewStatus.Resolved or PlayerLinkReviewStatus.Ignored or PlayerLinkReviewStatus.Declined })
             return PlayerLinkOutcome.AlreadyResolved;
 
-        var link = await db.GuildAlliances
-            .Include(ga => ga.StfcAlliance)
-            .FirstOrDefaultAsync(ga => ga.Id == guildAllianceId);
-        if (link is null)
-            return PlayerLinkOutcome.AlreadyResolved; // misconfigured link; nothing to match against
+        var allianceIds = await GuildStfcAllianceIdsAsync(db, guildId);
+        var candidates = await ResolveCandidatesAsync(db, allianceIds, nickname);
+        var inAlliance = candidates.Where(p => p.AllianceId != null && allianceIds.Contains(p.AllianceId.Value)).ToList();
 
-        var candidates = await ResolveCandidatesAsync(db, guildAllianceId, nickname);
-        var inAlliance = candidates.Where(p => p.AllianceId == link.StfcAllianceId).ToList();
-
+        var confident = candidates.Count == 1 ? candidates[0] : inAlliance.Count == 1 ? inAlliance[0] : null;
         var now = DateTimeOffset.UtcNow;
 
-        // Confident: exactly one in-alliance roster match on the nickname → link silently.
-        if (inAlliance.Count == 1)
+        if (confident is not null)
         {
-            await LinkAsync(db, userId, inAlliance[0].Id);
+            await LinkAsync(db, userId, confident.Id);
             if (review is not null)
             {
                 review.Status = PlayerLinkReviewStatus.Resolved;
@@ -110,14 +203,14 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
             return PlayerLinkOutcome.Linked;
         }
 
-        // Otherwise queue for admin resolution. Best-guess = a single (out-of-alliance) match, else none.
-        var candidateId = candidates.Count == 1 ? candidates[0].Id : (int?)null;
+        // Best-guess for the onboarding DM: prefer a single in-alliance hit, else a single global hit.
+        var candidateId = inAlliance.FirstOrDefault()?.Id ?? candidates.FirstOrDefault()?.Id;
         if (review is null)
         {
             db.PlayerLinkReviews.Add(new PlayerLinkReview
             {
                 GuildId = guildId,
-                GuildAllianceId = guildAllianceId,
+                GuildAllianceId = null,
                 DiscordUserId = userId,
                 Nickname = nickname,
                 Status = PlayerLinkReviewStatus.Unresolved,
@@ -128,9 +221,6 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         }
         else
         {
-            // Refresh the snapshot (nickname/candidate may have changed); keep an in-flight DmSent
-            // status so MemberOnboarding doesn't re-DM a member it's already reached out to.
-            review.GuildAllianceId = guildAllianceId;
             review.Nickname = nickname;
             review.CandidateStfcPlayerId = candidateId;
             review.UpdatedAt = now;
@@ -139,38 +229,18 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         return PlayerLinkOutcome.Queued;
     }
 
-    // Admin table action: link the member to the chosen player and mark their review Resolved.
-    public async Task ResolveReviewAsync(int reviewId, int stfcPlayerId)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var review = await db.PlayerLinkReviews.FindAsync(reviewId);
-        if (review is null)
-            return;
-
-        await LinkAsync(db, review.DiscordUserId, stfcPlayerId);
-        review.Status = PlayerLinkReviewStatus.Resolved;
-        review.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync();
-    }
-
-    // Admin table action: dismiss a review without linking (never re-processed).
-    public async Task IgnoreReviewAsync(int reviewId)
-    {
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var review = await db.PlayerLinkReviews.FindAsync(reviewId);
-        if (review is null)
-            return;
-
-        review.Status = PlayerLinkReviewStatus.Ignored;
-        review.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync();
-    }
+    private static async Task<HashSet<int>> GuildStfcAllianceIdsAsync(HoshiBotDbContext db, ulong guildId) =>
+        (await db.GuildAlliances.Where(ga => ga.GuildId == guildId).Select(ga => ga.StfcAllianceId).ToListAsync()).ToHashSet();
 }
 
 public enum PlayerLinkOutcome
 {
-    Linked,          // confident single in-alliance match → silently linked
-    Queued,          // ambiguous/no match → Unresolved review row for the admin table
+    Linked,          // confident match → silently linked
+    Queued,          // ambiguous/no match → Unresolved review row
     AlreadyLinked,   // member already has a UserPlayer link
-    AlreadyResolved, // member already has a terminal review (or a misconfigured alliance link)
+    AlreadyResolved, // member already has a terminal review
 }
+
+public record PlayerSearchResult(int Id, string Name, string ServerName, string? AllianceTag);
+
+public record MemberPlayerLink(int PlayerId, string Name, string ServerName, string? AllianceTag, bool IsMain);

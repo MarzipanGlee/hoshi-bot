@@ -1,6 +1,4 @@
-using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Web.Components.Pages.Manage.Guilds.Features.MemberOnboarding;
 
@@ -18,17 +16,8 @@ public class MemberOnboardingFeature : IFeatureModule
     public string Icon => "oi-envelope-closed";
     public Type EditorComponentType => typeof(MemberOnboardingEditor);
 
-    // Onboarding builds on Player Assignment's matcher, so it's "configured" once a member role is
-    // resolvable — the PlayerLink setting or the linked alliance's GuildAlliance.MemberRoleId.
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
-    {
-        if (await context.Settings.GetSnowflakeAsync(guildId, GuildFeature.PlayerLink, audience, guildAllianceId, PlayerLinkSettingKeys.MemberRole) is not null)
-            return true;
-
-        if (guildAllianceId is not { } gaId)
-            return false;
-
-        await using var db = await context.DbFactory.CreateDbContextAsync();
-        return await db.GuildAlliances.AnyAsync(ga => ga.Id == gaId && ga.MemberRoleId != null);
-    }
+    // No required settings — it just needs turning on (and Player Assignment enabled to produce the
+    // unresolved members it reaches out to). Enabled ⇒ configured.
+    public Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        Task.FromResult(true);
 }

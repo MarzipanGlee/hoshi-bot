@@ -13,9 +13,10 @@ public class PlayerLinkReview
 
     public DiscordGuild Guild { get; set; } = null!;
 
-    // The linked alliance (GuildAlliance.Id) whose roster we matched against — resolves the roster
-    // for the admin picker and the per-alliance PlayerLink/MemberOnboarding settings.
-    public int GuildAllianceId { get; set; }
+    // The linked alliance (GuildAlliance.Id) a match/best-guess belonged to, if any. Nullable because
+    // assignment is now guild-wide (a member may match no linked alliance, or none at all) — kept only
+    // as a hint for the onboarding DM's best guess.
+    public int? GuildAllianceId { get; set; }
 
     public ulong DiscordUserId { get; set; }
 

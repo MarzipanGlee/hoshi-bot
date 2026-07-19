@@ -1,12 +1,7 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Data
 @using HoshiBot.Domain.Entities
-@using HoshiBot.Web.Services
 @using Microsoft.EntityFrameworkCore
-@using NetCord
-@inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
-@inject PlayerLinkService PlayerLink
 
 <div class="form-switch mb-3">
     <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
@@ -15,136 +10,36 @@
 </div>
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Member role">
-        <RolePicker Label="Member role" ShowLabel="false"
-            Usage="Only members holding this role are auto-assigned a player. Leave empty to fall back to the alliance's configured member role."
-            @bind-Value="memberRoleInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
-    </SettingsCard>
-
     <SettingsCard Title="How it works">
         <p class="form-text mt-0">
-            The bot matches each member's Discord nickname against the alliance roster and links confident
-            matches automatically — <strong>no message is ever sent to the member</strong>. Members it can't
-            resolve appear in the table below for you to assign by hand. To have the bot DM members to confirm
-            their player instead, enable the separate <em>Member Onboarding</em> feature.
+            The bot matches each member's Discord nickname against the whole player catalog and links
+            confident matches automatically — a globally-unique name, or a unique match within one of your
+            alliances — with <strong>no message to the member</strong>. Everyone else (members from other
+            alliances/servers, renamed players, alts) you assign by hand on the member page.
+        </p>
+        <a class="btn btn-primary btn-sm mt-2" href="manage/guilds/@GuildId/player-assignments">
+            Spielerzuordnung öffnen
+        </a>
+    </SettingsCard>
+
+    <SettingsCard Title="Status">
+        <p class="form-text mt-0">
+            @unresolvedCount Mitglied(er) konnten nicht automatisch zugeordnet werden und warten auf
+            manuelle Zuordnung. Zum Anpassen der Rollen selbst siehe die Features <em>Rang-Rollen</em> und
+            <em>Ops-Level-Rollen</em>.
         </p>
     </SettingsCard>
 </div>
 
-<h5 class="mt-4">Missing assignments (@reviews.Count)</h5>
-@if (reviews.Count == 0)
-{
-    <p class="form-text">Nothing to resolve — every member holding the member role is linked to a player. 🎉</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead>
-                <tr>
-                    <th>Member (Discord nickname)</th>
-                    <th>Assign player</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in reviews)
-                {
-                    <tr>
-                        <td>@row.Nickname</td>
-                        <td style="min-width: 16rem;">
-                            <Select TValue="string" Items="rosterItems" @bind-Value="row.SelectedPlayerId"
-                                    ShowSearch="true" PlaceHolder="Select player..." />
-                        </td>
-                        <td class="text-nowrap">
-                            <button class="btn btn-primary btn-sm"
-                                    disabled="@(row.SelectedPlayerId is null || row.Saving)"
-                                    @onclick="() => AssignAsync(row)">Assign</button>
-                            <button class="btn btn-outline-secondary btn-sm"
-                                    disabled="@row.Saving"
-                                    @onclick="() => IgnoreAsync(row)">Ignore</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
-
 @code {
     protected override GuildFeature Feature => GuildFeature.PlayerLink;
 
-    private List<Role> roles = [];
-    private string? memberRoleInput;
-    private List<SelectedItem> rosterItems = [];
-    private List<ReviewRow> reviews = [];
+    private int unresolvedCount;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        roles = await DiscordData.GetRolesAsync(GuildId);
-        memberRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, PlayerLinkSettingKeys.MemberRole))?.ToString();
-        await LoadRosterAndReviewsAsync();
-    }
-
-    private async Task LoadRosterAndReviewsAsync()
-    {
         await using var db = await DbFactory.CreateDbContextAsync();
-
-        // The in-alliance roster backing the picker (bounded to the linked alliance's players).
-        if (GuildAllianceId is { } gaId)
-        {
-            var link = await db.GuildAlliances.AsNoTracking().FirstOrDefaultAsync(ga => ga.Id == gaId);
-            if (link is not null)
-            {
-                var players = await db.StfcPlayers
-                    .Where(p => p.AllianceId == link.StfcAllianceId)
-                    .OrderBy(p => p.Name)
-                    .Select(p => new { p.Id, p.Name })
-                    .ToListAsync();
-                rosterItems = players.Select(p => new SelectedItem(p.Id.ToString(), p.Name)).ToList();
-            }
-        }
-
-        var rows = await db.PlayerLinkReviews
-            .AsNoTracking()
-            .Where(r => r.GuildId == GuildId && r.GuildAllianceId == GuildAllianceId && r.Status == PlayerLinkReviewStatus.Unresolved)
-            .OrderBy(r => r.Nickname)
-            .Select(r => new { r.Id, r.Nickname, r.CandidateStfcPlayerId })
-            .ToListAsync();
-
-        reviews = rows.Select(r => new ReviewRow
-        {
-            Id = r.Id,
-            Nickname = r.Nickname,
-            SelectedPlayerId = r.CandidateStfcPlayerId?.ToString(),
-        }).ToList();
-    }
-
-    private Task SaveMemberRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, PlayerLinkSettingKeys.MemberRole, ParseId(memberRoleInput));
-
-    private async Task AssignAsync(ReviewRow row)
-    {
-        if (!int.TryParse(row.SelectedPlayerId, out var playerId))
-            return;
-
-        row.Saving = true;
-        await PlayerLink.ResolveReviewAsync(row.Id, playerId);
-        reviews.Remove(row);
-    }
-
-    private async Task IgnoreAsync(ReviewRow row)
-    {
-        row.Saving = true;
-        await PlayerLink.IgnoreReviewAsync(row.Id);
-        reviews.Remove(row);
-    }
-
-    private class ReviewRow
-    {
-        public int Id { get; set; }
-        public required string Nickname { get; set; }
-        public string? SelectedPlayerId { get; set; }
-        public bool Saving { get; set; }
+        unresolvedCount = await db.PlayerLinkReviews
+            .CountAsync(r => r.GuildId == GuildId && r.Status == PlayerLinkReviewStatus.Unresolved);
     }
 }

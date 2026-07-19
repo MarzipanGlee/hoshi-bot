@@ -130,13 +130,6 @@ public static class MemberLoreSettingKeys
     public const string CompletedRole = "CompletedRole";
 }
 
-public static class PlayerLinkSettingKeys
-{
-    // The role a member must hold to be auto-assigned a player (snowflake). Unset → fall back to the
-    // linked alliance's GuildAlliance.MemberRoleId.
-    public const string MemberRole = "MemberRole";
-}
-
 public static class MemberOnboardingSettingKeys
 {
     // The go-signal ("true") for the opt-in DM outreach: staff flip this on to let the bot DM members

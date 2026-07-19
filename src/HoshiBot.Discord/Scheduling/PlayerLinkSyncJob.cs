@@ -7,11 +7,11 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Backfills automated player↔member assignment for the PlayerLink feature: for each enabled
-// alliance, walks its member-role holders and runs the matcher (PlayerLinkService.ProcessMemberAsync)
-// — a confident single in-alliance nickname match links silently, everything else becomes an
-// Unresolved PlayerLinkReview row for the Web admin table. Writes only DB rows (no DMs, no pacing);
-// the on-join MemberJoinHandler does the same per new member in real time.
+// Backfills player↔member assignment for the (guild-wide) PlayerLink feature: for each enabled guild,
+// walks every non-bot member and runs the matcher (PlayerLinkService.ProcessMemberAsync) — a
+// confident nickname match links silently, everything else becomes an Unresolved PlayerLinkReview for
+// the admin assignment page / onboarding. Writes only DB rows (no DMs); the on-join/update
+// MemberOnboardingHandler does the same per member in real time.
 //
 // DisallowConcurrentExecution: the immediate first run at scheduler start plus a scheduled tick could
 // otherwise both process the same member before either commits and collide on the review's unique
@@ -21,7 +21,6 @@ public class PlayerLinkSyncJob(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
-    GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
     ILogger<PlayerLinkSyncJob> logger) : IJob
 {
@@ -37,6 +36,9 @@ public class PlayerLinkSyncJob(
 
         foreach (var guildId in guildIds)
         {
+            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.PlayerLink))
+                continue;
+
             try
             {
                 await ProcessGuildAsync(guildId, cancellationToken);
@@ -50,41 +52,20 @@ public class PlayerLinkSyncJob(
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {
-        var linkIds = await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.PlayerLink);
-        if (linkIds.Count == 0)
-            return;
-
-        foreach (var linkId in linkIds)
+        var linked = 0;
+        var queued = 0;
+        await foreach (var member in gatewayClient.Rest.GetGuildUsersAsync(guildId).WithCancellation(cancellationToken))
         {
-            var link = await db.GuildAlliances.FirstOrDefaultAsync(ga => ga.Id == linkId, cancellationToken);
-            if (link is null)
+            if (member.IsBot)
                 continue;
 
-            var memberRole = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.PlayerLink, GuildAudience.Alliance, linkId, PlayerLinkSettingKeys.MemberRole)
-                ?? link.MemberRoleId;
-            if (memberRole is not { } memberRoleId)
-            {
-                logger.LogInformation("PlayerLink enabled for guild {GuildId} alliance {LinkId} but no member role set; skipping.", guildId, linkId);
-                continue;
-            }
-
-            var linked = 0;
-            var queued = 0;
-            await foreach (var member in gatewayClient.Rest.GetGuildUsersAsync(guildId).WithCancellation(cancellationToken))
-            {
-                if (member.IsBot || !member.RoleIds.Contains(memberRoleId))
-                    continue;
-
-                var outcome = await playerLinkService.ProcessMemberAsync(guildId, linkId, member.Id, CommanderName.Of(member));
-                if (outcome == PlayerLinkOutcome.Linked)
-                    linked++;
-                else if (outcome == PlayerLinkOutcome.Queued)
-                    queued++;
-            }
-
-            logger.LogInformation(
-                "PlayerLink guild {Guild} alliance {Link}: role {Role}, linked {Linked}, queued {Queued} for admin review.",
-                guildId, linkId, memberRoleId, linked, queued);
+            var outcome = await playerLinkService.ProcessMemberAsync(guildId, member.Id, CommanderName.Of(member));
+            if (outcome == PlayerLinkOutcome.Linked)
+                linked++;
+            else if (outcome == PlayerLinkOutcome.Queued)
+                queued++;
         }
+
+        logger.LogInformation("PlayerLink guild {Guild}: linked {Linked}, queued {Queued} for admin review.", guildId, linked, queued);
     }
 }

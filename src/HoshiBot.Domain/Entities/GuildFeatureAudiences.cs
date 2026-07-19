@@ -10,8 +10,10 @@ public static class GuildFeatureAudiences
     {
         GuildFeature.Absences => GuildAudience.Alliance,
         GuildFeature.MemberLore => GuildAudience.Alliance,
-        GuildFeature.PlayerLink => GuildAudience.Alliance,
-        GuildFeature.MemberOnboarding => GuildAudience.Alliance,
+        // Guild-wide: player↔member assignment spans every alliance/server a guild's members belong
+        // to, so it's a single guild-level toggle (Community), not per-alliance.
+        GuildFeature.PlayerLink => GuildAudience.Community,
+        GuildFeature.MemberOnboarding => GuildAudience.Community,
         GuildFeature.ShieldReminders => GuildAudience.Alliance,
         GuildFeature.TerritoryCapture => GuildAudience.Alliance,
         GuildFeature.RoeViolationReports => GuildAudience.Alliance,

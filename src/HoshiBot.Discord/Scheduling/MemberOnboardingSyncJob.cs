@@ -7,12 +7,12 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Drives the opt-in MemberOnboarding DM outreach: for each alliance whose campaign is active, DMs
-// members with an Unresolved PlayerLinkReview row (the ones the PlayerLink matcher couldn't
+// Drives the opt-in, guild-wide MemberOnboarding DM outreach: for each guild whose campaign is active,
+// DMs members with an Unresolved PlayerLinkReview row (the ones the PlayerLink matcher couldn't
 // auto-assign), paced by a per-day and per-run cap to stay clear of Discord's DM rate/anti-spam
 // limits. Each send flips the row to DmSent (or Undeliverable); the button/modal handlers flip it to
-// Resolved. When the feature is off, no DMs go out and unresolved members are handled purely via
-// PlayerLink's admin table.
+// Resolved. When the feature is off, no DMs go out and unresolved members are handled purely via the
+// admin assignment page.
 //
 // DisallowConcurrentExecution: the immediate first run at scheduler start plus a scheduled tick could
 // otherwise both pick the same Unresolved row and double-DM it.
@@ -56,49 +56,40 @@ public class MemberOnboardingSyncJob(
 
     private async Task<int> ProcessGuildAsync(ulong guildId, int runBudget, CancellationToken cancellationToken)
     {
-        var linkIds = await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.MemberOnboarding);
-        if (linkIds.Count == 0)
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.MemberOnboarding))
             return 0;
 
+        var campaignActive = await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Community, null, MemberOnboardingSettingKeys.CampaignActive);
+        if (!string.Equals(campaignActive, "true", StringComparison.OrdinalIgnoreCase))
+            return 0;
+
+        var maxPerDay = int.TryParse(
+            await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Community, null, MemberOnboardingSettingKeys.MaxInvitesPerDay),
+            out var parsed) ? parsed : DefaultMaxPerDay;
+
+        var dayAgo = DateTimeOffset.UtcNow.AddHours(-24);
+        var sentToday = await db.PlayerLinkReviews
+            .CountAsync(r => r.GuildId == guildId && r.Status == PlayerLinkReviewStatus.DmSent && r.UpdatedAt >= dayAgo, cancellationToken);
+
+        var budget = Math.Min(maxPerDay - sentToday, runBudget);
+        if (budget <= 0)
+            return 0;
+
+        var pending = await db.PlayerLinkReviews
+            .Where(r => r.GuildId == guildId && r.Status == PlayerLinkReviewStatus.Unresolved)
+            .OrderBy(r => r.CreatedAt)
+            .Take(budget)
+            .ToListAsync(cancellationToken);
+
         var sent = 0;
-        foreach (var linkId in linkIds)
+        foreach (var review in pending)
         {
-            if (sent >= runBudget)
-                break;
-
-            var campaignActive = await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Alliance, linkId, MemberOnboardingSettingKeys.CampaignActive);
-            if (!string.Equals(campaignActive, "true", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var maxPerDay = int.TryParse(
-                await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Alliance, linkId, MemberOnboardingSettingKeys.MaxInvitesPerDay),
-                out var parsed) ? parsed : DefaultMaxPerDay;
-
-            var dayAgo = DateTimeOffset.UtcNow.AddHours(-24);
-            var sentToday = await db.PlayerLinkReviews
-                .CountAsync(r => r.GuildId == guildId && r.GuildAllianceId == linkId
-                    && r.Status == PlayerLinkReviewStatus.DmSent && r.UpdatedAt >= dayAgo, cancellationToken);
-
-            var budget = Math.Min(maxPerDay - sentToday, runBudget - sent);
-            if (budget <= 0)
-                continue;
-
-            var pending = await db.PlayerLinkReviews
-                .Where(r => r.GuildId == guildId && r.GuildAllianceId == linkId && r.Status == PlayerLinkReviewStatus.Unresolved)
-                .OrderBy(r => r.CreatedAt)
-                .Take(budget)
-                .ToListAsync(cancellationToken);
-
-            foreach (var review in pending)
-            {
-                await onboarding.SendOutreachAsync(review, cancellationToken);
-                sent++;
-            }
-
-            logger.LogInformation("MemberOnboarding guild {Guild} alliance {Link}: DMed {Sent} member(s) (budget {Budget}).",
-                guildId, linkId, pending.Count, budget);
+            await onboarding.SendOutreachAsync(review, cancellationToken);
+            sent++;
         }
 
+        logger.LogInformation("MemberOnboarding guild {Guild}: processed {Count} unresolved member(s) (budget {Budget}).",
+            guildId, pending.Count, budget);
         return sent;
     }
 }

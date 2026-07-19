@@ -69,7 +69,7 @@
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         var counts = await db.PlayerLinkReviews
-            .Where(r => r.GuildId == GuildId && r.GuildAllianceId == GuildAllianceId)
+            .Where(r => r.GuildId == GuildId)
             .GroupBy(r => r.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToListAsync();

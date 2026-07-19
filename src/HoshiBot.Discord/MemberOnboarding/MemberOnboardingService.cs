@@ -33,7 +33,17 @@ public class MemberOnboardingService(
     // MemberOnboardingSyncJob (which shares this scope's DbContext, so the row it passes is tracked here).
     public async Task<bool> SendOutreachAsync(PlayerLinkReview review, CancellationToken cancellationToken)
     {
-        var candidates = await playerLinkService.ResolveCandidatesAsync(review.GuildAllianceId, review.Nickname);
+        // A global UserPlayer link may have appeared since this row was created (the member self-linked,
+        // an admin assigned them, or they were linked in another shared guild) — never DM in that case.
+        if (await db.UserPlayers.AnyAsync(up => up.DiscordUserId == review.DiscordUserId, cancellationToken))
+        {
+            review.Status = PlayerLinkReviewStatus.Resolved;
+            review.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            return false;
+        }
+
+        var candidates = await playerLinkService.ResolveCandidatesAsync(review.GuildId, review.Nickname);
         var best = review.CandidateStfcPlayerId is { } cid
             ? candidates.FirstOrDefault(p => p.Id == cid)
             : candidates.Count == 1 ? candidates[0] : null;
@@ -87,11 +97,11 @@ public class MemberOnboardingService(
             return "Hoppla — diesen Spieler gibt es nicht mehr. Bitte wende dich an einen Admin.";
 
         await playerLinkService.LinkAsync(userId, playerId);
-        await MarkResolvedAsync(reviewId, userId, cancellationToken);
+        await playerLinkService.MarkUserResolvedAsync(userId);
         return string.Format(LinkedTemplate, player.Name);
     }
 
-    // The member typed an in-game name → resolve it against their alliance roster and link if unique.
+    // The member typed an in-game name → resolve it against the catalog and link if unique.
     public async Task<string> ResolveByNameAsync(int reviewId, ulong userId, string typedName, CancellationToken cancellationToken)
     {
         var review = await db.PlayerLinkReviews.FirstOrDefaultAsync(r => r.Id == reviewId, cancellationToken);
@@ -99,29 +109,15 @@ public class MemberOnboardingService(
             return "Diese Anfrage ist nicht mehr aktuell.";
 
         var name = typedName.Trim();
-        var candidates = await playerLinkService.ResolveCandidatesAsync(review.GuildAllianceId, name);
+        var candidates = await playerLinkService.ResolveCandidatesAsync(review.GuildId, name);
         if (candidates.Count == 0)
-            return $"Ich konnte in unserer Allianz keinen Spieler namens **{name}** finden. " +
+            return $"Ich konnte keinen Spieler namens **{name}** finden. " +
                    "Bitte prüfe die Schreibweise oder wende dich an einen Admin.";
         if (candidates.Count > 1)
             return $"Es gibt mehrere Spieler namens **{name}** — bitte wende dich an einen Admin, damit er dich richtig zuordnet.";
 
-        var player = candidates[0];
-        await playerLinkService.LinkAsync(userId, player.Id);
-        review.Status = PlayerLinkReviewStatus.Resolved;
-        review.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-        return string.Format(LinkedTemplate, player.Name);
-    }
-
-    private async Task MarkResolvedAsync(int reviewId, ulong userId, CancellationToken cancellationToken)
-    {
-        var review = await db.PlayerLinkReviews.FirstOrDefaultAsync(r => r.Id == reviewId, cancellationToken);
-        if (review is null || review.DiscordUserId != userId)
-            return;
-
-        review.Status = PlayerLinkReviewStatus.Resolved;
-        review.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
+        await playerLinkService.LinkAsync(userId, candidates[0].Id);
+        await playerLinkService.MarkUserResolvedAsync(userId);
+        return string.Format(LinkedTemplate, candidates[0].Name);
     }
 }
