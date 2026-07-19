@@ -3,6 +3,7 @@ using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 using Quartz;
@@ -28,13 +29,17 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
             .Select(s => new { s.GuildId, GuildAllianceId = s.GuildAllianceId!.Value, RoleId = s.Value })
             .ToListAsync();
 
-        foreach (var setting in settings)
+        // Fetch each guild's roster once (bulk) and reuse it across that guild's alliances, instead of
+        // a GetGuildUserAsync per member.
+        foreach (var guildGroup in settings.GroupBy(s => s.GuildId))
         {
-            await SyncAllianceAsync(setting.GuildId, setting.GuildAllianceId, setting.RoleId);
+            var roster = await GuildRoster.FetchAsync(gatewayClient, guildGroup.Key);
+            foreach (var setting in guildGroup)
+                await SyncAllianceAsync(setting.GuildId, setting.GuildAllianceId, setting.RoleId, roster);
         }
     }
 
-    private async Task SyncAllianceAsync(ulong guildId, int guildAllianceId, ulong roleId)
+    private async Task SyncAllianceAsync(ulong guildId, int guildAllianceId, ulong roleId, IReadOnlyDictionary<ulong, GuildUser> roster)
     {
         var stfcAllianceId = await db.GuildAlliances
             .Where(ga => ga.Id == guildAllianceId)
@@ -64,28 +69,29 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
 
         foreach (var userId in memberIds)
         {
-            await SyncRoleAsync(guildId, userId, roleId,
+            if (!roster.TryGetValue(userId, out var guildUser))
+                continue;
+            await SyncRoleAsync(guildId, guildUser, roleId,
                 shouldHaveRole: !suppressedMemberIds.Contains(userId));
         }
     }
 
-    private async Task SyncRoleAsync(ulong guildId, ulong userId, ulong roleId, bool shouldHaveRole)
+    private async Task SyncRoleAsync(ulong guildId, GuildUser guildUser, ulong roleId, bool shouldHaveRole)
     {
         try
         {
-            var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
             var hasRole = guildUser.RoleIds.Contains(roleId);
 
             if (shouldHaveRole && !hasRole)
-                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, userId, roleId);
+                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, guildUser.Id, roleId);
             else if (!shouldHaveRole && hasRole)
-                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, userId, roleId);
+                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, guildUser.Id, roleId);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             logger.LogInformation(
                 "Skipped notification role sync for user {UserId} in guild {GuildId}: {StatusCode}",
-                userId, guildId, ex.StatusCode);
+                guildUser.Id, guildId, ex.StatusCode);
         }
     }
 }

@@ -4,6 +4,7 @@ using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 using Quartz;
@@ -38,7 +39,8 @@ public class TerritoryCaptureRoleSyncJob(
             if (links.Count == 0)
                 continue;
 
-            var memberIds = await db.GuildMembers.Where(m => m.GuildId == guildId).Select(m => m.DiscordUserId).ToListAsync();
+            // Fetch the roster once (bulk) instead of a GetGuildUserAsync per member.
+            var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
 
             // Materialize this guild's absences once, then check overlap in-memory across the
             // alliance × slot × member loop below instead of querying the DB per member.
@@ -58,35 +60,39 @@ public class TerritoryCaptureRoleSyncJob(
 
                     var hasSlot = slotsByIndex.TryGetValue(slotIndex, out var slot);
 
-                    foreach (var userId in memberIds)
+                    // Iterate EVERY member (not just this alliance's) so the slot role is removed from
+                    // anyone who shouldn't have it — including non-members that a previous run wrongly
+                    // gave it to. Only a holder of this alliance's member role, covering the slot, and
+                    // not absent over its window, should keep it.
+                    foreach (var guildUser in roster.Values)
                     {
-                        var shouldHaveRole = hasSlot &&
-                            !absences.Any(a => a.DiscordUserId == userId && a.StartsAt < slot.End && a.EndsAt > slot.Start);
+                        var isAllianceMember = link.MemberRoleId is { } memberRoleId && guildUser.RoleIds.Contains(memberRoleId);
+                        var shouldHaveRole = isAllianceMember && hasSlot &&
+                            !absences.Any(a => a.DiscordUserId == guildUser.Id && a.StartsAt < slot.End && a.EndsAt > slot.Start);
 
-                        await SyncRoleAsync(guildId, userId, roleId, shouldHaveRole);
+                        await SyncRoleAsync(guildId, guildUser, roleId, shouldHaveRole);
                     }
                 }
             }
         }
     }
 
-    private async Task SyncRoleAsync(ulong guildId, ulong userId, ulong roleId, bool shouldHaveRole)
+    private async Task SyncRoleAsync(ulong guildId, GuildUser guildUser, ulong roleId, bool shouldHaveRole)
     {
         try
         {
-            var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
             var hasRole = guildUser.RoleIds.Contains(roleId);
 
             if (shouldHaveRole && !hasRole)
-                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, userId, roleId);
+                await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, guildUser.Id, roleId);
             else if (!shouldHaveRole && hasRole)
-                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, userId, roleId);
+                await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, guildUser.Id, roleId);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             logger.LogInformation(
                 "Skipped TC role sync for user {UserId} in guild {GuildId}: {StatusCode}",
-                userId, guildId, ex.StatusCode);
+                guildUser.Id, guildId, ex.StatusCode);
         }
     }
 }
