@@ -11,8 +11,8 @@ public static class GuildFeatureAudiences
         GuildFeature.Absences => GuildAudience.Alliance,
         GuildFeature.MemberLore => GuildAudience.Alliance,
         // Guild-wide: player↔member assignment spans every alliance/server a guild's members belong
-        // to, so it's a single guild-level toggle (Community), not per-alliance.
-        GuildFeature.PlayerLink => GuildAudience.Community,
+        // to, so it's a single guild-level toggle (Guild audience), not per-alliance.
+        GuildFeature.PlayerLink => GuildAudience.Guild,
         GuildFeature.MemberOnboarding => GuildAudience.Community,
         GuildFeature.ShieldReminders => GuildAudience.Alliance,
         GuildFeature.TerritoryCapture => GuildAudience.Alliance,
@@ -25,8 +25,10 @@ public static class GuildFeatureAudiences
         GuildFeature.Announcements => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.Tickets => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.AnonymousMessaging => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
-        GuildFeature.RankRoles => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
-        GuildFeature.OpsLevelRoles => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        // Guild-wide role automation: one set of rank/ops-level roles for the whole Discord,
+        // driven by imported player data — not per-audience or per-alliance. Single Guild toggle.
+        GuildFeature.RankRoles => GuildAudience.Guild,
+        GuildFeature.OpsLevelRoles => GuildAudience.Guild,
         GuildFeature.AllianceTournament => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
         // Single-audience on purpose, unlike its sibling notify features above: StfcNews has
         // no real per-audience distinction (it's one guild-wide toggle reusing the existing

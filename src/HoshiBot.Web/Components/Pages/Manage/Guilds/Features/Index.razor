@@ -1,4 +1,5 @@
 @page "/manage/guilds/{GuildId}/features"
+@page "/manage/guilds/{GuildId}/features/audience/{AudienceSlug}/{GuildAllianceIdRaw:int?}"
 @implements IDisposable
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
@@ -7,16 +8,24 @@
 @inject CurrentAllianceContext AllianceContext
 @inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage Storage
 
-<PageTitle>Features</PageTitle>
+<PageTitle>@Heading()</PageTitle>
 
 @if (!Authorized)
 {
     <p>Checking access...</p>
 }
+else if (audience == GuildAudience.Alliance && scopeAllianceId is null)
+{
+    <h1>Alliance Features</h1>
+    <p class="text-muted">
+        This guild has no alliance linked yet. Link one on the
+        <a href="manage/guilds/@GuildId/audience">Audience</a> page first, then come back to configure its features.
+    </p>
+}
 else
 {
     <div class="d-flex align-items-center justify-content-between mt-3">
-        <h1>Features</h1>
+        <h1>@Heading()</h1>
         <div class="form-switch">
             <input class="form-check-input" type="checkbox" id="hideInactive" role="switch"
                    checked="@hideInactive" @onchange="ToggleHideInactiveAsync" />
@@ -24,37 +33,25 @@ else
         </div>
     </div>
 
-    @foreach (var audience in AudienceSections)
+    @if (visibleFeatures.Count == 0)
     {
-        if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
-            continue;
-
-        // The Alliance section shows the currently-selected alliance (top-bar AllianceSelector).
-        // With no alliance linked there's nothing to scope to, so skip it (Audience page links one).
-        if (audience == GuildAudience.Alliance && SelectedAllianceId is null)
-            continue;
-
-        var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
-        if (hideInactive)
-            features = features.Where(f => enabledFeatures.Contains((f.Feature, audience))).ToList();
-
-        if (features.Count == 0)
-            continue;
-
-        <h3 class="fs-6 fw-semibold text-uppercase mt-4" style="color:#5a5a63;letter-spacing:0.03em;margin-bottom:0.75rem;">@SectionHeader(audience)</h3>
-        <div class="card-grid">
-            @foreach (var feature in features)
+        <p class="text-muted mt-4">No features are available for this audience.</p>
+    }
+    else
+    {
+        <div class="card-grid mt-3">
+            @foreach (var feature in visibleFeatures)
             {
-                var enabled = enabledFeatures.Contains((feature.Feature, audience));
-                var configured = enabled && configuredFeatures.Contains((feature.Feature, audience));
+                var enabled = enabledFeatures.Contains(feature.Feature);
+                var configured = enabled && configuredFeatures.Contains(feature.Feature);
                 var borderClass = !enabled ? "border-danger"
                     : configured ? "border-success"
                     : "border-warning";
                 <ToggleCard Icon="@feature.Icon" Title="@feature.Title" Description="@feature.Description"
                             BorderClass="@borderClass" Enabled="@enabled"
-                            EnabledChanged="e => ToggleFeatureAsync(feature.Feature, audience, e)">
+                            EnabledChanged="e => ToggleFeatureAsync(feature.Feature, e)">
                     <FooterEnd>
-                        <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(feature, audience)">Configure</a>
+                        <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(feature)">Configure</a>
                     </FooterEnd>
                 </ToggleCard>
             }
@@ -63,95 +60,131 @@ else
 }
 
 @code {
-    private static readonly GuildAudience[] AudienceSections =
-        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
+    [Parameter] public string? AudienceSlug { get; set; }
+    [Parameter] public int? GuildAllianceIdRaw { get; set; }
 
     private const string HideInactiveStorageKey = "hoshibot.hideInactiveFeatures";
 
-    private GuildAudience guildAudiences = GuildAudience.None;
-    private HashSet<(GuildFeature Feature, GuildAudience Audience)> enabledFeatures = [];
-    private HashSet<(GuildFeature Feature, GuildAudience Audience)> configuredFeatures = [];
+    // The audience this page renders — Guild by default (bare /features), otherwise parsed from
+    // the route. Guild is always shown; it is not a guild-selectable audience.
+    private GuildAudience audience = GuildAudience.Guild;
+    private int? scopeAllianceId;
+    private List<IFeatureModule> visibleFeatures = [];
+    private HashSet<GuildFeature> enabledFeatures = [];
+    private HashSet<GuildFeature> configuredFeatures = [];
     private bool hideInactive;
 
-    // The Alliance section reflects the alliance chosen in the top-bar AllianceSelector; other
-    // audiences are guild-scoped (null).
-    private int? SelectedAllianceId => AllianceContext.GuildAllianceId;
-    private int? Scope(GuildAudience audience) => audience == GuildAudience.Alliance ? SelectedAllianceId : null;
+    // Alliance is per-alliance (scope = selected/route alliance); every other audience is
+    // guild-scoped (null).
+    private int? Scope => audience == GuildAudience.Alliance ? scopeAllianceId : null;
 
-    private string SectionHeader(GuildAudience audience) =>
-        audience == GuildAudience.Alliance && AllianceContext.Alliance is { } link
+    // "Alliance — [TAG]" for the alliance page (the tag already identifies it); "{Audience}
+    // Features" for every other audience.
+    private string Heading() =>
+        audience == GuildAudience.Alliance && AllianceLink is { } link
             ? $"Alliance — [{link.StfcAlliance.Tag}]"
-            : AudienceDisplay.Labels(audience).First();
+            : $"{AudienceDisplay.Labels(audience).FirstOrDefault() ?? "Guild"} Features";
 
-    private string FeatureHref(IFeatureModule feature, GuildAudience audience) =>
+    private GuildAlliance? AllianceLink =>
+        scopeAllianceId is { } id ? AllianceContext.Alliances.FirstOrDefault(a => a.Id == id) : null;
+
+    private string FeatureHref(IFeatureModule feature) =>
         audience == GuildAudience.Alliance
-            ? $"manage/guilds/{GuildId}/features/{feature.Slug}/alliance/{SelectedAllianceId}"
+            ? $"manage/guilds/{GuildId}/features/{feature.Slug}/alliance/{scopeAllianceId}"
             : $"manage/guilds/{GuildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}";
 
     protected override void OnInitialized() => AllianceContext.Changed += OnAllianceChanged;
 
     private void OnAllianceChanged() => InvokeAsync(async () =>
     {
+        // Only the Alliance page depends on the selected alliance; refresh its scope + state.
+        if (audience != GuildAudience.Alliance)
+            return;
+        ResolveAudience();
         await LoadFeaturesAsync();
         StateHasChanged();
     });
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
+        if (AudienceSlug is not null && !AudienceDisplay.TryParseSlug(AudienceSlug, out _))
+        {
+            Nav.NotFound();
+            return;
+        }
+
         var storedHideInactive = await Storage.GetAsync<bool>(HideInactiveStorageKey);
         if (storedHideInactive.Success)
             hideInactive = storedHideInactive.Value;
 
-        await using var db = await DbFactory.CreateDbContextAsync();
-        guildAudiences = await db.GuildSettings
-            .Where(s => s.GuildId == ParsedGuildId)
-            .Select(s => s.Audiences)
-            .FirstOrDefaultAsync();
-
+        ResolveAudience();
         await LoadFeaturesAsync();
     }
 
-    // Builds the enabled/configured sets for the current selected alliance. Re-run on alliance
-    // switch so the Alliance section reflects the chosen alliance specifically (not "any alliance").
-    private async Task LoadFeaturesAsync()
+    private void ResolveAudience()
     {
-        var enabledScopes = await FeatureService.GetEnabledAsync(ParsedGuildId);
-        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
-        enabledFeatures = [];
-        configuredFeatures = [];
-        foreach (var feature in FeatureCatalog.All)
-        {
-            foreach (var audience in GuildFeatureAudiences.EnumerateFlags(feature.RelevantAudiences()))
-            {
-                if (audience == GuildAudience.Alliance && SelectedAllianceId is null)
-                    continue;
+        audience = AudienceSlug is not null && AudienceDisplay.TryParseSlug(AudienceSlug, out var parsed)
+            ? parsed
+            : GuildAudience.Guild;
 
-                var scope = Scope(audience);
-                if (!enabledScopes.Contains((feature.Feature, audience, scope)))
-                    continue;
-
-                enabledFeatures.Add((feature.Feature, audience));
-                if (await feature.IsConfiguredAsync(ParsedGuildId, audience, scope, context))
-                    configuredFeatures.Add((feature.Feature, audience));
-            }
-        }
+        scopeAllianceId = audience == GuildAudience.Alliance ? ResolveAllianceId(GuildAllianceIdRaw) : null;
     }
 
-    private async Task ToggleFeatureAsync(GuildFeature feature, GuildAudience audience, bool enabled)
+    // Route id if it's a real link of this guild; else the top-bar selection; else the primary link.
+    private int? ResolveAllianceId(int? routeId)
     {
-        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, audience, Scope(audience), enabled);
+        if (routeId is { } id && AllianceContext.Alliances.Any(a => a.Id == id))
+            return id;
+        if (AllianceContext.GuildAllianceId is { } selected)
+            return selected;
+        return AllianceContext.Alliances.Count > 0 ? AllianceContext.Alliances[0].Id : null;
+    }
+
+    private async Task LoadFeaturesAsync()
+    {
+        enabledFeatures = [];
+        configuredFeatures = [];
+
+        if (audience == GuildAudience.Alliance && scopeAllianceId is null)
+        {
+            visibleFeatures = [];
+            return;
+        }
+
+        var enabledScopes = await FeatureService.GetEnabledAsync(ParsedGuildId);
+        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
+
+        var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
+        foreach (var feature in features)
+        {
+            if (!enabledScopes.Contains((feature.Feature, audience, Scope)))
+                continue;
+
+            enabledFeatures.Add(feature.Feature);
+            if (await feature.IsConfiguredAsync(ParsedGuildId, audience, Scope, context))
+                configuredFeatures.Add(feature.Feature);
+        }
+
+        visibleFeatures = hideInactive
+            ? features.Where(f => enabledFeatures.Contains(f.Feature)).ToList()
+            : features;
+    }
+
+    private async Task ToggleFeatureAsync(GuildFeature feature, bool enabled)
+    {
+        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, audience, Scope, enabled);
         if (enabled)
         {
-            enabledFeatures.Add((feature, audience));
+            enabledFeatures.Add(feature);
 
             var module = FeatureCatalog.All.First(f => f.Feature == feature);
             var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
-            if (await module.IsConfiguredAsync(ParsedGuildId, audience, Scope(audience), context))
-                configuredFeatures.Add((feature, audience));
+            if (await module.IsConfiguredAsync(ParsedGuildId, audience, Scope, context))
+                configuredFeatures.Add(feature);
         }
         else
         {
-            enabledFeatures.Remove((feature, audience));
+            enabledFeatures.Remove(feature);
         }
     }
 
@@ -161,5 +194,6 @@ else
     {
         hideInactive = (bool)e.Value!;
         await Storage.SetAsync(HideInactiveStorageKey, hideInactive);
+        await LoadFeaturesAsync();
     }
 }

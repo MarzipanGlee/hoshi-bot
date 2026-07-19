@@ -13,9 +13,8 @@ namespace HoshiBot.Discord.Scheduling;
 // Operative,Agent}Role) in sync with each member's current STFC rank (StfcPlayer.Rank, set by
 // a player-data import — see StfcPlayerImportService): the one role matching their rank is
 // added, the other 4 are removed if present, so a promotion/demotion swaps the role instead
-// of accumulating old ones. Runs per enabled audience independently, since RankRoles (unlike
-// TerritoryCapture/NotificationRole) is available to all 4 audiences and each can have its
-// own set of 5 roles configured.
+// of accumulating old ones. RankRoles is a single guild-wide feature (GuildAudience.Guild) —
+// one set of 5 roles for the whole guild, not per-audience or per-alliance.
 public class RankRoleSyncJob(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
@@ -33,8 +32,9 @@ public class RankRoleSyncJob(
 
         foreach (var guildId in guildIds)
         {
-            var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.RankRoles);
-            if (enabledAudiences.Count == 0)
+            // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience,
+            // ignoring any orphaned rows left under other audiences by the audience refactor.
+            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.RankRoles, GuildAudience.Guild, null))
                 continue;
 
             var members = await db.GuildMembers
@@ -44,21 +44,7 @@ public class RankRoleSyncJob(
                     gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => (StfcPlayerRank?)up.StfcPlayer.Rank).FirstOrDefault()))
                 .ToListAsync();
 
-            // The Alliance audience is per-alliance: apply each enabled alliance's own rank-role
-            // palette (to all members, per the product decision — palettes stack when several
-            // alliances configure them). Other audiences are guild-scoped.
-            foreach (var audience in enabledAudiences)
-            {
-                if (audience == GuildAudience.Alliance)
-                {
-                    foreach (var allianceId in await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.RankRoles))
-                        await SyncAudienceAsync(guildId, audience, allianceId, members);
-                }
-                else
-                {
-                    await SyncAudienceAsync(guildId, audience, null, members);
-                }
-            }
+            await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members);
         }
     }
 

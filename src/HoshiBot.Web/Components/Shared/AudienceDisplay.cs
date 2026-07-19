@@ -6,6 +6,8 @@ public static class AudienceDisplay
 {
     public static IEnumerable<string> Labels(GuildAudience audiences)
     {
+        if (audiences.HasFlag(GuildAudience.Guild))
+            yield return "Guild";
         if (audiences.HasFlag(GuildAudience.Alliance))
             yield return "Alliance";
         if (audiences.HasFlag(GuildAudience.Server))
@@ -19,6 +21,7 @@ public static class AudienceDisplay
     // Shared between AudienceEditor's cards and (formerly) the plain-checkbox labels it replaced.
     public static string Description(GuildAudience audience) => audience switch
     {
+        GuildAudience.Guild => "Guild-wide features that apply to the whole Discord, regardless of audience.",
         GuildAudience.Alliance => "This guild is a single alliance's own Discord.",
         GuildAudience.Server => "This guild serves a whole STFC server.",
         GuildAudience.VeilGroup => "This guild serves a veil group (a coalition of servers).",
@@ -31,6 +34,7 @@ public static class AudienceDisplay
     // in sync if an icon ever changes.
     public static string Icon(GuildAudience audience) => audience switch
     {
+        GuildAudience.Guild => "oi-home",
         GuildAudience.Alliance => "oi-flag",
         GuildAudience.Server => "oi-hard-drive",
         GuildAudience.VeilGroup => "oi-layers",
@@ -43,6 +47,7 @@ public static class AudienceDisplay
     // a time instead of showing every audience stacked on one page.
     public static string Slug(GuildAudience audience) => audience switch
     {
+        GuildAudience.Guild => "guild",
         GuildAudience.Alliance => "alliance",
         GuildAudience.Server => "server",
         GuildAudience.VeilGroup => "veil-group",

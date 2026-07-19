@@ -148,6 +148,7 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
 
     public static string AudienceLabel(GuildAudience audience) => audience switch
     {
+        GuildAudience.Guild => "Serverweit",
         GuildAudience.Alliance => "Allianz",
         GuildAudience.Server => "Server",
         GuildAudience.VeilGroup => "Veil-Gruppe",

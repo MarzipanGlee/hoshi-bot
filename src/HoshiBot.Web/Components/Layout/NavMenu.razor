@@ -2,7 +2,6 @@
 @inject NavigationManager NavigationManager
 @inject CurrentGuildContext GuildContext
 @inject CurrentAllianceContext AllianceContext
-@inject GuildFeatureService FeatureService
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <div class="top-row ps-3 navbar navbar-dark">
@@ -60,26 +59,20 @@
                         </NavLink>
                     </div>
 
-                    @if (AllianceContext.Alliances.Count > 0)
+                    @* Guild-wide features — always shown; not tied to an audience selection. *@
+                    <NavMenuGroup Title="Guild" Icon="@AudienceDisplay.Icon(GuildAudience.Guild)" Active="@IsAudienceFeaturesActive(GuildAudience.Guild)">
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, GuildAudience.Guild)">Features</NavLink>
+                        </div>
+                    </NavMenuGroup>
+
+                    @* One group per linked alliance — a coalition guild has several. *@
+                    @foreach (var link in AllianceContext.Alliances)
                     {
-                        var allianceFeatures = FeatureCatalog.All
-                            .Where(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance) && enabledFeatures.Contains((f.Feature, GuildAudience.Alliance)))
-                            .ToList();
-                        <NavMenuGroup Title="@AllianceGroupTitle()" Icon="oi-star" IconContent="@AllianceEmblemIcon" Active="@IsAllianceGroupActive()">
+                        <NavMenuGroup Title="@AllianceGroupTitle(link)" Icon="oi-star" IconContent="@AllianceEmblemIcon(link)" Active="@IsAllianceGroupActive(link.Id)">
                             <div class="nav-item px-3 ps-4">
-                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/features")" Match="NavLinkMatch.All">Features</NavLink>
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceFeaturesHref(guildId, link.Id)">Features</NavLink>
                             </div>
-                            @if (allianceFeatures.Count > 0)
-                            {
-                                <NavMenuGroup Title="Alliance Features" Icon="oi-puzzle-piece" Active="@allianceFeatures.Any(f => IsFeatureActive(f.Slug))">
-                                    @foreach (var feature in allianceFeatures)
-                                    {
-                                        <div class="nav-item px-3 ps-4">
-                                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@FeatureHref(guildId, feature, GuildAudience.Alliance)">@feature.Title</NavLink>
-                                        </div>
-                                    }
-                                </NavMenuGroup>
-                            }
                         </NavMenuGroup>
                     }
 
@@ -88,21 +81,10 @@
                         if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
                             continue;
 
-                        var features = FeatureCatalog.All
-                            .Where(f => f.RelevantAudiences().HasFlag(audience) && enabledFeatures.Contains((f.Feature, audience)))
-                            .ToList();
-                        if (features.Count == 0)
-                            continue;
-
-                        <NavMenuGroup Title="@($"{AudienceDisplay.Labels(audience).First()} Features")" Icon="oi-puzzle-piece" Active="@features.Any(f => IsFeatureActive(f.Slug))">
-                            @foreach (var feature in features)
-                            {
-                                <div class="nav-item px-3 ps-4">
-                                    <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@FeatureHref(guildId, feature, audience)">
-                                        @feature.Title
-                                    </NavLink>
-                                </div>
-                            }
+                        <NavMenuGroup Title="@AudienceDisplay.Labels(audience).First()" Icon="@AudienceDisplay.Icon(audience)" Active="@IsAudienceFeaturesActive(audience)">
+                            <div class="nav-item px-3 ps-4">
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, audience)">Features</NavLink>
+                            </div>
                         </NavMenuGroup>
                     }
                 }
@@ -258,14 +240,14 @@
          "manage/database/announcements", "manage/database/announcement-read-receipts", "manage/database/tickets",
          "manage/database/roe-violation-reports", "manage/database/stfc-news-posts", "manage/database/stfc-news-post-guild-messages",
          "manage/database/stfc-event-date-confirmations"];
-    // The Alliance audience gets its own dedicated group (scoped to the selected alliance);
-    // these are the remaining audiences that still render as their own "… Features" groups.
+    // Guild is always shown (its own group) and Alliance gets one group per linked alliance;
+    // these are the remaining guild-selectable audiences, each rendered as its own group when
+    // the guild serves it.
     private static readonly GuildAudience[] NonAllianceAudienceSections =
         [GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 
     private bool collapseNavMenu = true;
     private string? currentUrl;
-    private HashSet<(GuildFeature Feature, GuildAudience Audience)> enabledFeatures = [];
     private GuildAudience guildAudiences = GuildAudience.None;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
@@ -276,12 +258,14 @@
         NavigationManager.LocationChanged += OnLocationChanged;
         GuildContext.Changed += OnContextChanged;
         AllianceContext.Changed += OnContextChanged;
-        await LoadEnabledFeaturesAsync();
+        await LoadGuildAudiencesAsync();
     }
 
-    private async Task LoadEnabledFeaturesAsync()
+    // The nav no longer lists individual features (each audience group is a single "Features"
+    // link now), so it only needs the guild's selected audiences to decide which guild-scoped
+    // audience groups to show. Guild is always shown; Alliance groups come from AllianceContext.
+    private async Task LoadGuildAudiencesAsync()
     {
-        enabledFeatures = [];
         guildAudiences = GuildAudience.None;
         if (GuildContext.GuildId is not { } guildId)
             return;
@@ -291,27 +275,11 @@
             .Where(s => s.GuildId == guildId)
             .Select(s => s.Audiences)
             .FirstOrDefaultAsync();
-
-        // The Alliance audience is per-alliance: only surface it for the alliance selected in
-        // the top bar. Every other audience is guild-scoped, so any enabled scope counts.
-        var selectedAllianceId = AllianceContext.GuildAllianceId;
-        foreach (var (feature, audience, allianceId) in await FeatureService.GetEnabledAsync(guildId))
-        {
-            if (audience == GuildAudience.Alliance)
-            {
-                if (allianceId == selectedAllianceId)
-                    enabledFeatures.Add((feature, audience));
-            }
-            else
-            {
-                enabledFeatures.Add((feature, audience));
-            }
-        }
     }
 
     private void OnContextChanged() => InvokeAsync(async () =>
     {
-        await LoadEnabledFeaturesAsync();
+        await LoadGuildAudiencesAsync();
         StateHasChanged();
     });
 
@@ -335,7 +303,7 @@
         collapseNavMenu = true;
         _ = InvokeAsync(async () =>
         {
-            await LoadEnabledFeaturesAsync();
+            await LoadGuildAudiencesAsync();
             StateHasChanged();
         });
     }
@@ -351,31 +319,39 @@
 
     private bool IsGroupActive(string[] hrefs) => Array.Exists(hrefs, IsActive);
 
-    // Alliance-audience links carry the selected alliance id (/alliance/{id}); other audiences
-    // get a distinct href per audience so only the matching sidebar entry highlights as active.
-    private string FeatureHref(ulong guildId, IFeatureModule feature, GuildAudience audience) =>
-        audience == GuildAudience.Alliance
-            ? $"manage/guilds/{guildId}/features/{feature.Slug}/alliance/{AllianceContext.GuildAllianceId}"
-            : $"manage/guilds/{guildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}";
+    // The per-audience Features catalog page. Guild-scoped audiences carry just their slug;
+    // Alliance is per-alliance and uses AllianceFeaturesHref instead.
+    private string AudienceFeaturesHref(ulong guildId, GuildAudience audience) =>
+        $"manage/guilds/{guildId}/features/audience/{AudienceDisplay.Slug(audience)}";
 
-    private string AllianceGroupTitle() =>
-        AllianceContext.Alliance is { } link ? $"Alliance — [{link.StfcAlliance.Tag}]" : "Alliance";
+    private string AllianceFeaturesHref(ulong guildId, int allianceId) =>
+        $"manage/guilds/{guildId}/features/audience/alliance/{allianceId}";
 
-    // The selected alliance's emblem, shown in place of the group's star glyph. Falls back to a
-    // star (AllianceEmblem's own fallback) when no alliance is selected or it has no emblem yet.
-    private RenderFragment AllianceEmblemIcon => @<AllianceEmblem Emblem="AllianceContext.Alliance?.StfcAlliance.Emblem" Size="18" />;
+    private string AllianceGroupTitle(GuildAlliance link) => $"Alliance — [{link.StfcAlliance.Tag}]";
 
-    private bool IsAllianceGroupActive() =>
-        (currentUrl?.Contains("/features/", StringComparison.OrdinalIgnoreCase) ?? false)
-        && (currentUrl?.Contains("/alliance/", StringComparison.OrdinalIgnoreCase) ?? false)
-        || (currentUrl?.EndsWith("/features", StringComparison.OrdinalIgnoreCase) ?? false);
+    // This alliance's emblem, shown in place of the group's star glyph (AllianceEmblem falls
+    // back to a star when it has no emblem yet).
+    private RenderFragment AllianceEmblemIcon(GuildAlliance link) =>
+        @<AllianceEmblem Emblem="link.StfcAlliance.Emblem" Size="18" />;
 
-    // Feature routes are guild-scoped (manage/guilds/{id}/features/{slug}) with a dynamic
-    // id segment, so the static-hrefs-array approach IsGroupActive uses doesn't fit — a
-    // plain substring check on the slug is enough (slugs are distinctive), consistent with
-    // this codebase's low-ceremony style elsewhere.
-    private bool IsFeatureActive(string slug) =>
-        currentUrl?.Contains($"/features/{slug}", StringComparison.OrdinalIgnoreCase) ?? false;
+    // Highlights an alliance's group whenever the URL targets that specific alliance — its
+    // catalog page (.../features/audience/alliance/{id}) or any alliance feature settings page
+    // (.../features/{slug}/alliance/{id}). Ids are distinctive, so a substring check suffices.
+    private bool IsAllianceGroupActive(int allianceId) =>
+        currentUrl?.Contains($"/alliance/{allianceId}", StringComparison.OrdinalIgnoreCase) ?? false;
+
+    // Highlights a guild-scoped audience's group on its catalog page
+    // (.../features/audience/{slug}) or a feature settings page for that audience
+    // (.../features/{featureSlug}/{slug}); Guild also owns the bare .../features landing.
+    private bool IsAudienceFeaturesActive(GuildAudience audience)
+    {
+        if (currentUrl is not { } url || !url.Contains("/features", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var slug = AudienceDisplay.Slug(audience);
+        return url.EndsWith($"/{slug}", StringComparison.OrdinalIgnoreCase)
+            || (audience == GuildAudience.Guild && url.EndsWith("/features", StringComparison.OrdinalIgnoreCase));
+    }
 
     public void Dispose()
     {

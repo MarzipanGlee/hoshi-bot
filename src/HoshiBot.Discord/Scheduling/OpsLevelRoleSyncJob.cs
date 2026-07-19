@@ -14,8 +14,8 @@ namespace HoshiBot.Discord.Scheduling;
 // import — see StfcPlayerImportService), bucketed into a G1-G7 tier via
 // StfcOpsGroupExtensions.FromLevel: the one role matching their tier is added, the other 6
 // are removed if present, so leveling up/down swaps the role instead of accumulating old
-// ones. Runs per enabled audience independently, since OpsLevelRoles (like RankRoles) is
-// available to all 4 audiences and each can have its own set of 7 roles configured.
+// ones. OpsLevelRoles is a single guild-wide feature (GuildAudience.Guild) — one set of 7
+// roles for the whole guild, not per-audience or per-alliance.
 public class OpsLevelRoleSyncJob(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
@@ -33,8 +33,9 @@ public class OpsLevelRoleSyncJob(
 
         foreach (var guildId in guildIds)
         {
-            var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.OpsLevelRoles);
-            if (enabledAudiences.Count == 0)
+            // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience,
+            // ignoring any orphaned rows left under other audiences by the audience refactor.
+            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.OpsLevelRoles, GuildAudience.Guild, null))
                 continue;
 
             var members = await db.GuildMembers
@@ -44,21 +45,7 @@ public class OpsLevelRoleSyncJob(
                     gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => (int?)up.StfcPlayer.OpsLevel).FirstOrDefault()))
                 .ToListAsync();
 
-            // The Alliance audience is per-alliance: apply each enabled alliance's own ops-level
-            // palette (to all members, per the product decision — palettes stack when several
-            // alliances configure them). Other audiences are guild-scoped.
-            foreach (var audience in enabledAudiences)
-            {
-                if (audience == GuildAudience.Alliance)
-                {
-                    foreach (var allianceId in await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.OpsLevelRoles))
-                        await SyncAudienceAsync(guildId, audience, allianceId, members);
-                }
-                else
-                {
-                    await SyncAudienceAsync(guildId, audience, null, members);
-                }
-            }
+            await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members);
         }
     }
 

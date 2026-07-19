@@ -96,9 +96,15 @@ else
             }
         }
 
-        editorParameters = new Dictionary<string, object> { ["GuildId"] = ParsedGuildId };
-        if (descriptor.HasMultipleAudiences())
-            editorParameters["Audience"] = effectiveAudience;
+        // Always pass the resolved audience: multi-audience editors need it to know which
+        // audience they're on, and single-audience editors that declare a non-nullable
+        // [EditorRequired] Audience (OpsLevelRoles/RankRoles) need it too. For editors built on
+        // FeatureEditorBase (nullable Audience) this equals what ResolvedAudience would compute.
+        editorParameters = new Dictionary<string, object>
+        {
+            ["GuildId"] = ParsedGuildId,
+            ["Audience"] = effectiveAudience,
+        };
         editorParameters["GuildAllianceId"] = guildAllianceId!;
 
         editorKey = $"{effectiveAudience}:{guildAllianceId}";
