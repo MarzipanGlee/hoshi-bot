@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <div class="card-footer">
+    <div class="card-footer mt-auto">
         @if (!Guild.BotInstalled)
         {
             <a class="btn btn-outline-primary btn-sm" href="invite?guildId=@Guild.Id" target="_blank" rel="noopener" @onclick:stopPropagation="true">+ Install bot</a>
