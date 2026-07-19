@@ -59,7 +59,9 @@ public class MemberInterviewExtractionJob(
         if (pending.Count == 0)
             return;
 
-        var model = await modelResolver.ResolveAsync(guildId);
+        // Extraction is a structured background call — use the lighter/cheaper member-lore model
+        // (flash-lite by default) rather than the premium answer model.
+        var model = await modelResolver.ResolveLightweightAsync(guildId);
         if (model.Provider.Kind == AiProvider.Gemini && string.IsNullOrWhiteSpace(model.ApiKey))
         {
             logger.LogInformation("MemberLore extraction for guild {GuildId} skipped: AI chat (Gemini) has no API key configured.", guildId);
@@ -98,8 +100,8 @@ public class MemberInterviewExtractionJob(
 
         await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation(
-            "MemberLore extraction for guild {Guild}: {Extracted}/{Pending} interview(s) extracted, {Suggestions} peer suggestion(s) queued.",
-            guildId, extracted, pending.Count, suggestions);
+            "MemberLore extraction for guild {Guild} (model {Model}): {Extracted}/{Pending} interview(s) extracted, {Suggestions} peer suggestion(s) queued.",
+            guildId, model.Model, extracted, pending.Count, suggestions);
     }
 
     // Fill the interviewee's own empty self-fields directly (auto-publish — consensual, about them);

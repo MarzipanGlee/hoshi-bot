@@ -54,6 +54,13 @@ public static class AiChatSettingKeys
     // quota. Provider-agnostic — an Ollama guild could point it at a smaller local model.
     public const string RouterModel = "RouterModel";
 
+    // Optional model for member-lore background tasks (the DM interviews and note extraction). These
+    // are frequent, casual/structured calls that don't need the premium answer model, so they default
+    // to the cheap flash-lite tier (the provider's DefaultGateModel) to keep them off Gemini flash's
+    // tiny 20/day request cap — the interviews were the biggest hidden consumer of that quota. Empty →
+    // DefaultGateModel (falling back to the main model for providers with no gate model, e.g. Ollama).
+    public const string MemberLoreModel = "MemberLoreModel";
+
     // The Postgres full-text-search config used to index/search this guild's knowledge content
     // (a regconfig name like "german"/"english"/"simple"). Unset falls back to a value derived
     // from the guild's Discord preferred locale — see FtsLanguage.

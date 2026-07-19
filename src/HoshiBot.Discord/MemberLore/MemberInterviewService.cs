@@ -106,7 +106,9 @@ public class MemberInterviewService(
         var forceWrapUp = turns.Count(t => t.Role == AiChatRole.User) >= MaxTurns;
         var systemPrompt = BuildInterviewPrompt(botName, forceWrapUp);
 
-        var model = await modelResolver.ResolveAsync(interview.GuildId);
+        // Interviews are casual, in-character DM chat — use the lighter/cheaper member-lore model
+        // (flash-lite by default) so they don't burn the premium answer model's tiny per-day quota.
+        var model = await modelResolver.ResolveLightweightAsync(interview.GuildId);
         var answer = await model.Provider.GenerateAsync(
             new AiChatCompletionRequest(model.Model, systemPrompt, turns, model.ApiKey), cancellationToken);
         if (string.IsNullOrWhiteSpace(answer))
@@ -209,15 +211,21 @@ public class MemberInterviewService(
         var basePrompt =
             HoshiPersona.Describe(botName) + "\n\n" +
             "Du führst gerade ein lockeres, freundliches Kennenlern-Gespräch per Direktnachricht mit einem Mitglied, " +
-            "um es besser kennenzulernen. Deine Ziele: Wie das Mitglied genannt werden möchte; was es so macht (im Spiel " +
-            "und privat, soweit es teilen mag); und ob es lustige oder charmante Geschichten über andere Mitglieder hat.\n\n" +
+            "um es besser kennenzulernen. Deine Ziele: Wie das Mitglied genannt werden möchte; was es im Spiel und in der " +
+            "Allianz so macht; und ob es lustige oder charmante Geschichten über andere Mitglieder hat.\n\n" +
             "Sei warm, kurz und bleibe in deiner Rolle. Stelle immer nur eine, höchstens zwei Fragen auf einmal und gehe " +
-            "echt auf die Antworten ein. Dränge zu nichts und respektiere, wenn jemand etwas nicht teilen möchte.\n\n" +
+            "echt auf die Antworten ein. Sei ruhig neugierig und hake mit interessierten Nachfragen nach – zu Spiel, " +
+            "Rolle in der Allianz und gemeinsamen Erlebnissen; genau dafür mögen dich die Leute. Bei privaten oder " +
+            "persönlichen Themen sei dagegen zurückhaltend: frage nicht aktiv nach, sondern nur, wenn das Mitglied von " +
+            "selbst darüber erzählt. Dränge zu nichts und respektiere immer, wenn jemand etwas nicht teilen möchte.\n\n" +
             "WICHTIG: Antworte immer in derselben Sprache, in der das Mitglied schreibt (Deutsch, Englisch, …).";
 
         var wrapUp = forceWrapUp
             ? " Das Gespräch ist jetzt lang genug: Bedanke dich herzlich, sag, dass es dir jederzeit mehr erzählen kann, und beende es."
-            : " Wenn du genug erfahren hast oder das Mitglied sich verabschieden bzw. abschließen möchte, bedanke dich herzlich und sag, dass es dir jederzeit mehr erzählen kann.";
+            : " Beende das Gespräch nicht zu früh – plaudere ruhig ein bisschen und stelle noch ein, zwei interessierte " +
+              "Nachfragen (zu Spiel, Allianz, gemeinsamen Erlebnissen), bevor du abschließt. Schließe erst ab, wenn das " +
+              "Mitglied sich verabschieden bzw. abschließen möchte oder ihr wirklich ausführlich geplaudert habt; bedanke " +
+              "dich dann herzlich und sag, dass es dir jederzeit mehr erzählen kann.";
 
         return basePrompt + wrapUp +
             $"\n\nWenn (und nur wenn) du das Gespräch beendest, schreibe GANZ AM ENDE deiner Nachricht auf einer eigenen " +

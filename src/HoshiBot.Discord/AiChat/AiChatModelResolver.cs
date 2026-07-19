@@ -24,6 +24,22 @@ public class AiChatModelResolver(IEnumerable<IAiChatProvider> providers, GuildFe
         return new ResolvedAiChatModel(provider, model, apiKey);
     }
 
+    // The model for member-lore background tasks (DM interviews + note extraction): same provider/key
+    // as the main chat, but a lighter, cheaper model by default (the gate/flash-lite tier) so these
+    // frequent calls don't spend the premium answer model's tiny per-day request quota. Overridable
+    // per guild via AiChatSettingKeys.MemberLoreModel; falls back to the main model for a provider
+    // with no gate model (e.g. local Ollama, where there's no quota to conserve).
+    public async Task<ResolvedAiChatModel> ResolveLightweightAsync(ulong guildId)
+    {
+        var provider = await ResolveProviderAsync(guildId);
+        var apiKey = await settingsService.GetSecretAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
+
+        var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemberLoreModel);
+        model = string.IsNullOrWhiteSpace(model) ? (provider.DefaultGateModel ?? provider.DefaultModel) : model.Trim();
+
+        return new ResolvedAiChatModel(provider, model, apiKey);
+    }
+
     // The guild's configured chat backend (default Gemini on unset/unknown).
     public async Task<IAiChatProvider> ResolveProviderAsync(ulong guildId)
     {
