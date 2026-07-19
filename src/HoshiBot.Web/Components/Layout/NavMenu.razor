@@ -28,41 +28,28 @@
 
                 @if (GuildContext.GuildId is { } guildId)
                 {
-                    <div class="nav-item-top">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3" href="@($"manage/guilds/{guildId}")" Match="NavLinkMatch.All">
-                            <span class="oi oi-flag align-text-top" aria-hidden="true"></span> Overview
-                        </NavLink>
-                    </div>
-                    <div class="nav-item-top">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3" href="@($"manage/guilds/{guildId}/audience")">
-                            <span class="oi oi-people align-text-top" aria-hidden="true"></span> Audience
-                        </NavLink>
-                    </div>
-                    <div class="nav-item-top">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3" href="@($"manage/guilds/{guildId}/settings")">
-                            <span class="oi oi-cog align-text-top" aria-hidden="true"></span> Settings
-                        </NavLink>
-                    </div>
-                    <div class="nav-item-top">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3" href="@($"manage/guilds/{guildId}/command-bridge")">
-                            <span class="oi oi-comment-square align-text-top" aria-hidden="true"></span> Command Bridge
-                        </NavLink>
-                    </div>
-                    <div class="nav-item-top">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3" href="@($"manage/guilds/{guildId}/setup-wizard")">
-                            <span class="oi oi-wrench align-text-top" aria-hidden="true"></span> Setup Wizard
-                        </NavLink>
-                    </div>
-                    <div class="nav-item-top">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3" href="@($"manage/guilds/{guildId}/permission-check")">
-                            <span class="oi oi-lock-locked align-text-top" aria-hidden="true"></span> Permission Check
-                        </NavLink>
-                    </div>
-
-                    @* Guild-wide features — always shown; not tied to an audience selection. *@
-                    <NavMenuGroup Title="Guild" Icon="@AudienceDisplay.Icon(GuildAudience.Guild)" Active="@IsAudienceFeaturesActive(GuildAudience.Guild)">
+                    @* The guild's own admin pages + its guild-wide features — always shown. *@
+                    <NavMenuGroup Title="Guild" Icon="@AudienceDisplay.Icon(GuildAudience.Guild)" Active="@IsGuildGroupActive(guildId)">
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}")" Match="NavLinkMatch.All">Overview</NavLink>
+                        </div>
                         <div class="nav-item px-3 ps-4">
                             <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, GuildAudience.Guild)">Features</NavLink>
+                        </div>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/audience")">Audience</NavLink>
+                        </div>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/settings")">Settings</NavLink>
+                        </div>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/command-bridge")">Command Bridge</NavLink>
+                        </div>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/setup-wizard")">Setup Wizard</NavLink>
+                        </div>
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/permission-check")">Permission Check</NavLink>
                         </div>
                     </NavMenuGroup>
 
@@ -339,6 +326,19 @@
     // (.../features/{slug}/alliance/{id}). Ids are distinctive, so a substring check suffices.
     private bool IsAllianceGroupActive(int allianceId) =>
         currentUrl?.Contains($"/alliance/{allianceId}", StringComparison.OrdinalIgnoreCase) ?? false;
+
+    // The Guild group now holds the guild's own admin pages plus its guild-wide features, so
+    // it's active on any of them. Overview is matched exactly (its route is a prefix of every
+    // other guild page); the rest are distinct paths that don't overlap the alliance/audience
+    // feature pages owned by the other groups.
+    private bool IsGuildGroupActive(ulong guildId) =>
+        string.Equals(currentUrl, $"manage/guilds/{guildId}", StringComparison.OrdinalIgnoreCase)
+        || IsAudienceFeaturesActive(GuildAudience.Guild)
+        || IsActive($"manage/guilds/{guildId}/audience")
+        || IsActive($"manage/guilds/{guildId}/settings")
+        || IsActive($"manage/guilds/{guildId}/command-bridge")
+        || IsActive($"manage/guilds/{guildId}/setup-wizard")
+        || IsActive($"manage/guilds/{guildId}/permission-check");
 
     // Highlights a guild-scoped audience's group on its catalog page
     // (.../features/audience/{slug}) or a feature settings page for that audience
