@@ -62,16 +62,18 @@ public class NicknameSyncJob(
             .Concat(await db.GuildServers.Where(gs => gs.GuildId == guildId).Select(gs => gs.StfcServerId).ToListAsync())
             .ToHashSet();
 
-        var members = await db.GuildMembers
-            .Where(gm => gm.GuildId == guildId)
-            .Select(gm => new MainPlayer(
-                gm.DiscordUserId,
-                gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => up.StfcPlayer.Name).FirstOrDefault(),
-                gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => up.StfcPlayer.AllianceId).FirstOrDefault(),
-                gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => up.StfcPlayer.Alliance != null ? up.StfcPlayer.Alliance.Tag : null).FirstOrDefault(),
-                gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => up.StfcPlayer.ServerId).FirstOrDefault(),
-                gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => up.StfcPlayer.Server.Region.Name + up.StfcPlayer.Server.Id).FirstOrDefault()))
-            .Where(m => m.PlayerName != null)
+        // Query from the main UserPlayer links of this guild's members — a flat, translatable shape
+        // (the earlier per-field correlated subqueries into a constructor couldn't be translated). The
+        // server label is built in memory below to avoid a string+int concat in SQL.
+        var members = await db.UserPlayers
+            .Where(up => up.IsMain && up.User.GuildMemberships.Any(gm => gm.GuildId == guildId))
+            .Select(up => new MainPlayer(
+                up.DiscordUserId,
+                up.StfcPlayer.Name,
+                up.StfcPlayer.AllianceId,
+                up.StfcPlayer.Alliance != null ? up.StfcPlayer.Alliance.Tag : null,
+                up.StfcPlayer.ServerId,
+                up.StfcPlayer.Server.Region.Name))
             .ToListAsync();
 
         foreach (var member in members)
@@ -83,7 +85,8 @@ public class NicknameSyncJob(
 
     private static string BuildNickname(MainPlayer m, NicknameTagMode allianceMode, NicknameTagMode serverMode, HashSet<int> homeAlliances, HashSet<int> homeServers)
     {
-        var serverTag = Include(serverMode, m.ServerId, homeServers) && !string.IsNullOrWhiteSpace(m.ServerLabel) ? $"[{m.ServerLabel}]" : "";
+        var serverLabel = $"{m.RegionName}{m.ServerId}";
+        var serverTag = Include(serverMode, m.ServerId, homeServers) && !string.IsNullOrWhiteSpace(m.RegionName) ? $"[{serverLabel}]" : "";
         var allianceTag = m.AllianceId is { } aid && Include(allianceMode, aid, homeAlliances) && !string.IsNullOrWhiteSpace(m.AllianceTag) ? $"[{m.AllianceTag}]" : "";
 
         var prefix = serverTag + allianceTag;
@@ -128,5 +131,5 @@ public class NicknameSyncJob(
         }
     }
 
-    private record MainPlayer(ulong DiscordUserId, string? PlayerName, int? AllianceId, string? AllianceTag, int ServerId, string? ServerLabel);
+    private record MainPlayer(ulong DiscordUserId, string PlayerName, int? AllianceId, string? AllianceTag, int ServerId, string? RegionName);
 }
