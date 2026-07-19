@@ -159,6 +159,9 @@ else
 
     private async Task AssignAsync(ulong userId, int playerId)
     {
+        // Record guild membership so the role-sync jobs (which iterate GuildMembers) actually apply
+        // roles to this assignment.
+        await PlayerLink.EnsureGuildMemberAsync(ParsedGuildId, userId);
         await PlayerLink.LinkAsync(userId, playerId);
         await PlayerLink.MarkUserResolvedAsync(userId);
         addingForUserId = null;

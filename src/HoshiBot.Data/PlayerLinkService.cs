@@ -81,6 +81,24 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
                     .ToList());
     }
 
+    // Records that a user is a member of a guild (DiscordUser + GuildMember). Every role-sync job
+    // (rank/ops/nickname/…) iterates GuildMembers, so a link with no GuildMember row is invisible to
+    // them — assignment paths must call this so assigned members actually get their roles.
+    public async Task EnsureGuildMemberAsync(ulong guildId, ulong userId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        await EnsureGuildMemberAsync(db, guildId, userId);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureGuildMemberAsync(HoshiBotDbContext db, ulong guildId, ulong userId)
+    {
+        if (await db.DiscordUsers.FindAsync(userId) is null)
+            db.DiscordUsers.Add(new DiscordUser { DiscordUserId = userId });
+        if (await db.GuildMembers.FindAsync(guildId, userId) is null)
+            db.GuildMembers.Add(new GuildMember { GuildId = guildId, DiscordUserId = userId, JoinedAt = DateTimeOffset.UtcNow });
+    }
+
     // Idempotently link a Discord user to an StfcPlayer. Creates the DiscordUser row if missing and
     // marks the link IsMain when it's the user's first — mirrors PlayerModule's /link-player logic.
     public async Task LinkAsync(ulong userId, int stfcPlayerId)
@@ -175,6 +193,12 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
     public async Task<PlayerLinkOutcome> ProcessMemberAsync(ulong guildId, ulong userId, string nickname)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
+
+        // Assert guild membership up front (before any early return) so the role-sync jobs can see
+        // this member — the backfill job walks every member, so this also heals links made before
+        // this was added (e.g. manual assignments that never created a GuildMember row).
+        await EnsureGuildMemberAsync(db, guildId, userId);
+        await db.SaveChangesAsync();
 
         if (await db.UserPlayers.AnyAsync(up => up.DiscordUserId == userId))
             return PlayerLinkOutcome.AlreadyLinked;

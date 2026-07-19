@@ -29,7 +29,10 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
             }
 
             // The DiscordUser + UserPlayer (IsMain-when-first) core is shared with the automated
-            // PlayerLink matcher and the Web admin table — see PlayerLinkService.LinkAsync.
+            // PlayerLink matcher and the Web admin table — see PlayerLinkService.LinkAsync. Also record
+            // guild membership so the role-sync jobs (which iterate GuildMembers) apply roles.
+            if (Context.Guild is { } guild)
+                await playerLinkService.EnsureGuildMemberAsync(guild.Id, userId);
             await playerLinkService.LinkAsync(userId, player.Id);
 
             return $"Linked your Discord account to **{playerName}** on {server.Name}.";

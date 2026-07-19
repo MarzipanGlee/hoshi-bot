@@ -39,7 +39,7 @@ public class MemberOnboardingHandler(IServiceScopeFactory scopeFactory, ILogger<
             var playerLinkService = scope.ServiceProvider.GetRequiredService<PlayerLinkService>();
             var onboarding = scope.ServiceProvider.GetRequiredService<MemberOnboardingService>();
 
-            await EnsureGuildMemberAsync(db, user.GuildId, user.Id);
+            await playerLinkService.EnsureGuildMemberAsync(user.GuildId, user.Id);
 
             if (!await featureService.IsEnabledAsync(user.GuildId, GuildFeature.PlayerLink))
                 return;
@@ -69,21 +69,4 @@ public class MemberOnboardingHandler(IServiceScopeFactory scopeFactory, ILogger<
         string.Equals(
             await settings.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Community, null, MemberOnboardingSettingKeys.CampaignActive),
             "true", StringComparison.OrdinalIgnoreCase);
-
-    private static async Task EnsureGuildMemberAsync(HoshiBotDbContext db, ulong guildId, ulong userId)
-    {
-        var added = false;
-        if (await db.DiscordUsers.FindAsync(userId) is null)
-        {
-            db.DiscordUsers.Add(new DiscordUser { DiscordUserId = userId });
-            added = true;
-        }
-        if (await db.GuildMembers.FindAsync(guildId, userId) is null)
-        {
-            db.GuildMembers.Add(new GuildMember { GuildId = guildId, DiscordUserId = userId, JoinedAt = DateTimeOffset.UtcNow });
-            added = true;
-        }
-        if (added)
-            await db.SaveChangesAsync();
-    }
 }
