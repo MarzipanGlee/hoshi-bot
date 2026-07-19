@@ -130,6 +130,24 @@ public static class MemberLoreSettingKeys
     public const string CompletedRole = "CompletedRole";
 }
 
+public static class PlayerLinkSettingKeys
+{
+    // The role a member must hold to be auto-assigned a player (snowflake). Unset → fall back to the
+    // linked alliance's GuildAlliance.MemberRoleId.
+    public const string MemberRole = "MemberRole";
+}
+
+public static class MemberOnboardingSettingKeys
+{
+    // The go-signal ("true") for the opt-in DM outreach: staff flip this on to let the bot DM members
+    // with an Unresolved PlayerLinkReview row. Off/unset → no DMs, admin-table resolution only.
+    public const string CampaignActive = "CampaignActive";
+
+    // Max onboarding DMs the bot sends per day (text int, e.g. "10"), to stay clear of Discord's DM
+    // rate/anti-spam limits. Unset → a conservative default.
+    public const string MaxInvitesPerDay = "MaxInvitesPerDay";
+}
+
 public static class RankRolesSettingKeys
 {
     public const string AdmiralRole = "AdmiralRole";

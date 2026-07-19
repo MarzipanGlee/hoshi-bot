@@ -6,6 +6,7 @@ using HoshiBot.Discord.AnonymousMessages;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.CommandBridge;
 using HoshiBot.Discord.MemberLore;
+using HoshiBot.Discord.MemberOnboarding;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Discord.Scheduling;
@@ -87,6 +88,8 @@ builder.Services.AddScoped<AiChatService>();
 builder.Services.AddScoped<AiChatModelResolver>();
 builder.Services.AddScoped<MemberInterviewService>();
 builder.Services.AddScoped<MemberNoteExtractor>();
+builder.Services.AddScoped<PlayerLinkService>();
+builder.Services.AddScoped<MemberOnboardingService>();
 
 // The shared local Ollama server (compose service `ollama`); base URL is deployment config
 // (Ollama:BaseUrl), not a per-guild secret. Long, configurable timeout — local model generation
@@ -247,6 +250,20 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(memberInterviewExtractionJobKey)
             .WithIdentity($"{memberInterviewExtractionJobKey.Name}-trigger")
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+
+    var playerLinkSyncJobKey = new JobKey(nameof(PlayerLinkSyncJob));
+    quartz.AddJob<PlayerLinkSyncJob>(playerLinkSyncJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(playerLinkSyncJobKey)
+            .WithIdentity($"{playerLinkSyncJobKey.Name}-trigger")
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+
+    var memberOnboardingSyncJobKey = new JobKey(nameof(MemberOnboardingSyncJob));
+    quartz.AddJob<MemberOnboardingSyncJob>(memberOnboardingSyncJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(memberOnboardingSyncJobKey)
+            .WithIdentity($"{memberOnboardingSyncJobKey.Name}-trigger")
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(20).RepeatForever()));
 
     var rankRoleSyncJobKey = new JobKey(nameof(RankRoleSyncJob));
     quartz.AddJob<RankRoleSyncJob>(rankRoleSyncJobKey)

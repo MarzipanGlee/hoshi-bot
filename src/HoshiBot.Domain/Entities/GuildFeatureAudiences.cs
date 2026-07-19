@@ -10,6 +10,8 @@ public static class GuildFeatureAudiences
     {
         GuildFeature.Absences => GuildAudience.Alliance,
         GuildFeature.MemberLore => GuildAudience.Alliance,
+        GuildFeature.PlayerLink => GuildAudience.Alliance,
+        GuildFeature.MemberOnboarding => GuildAudience.Alliance,
         GuildFeature.ShieldReminders => GuildAudience.Alliance,
         GuildFeature.TerritoryCapture => GuildAudience.Alliance,
         GuildFeature.RoeViolationReports => GuildAudience.Alliance,

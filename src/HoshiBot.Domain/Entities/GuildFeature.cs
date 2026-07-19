@@ -44,4 +44,15 @@ public enum GuildFeature
     // Member lore: the bot DM-interviews members to learn who they are (name, interests, stories
     // about others) so it can act like a real member of the community. See docs/ai-chat-member-lore.md.
     MemberLore,
+
+    // Automated player↔member assignment: matches a member's (tag-stripped) Discord nickname against
+    // the alliance roster and creates the UserPlayer link that drives every role-sync job. Confident
+    // matches link silently; anything ambiguous becomes an admin-resolved PlayerLinkReview row. Never
+    // messages members. Keep after MemberLore so existing enum ordinals/DB rows don't shift.
+    PlayerLink,
+
+    // Opt-in, member-facing companion to PlayerLink: DMs members with an Unresolved PlayerLinkReview
+    // row to confirm/pick their in-game player. Off by default — a guild that doesn't want the bot
+    // DMing members leaves it off and resolves assignments via PlayerLink's admin table only.
+    MemberOnboarding,
 }

@@ -8,7 +8,9 @@ using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.ClientRelease;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Diplomacy;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.InfiniteIncursions;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.MemberLore;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.MemberOnboarding;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.OpsLevelRoles;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.PlayerLink;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RaidAlerts;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RankRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RoeViolationReports;
@@ -41,7 +43,9 @@ public static class FeatureCatalog
         new DiplomacyFeature(),
         new InfiniteIncursionsFeature(),
         new MemberLoreFeature(),
+        new MemberOnboardingFeature(),
         new OpsLevelRolesFeature(),
+        new PlayerLinkFeature(),
         new RaidAlertsFeature(),
         new RankRolesFeature(),
         new RoeViolationReportsFeature(),

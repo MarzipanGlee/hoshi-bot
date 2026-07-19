@@ -180,6 +180,30 @@ public class NotificationDispatcher(
         }
     }
 
+    // Like SendDirectMessageAsync above but for a DM carrying a full set of interactive rows (e.g. a
+    // confirm/decline button pair) rather than a single terminate button — used by MemberOnboarding's
+    // player-confirmation outreach. Returns null (and logs) if the member's DMs are closed.
+    public async Task<ulong?> SendDirectMessageAsync(ulong userId, string content, IReadOnlyList<ActionRowProperties> rows, EmbedProperties? embed = null)
+    {
+        try
+        {
+            var dmChannel = await gatewayClient.Rest.GetDMChannelAsync(userId);
+            var message = await gatewayClient.Rest.SendMessageAsync(dmChannel.Id,
+                new MessageProperties
+                {
+                    Content = content,
+                    Embeds = embed is null ? null : [embed],
+                    Components = rows,
+                });
+            return message.Id;
+        }
+        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            logger.LogInformation("Could not DM user {UserId}: {StatusCode}", userId, ex.StatusCode);
+            return null;
+        }
+    }
+
     // Records a skipped (undeliverable) channel send in the guild's general activity log
     // channel (GuildSettings.LogChannelId), separate from the throttled, admin-facing
     // NotifyAdminOfPermissionIssueAsync above: this is an untimed, per-occurrence activity-log

@@ -7,7 +7,7 @@ using NetCord.Services.ApplicationCommands;
 
 namespace HoshiBot.Discord;
 
-public class PlayerModule(HoshiBotDbContext db) : ApplicationCommandModule<ApplicationCommandContext>
+public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkService) : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("link-player", "Link your Discord account to your STFC in-game player name",
         Contexts = [InteractionContextType.Guild])]
@@ -28,23 +28,9 @@ public class PlayerModule(HoshiBotDbContext db) : ApplicationCommandModule<Appli
                 await db.SaveChangesAsync();
             }
 
-            if (await db.DiscordUsers.FindAsync(userId) is null)
-                db.DiscordUsers.Add(new DiscordUser { DiscordUserId = userId });
-
-            var alreadyLinked = await db.UserPlayers
-                .AnyAsync(up => up.DiscordUserId == userId && up.StfcPlayerId == player.Id);
-            if (!alreadyLinked)
-            {
-                var hasAnyLink = await db.UserPlayers.AnyAsync(up => up.DiscordUserId == userId);
-                db.UserPlayers.Add(new UserPlayer
-                {
-                    DiscordUserId = userId,
-                    StfcPlayerId = player.Id,
-                    IsMain = !hasAnyLink,
-                });
-            }
-
-            await db.SaveChangesAsync();
+            // The DiscordUser + UserPlayer (IsMain-when-first) core is shared with the automated
+            // PlayerLink matcher and the Web admin table — see PlayerLinkService.LinkAsync.
+            await playerLinkService.LinkAsync(userId, player.Id);
 
             return $"Linked your Discord account to **{playerName}** on {server.Name}.";
         });
