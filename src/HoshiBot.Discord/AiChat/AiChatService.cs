@@ -127,12 +127,11 @@ public partial class AiChatService(
         // is a member-to-member call (e.g. rallying the alliance to a task) — not a question for
         // the bot — so stay out of it. A direct address (bot @mention or nickname) still always
         // answers, even if it also mentions others.
-        if (!addressed && (message.MentionEveryone
+        var mentionsOthers = message.MentionEveryone
             || message.MentionedRoleIds.Count > 0
-            || message.MentionedUsers.Any(u => u.Id != botId)))
-        {
+            || message.MentionedUsers.Any(u => u.Id != botId);
+        if (!addressed && mentionsOthers)
             return null;
-        }
 
         var provider = await ResolveProviderAsync(guildId);
         var apiKey = await settingsService.GetSecretAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
@@ -169,6 +168,22 @@ public partial class AiChatService(
 
             try
             {
+                // Recent conversational context (also reused for turns/mentionable below), fetched
+                // before the gate so we can detect an active back-and-forth: if the message right
+                // before this one is the bot's own — and this message isn't rallying other members —
+                // it's a continuation of a conversation Hoshi is already in, so she keeps engaging
+                // without needing a fresh @mention or a standalone question. Without this, a passive
+                // banter follow-up right after Hoshi spoke was dropped by the gate (observed live).
+                var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken);
+                history.Reverse(); // chronological
+                var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
+
+                if (!addressed && !mentionsOthers
+                    && history.LastOrDefault(m => m.Id != message.Id) is { } prior && prior.Author.Id == botId)
+                {
+                    addressed = true; // conversational continuation: Hoshi just spoke, keep the thread going
+                }
+
                 // Passive-listening gate: a cheap small-model YES/NO classifier that runs BEFORE the
                 // expensive knowledge retrieval + main generation (and before the typing indicator, so a
                 // non-answer never shows phantom "typing…"). It only ever *suppresses* on a confident NO
@@ -214,10 +229,6 @@ public partial class AiChatService(
                 }
 
                 var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
-
-                var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken);
-                history.Reverse(); // chronological
-                var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
 
                 // The users the bot may ping: the conversation's participants. The model is given
                 // "name: <@id>" for these and told to only ping from this list; the handler restricts
