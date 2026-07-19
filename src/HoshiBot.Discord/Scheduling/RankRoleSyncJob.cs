@@ -3,6 +3,7 @@ using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 using Quartz;
@@ -44,11 +45,12 @@ public class RankRoleSyncJob(
                     gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => (StfcPlayerRank?)up.StfcPlayer.Rank).FirstOrDefault()))
                 .ToListAsync();
 
-            await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members);
+            var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
+            await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members, roster);
         }
     }
 
-    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, IReadOnlyList<MemberRank> members)
+    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, IReadOnlyList<MemberRank> members, IReadOnlyDictionary<ulong, GuildUser> roster)
     {
         var roleIdsByRank = new Dictionary<StfcPlayerRank, ulong>();
         foreach (var rank in Enum.GetValues<StfcPlayerRank>())
@@ -63,32 +65,33 @@ public class RankRoleSyncJob(
 
         foreach (var member in members)
         {
+            if (!roster.TryGetValue(member.DiscordUserId, out var guildUser))
+                continue;
             var targetRoleId = member.Rank is { } rank ? roleIdsByRank.GetValueOrDefault(rank) : (ulong?)null;
-            await SyncMemberAsync(guildId, member.DiscordUserId, roleIdsByRank.Values, targetRoleId);
+            await SyncMemberAsync(guildId, guildUser, roleIdsByRank.Values, targetRoleId);
         }
     }
 
-    private async Task SyncMemberAsync(ulong guildId, ulong userId, IEnumerable<ulong> allRankRoleIds, ulong? targetRoleId)
+    private async Task SyncMemberAsync(ulong guildId, GuildUser guildUser, IEnumerable<ulong> allRankRoleIds, ulong? targetRoleId)
     {
         try
         {
-            var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
             foreach (var roleId in allRankRoleIds)
             {
                 var hasRole = guildUser.RoleIds.Contains(roleId);
                 var shouldHaveRole = roleId == targetRoleId;
 
                 if (shouldHaveRole && !hasRole)
-                    await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, userId, roleId);
+                    await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, guildUser.Id, roleId);
                 else if (!shouldHaveRole && hasRole)
-                    await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, userId, roleId);
+                    await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, guildUser.Id, roleId);
             }
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             logger.LogInformation(
                 "Skipped rank role sync for user {UserId} in guild {GuildId}: {StatusCode}",
-                userId, guildId, ex.StatusCode);
+                guildUser.Id, guildId, ex.StatusCode);
         }
     }
 

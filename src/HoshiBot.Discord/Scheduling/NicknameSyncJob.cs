@@ -3,6 +3,7 @@ using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 using Quartz;
@@ -76,10 +77,13 @@ public class NicknameSyncJob(
                 up.StfcPlayer.Server.Region.Name))
             .ToListAsync();
 
+        var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
         foreach (var member in members)
         {
+            if (!roster.TryGetValue(member.DiscordUserId, out var guildUser))
+                continue;
             var nickname = BuildNickname(member, allianceTagMode, serverTagMode, homeAllianceSet, homeServerSet);
-            await SyncNicknameAsync(guildId, member.DiscordUserId, nickname, excludedRoles);
+            await SyncNicknameAsync(guildId, guildUser, nickname, excludedRoles);
         }
     }
 
@@ -87,15 +91,24 @@ public class NicknameSyncJob(
     {
         var serverLabel = $"{m.RegionName}{m.ServerId}";
         var serverTag = Include(serverMode, m.ServerId, homeServers) && !string.IsNullOrWhiteSpace(m.RegionName) ? $"[{serverLabel}]" : "";
-        var allianceTag = m.AllianceId is { } aid && Include(allianceMode, aid, homeAlliances) && !string.IsNullOrWhiteSpace(m.AllianceTag) ? $"[{m.AllianceTag}]" : "";
+
+        // A player with no alliance is treated as "foreign" (not one of the guild's own) and, when the
+        // tag applies, shown as [n/a] so it's still disambiguated.
+        var showAllianceTag = allianceMode switch
+        {
+            NicknameTagMode.Always => true,
+            NicknameTagMode.ForeignOnly => m.AllianceId is not { } aid || !homeAlliances.Contains(aid),
+            _ => false,
+        };
+        var allianceTag = showAllianceTag ? $"[{(string.IsNullOrWhiteSpace(m.AllianceTag) ? "n/a" : m.AllianceTag)}]" : "";
 
         var prefix = serverTag + allianceTag;
-        var nickname = prefix.Length > 0 ? $"{prefix} {m.PlayerName}" : m.PlayerName!;
+        var nickname = prefix.Length > 0 ? $"{prefix} {m.PlayerName}" : m.PlayerName;
         return nickname.Length > DiscordNicknameMaxLength ? nickname[..DiscordNicknameMaxLength] : nickname;
     }
 
-    // Whether a tag applies for this id under the given mode. ForeignOnly = the id is NOT one of the
-    // guild's own (alliance/server).
+    // Whether the server tag applies for this id under the given mode. ForeignOnly = the id is NOT one
+    // of the guild's own servers.
     private static bool Include(NicknameTagMode mode, int id, HashSet<int> homeIds) => mode switch
     {
         NicknameTagMode.Always => true,
@@ -106,24 +119,23 @@ public class NicknameSyncJob(
     private static NicknameTagMode ParseMode(string? value) =>
         Enum.TryParse<NicknameTagMode>(value, out var mode) ? mode : NicknameTagMode.ForeignOnly;
 
-    private async Task SyncNicknameAsync(ulong guildId, ulong userId, string targetNickname, HashSet<ulong> excludedRoles)
+    private async Task SyncNicknameAsync(ulong guildId, GuildUser guildUser, string targetNickname, HashSet<ulong> excludedRoles)
     {
+        if (excludedRoles.Count > 0 && guildUser.RoleIds.Any(excludedRoles.Contains))
+            return;
+        if (guildUser.Nickname == targetNickname)
+            return;
+
         try
         {
-            var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
-            if (excludedRoles.Count > 0 && guildUser.RoleIds.Any(excludedRoles.Contains))
-                return;
-            if (guildUser.Nickname == targetNickname)
-                return;
-
-            await gatewayClient.Rest.ModifyGuildUserAsync(guildId, userId, options => options.Nickname = targetNickname);
+            await gatewayClient.Rest.ModifyGuildUserAsync(guildId, guildUser.Id, options => options.Nickname = targetNickname);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden)
         {
             // Bot's top role is below the member's — Discord won't allow renaming them.
             logger.LogInformation(
                 "Skipped nickname sync for user {UserId} in guild {GuildId}: insufficient permission (role hierarchy)",
-                userId, guildId);
+                guildUser.Id, guildId);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.NotFound)
         {
