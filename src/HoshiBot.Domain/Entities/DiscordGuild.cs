@@ -15,10 +15,6 @@ public class DiscordGuild
 
     public string Locale { get; set; } = "de";
 
-    // Per-guild opt-in for NicknameSyncJob; off by default. /link-player still
-    // works regardless of this flag — it only gates the automatic renaming job.
-    public bool NicknameSyncEnabled { get; set; }
-
     // A guild's scope is any combination of linked alliances/servers/veil-groups —
     // none of these are mutually exclusive (a coalition Discord can manage several
     // alliances; a whole-server community Discord may link a server but no single

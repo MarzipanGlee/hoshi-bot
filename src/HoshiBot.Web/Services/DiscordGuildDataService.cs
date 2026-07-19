@@ -192,6 +192,26 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         return names ?? new Dictionary<ulong, string>();
     }
 
+    // Like GetMemberDisplayNamesAsync but keeps the FULL nickname including any [TAG] prefix — used by
+    // the Player Assignment page, where the admin wants to see each member's real Discord nickname.
+    public async Task<IReadOnlyDictionary<ulong, string>> GetMemberNicknamesAsync(ulong guildId)
+    {
+        var names = await cache.GetOrCreateAsync($"discord-guild-member-nicknames:{guildId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            var map = new Dictionary<ulong, string>();
+            await foreach (var member in botRestClient.GetGuildUsersAsync(guildId))
+            {
+                if (member.IsBot)
+                    continue;
+                map[member.Id] = member.Nickname ?? member.GlobalName ?? member.Username;
+            }
+            return map;
+        });
+
+        return names ?? new Dictionary<ulong, string>();
+    }
+
     [System.Text.RegularExpressions.GeneratedRegex(@"\[.*\]\s*")]
     private static partial System.Text.RegularExpressions.Regex AllianceTagPattern();
 

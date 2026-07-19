@@ -61,22 +61,4 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
 
             return $"Set your alliance to {alliance.Name} ({alliance.Tag}).";
         });
-
-    [SlashCommand("nickname-sync", "Enable or disable automatic Discord nickname sync for this server",
-        DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
-    public Task NicknameSync(bool enabled) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
-        {
-            var guildId = Context.Guild!.Id;
-
-            var guild = await db.DiscordGuilds.FindAsync(guildId)
-                ?? throw new InvalidOperationException($"Guild {guildId} is not yet known to Hoshi Bot.");
-
-            guild.NicknameSyncEnabled = enabled;
-            await db.SaveChangesAsync();
-
-            return enabled
-                ? "Nickname sync enabled — members' Discord nicknames will be kept in sync with their linked in-game name."
-                : "Nickname sync disabled.";
-        });
 }

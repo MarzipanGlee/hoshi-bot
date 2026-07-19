@@ -9,6 +9,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Diplomacy;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.InfiniteIncursions;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.MemberLore;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.MemberOnboarding;
+using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.NicknameSync;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.OpsLevelRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.PlayerLink;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.RaidAlerts;
@@ -44,6 +45,7 @@ public static class FeatureCatalog
         new InfiniteIncursionsFeature(),
         new MemberLoreFeature(),
         new MemberOnboardingFeature(),
+        new NicknameSyncFeature(),
         new OpsLevelRolesFeature(),
         new PlayerLinkFeature(),
         new RaidAlertsFeature(),

@@ -55,4 +55,9 @@ public enum GuildFeature
     // row to confirm/pick their in-game player. Off by default — a guild that doesn't want the bot
     // DMing members leaves it off and resolves assignments via PlayerLink's admin table only.
     MemberOnboarding,
+
+    // Guild-wide: renames members' Discord nicknames to match their main linked player's in-game name,
+    // optionally prefixed with server/alliance tags (see NicknameSyncSettingKeys). Sibling of
+    // Rank/Ops Level Roles — a single Guild-audience toggle driven by the player links.
+    NicknameSync,
 }

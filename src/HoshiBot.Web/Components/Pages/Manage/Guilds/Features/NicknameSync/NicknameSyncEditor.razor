@@ -1,0 +1,107 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="How it works">
+        <p class="form-text mt-0">
+            Each member's nickname is set to their <strong>main</strong> linked player's in-game name.
+            Add server/alliance tags below to tell foreign players apart. Members with no linked player are
+            left alone, as are members holding an excluded role. The bot can only rename members whose
+            highest role is below its own.
+        </p>
+    </SettingsCard>
+
+    <SettingsCard Title="Alliance tag">
+        <label class="form-label">Show the <code>[alliance]</code> tag…</label>
+        <Select TValue="string" Items="modeItems" @bind-Value="allianceMode" @bind-Value:after="SaveAllianceModeAsync" />
+    </SettingsCard>
+
+    <SettingsCard Title="Server tag">
+        <label class="form-label">Show the <code>[server]</code> tag…</label>
+        <Select TValue="string" Items="modeItems" @bind-Value="serverMode" @bind-Value:after="SaveServerModeAsync" />
+    </SettingsCard>
+
+    <SettingsCard Title="Excluded roles">
+        <p class="form-text mt-0">Members holding any of these roles are never renamed.</p>
+        @if (excludedRoleIds.Count > 0)
+        {
+            <ul class="list-unstyled d-flex flex-wrap gap-2 mb-2">
+                @foreach (var rid in excludedRoleIds)
+                {
+                    <li>
+                        <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
+                            @RoleName(rid)
+                            <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
+                                    title="Remove" @onclick="() => RemoveRoleAsync(rid)">✕</button>
+                        </span>
+                    </li>
+                }
+            </ul>
+        }
+        <RolePicker Label="Add role" ShowLabel="false" PlaceholderText="— add role —"
+                    @bind-Value="addRoleInput" @bind-Value:after="AddRoleAsync" Roles="roles" />
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.NicknameSync;
+
+    private List<Role> roles = [];
+    private List<SelectedItem> modeItems =
+    [
+        new(nameof(NicknameTagMode.Never), "Never"),
+        new(nameof(NicknameTagMode.ForeignOnly), "Foreign players only"),
+        new(nameof(NicknameTagMode.Always), "Always"),
+    ];
+
+    private string allianceMode = nameof(NicknameTagMode.ForeignOnly);
+    private string serverMode = nameof(NicknameTagMode.ForeignOnly);
+    private List<ulong> excludedRoleIds = [];
+    private string? addRoleInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        allianceMode = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.AllianceTagMode)
+            ?? nameof(NicknameTagMode.ForeignOnly);
+        serverMode = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ServerTagMode)
+            ?? nameof(NicknameTagMode.ForeignOnly);
+        excludedRoleIds = await SettingsService.GetSnowflakeListAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ExcludedRoles);
+    }
+
+    private Task SaveAllianceModeAsync() =>
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.AllianceTagMode, allianceMode);
+
+    private Task SaveServerModeAsync() =>
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ServerTagMode, serverMode);
+
+    private async Task AddRoleAsync()
+    {
+        if (ulong.TryParse(addRoleInput, out var roleId) && !excludedRoleIds.Contains(roleId))
+        {
+            await SettingsService.AddSnowflakeListValueAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ExcludedRoles, roleId);
+            excludedRoleIds.Add(roleId);
+        }
+        addRoleInput = null;
+    }
+
+    private async Task RemoveRoleAsync(ulong roleId)
+    {
+        await SettingsService.RemoveSnowflakeListValueAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ExcludedRoles, roleId);
+        excludedRoleIds.Remove(roleId);
+    }
+
+    private string RoleName(ulong roleId) =>
+        roles.FirstOrDefault(r => r.Id == roleId)?.Name ?? roleId.ToString();
+}

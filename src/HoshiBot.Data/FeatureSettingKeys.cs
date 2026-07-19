@@ -141,6 +141,19 @@ public static class MemberOnboardingSettingKeys
     public const string MaxInvitesPerDay = "MaxInvitesPerDay";
 }
 
+public static class NicknameSyncSettingKeys
+{
+    // NicknameTagMode (text, e.g. "ForeignOnly") controlling the [alliance-tag] prefix. Unset →
+    // ForeignOnly.
+    public const string AllianceTagMode = "AllianceTagMode";
+
+    // NicknameTagMode (text) controlling the [server] prefix. Unset → ForeignOnly.
+    public const string ServerTagMode = "ServerTagMode";
+
+    // Snowflake list of roles whose holders are skipped entirely (never renamed).
+    public const string ExcludedRoles = "ExcludedRoles";
+}
+
 public static class RankRolesSettingKeys
 {
     public const string AdmiralRole = "AdmiralRole";

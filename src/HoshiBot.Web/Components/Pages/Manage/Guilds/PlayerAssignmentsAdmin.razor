@@ -125,7 +125,7 @@ else
     private async Task ReloadAsync()
     {
         loading = true;
-        var names = await DiscordData.GetMemberDisplayNamesAsync(ParsedGuildId);
+        var names = await DiscordData.GetMemberNicknamesAsync(ParsedGuildId);
         var links = await PlayerLink.GetLinksForUsersAsync(names.Keys);
         members = names
             .Select(kv => new MemberRow(kv.Key, string.IsNullOrWhiteSpace(kv.Value) ? kv.Key.ToString() : kv.Value,

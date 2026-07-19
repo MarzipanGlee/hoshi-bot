@@ -29,6 +29,8 @@ public static class GuildFeatureAudiences
         // driven by imported player data — not per-audience or per-alliance. Single Guild toggle.
         GuildFeature.RankRoles => GuildAudience.Guild,
         GuildFeature.OpsLevelRoles => GuildAudience.Guild,
+        // Guild-wide nickname sync, sibling of the two above (driven by the same player links).
+        GuildFeature.NicknameSync => GuildAudience.Guild,
         GuildFeature.AllianceTournament => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
         // Single-audience on purpose, unlike its sibling notify features above: StfcNews has
         // no real per-audience distinction (it's one guild-wide toggle reusing the existing
