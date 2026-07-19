@@ -67,9 +67,12 @@ public class MemberInterviewService(
     // (e.g. a random DM, or one already finished).
     public async Task HandleReplyAsync(ulong userId, string content, CancellationToken cancellationToken)
     {
+        // The member's most recent interview for this guild, regardless of status — a fresh DM re-opens
+        // a previously declined, completed, or undeliverable one (both the decline and completion
+        // closers explicitly invite the member to just write again). Only a member who was never
+        // invited at all stays unanswered.
         var interview = await db.MemberInterviews
-            .Where(i => i.DiscordUserId == userId
-                && (i.Status == MemberInterviewStatus.Invited || i.Status == MemberInterviewStatus.InProgress))
+            .Where(i => i.DiscordUserId == userId)
             .OrderByDescending(i => i.LastActivityAt)
             .FirstOrDefaultAsync(cancellationToken);
         if (interview is null)
@@ -84,6 +87,10 @@ public class MemberInterviewService(
             CreatedAt = now,
         });
         interview.Status = MemberInterviewStatus.InProgress;
+        // Re-opening extends the transcript, so clear the closed markers — it can complete (and be
+        // re-extracted with the new content) again. No-ops for an already-active interview.
+        interview.CompletedAt = null;
+        interview.ExtractedAt = null;
         interview.LastActivityAt = now;
         await db.SaveChangesAsync(cancellationToken);
 
