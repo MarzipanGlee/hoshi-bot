@@ -201,7 +201,7 @@ public class TerritoryCaptureDigestService(
         // (<t:unix:t>) OUTSIDE the span. Discord won't render a timestamp inside a code fence, so
         // the legacy design keeps only the aligned columns fenced and lets the time show in each
         // reader's local timezone — the whole reason this isn't one big ``` block.
-        var lines = new List<string> { "`#  Zone       Tier  Nachbarn                Tag`" };
+        var lines = new List<string> { "`#  Zone    Tier  Nachbarn                Tag Zeit`" };
         foreach (var (slotIndex, territory, start, end) in known)
         {
             var neighbours = await GetNeighbourOwnerTagsAsync(territory.Id, link.StfcAlliance.ServerId, link.StfcAlliance.Tag);
