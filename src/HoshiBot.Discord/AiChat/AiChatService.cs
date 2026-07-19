@@ -541,10 +541,19 @@ public partial class AiChatService(
         if (notes.Count == 0)
             return "";
 
+        // Consolidate a person's accounts (player-linked alts share a person key) into one entry so
+        // Hoshi treats them as the same commander and uses lore stored on either account.
+        var personKeys = await memberNoteService.GetPersonKeysAsync(notes.Select(n => n.DiscordUserId), cancellationToken);
+
         var sb = new StringBuilder();
-        foreach (var note in notes)
+        foreach (var group in notes.GroupBy(n => personKeys.GetValueOrDefault(n.DiscordUserId, $"user:{n.DiscordUserId}")))
         {
-            var line = RenderMemberNote(note);
+            var ids = group
+                .OrderByDescending(n => string.IsNullOrWhiteSpace(n.PreferredName) ? 0 : 1)
+                .ThenBy(n => n.DiscordUserId)
+                .Select(n => n.DiscordUserId)
+                .ToList();
+            var line = RenderPersonNote(ids, MergePersonNotes(group));
             if (line is null)
                 continue;
             if (sb.Length + line.Length > MemberNotesCharBudget)
@@ -555,24 +564,52 @@ public partial class AiChatService(
         return sb.ToString();
     }
 
-    private static string? RenderMemberNote(GuildMemberNote note)
+    // Combine a person's per-account notes into one view: first non-empty preferred name, distinct
+    // values per field, and peer fields dropped if *any* of the person's accounts vetoed them.
+    private static GuildMemberNote MergePersonNotes(IEnumerable<GuildMemberNote> group)
+    {
+        var list = group.ToList();
+        var peerHidden = list.Any(n => n.PeerLoreHidden);
+        return new GuildMemberNote
+        {
+            PreferredName = list.Select(n => n.PreferredName).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)),
+            Nicknames = MergeField(list.Select(n => n.Nicknames)),
+            Interests = MergeField(list.Select(n => n.Interests)),
+            Background = MergeField(list.Select(n => n.Background)),
+            Languages = MergeField(list.Select(n => n.Languages)),
+            RunningJokes = peerHidden ? null : MergeField(list.Select(n => n.RunningJokes)),
+            TeaseAbout = peerHidden ? null : MergeField(list.Select(n => n.TeaseAbout)),
+        };
+    }
+
+    private static string? MergeField(IEnumerable<string?> values)
+    {
+        var parts = values
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => Inline(v!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return parts.Count == 0 ? null : string.Join("; ", parts);
+    }
+
+    // One compact line for a person, listing all their account mentions so the bot can ping either.
+    // Fields are already merged + peer-veto-applied by MergePersonNotes.
+    private static string? RenderPersonNote(IReadOnlyList<ulong> ids, GuildMemberNote note)
     {
         var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(note.Nicknames)) parts.Add($"auch {Inline(note.Nicknames)}");
-        if (!string.IsNullOrWhiteSpace(note.Interests)) parts.Add($"mag {Inline(note.Interests)}");
-        if (!string.IsNullOrWhiteSpace(note.Background)) parts.Add(Inline(note.Background));
-        if (!string.IsNullOrWhiteSpace(note.Languages)) parts.Add($"spricht {Inline(note.Languages)}");
-        if (!note.PeerLoreHidden)
-        {
-            if (!string.IsNullOrWhiteSpace(note.RunningJokes)) parts.Add($"Running Gags: {Inline(note.RunningJokes)}");
-            if (!string.IsNullOrWhiteSpace(note.TeaseAbout)) parts.Add($"necken ok: {Inline(note.TeaseAbout)}");
-        }
+        if (!string.IsNullOrWhiteSpace(note.Nicknames)) parts.Add($"auch {note.Nicknames}");
+        if (!string.IsNullOrWhiteSpace(note.Interests)) parts.Add($"mag {note.Interests}");
+        if (!string.IsNullOrWhiteSpace(note.Background)) parts.Add(note.Background);
+        if (!string.IsNullOrWhiteSpace(note.Languages)) parts.Add($"spricht {note.Languages}");
+        if (!string.IsNullOrWhiteSpace(note.RunningJokes)) parts.Add($"Running Gags: {note.RunningJokes}");
+        if (!string.IsNullOrWhiteSpace(note.TeaseAbout)) parts.Add($"necken ok: {note.TeaseAbout}");
 
         if (parts.Count == 0)
             return null;
 
         var name = string.IsNullOrWhiteSpace(note.PreferredName) ? "" : $"{note.PreferredName.Trim()} ";
-        return $"- {name}(<@{note.DiscordUserId}>): {string.Join("; ", parts)}";
+        var mentions = string.Join(", ", ids.Select(id => $"<@{id}>"));
+        return $"- {name}({mentions}): {string.Join("; ", parts)}";
     }
 
     // Flatten a multi-line note field (fields accumulate appended lines) into one line for the compact block.

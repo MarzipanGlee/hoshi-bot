@@ -15,6 +15,27 @@ public class MemberNoteService(HoshiBotDbContext db)
     public Task<List<GuildMemberNote>> GetForGuildAsync(ulong guildId, CancellationToken cancellationToken = default) =>
         db.GuildMemberNotes.Where(n => n.GuildId == guildId).ToListAsync(cancellationToken);
 
+    // Maps each Discord account to a stable "person key" so lore can be consolidated across a person's
+    // multiple accounts: accounts linked to the same main STFC player (UserPlayer.IsMain — the same
+    // linkage NicknameSyncJob/RankRoleSyncJob use) share "player:{id}"; an unlinked account is its own
+    // "user:{id}". Same-person alts thus collapse to one key; genuinely different people never do.
+    public async Task<Dictionary<ulong, string>> GetPersonKeysAsync(IEnumerable<ulong> userIds, CancellationToken cancellationToken = default)
+    {
+        var ids = userIds.Distinct().ToList();
+        var mainLinks = await db.UserPlayers
+            .Where(up => up.IsMain && ids.Contains(up.DiscordUserId))
+            .Select(up => new { up.DiscordUserId, up.StfcPlayerId })
+            .ToListAsync(cancellationToken);
+
+        var mainPlayerByUser = new Dictionary<ulong, int>();
+        foreach (var link in mainLinks)
+            mainPlayerByUser[link.DiscordUserId] = link.StfcPlayerId;
+
+        return ids.ToDictionary(
+            id => id,
+            id => mainPlayerByUser.TryGetValue(id, out var playerId) ? $"player:{playerId}" : $"user:{id}");
+    }
+
     public async Task<GuildMemberNote> GetOrCreateAsync(ulong guildId, ulong userId, CancellationToken cancellationToken = default)
     {
         var note = await db.GuildMemberNotes.FirstOrDefaultAsync(n => n.GuildId == guildId && n.DiscordUserId == userId, cancellationToken);

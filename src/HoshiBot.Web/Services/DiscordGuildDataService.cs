@@ -170,23 +170,33 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         return allRoles.OrderByDescending(r => r.Position).ToList();
     }
 
-    // userId → display name (nickname/global name, alliance-tag prefix stripped like the bot's
+    // userId → display label (nickname/global name, alliance-tag prefix stripped like the bot's
     // CommanderName.Of) for a guild's non-bot members — used by the member-lore notes/review UI to
-    // label rows by name instead of raw ids. Cached 60s alongside the other Discord lookups.
+    // label rows by name instead of raw ids. When two members share a display name (e.g. a person's
+    // alt account), the unique Discord @username is appended so they stay distinguishable. Cached 60s.
     public async Task<IReadOnlyDictionary<ulong, string>> GetMemberDisplayNamesAsync(ulong guildId)
     {
         var names = await cache.GetOrCreateAsync($"discord-guild-member-names:{guildId}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-            var map = new Dictionary<ulong, string>();
+            var members = new List<(ulong Id, string Display, string Username)>();
             await foreach (var member in botRestClient.GetGuildUsersAsync(guildId))
             {
                 if (member.IsBot)
                     continue;
-                var raw = member.Nickname ?? member.GlobalName ?? member.Username;
-                map[member.Id] = AllianceTagPattern().Replace(raw, "").Trim();
+                var display = AllianceTagPattern().Replace(member.Nickname ?? member.GlobalName ?? member.Username, "").Trim();
+                members.Add((member.Id, string.IsNullOrEmpty(display) ? member.Username : display, member.Username));
             }
-            return map;
+
+            // Append @username only where a display name is shared by more than one member.
+            var shared = members.GroupBy(m => m.Display, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            return members.ToDictionary(
+                m => m.Id,
+                m => shared.Contains(m.Display) ? $"{m.Display} (@{m.Username})" : m.Display);
         });
 
         return names ?? new Dictionary<ulong, string>();

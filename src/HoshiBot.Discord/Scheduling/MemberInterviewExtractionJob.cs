@@ -66,7 +66,7 @@ public class MemberInterviewExtractionJob(
             return;
         }
 
-        var (idToName, nameToId) = await BuildRosterAsync(guildId, cancellationToken);
+        var (idToName, nameToIds, personKeyById) = await BuildRosterAsync(guildId, cancellationToken);
 
         var extracted = 0;
         var suggestions = 0;
@@ -90,7 +90,7 @@ public class MemberInterviewExtractionJob(
                 continue; // leave ExtractedAt null so a transient failure retries next run
 
             await ApplySelfAsync(guildId, interview.DiscordUserId, result.Self, interview, cancellationToken);
-            suggestions += AddPeerSuggestions(guildId, interview, result.Peers, nameToId);
+            suggestions += AddPeerSuggestions(guildId, interview, result.Peers, nameToIds, personKeyById);
 
             interview.ExtractedAt = DateTimeOffset.UtcNow;
             extracted++;
@@ -151,7 +151,8 @@ public class MemberInterviewExtractionJob(
         });
     }
 
-    private int AddPeerSuggestions(ulong guildId, MemberInterview interview, List<MemberNoteExtractor.PeerInfo> peers, IReadOnlyDictionary<string, ulong> nameToId)
+    private int AddPeerSuggestions(ulong guildId, MemberInterview interview, List<MemberNoteExtractor.PeerInfo> peers,
+        IReadOnlyDictionary<string, List<ulong>> nameToIds, IReadOnlyDictionary<ulong, string> personKeyById)
     {
         var added = 0;
         foreach (var peer in peers)
@@ -164,7 +165,7 @@ public class MemberInterviewExtractionJob(
             db.MemberNoteSuggestions.Add(new MemberNoteSuggestion
             {
                 GuildId = guildId,
-                TargetDiscordUserId = ResolveTarget(name, nameToId),
+                TargetDiscordUserId = ResolveTarget(name, nameToIds, personKeyById),
                 TargetNameRaw = name,
                 Field = MapField(peer.Field),
                 SuggestedText = text,
@@ -185,16 +186,26 @@ public class MemberInterviewExtractionJob(
         _ => MemberNoteField.RunningJokes,
     };
 
-    // Exact (case-insensitive) match of the extracted name against roster display names + known
-    // nicknames; null when unresolved so staff assign the target on review (fuzzy guessing would
-    // mis-attribute lore to the wrong member).
-    private static ulong? ResolveTarget(string name, IReadOnlyDictionary<string, ulong> nameToId) =>
-        nameToId.TryGetValue(name.Trim().ToLowerInvariant(), out var id) ? id : null;
+    // Resolve an extracted name to a target account. A unique match resolves. When a name maps to
+    // several accounts: if they're all the same person (shared person key, e.g. player-linked alts)
+    // resolve to one of them — injection consolidates that person's lore anyway; if they're different
+    // people, return null so staff assign it on review rather than mis-attributing.
+    private static ulong? ResolveTarget(string name, IReadOnlyDictionary<string, List<ulong>> nameToIds, IReadOnlyDictionary<ulong, string> personKeyById)
+    {
+        if (!nameToIds.TryGetValue(name.Trim().ToLowerInvariant(), out var ids) || ids.Count == 0)
+            return null;
+        if (ids.Count == 1)
+            return ids[0];
 
-    private async Task<(Dictionary<ulong, string> IdToName, Dictionary<string, ulong> NameToId)> BuildRosterAsync(ulong guildId, CancellationToken cancellationToken)
+        var distinctPeople = ids.Select(id => personKeyById.GetValueOrDefault(id, $"user:{id}")).Distinct().Count();
+        return distinctPeople == 1 ? ids[0] : null;
+    }
+
+    private async Task<(Dictionary<ulong, string> IdToName, Dictionary<string, List<ulong>> NameToIds, Dictionary<ulong, string> PersonKeyById)> BuildRosterAsync(ulong guildId, CancellationToken cancellationToken)
     {
         var idToName = new Dictionary<ulong, string>();
-        var nameToId = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
+        var nameToIds = new Dictionary<string, List<ulong>>(StringComparer.OrdinalIgnoreCase);
+        var rosterIds = new HashSet<ulong>();
 
         await foreach (var member in gatewayClient.Rest.GetGuildUsersAsync(guildId).WithCancellation(cancellationToken))
         {
@@ -202,18 +213,33 @@ public class MemberInterviewExtractionJob(
                 continue;
             var name = CommanderName.Of(member);
             idToName[member.Id] = name;
-            nameToId[name.ToLowerInvariant()] = member.Id;
+            rosterIds.Add(member.Id);
+            AddName(nameToIds, name, member.Id);
         }
 
         // Fold in known nicknames/preferred names so peer stories that use an alias still resolve.
         var notes = await db.GuildMemberNotes.Where(n => n.GuildId == guildId).ToListAsync(cancellationToken);
         foreach (var note in notes)
         {
+            rosterIds.Add(note.DiscordUserId);
             foreach (var alias in Aliases(note))
-                nameToId[alias.ToLowerInvariant()] = note.DiscordUserId;
+                AddName(nameToIds, alias, note.DiscordUserId);
         }
 
-        return (idToName, nameToId);
+        var personKeyById = await noteService.GetPersonKeysAsync(rosterIds, cancellationToken);
+        return (idToName, nameToIds, personKeyById);
+    }
+
+    // Register a name/alias → account id, de-duplicated (a display name and an alias can coincide).
+    private static void AddName(Dictionary<string, List<ulong>> nameToIds, string name, ulong id)
+    {
+        var key = name.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(key))
+            return;
+        if (!nameToIds.TryGetValue(key, out var ids))
+            nameToIds[key] = ids = [];
+        if (!ids.Contains(id))
+            ids.Add(id);
     }
 
     private static IEnumerable<string> Aliases(GuildMemberNote note)
