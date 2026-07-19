@@ -11,7 +11,7 @@ namespace HoshiBot.Web.Services;
 // place. Components with a Discord need this doesn't cover (e.g. PermissionCheck.razor's bot-
 // member/permission-modify calls, genuinely specific to that one page) still inject RestClient
 // directly — this service is for the common "list/create/reuse a channel or role" cases.
-public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cache)
+public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cache)
 {
     // Discord's real channel list order: categories and uncategorized channels share one
     // position ordering at the guild's root level (a category and a "no parent" channel are
@@ -169,6 +169,31 @@ public class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cach
         var allRoles = await GetCachedRolesAsync(guildId);
         return allRoles.OrderByDescending(r => r.Position).ToList();
     }
+
+    // userId → display name (nickname/global name, alliance-tag prefix stripped like the bot's
+    // CommanderName.Of) for a guild's non-bot members — used by the member-lore notes/review UI to
+    // label rows by name instead of raw ids. Cached 60s alongside the other Discord lookups.
+    public async Task<IReadOnlyDictionary<ulong, string>> GetMemberDisplayNamesAsync(ulong guildId)
+    {
+        var names = await cache.GetOrCreateAsync($"discord-guild-member-names:{guildId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            var map = new Dictionary<ulong, string>();
+            await foreach (var member in botRestClient.GetGuildUsersAsync(guildId))
+            {
+                if (member.IsBot)
+                    continue;
+                var raw = member.Nickname ?? member.GlobalName ?? member.Username;
+                map[member.Id] = AllianceTagPattern().Replace(raw, "").Trim();
+            }
+            return map;
+        });
+
+        return names ?? new Dictionary<ulong, string>();
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\[.*\]\s*")]
+    private static partial System.Text.RegularExpressions.Regex AllianceTagPattern();
 
     private async Task<IReadOnlyList<Role>> GetCachedRolesAsync(ulong guildId)
     {

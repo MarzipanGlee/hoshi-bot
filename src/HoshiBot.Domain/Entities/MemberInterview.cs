@@ -32,5 +32,9 @@ public class MemberInterview
 
     public DateTimeOffset? CompletedAt { get; set; }
 
+    // Set once the note-extraction job has turned this (completed) transcript into member notes /
+    // suggestions — so each interview is extracted exactly once. Null = not yet extracted.
+    public DateTimeOffset? ExtractedAt { get; set; }
+
     public ICollection<MemberInterviewMessage> Messages { get; set; } = [];
 }

@@ -1,0 +1,196 @@
+@page "/me/lore"
+@using System.Security.Claims
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using NetCord.Rest
+@attribute [Authorize]
+@layout HoshiBot.Web.Components.Layout.LandingLayout
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject RestClient BotRest
+
+<PageTitle>Mein Steckbrief</PageTitle>
+
+<div class="container py-4" style="max-width:900px">
+
+<h1>Mein Steckbrief bei Hoshi</h1>
+<p class="text-muted">
+    Hier siehst und bearbeitest du, was Hoshi über dich weiß, damit sie dich richtig anspricht und wie
+    ein echtes Community-Mitglied mit dir plaudern kann. Nur du kannst deine eigenen Angaben ändern.
+</p>
+
+@if (loading)
+{
+    <p>Lade…</p>
+}
+else if (cards.Count == 0)
+{
+    <p class="text-muted">Für dich gibt es hier gerade nichts zu bearbeiten (keine passende Community gefunden).</p>
+}
+else
+{
+    @foreach (var c in cards)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5 mb-3">@c.GuildName</h2>
+
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">Wie soll Hoshi dich nennen?</label>
+                        <input class="form-control form-control-sm" @bind="c.Note.PreferredName" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">Spitznamen</label>
+                        <input class="form-control form-control-sm" @bind="c.Note.Nicknames" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">Sprachen</label>
+                        <input class="form-control form-control-sm" @bind="c.Note.Languages" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">Interessen / Hobbys</label>
+                        <textarea class="form-control form-control-sm" rows="2" @bind="c.Note.Interests"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-1">Über dich (was du teilen magst)</label>
+                        <textarea class="form-control form-control-sm" rows="2" @bind="c.Note.Background"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(c)">Speichern</button>
+                    @if (c.Saved)
+                    {
+                        <span class="text-success small ms-2">Gespeichert ✓</span>
+                    }
+                </div>
+
+                @if (c.HasPeerLore)
+                {
+                    <hr />
+                    <h3 class="h6">Was andere über dich erzählt haben</h3>
+                    <p class="form-text mt-0">
+                        Von anderen beigesteuerte Notizen. Du kannst sie nicht bearbeiten, aber ausblenden —
+                        dann nutzt Hoshi sie nicht und das Team schaut noch mal drüber.
+                    </p>
+                    @if (!string.IsNullOrWhiteSpace(c.Note.RunningJokes))
+                    {
+                        <p class="mb-1"><span class="badge bg-secondary">Running Gags</span> @c.Note.RunningJokes</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(c.Note.TeaseAbout))
+                    {
+                        <p class="mb-1"><span class="badge bg-secondary">Necken ok</span> @c.Note.TeaseAbout</p>
+                    }
+                    <div class="form-switch mt-2">
+                        <input type="checkbox" class="form-check-input" role="switch" id="hide-@c.GuildId"
+                               checked="@c.Note.PeerLoreHidden" @onchange="e => ToggleHiddenAsync(c, (bool)e.Value!)" />
+                        <label class="form-check-label" for="hide-@c.GuildId">Diese Notizen ausblenden</label>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+</div>
+
+@code {
+    private bool loading = true;
+    private ulong userId;
+    private List<GuildCard> cards = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var idClaim = auth.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (idClaim is null || !ulong.TryParse(idClaim, out userId))
+        {
+            loading = false;
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // The guilds that run MemberLore, that this user is actually a member of (checked bot-side, so
+        // we never need the user's OAuth token inside the circuit).
+        var guildIds = await db.GuildEnabledFeatures
+            .Where(f => f.Feature == GuildFeature.MemberLore)
+            .Select(f => f.GuildId)
+            .Distinct()
+            .ToListAsync();
+
+        foreach (var guildId in guildIds)
+        {
+            if (!await IsMemberAsync(guildId))
+                continue;
+
+            var note = await db.GuildMemberNotes.AsNoTracking()
+                .FirstOrDefaultAsync(n => n.GuildId == guildId && n.DiscordUserId == userId)
+                ?? new GuildMemberNote { GuildId = guildId, DiscordUserId = userId };
+
+            var guildName = await db.DiscordGuilds.Where(g => g.Id == guildId).Select(g => g.Name).FirstOrDefaultAsync();
+            cards.Add(new GuildCard { GuildId = guildId, GuildName = guildName ?? "Community", Note = note });
+        }
+
+        loading = false;
+    }
+
+    private async Task<bool> IsMemberAsync(ulong guildId)
+    {
+        try
+        {
+            _ = await BotRest.GetGuildUserAsync(guildId, userId);
+            return true;
+        }
+        catch (RestException)
+        {
+            return false; // 404 = not a member (or the bot can't see them)
+        }
+    }
+
+    private async Task SaveAsync(GuildCard c)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var note = await db.GuildMemberNotes.FirstOrDefaultAsync(n => n.GuildId == c.GuildId && n.DiscordUserId == userId);
+        if (note is null)
+        {
+            note = new GuildMemberNote { GuildId = c.GuildId, DiscordUserId = userId };
+            db.GuildMemberNotes.Add(note);
+        }
+        // Self-fields only — never touch the peer-authored fields here.
+        note.PreferredName = Clean(c.Note.PreferredName);
+        note.Nicknames = Clean(c.Note.Nicknames);
+        note.Languages = Clean(c.Note.Languages);
+        note.Interests = Clean(c.Note.Interests);
+        note.Background = Clean(c.Note.Background);
+        note.SelfUpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+        c.Saved = true;
+    }
+
+    private async Task ToggleHiddenAsync(GuildCard c, bool hidden)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var note = await db.GuildMemberNotes.FirstOrDefaultAsync(n => n.GuildId == c.GuildId && n.DiscordUserId == userId);
+        if (note is null)
+            return;
+        note.PeerLoreHidden = hidden;
+        await db.SaveChangesAsync();
+        c.Note.PeerLoreHidden = hidden;
+    }
+
+    private static string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+
+    private class GuildCard
+    {
+        public ulong GuildId { get; set; }
+        public string GuildName { get; set; } = "";
+        public GuildMemberNote Note { get; set; } = new();
+        public bool Saved { get; set; }
+        public bool HasPeerLore => !string.IsNullOrWhiteSpace(Note.RunningJokes) || !string.IsNullOrWhiteSpace(Note.TeaseAbout);
+    }
+}

@@ -33,6 +33,7 @@ public partial class AiChatService(
     IEnumerable<IAiChatProvider> providers,
     AiChatIndexService indexService,
     TerritoryCaptureDigestService territoryCaptureDigest,
+    MemberNoteService memberNoteService,
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
@@ -461,6 +462,14 @@ public partial class AiChatService(
                 sb.AppendLine($"- {name}: <@{id}>");
         }
 
+        var memberNotes = await BuildMemberNotesAsync(guildId, cancellationToken);
+        if (memberNotes.Length > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Was du über die Mitglieder weißt (nutze das für warme, insider-artige Anspielungen und um dich wie ein echtes Community-Mitglied zu verhalten; du darfst auch über gerade abwesende Mitglieder reden; wenn etwas unpassend wäre, lass es einfach weg):");
+            sb.Append(memberNotes);
+        }
+
         var facts = await BuildTerritoryCaptureFactsAsync(guildId, cancellationToken);
         if (facts.Length > 0)
         {
@@ -504,6 +513,59 @@ public partial class AiChatService(
 
         return sb.ToString();
     }
+
+    // The community-lore block: one compact line per member with a GuildMemberNote, so Hoshi behaves
+    // like a real member who knows the whole cast — including people not currently in the conversation
+    // (the "ensemble" effect). Only the live, approved fields inject; suggestions never do, and a
+    // member's peer-lore veto (PeerLoreHidden) drops the peer fields. Gated on the MemberLore feature
+    // and capped by a character budget so a big roster can't blow up the prompt. See docs/ai-chat-member-lore.md.
+    private const int MemberNotesCharBudget = 4000;
+
+    private async Task<string> BuildMemberNotesAsync(ulong guildId, CancellationToken cancellationToken)
+    {
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.MemberLore))
+            return "";
+
+        var notes = await memberNoteService.GetForGuildAsync(guildId, cancellationToken);
+        if (notes.Count == 0)
+            return "";
+
+        var sb = new StringBuilder();
+        foreach (var note in notes)
+        {
+            var line = RenderMemberNote(note);
+            if (line is null)
+                continue;
+            if (sb.Length + line.Length > MemberNotesCharBudget)
+                break;
+            sb.AppendLine(line);
+        }
+
+        return sb.ToString();
+    }
+
+    private static string? RenderMemberNote(GuildMemberNote note)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(note.Nicknames)) parts.Add($"auch {Inline(note.Nicknames)}");
+        if (!string.IsNullOrWhiteSpace(note.Interests)) parts.Add($"mag {Inline(note.Interests)}");
+        if (!string.IsNullOrWhiteSpace(note.Background)) parts.Add(Inline(note.Background));
+        if (!string.IsNullOrWhiteSpace(note.Languages)) parts.Add($"spricht {Inline(note.Languages)}");
+        if (!note.PeerLoreHidden)
+        {
+            if (!string.IsNullOrWhiteSpace(note.RunningJokes)) parts.Add($"Running Gags: {Inline(note.RunningJokes)}");
+            if (!string.IsNullOrWhiteSpace(note.TeaseAbout)) parts.Add($"necken ok: {Inline(note.TeaseAbout)}");
+        }
+
+        if (parts.Count == 0)
+            return null;
+
+        var name = string.IsNullOrWhiteSpace(note.PreferredName) ? "" : $"{note.PreferredName.Trim()} ";
+        return $"- {name}(<@{note.DiscordUserId}>): {string.Join("; ", parts)}";
+    }
+
+    // Flatten a multi-line note field (fields accumulate appended lines) into one line for the compact block.
+    private static string Inline(string value) => value.Replace("\r", "").Replace("\n", "; ").Trim();
 
     // Structured, authoritative grounding straight from the DB (not fuzzy chat snippets): this week's
     // Territory Capture zones for the guild's TC-enabled alliances — owned zone, tier and capture

@@ -73,6 +73,7 @@ builder.Services.AddScoped<AnonymousMessageService>();
 builder.Services.AddScoped<PendingModalInputService>();
 builder.Services.AddScoped<GuildFeatureService>();
 builder.Services.AddScoped<GuildFeatureSettingsService>();
+builder.Services.AddScoped<MemberNoteService>();
 builder.Services.AddScoped<GuildFeatureChannelService>();
 builder.Services.AddScoped<GuildAllianceService>();
 builder.Services.AddScoped<CommandBridgeHubService>();
@@ -85,6 +86,7 @@ builder.Services.AddScoped<AiChatIndexService>();
 builder.Services.AddScoped<AiChatService>();
 builder.Services.AddScoped<AiChatModelResolver>();
 builder.Services.AddScoped<MemberInterviewService>();
+builder.Services.AddScoped<MemberNoteExtractor>();
 
 // The shared local Ollama server (compose service `ollama`); base URL is deployment config
 // (Ollama:BaseUrl), not a per-guild secret. Long, configurable timeout — local model generation
@@ -238,6 +240,13 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(memberInterviewInviteJobKey)
             .WithIdentity($"{memberInterviewInviteJobKey.Name}-trigger")
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(20).RepeatForever()));
+
+    var memberInterviewExtractionJobKey = new JobKey(nameof(MemberInterviewExtractionJob));
+    quartz.AddJob<MemberInterviewExtractionJob>(memberInterviewExtractionJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(memberInterviewExtractionJobKey)
+            .WithIdentity($"{memberInterviewExtractionJobKey.Name}-trigger")
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
 
     var rankRoleSyncJobKey = new JobKey(nameof(RankRoleSyncJob));
     quartz.AddJob<RankRoleSyncJob>(rankRoleSyncJobKey)

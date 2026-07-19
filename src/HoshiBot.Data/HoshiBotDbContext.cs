@@ -97,6 +97,10 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<MemberInterviewMessage> MemberInterviewMessages => Set<MemberInterviewMessage>();
 
+    public DbSet<GuildMemberNote> GuildMemberNotes => Set<GuildMemberNote>();
+
+    public DbSet<MemberNoteSuggestion> MemberNoteSuggestions => Set<MemberNoteSuggestion>();
+
     public DbSet<ChannelPermissionExpectation> ChannelPermissionExpectations => Set<ChannelPermissionExpectation>();
 
     public DbSet<StfcServerStatus> StfcServerStatuses => Set<StfcServerStatus>();
