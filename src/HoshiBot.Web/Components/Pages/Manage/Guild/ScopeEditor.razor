@@ -1,7 +1,4 @@
-@using NetCord
-@using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject DiscordGuildDataService DiscordData
 @inject GuildAllianceService AllianceService
 @inject CurrentAllianceContext AllianceContext
 @inject IJSRuntime JS
@@ -9,32 +6,25 @@
 @if (Audience == GuildAudience.Alliance)
 {
     <h2>Linked Alliances</h2>
-    @if (discordDataError is not null)
-    {
-        <p class="text-danger">@discordDataError</p>
-    }
-    @if (createRoleError is not null)
-    {
-        <p class="text-danger">@createRoleError</p>
-    }
     <table class="table">
         <thead>
             <tr>
-                <th>Alliance</th>
-                <th>Member Role</th>
-                <th>Officer Role</th>
-                <th>Diplomat Role</th>
+                <th>Region</th>
+                <th>Server</th>
+                <th>Tag</th>
+                <th>Alliance Name</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
             @foreach (var link in guildAlliances)
             {
+                var info = allianceInfoById.GetValueOrDefault(link.StfcAllianceId);
                 <tr>
-                    <td>@allianceTagsById.GetValueOrDefault(link.StfcAllianceId)</td>
-                    <td>@RoleName(link.MemberRoleId)</td>
-                    <td>@RoleName(link.OfficerRoleId)</td>
-                    <td>@RoleName(link.DiplomatRoleId)</td>
+                    <td>@info?.Region</td>
+                    <td>@info?.Server</td>
+                    <td>@info?.Tag</td>
+                    <td>@info?.Name</td>
                     <td class="text-end">
                         <a class="btn btn-sm btn-outline-secondary me-1" href="manage/guild/@GuildId/alliance/@link.Id/settings">Settings</a>
                         <button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">Delete</button>
@@ -57,32 +47,19 @@
             </div>
             <div>
                 <label class="form-label">Alliance</label>
-                <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceIdInput" @bind-Value:after="OnAllianceChanged"
+                <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceIdInput"
                         ShowSearch="true" PlaceHolder="Select alliance..." IsDisabled="@(allianceServerIdInput is null)" />
             </div>
             <div>
-                <button class="btn btn-primary" disabled="@creatingRole" @onclick="AddGuildAlliance">@(creatingRole ? "Creating..." : "Add")</button>
+                <button class="btn btn-primary" @onclick="AddGuildAlliance">Add</button>
             </div>
         </div>
     </div>
-    <p class="text-muted small mt-3 mb-1">Roles for the alliance being added above. After linking, edit an alliance's roles and channels on its own <strong>Settings</strong> page (the Settings button in the table).</p>
-    <div class="card-grid mt-1">
-        <SettingsCard Title="Member Role">
-            <Select TValue="string" Items="memberRoleItems" @bind-Value="memberRoleIdInput" @bind-Value:after="() => OnAllianceRoleChanged(memberRoleIdInput, v => memberColorInput = v, v => memberMentionableInput = v)" />
-            <RoleColorMentionableInputs @bind-ColorValue="memberColorInput"
-                                         MentionableValue="memberMentionableInput" MentionableValueChanged="v => memberMentionableInput = v" />
-        </SettingsCard>
-        <SettingsCard Title="Officer Role">
-            <Select TValue="string" Items="officerRoleItems" @bind-Value="officerRoleIdInput" @bind-Value:after="() => OnAllianceRoleChanged(officerRoleIdInput, v => officerColorInput = v, v => officerMentionableInput = v)" />
-            <RoleColorMentionableInputs @bind-ColorValue="officerColorInput"
-                                         MentionableValue="officerMentionableInput" MentionableValueChanged="v => officerMentionableInput = v" />
-        </SettingsCard>
-        <SettingsCard Title="Diplomat Role">
-            <Select TValue="string" Items="diplomatRoleItems" @bind-Value="diplomatRoleIdInput" @bind-Value:after="() => OnAllianceRoleChanged(diplomatRoleIdInput, v => diplomatColorInput = v, v => diplomatMentionableInput = v)" />
-            <RoleColorMentionableInputs @bind-ColorValue="diplomatColorInput"
-                                         MentionableValue="diplomatMentionableInput" MentionableValueChanged="v => diplomatMentionableInput = v" />
-        </SettingsCard>
-    </div>
+    <p class="text-muted small mt-2 mb-0">
+        Linking an alliance just creates the association — set its roles and channels afterward on the
+        alliance's own <strong>Settings</strong> page (the Settings button in the table), or via the
+        Setup Wizard.
+    </p>
 }
 else if (Audience == GuildAudience.Server)
 {
@@ -163,9 +140,12 @@ else if (Audience == GuildAudience.VeilGroup)
     private List<GuildAlliance> guildAlliances = [];
     private List<GuildServer> guildServers = [];
     private List<GuildVeilGroup> guildVeilGroups = [];
-    private Dictionary<int, string> allianceTagsById = [];
+    private Dictionary<int, AllianceRow> allianceInfoById = [];
     private Dictionary<int, string> serverNamesById = [];
     private Dictionary<int, string> veilGroupNamesById = [];
+
+    // One Linked Alliances table row's identifying columns.
+    private record AllianceRow(string Region, string Server, string Tag, string Name);
 
     // Alliance branch
     private string? allianceRegionIdInput;
@@ -174,22 +154,6 @@ else if (Audience == GuildAudience.VeilGroup)
     private List<SelectedItem> allianceServerItems = [];
     private List<StfcAlliance> serverAlliances = [];
     private List<SelectedItem> allianceItems = [];
-    private List<Role> roles = [];
-    private List<SelectedItem> memberRoleItems = [];
-    private List<SelectedItem> officerRoleItems = [];
-    private List<SelectedItem> diplomatRoleItems = [];
-    private string? memberRoleIdInput;
-    private string? officerRoleIdInput;
-    private string? diplomatRoleIdInput;
-    private string? memberColorInput;
-    private string? officerColorInput;
-    private string? diplomatColorInput;
-    private bool memberMentionableInput;
-    private bool officerMentionableInput;
-    private bool diplomatMentionableInput;
-    private string? discordDataError;
-    private string? createRoleError;
-    private bool creatingRole;
 
     // Server branch
     private string? serverRegionIdInput;
@@ -212,11 +176,11 @@ else if (Audience == GuildAudience.VeilGroup)
         {
             case GuildAudience.Alliance:
                 guildAlliances = await db.GuildAlliances.Where(ga => ga.GuildId == GuildId).AsNoTracking().ToListAsync();
-                allianceTagsById = await db.StfcAlliances
-                    .Where(a => guildAlliances.Select(ga => ga.StfcAllianceId).Contains(a.Id))
-                    .ToDictionaryAsync(a => a.Id, a => a.Tag);
-                ResetMemberOfficerDiplomatItems();
-                await LoadDiscordRolesAsync();
+                var linkedAllianceIdsForTable = guildAlliances.Select(ga => ga.StfcAllianceId).ToList();
+                allianceInfoById = await db.StfcAlliances
+                    .Where(a => linkedAllianceIdsForTable.Contains(a.Id))
+                    .Select(a => new { a.Id, Region = a.Server.Region.Name, ServerId = a.Server.Id, ServerName = a.Server.Name, a.Tag, a.Name })
+                    .ToDictionaryAsync(a => a.Id, a => new AllianceRow(a.Region, $"{a.ServerId} {a.ServerName}", a.Tag, a.Name));
                 break;
             case GuildAudience.Server:
                 guildServers = await db.GuildServers.Where(gs => gs.GuildId == GuildId).AsNoTracking().ToListAsync();
@@ -233,31 +197,11 @@ else if (Audience == GuildAudience.VeilGroup)
         }
     }
 
-    private async Task LoadDiscordRolesAsync()
-    {
-        discordDataError = null;
-        try
-        {
-            roles = await DiscordData.GetRolesAsync(GuildId);
-        }
-        catch (RestException)
-        {
-            roles = [];
-            discordDataError = "Could not load roles from Discord (is the bot in this guild?)";
-        }
-
-        ResetMemberOfficerDiplomatItems();
-    }
-
-    private string RoleName(ulong? id) =>
-        id is null ? "-" : roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
-
     private async Task OnAllianceRegionChangedAsync()
     {
         allianceServerIdInput = null;
         selectedAllianceIdInput = null;
         allianceItems = [];
-        ResetMemberOfficerDiplomatItems();
 
         if (!int.TryParse(allianceRegionIdInput, out var regionId))
         {
@@ -277,7 +221,6 @@ else if (Audience == GuildAudience.VeilGroup)
     private async Task OnAllianceServerChangedAsync()
     {
         selectedAllianceIdInput = null;
-        ResetMemberOfficerDiplomatItems();
 
         if (!int.TryParse(allianceServerIdInput, out var serverId))
         {
@@ -302,123 +245,32 @@ else if (Audience == GuildAudience.VeilGroup)
         allianceItems = serverAlliances.Select(a => new SelectedItem(a.Id.ToString(), $"{a.Tag} - {a.Name}")).ToList();
     }
 
-    private void OnAllianceChanged() => ResetMemberOfficerDiplomatItems();
-
-    // The Member/Officer/Diplomat selects' blank entry mentions the exact role name that
-    // will be created (once an alliance is picked) instead of a generic "create a role" —
-    // rebuilt whenever the alliance selection (or the cached role list) changes.
-    //
-    // Uses "create" rather than "" as this entry's Value: BootstrapBlazor's Select doesn't
-    // fire its selection callback for an empty-string item value (its dropdown-item click
-    // handling treats "" as no-op), so with "" as the value that entry was unselectable —
-    // clicking it silently left the bound Xxx­RoleIdInput at its previous state. Any
-    // non-numeric sentinel works since EnsureRoleAsync already falls back to "create new"
-    // whenever ulong.TryParse fails.
-    private const string CreateNewRoleSentinel = "create";
-
-    private void ResetMemberOfficerDiplomatItems()
-    {
-        var tag = serverAlliances.FirstOrDefault(a => a.Id.ToString() == selectedAllianceIdInput)?.Tag;
-        var existing = roles.Select(r => new SelectedItem(r.Id.ToString(), r.Name));
-
-        memberRoleItems = new List<SelectedItem> { new(CreateNewRoleSentinel, tag is null ? "— create a role —" : $"— create {tag}-Member —") }
-            .Concat(existing).ToList();
-        officerRoleItems = new List<SelectedItem> { new(CreateNewRoleSentinel, tag is null ? "— create a role —" : $"— create {tag}-Officer —") }
-            .Concat(existing).ToList();
-        diplomatRoleItems = new List<SelectedItem> { new(CreateNewRoleSentinel, tag is null ? "— create a role —" : $"— create {tag}-Diplomat —") }
-            .Concat(existing).ToList();
-
-        // Pre-select an already-existing role matching the default naming convention —
-        // without this, picking an alliance that already has "{Tag}-Member" etc. from an
-        // earlier manual setup left the selects on "create new", and Add then tried (and
-        // failed) to create a role Discord already had, surfacing a confusing permission
-        // error instead of just reusing the existing role.
-        memberRoleIdInput = FindDefaultRoleId(tag, "Member");
-        officerRoleIdInput = FindDefaultRoleId(tag, "Officer");
-        diplomatRoleIdInput = FindDefaultRoleId(tag, "Diplomat");
-
-        ApplyRoleColorMentionableDisplay(memberRoleIdInput, v => memberColorInput = v, v => memberMentionableInput = v);
-        ApplyRoleColorMentionableDisplay(officerRoleIdInput, v => officerColorInput = v, v => officerMentionableInput = v);
-        ApplyRoleColorMentionableDisplay(diplomatRoleIdInput, v => diplomatColorInput = v, v => diplomatMentionableInput = v);
-    }
-
-    private string FindDefaultRoleId(string? tag, string roleType) =>
-        (tag is null ? null : roles.FirstOrDefault(r => r.Name == $"{tag}-{roleType}")?.Id.ToString())
-            ?? CreateNewRoleSentinel;
-
-    // Fires when the admin manually changes one of the Member/Officer/Diplomat selects (as
-    // opposed to ResetMemberOfficerDiplomatItems's own auto-resolution) — reflects whichever
-    // role is now selected so the color/mentionable inputs stay honest about what Add will
-    // actually apply, instead of showing stale state from the previous selection.
-    private void OnAllianceRoleChanged(string? roleIdInput, Action<string?> setColor, Action<bool> setMentionable) =>
-        ApplyRoleColorMentionableDisplay(roleIdInput, setColor, setMentionable);
-
-    private void ApplyRoleColorMentionableDisplay(string? roleIdInput, Action<string?> setColor, Action<bool> setMentionable)
-    {
-        if (ulong.TryParse(roleIdInput, out var id) && roles.FirstOrDefault(r => r.Id == id) is { } role)
-        {
-            setColor(DiscordGuildDataService.ToHex(role.Colors.PrimaryColor));
-            setMentionable(role.Mentionable);
-        }
-        else
-        {
-            setColor(null);
-            setMentionable(false);
-        }
-    }
-
-    // A blank Member/Officer/Diplomat selection creates a new role instead of just
-    // saving null — named after the alliance tag so multiple linked alliances don't end
-    // up sharing ambiguous "Member"/"Officer" role names.
+    // Linking just creates the association — no Discord roles are created here. The alliance's
+    // Member/Officer/Diplomat roles (and channels) are set afterward on its own Settings page or via
+    // the Setup Wizard, so MemberRoleId/OfficerRoleId/DiplomatRoleId start null.
     private async Task AddGuildAlliance()
     {
         if (!int.TryParse(selectedAllianceIdInput, out var allianceId))
             return;
 
-        createRoleError = null;
-        creatingRole = true;
-        try
+        var wasFirstLink = guildAlliances.Count == 0;
+        var newAllianceLink = new GuildAlliance { GuildId = GuildId, StfcAllianceId = allianceId };
+
+        await using (var db = await DbFactory.CreateDbContextAsync())
         {
-            var tag = serverAlliances.First(a => a.Id == allianceId).Tag;
-            var wasFirstLink = guildAlliances.Count == 0;
-
-            var newAllianceLink = new GuildAlliance
-            {
-                GuildId = GuildId,
-                StfcAllianceId = allianceId,
-                MemberRoleId = await DiscordData.EnsureRoleAsync(GuildId, memberRoleIdInput, $"{tag}-Member", memberColorInput, memberMentionableInput, roles),
-                OfficerRoleId = await DiscordData.EnsureRoleAsync(GuildId, officerRoleIdInput, $"{tag}-Officer", officerColorInput, officerMentionableInput, roles),
-                DiplomatRoleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, $"{tag}-Diplomat", diplomatColorInput, diplomatMentionableInput, roles),
-            };
-
-            await using (var db = await DbFactory.CreateDbContextAsync())
-            {
-                db.GuildAlliances.Add(newAllianceLink);
-                await db.SaveChangesAsync();
-            }
-
-            // Adopt any Alliance-audience settings seeded/migrated before this guild had a link
-            // (see GuildAllianceService.AdoptOrphansAsync) onto the very first alliance linked.
-            if (wasFirstLink)
-                await AllianceService.AdoptOrphansAsync(GuildId, newAllianceLink.Id);
-
-            selectedAllianceIdInput = null;
-            memberRoleIdInput = null;
-            officerRoleIdInput = null;
-            diplomatRoleIdInput = null;
-
-            await OnAllianceServerChangedAsync();
-            await OnParametersSetAsync();
-            await AllianceContext.ReloadAsync();
+            db.GuildAlliances.Add(newAllianceLink);
+            await db.SaveChangesAsync();
         }
-        catch (RestException)
-        {
-            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-        }
-        finally
-        {
-            creatingRole = false;
-        }
+
+        // Adopt any Alliance-audience settings seeded/migrated before this guild had a link
+        // (see GuildAllianceService.AdoptOrphansAsync) onto the very first alliance linked.
+        if (wasFirstLink)
+            await AllianceService.AdoptOrphansAsync(GuildId, newAllianceLink.Id);
+
+        selectedAllianceIdInput = null;
+        await OnAllianceServerChangedAsync();
+        await OnParametersSetAsync();
+        await AllianceContext.ReloadAsync();
     }
 
     private async Task DeleteGuildAlliance(GuildAlliance link)
