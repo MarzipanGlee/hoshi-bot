@@ -59,11 +59,16 @@ else
                         @if (deps is { Count: > 0 })
                         {
                             var unmet = deps.Where(d => !d.Satisfied).ToList();
-                            <div class="mt-2" style="font-size:0.8rem;">
+                            <div class="mb-2" style="font-size:0.8rem;">
                                 <span class="@(unmet.Count == 0 ? "text-muted" : "text-warning")">
                                     <span class="oi oi-link-intact" aria-hidden="true"></span>
-                                    Requires: @string.Join(", ", deps.Select(d => d.Module.Title))
+                                    Requires:
                                 </span>
+                                @for (var i = 0; i < deps.Count; i++)
+                                {
+                                    var dep = deps[i];
+                                    <a href="@DependencyHref(dep.Module)">@dep.Module.Title</a>@(i < deps.Count - 1 ? ", " : "")
+                                }
                                 @if (unmet.Count > 0)
                                 {
                                     <span class="badge bg-warning text-dark ms-1">not enabled</span>
@@ -119,6 +124,23 @@ else
         audience == GuildAudience.Alliance
             ? $"manage/guilds/{GuildId}/features/{feature.Slug}/alliance/{scopeAllianceId}"
             : $"manage/guilds/{GuildId}/features/{feature.Slug}/{AudienceDisplay.Slug(audience)}";
+
+    // Configure link for a dependency, relative to this page's context: the same audience/alliance
+    // when the dependency is offered there (e.g. AI Chat under the current Alliance), else the
+    // dependency's own first audience (e.g. Player Assignment always lands on its Guild page).
+    private string DependencyHref(IFeatureModule dep)
+    {
+        var relevant = dep.RelevantAudiences();
+        var depAudience = relevant.HasFlag(audience) ? audience : GuildFeatureAudiences.EnumerateFlags(relevant).First();
+        var allianceId = relevant.HasFlag(audience) ? scopeAllianceId : null;
+
+        if (depAudience == GuildAudience.Alliance)
+            return allianceId is { } id
+                ? $"manage/guilds/{GuildId}/features/{dep.Slug}/alliance/{id}"
+                : $"manage/guilds/{GuildId}/features/{dep.Slug}/alliance";
+
+        return $"manage/guilds/{GuildId}/features/{dep.Slug}/{AudienceDisplay.Slug(depAudience)}";
+    }
 
     protected override void OnInitialized() => AllianceContext.Changed += OnAllianceChanged;
 
