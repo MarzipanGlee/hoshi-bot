@@ -18,8 +18,9 @@ public static class GuildSettingsSeedData
     // Lost Falcons' own linked alliance — "LF" / "Lost Falcons" on server 164 (Mindmeld),
     // StfcAlliances.Id 7433. Seeded as a GuildAlliance so this single-alliance guild's
     // per-alliance feature settings (all seeded under GuildAudience.Alliance below) attach to a
-    // concrete alliance under the multi-alliance model. MemberRole/DiplomatRole reuse the roles
-    // this guild already uses (MemberRoleId below / the Diplomacy DiplomatRole snowflake).
+    // concrete alliance under the multi-alliance model. The alliance-scoped channels/roles and
+    // Command Bridge (formerly flat GuildSettings columns) now live on this link — see
+    // CreateOwnAlliance below.
     public const int OwnStfcAllianceId = 7433;
     public const ulong OwnAllianceMemberRoleId = 793383681233518633;
     public const ulong OwnAllianceDiplomatRoleId = 829693359874375710;
@@ -32,8 +33,25 @@ public static class GuildSettingsSeedData
         LogChannelId = 1251856032339066942,
         AdminChannelId = 1251527491399454791,
         UserLogChannelId = 1251050019235299448,
+
+        CommandStaffRoleId = 813727551678840884,
+        CrewsRoleId = 1044929004035113070,
+        BetaTesterRoleId = 1253341776970776637,
+        HoshiTesterRoleId = 1268128662457286687,
+    };
+
+    // This guild's single linked alliance, carrying the per-alliance channels/roles and Command
+    // Bridge that used to be flat GuildSettings columns.
+    public static GuildAlliance CreateOwnAlliance() => new()
+    {
+        GuildId = GuildId,
+        StfcAllianceId = OwnStfcAllianceId,
+
+        MemberRoleId = OwnAllianceMemberRoleId,
+        DiplomatRoleId = OwnAllianceDiplomatRoleId,
+        BoardingRoleId = 1269760517807800320,
+
         AllianceBoardingChannelId = 955406358356852746,
-        CommandBridgeChannelId = 1251810911451349095,
         RemindersAlliesChannelId = 1273592443954003968,
         RemindersServicesChannelId = 810175634096783411,
         RulesDeChannelId = 803965908309245962,
@@ -42,12 +60,7 @@ public static class GuildSettingsSeedData
         BotSupportChannelId = 1255819027570495488,
         CommandStaffJobsChannelId = 1267856202046636165,
 
-        CommandStaffRoleId = 813727551678840884,
-        MemberRoleId = 793383681233518633,
-        BoardingRoleId = 1269760517807800320,
-        CrewsRoleId = 1044929004035113070,
-        BetaTesterRoleId = 1253341776970776637,
-        HoshiTesterRoleId = 1268128662457286687,
+        CommandBridgeChannelId = 1251810911451349095,
     };
 
     // Per-feature settings that now live in GuildFeatureSettingSnowflakes/Texts instead of

@@ -54,14 +54,19 @@
         await AllianceContext.SetAsync(guildAllianceId);
         isOpen = false;
 
-        // If a feature editor scoped to the old alliance is open, move it to the new one so the
-        // page follows the selection (the route carries the alliance id after /alliance/).
+        // If an alliance-scoped page (a feature editor, or the Alliance Settings/Command Bridge
+        // pages) is open, move it to the new alliance so the page follows the selection. The
+        // route carries the alliance id right after /alliance/ — replace just that id segment,
+        // preserving any trailing path (e.g. /alliance/{id}/settings keeps "/settings").
         var path = new Uri(Nav.Uri).AbsolutePath;
         var marker = "/alliance/";
         var idx = path.IndexOf(marker, StringComparison.Ordinal);
         if (idx >= 0)
         {
-            var rewritten = path[..(idx + marker.Length)] + guildAllianceId;
+            var after = path[(idx + marker.Length)..];
+            var slashIdx = after.IndexOf('/');
+            var suffix = slashIdx >= 0 ? after[slashIdx..] : "";
+            var rewritten = path[..(idx + marker.Length)] + guildAllianceId + suffix;
             Nav.NavigateTo(rewritten);
         }
     }

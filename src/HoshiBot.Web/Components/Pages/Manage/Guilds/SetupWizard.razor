@@ -6,6 +6,7 @@
 @using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
+@inject GuildAllianceService AllianceService
 @inject IMemoryCache Cache
 
 <PageTitle>Guild Setup Wizard</PageTitle>
@@ -257,9 +258,13 @@ else
 
         logChannelIdInput = settings.LogChannelId?.ToString();
         adminChannelIdInput = settings.AdminChannelId?.ToString();
-        memberRoleIdInput = settings.MemberRoleId?.ToString();
         commandStaffRoleIdInput = settings.CommandStaffRoleId?.ToString();
-        selectedCategoryIdInput = settings.DefaultChannelCategoryId?.ToString();
+
+        // Member role + default channel category are now per-alliance (GuildAlliance) — load the
+        // primary alliance's values if one is linked yet (may not be, this early in setup).
+        var primaryAlliance = await AllianceService.GetPrimaryAsync(guildId);
+        memberRoleIdInput = primaryAlliance?.MemberRoleId?.ToString();
+        selectedCategoryIdInput = primaryAlliance?.DefaultChannelCategoryId?.ToString();
 
         guildAllianceCount = await db.GuildAlliances.CountAsync(g => g.GuildId == guildId);
         guildServerCount = await db.GuildServers.CountAsync(g => g.GuildId == guildId);
@@ -362,9 +367,19 @@ else
 
                 existing.LogChannelId = logId;
                 existing.AdminChannelId = adminId;
-                existing.MemberRoleId = memberId;
                 existing.CommandStaffRoleId = staffId;
-                existing.DefaultChannelCategoryId = categoryId;
+
+                // Member role + default channel category are per-alliance now — write them to the
+                // guild's primary alliance if one is linked. If not (brand-new guild, before the
+                // Scope step), the created role/category still exist on Discord; assign them on the
+                // alliance's Settings page once an alliance is linked.
+                var primaryAlliance = await db.GuildAlliances
+                    .Where(a => a.GuildId == guildId).OrderBy(a => a.Id).FirstOrDefaultAsync();
+                if (primaryAlliance is not null)
+                {
+                    primaryAlliance.MemberRoleId = memberId;
+                    primaryAlliance.DefaultChannelCategoryId = categoryId;
+                }
 
                 await db.SaveChangesAsync();
                 settings = existing;

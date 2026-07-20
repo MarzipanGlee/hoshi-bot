@@ -43,9 +43,6 @@
                             <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/settings")">Settings</NavLink>
                         </div>
                         <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/command-bridge")">Command Bridge</NavLink>
-                        </div>
-                        <div class="nav-item px-3 ps-4">
                             <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/setup-wizard")">Setup Wizard</NavLink>
                         </div>
                         <div class="nav-item px-3 ps-4">
@@ -57,6 +54,12 @@
                     @foreach (var link in AllianceContext.Alliances)
                     {
                         <NavMenuGroup Title="@AllianceGroupTitle(link)" Icon="oi-star" IconContent="@AllianceEmblemIcon(link)" Active="@IsAllianceGroupActive(link.Id)">
+                            <div class="nav-item px-3 ps-4">
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceSettingsHref(guildId, link.Id)">Settings</NavLink>
+                            </div>
+                            <div class="nav-item px-3 ps-4">
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceCommandBridgeHref(guildId, link.Id)">Command Bridge</NavLink>
+                            </div>
                             <div class="nav-item px-3 ps-4">
                                 <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceFeaturesHref(guildId, link.Id)">Features</NavLink>
                             </div>
@@ -314,6 +317,12 @@
     private string AllianceFeaturesHref(ulong guildId, int allianceId) =>
         $"manage/guilds/{guildId}/features/audience/alliance/{allianceId}";
 
+    private string AllianceSettingsHref(ulong guildId, int allianceId) =>
+        $"manage/guilds/{guildId}/alliance/{allianceId}/settings";
+
+    private string AllianceCommandBridgeHref(ulong guildId, int allianceId) =>
+        $"manage/guilds/{guildId}/alliance/{allianceId}/command-bridge";
+
     private string AllianceGroupTitle(GuildAlliance link) => $"Alliance — [{link.StfcAlliance.Tag}]";
 
     // This alliance's emblem, shown in place of the group's star glyph (AllianceEmblem falls
@@ -336,7 +345,6 @@
         || IsAudienceFeaturesActive(GuildAudience.Guild)
         || IsActive($"manage/guilds/{guildId}/audience")
         || IsActive($"manage/guilds/{guildId}/settings")
-        || IsActive($"manage/guilds/{guildId}/command-bridge")
         || IsActive($"manage/guilds/{guildId}/setup-wizard")
         || IsActive($"manage/guilds/{guildId}/permission-check");
 

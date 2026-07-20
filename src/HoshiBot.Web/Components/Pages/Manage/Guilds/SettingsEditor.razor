@@ -15,33 +15,6 @@
     <SettingsCard Title="User Log">
         <ChannelPicker Label="User Log" ShowLabel="false" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
     </SettingsCard>
-    <SettingsCard Title="Alliance Boarding">
-        <ChannelPicker Label="Alliance Boarding" ShowLabel="false" Usage="Where new-member boarding happens." @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="SaveAllianceBoardingChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Reminders (Allies)">
-        <ChannelPicker Label="Reminders (Allies)" ShowLabel="false" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="SaveRemindersAlliesChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Reminders (Services)">
-        <ChannelPicker Label="Reminders (Services)" ShowLabel="false" @bind-Value="remindersServicesChannelIdInput" @bind-Value:after="SaveRemindersServicesChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Rules (DE)">
-        <ChannelPicker Label="Rules (DE)" ShowLabel="false" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="SaveRulesDeChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Rules (EN)">
-        <ChannelPicker Label="Rules (EN)" ShowLabel="false" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="SaveRulesEnChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="User Notifications">
-        <ChannelPicker Label="User Notifications" ShowLabel="false" Usage="General user-facing notifications, not tied to one feature." @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="SaveUserNotificationsChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Bot Support">
-        <ChannelPicker Label="Bot Support" ShowLabel="false" Usage="Where server admins can ask for help with the bot itself." @bind-Value="botSupportChannelIdInput" @bind-Value:after="SaveBotSupportChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Command Staff Jobs">
-        <ChannelPicker Label="Command Staff Jobs" ShowLabel="false" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="SaveCommandStaffJobsChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Default Channel Category">
-        <ChannelPicker Label="Default Channel Category" ShowLabel="false" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." CategorySelect="true" CreateChannelName="Hoshi Bot" @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
-    </SettingsCard>
 </div>
 
 <h2 class="mt-4">Roles</h2>
@@ -50,12 +23,6 @@
     <p class="text-danger">@createError</p>
 }
 <div class="card-grid mt-1">
-    <SettingsCard Title="Member">
-        <RolePicker Label="Member" ShowLabel="false" Usage="This guild's general membership role." CreateRoleName="Member" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
-    </SettingsCard>
-    <SettingsCard Title="Boarding">
-        <RolePicker Label="Boarding" ShowLabel="false" CreateRoleName="Boarding" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
-    </SettingsCard>
     <SettingsCard Title="Crews">
         <RolePicker Label="Crews" ShowLabel="false" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
     </SettingsCard>
@@ -72,24 +39,12 @@
 
     private GuildSettings settings = new();
     private List<IGuildChannel> channels = [];
-    private List<CategoryGuildChannel> categories = [];
     private List<Role> roles = [];
     private string? createError;
 
     private string? logChannelIdInput;
     private string? adminChannelIdInput;
     private string? userLogChannelIdInput;
-    private string? allianceBoardingChannelIdInput;
-    private string? remindersAlliesChannelIdInput;
-    private string? remindersServicesChannelIdInput;
-    private string? rulesDeChannelIdInput;
-    private string? rulesEnChannelIdInput;
-    private string? userNotificationsChannelIdInput;
-    private string? botSupportChannelIdInput;
-    private string? commandStaffJobsChannelIdInput;
-    private string? defaultChannelCategoryIdInput;
-    private string? memberRoleIdInput;
-    private string? boardingRoleIdInput;
     private string? crewsRoleIdInput;
     private string? betaTesterRoleIdInput;
     private string? hoshiTesterRoleIdInput;
@@ -101,23 +56,11 @@
             ?? new GuildSettings { GuildId = GuildId };
 
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        categories = await DiscordData.GetCategoriesAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
 
         logChannelIdInput = settings.LogChannelId?.ToString();
         adminChannelIdInput = settings.AdminChannelId?.ToString();
         userLogChannelIdInput = settings.UserLogChannelId?.ToString();
-        allianceBoardingChannelIdInput = settings.AllianceBoardingChannelId?.ToString();
-        remindersAlliesChannelIdInput = settings.RemindersAlliesChannelId?.ToString();
-        remindersServicesChannelIdInput = settings.RemindersServicesChannelId?.ToString();
-        rulesDeChannelIdInput = settings.RulesDeChannelId?.ToString();
-        rulesEnChannelIdInput = settings.RulesEnChannelId?.ToString();
-        userNotificationsChannelIdInput = settings.UserNotificationsChannelId?.ToString();
-        botSupportChannelIdInput = settings.BotSupportChannelId?.ToString();
-        commandStaffJobsChannelIdInput = settings.CommandStaffJobsChannelId?.ToString();
-        defaultChannelCategoryIdInput = settings.DefaultChannelCategoryId?.ToString();
-        memberRoleIdInput = settings.MemberRoleId?.ToString();
-        boardingRoleIdInput = settings.BoardingRoleId?.ToString();
         crewsRoleIdInput = settings.CrewsRoleId?.ToString();
         betaTesterRoleIdInput = settings.BetaTesterRoleId?.ToString();
         hoshiTesterRoleIdInput = settings.HoshiTesterRoleId?.ToString();
@@ -142,37 +85,9 @@
     private Task SaveLogChannelAsync() => SaveAsync(s => s.LogChannelId = ParseId(logChannelIdInput));
     private Task SaveAdminChannelAsync() => SaveAsync(s => s.AdminChannelId = ParseId(adminChannelIdInput));
     private Task SaveUserLogChannelAsync() => SaveAsync(s => s.UserLogChannelId = ParseId(userLogChannelIdInput));
-    private Task SaveAllianceBoardingChannelAsync() => SaveAsync(s => s.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput));
-    private Task SaveRemindersAlliesChannelAsync() => SaveAsync(s => s.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput));
-    private Task SaveRemindersServicesChannelAsync() => SaveAsync(s => s.RemindersServicesChannelId = ParseId(remindersServicesChannelIdInput));
-    private Task SaveRulesDeChannelAsync() => SaveAsync(s => s.RulesDeChannelId = ParseId(rulesDeChannelIdInput));
-    private Task SaveRulesEnChannelAsync() => SaveAsync(s => s.RulesEnChannelId = ParseId(rulesEnChannelIdInput));
-    private Task SaveUserNotificationsChannelAsync() => SaveAsync(s => s.UserNotificationsChannelId = ParseId(userNotificationsChannelIdInput));
-    private Task SaveBotSupportChannelAsync() => SaveAsync(s => s.BotSupportChannelId = ParseId(botSupportChannelIdInput));
-    private Task SaveCommandStaffJobsChannelAsync() => SaveAsync(s => s.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput));
-    private async Task SaveDefaultChannelCategoryAsync()
-    {
-        createError = null;
-        try
-        {
-            var categoryId = await DiscordData.EnsureChannelAsync(GuildId, defaultChannelCategoryIdInput, "Hoshi Bot", ChannelType.CategoryChannel);
-            defaultChannelCategoryIdInput = categoryId?.ToString();
-            categories = await DiscordData.GetCategoriesAsync(GuildId);
-            await SaveAsync(s => s.DefaultChannelCategoryId = categoryId);
-        }
-        catch (RestException)
-        {
-            createError = "Could not create a category on Discord — does the bot have Manage Channels permission in this server?";
-            if (defaultChannelCategoryIdInput == ChannelPicker.CreateSentinel)
-                defaultChannelCategoryIdInput = null;
-        }
-    }
 
     // A blank selection creates a new role instead of just saving null — named after the
-    // setting so it's clear at a glance what it's for. Mirrors AlertsOptIn/Diplomacy/
-    // TerritoryCapture's role saves; unlike those, these roles have no color/mentionable
-    // inputs of their own, so this goes through DiscordGuildDataService's simpler
-    // EnsureRoleAsync rather than a local create-or-modify-if-changed one.
+    // setting so it's clear at a glance what it's for.
     private async Task SaveRoleAsync(Action<GuildSettings, ulong?> setter, string? currentInput, Action<string?> setInput, string defaultName)
     {
         createError = null;
@@ -191,8 +106,6 @@
         }
     }
 
-    private Task SaveMemberRoleAsync() => SaveRoleAsync((s, id) => s.MemberRoleId = id, memberRoleIdInput, v => memberRoleIdInput = v, "Member");
-    private Task SaveBoardingRoleAsync() => SaveRoleAsync((s, id) => s.BoardingRoleId = id, boardingRoleIdInput, v => boardingRoleIdInput = v, "Boarding");
     private Task SaveCrewsRoleAsync() => SaveRoleAsync((s, id) => s.CrewsRoleId = id, crewsRoleIdInput, v => crewsRoleIdInput = v, "Crews");
     private Task SaveBetaTesterRoleAsync() => SaveRoleAsync((s, id) => s.BetaTesterRoleId = id, betaTesterRoleIdInput, v => betaTesterRoleIdInput = v, "Beta Tester");
     private Task SaveHoshiTesterRoleAsync() => SaveRoleAsync((s, id) => s.HoshiTesterRoleId = id, hoshiTesterRoleIdInput, v => hoshiTesterRoleIdInput = v, "Hoshi Tester");

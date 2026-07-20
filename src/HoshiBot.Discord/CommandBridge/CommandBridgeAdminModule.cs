@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using NetCord;
 using NetCord.Rest;
@@ -20,7 +21,7 @@ public enum CommandBridgeChoice
 // commands. Re-run after adding buttons or toggling a feature so a hub reflects the current
 // set. The actual building lives in CommandBridgeHubService (shared with the Web-triggered
 // republish job).
-public class CommandBridgeAdminModule(CommandBridgeHubService hubService)
+public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildAllianceService allianceService)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("post-command-bridge", "Post or refresh the Command Bridge hub message(s)",
@@ -38,16 +39,25 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService)
                 _ => new[] { CommandBridgeKind.User, CommandBridgeKind.Staff, CommandBridgeKind.Friends },
             };
 
+            // Command Bridges are per-alliance — (re)post each linked alliance's hub(s).
+            var links = await allianceService.GetLinksAsync(guildId);
+            if (links.Count == 0)
+                return "⚠️ Diesem Server ist keine Allianz zugeordnet — verlinke zuerst eine Allianz.";
+
             var lines = new List<string>();
-            foreach (var target in bridges)
+            foreach (var link in links)
             {
-                var result = await hubService.PublishAsync(guildId, target);
-                lines.Add(result switch
+                var tag = link.StfcAlliance.Tag;
+                foreach (var target in bridges)
                 {
-                    CommandBridgePublishResult.Updated => $"✅ {Label(target)}: hub message updated.",
-                    CommandBridgePublishResult.Posted => $"✅ {Label(target)}: hub message posted.",
-                    _ => $"⚠️ {Label(target)}: no channel set — configure it on the Command Bridge admin page first.",
-                });
+                    var result = await hubService.PublishAsync(guildId, link.Id, target);
+                    lines.Add(result switch
+                    {
+                        CommandBridgePublishResult.Updated => $"✅ [{tag}] {Label(target)}: hub message updated.",
+                        CommandBridgePublishResult.Posted => $"✅ [{tag}] {Label(target)}: hub message posted.",
+                        _ => $"⚠️ [{tag}] {Label(target)}: no channel set — configure it on the Command Bridge admin page first.",
+                    });
+                }
             }
 
             return string.Join('\n', lines);

@@ -169,13 +169,7 @@ public static class ServiceCollectionExtensions
         // off this link (via the navigation property, so a single SaveChanges assigns its Id and
         // fills the FK). Requires StfcAlliance 7433 to be seeded already (SeedStfcAlliancesIfEmptyAsync
         // runs earlier in SeedHoshiBotDatabaseAsync).
-        var ownAlliance = new GuildAlliance
-        {
-            GuildId = GuildSettingsSeedData.GuildId,
-            StfcAllianceId = GuildSettingsSeedData.OwnStfcAllianceId,
-            MemberRoleId = GuildSettingsSeedData.OwnAllianceMemberRoleId,
-            DiplomatRoleId = GuildSettingsSeedData.OwnAllianceDiplomatRoleId,
-        };
+        var ownAlliance = GuildSettingsSeedData.CreateOwnAlliance();
         db.GuildAlliances.Add(ownAlliance);
 
         // Raid/Shield alert channels are an Alliance-only feature — the only audience this
@@ -221,14 +215,14 @@ public static class ServiceCollectionExtensions
 
     // The bot's own dev/test Discord guild — not a real alliance/production guild, just
     // somewhere to point channel-creation flows (SetupWizard, AlertChannelListEditor's
-    // "create new channel", etc.) at a real category while testing against a live gateway
-    // connection. Only seeds while this guild has no GuildSettings row yet, so it never
-    // overwrites a value set later via the admin UI — same convention as
-    // SeedGuildSettingsIfEmptyAsync, just far more minimal (no alert channels/feature
-    // settings, since this guild isn't meant to exercise those).
+    // "create new channel", etc.) at while testing against a live gateway connection. Only
+    // seeds while this guild has no GuildSettings row yet, so it never overwrites a value set
+    // later via the admin UI — same convention as SeedGuildSettingsIfEmptyAsync, just far more
+    // minimal (no alert channels/feature settings, since this guild isn't meant to exercise
+    // those). The default channel category is now per-alliance (GuildAlliance) — set it via the
+    // Alliance Settings page once this guild links an alliance.
     private const ulong HoshiTestGuildId = 1296179770421149786;
     private const string HoshiTestGuildName = "Hoshi Bot";
-    private const ulong HoshiTestGuildDefaultCategoryId = 1525894580988411944;
 
     public static async Task SeedHoshiTestGuildSettingsIfEmptyAsync(this IServiceProvider services)
     {
@@ -246,7 +240,6 @@ public static class ServiceCollectionExtensions
         db.GuildSettings.Add(new GuildSettings
         {
             GuildId = HoshiTestGuildId,
-            DefaultChannelCategoryId = HoshiTestGuildDefaultCategoryId,
         });
 
         await db.SaveChangesAsync();

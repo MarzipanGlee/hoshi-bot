@@ -772,17 +772,27 @@ else
                     Add(settings.LogChannelId, "Log", PostPermissions);
                     Add(settings.AdminChannelId, "Admin", PostPermissions);
                     Add(settings.UserLogChannelId, "User Log", PostPermissions);
-                    Add(settings.AllianceBoardingChannelId, "Alliance Boarding", PostPermissions);
-                    Add(settings.CommandBridgeChannelId, "Command Bridge", PostPermissions);
-                    Add(settings.StaffCommandBridgeChannelId, "Staff Command Bridge", PostPermissions);
-                    Add(settings.FriendsCommandBridgeChannelId, "Friends Command Bridge", PostPermissions);
-                    Add(settings.RemindersAlliesChannelId, "Reminders (Allies)", PostPermissions);
-                    Add(settings.RemindersServicesChannelId, "Reminders (Services)", PostPermissions);
-                    Add(settings.RulesDeChannelId, "Rules (DE)", PostPermissions);
-                    Add(settings.RulesEnChannelId, "Rules (EN)", PostPermissions);
-                    Add(settings.UserNotificationsChannelId, "User Notifications", PostPermissions);
-                    Add(settings.BotSupportChannelId, "Bot Support", PostPermissions);
-                    Add(settings.CommandStaffJobsChannelId, "Command Staff Jobs", PostPermissions);
+                }
+
+                // Alliance-scoped channels + Command Bridge now live per linked alliance.
+                var allianceChannels = await db.GuildAlliances
+                    .Where(a => a.GuildId == ParsedGuildId)
+                    .Include(a => a.StfcAlliance)
+                    .ToListAsync();
+                foreach (var a in allianceChannels)
+                {
+                    var tag = a.StfcAlliance.Tag;
+                    Add(a.AllianceBoardingChannelId, $"[{tag}] Alliance Boarding", PostPermissions);
+                    Add(a.CommandBridgeChannelId, $"[{tag}] Command Bridge", PostPermissions);
+                    Add(a.StaffCommandBridgeChannelId, $"[{tag}] Staff Command Bridge", PostPermissions);
+                    Add(a.FriendsCommandBridgeChannelId, $"[{tag}] Friends Command Bridge", PostPermissions);
+                    Add(a.RemindersAlliesChannelId, $"[{tag}] Reminders (Allies)", PostPermissions);
+                    Add(a.RemindersServicesChannelId, $"[{tag}] Reminders (Services)", PostPermissions);
+                    Add(a.RulesDeChannelId, $"[{tag}] Rules (DE)", PostPermissions);
+                    Add(a.RulesEnChannelId, $"[{tag}] Rules (EN)", PostPermissions);
+                    Add(a.UserNotificationsChannelId, $"[{tag}] User Notifications", PostPermissions);
+                    Add(a.BotSupportChannelId, $"[{tag}] Bot Support", PostPermissions);
+                    Add(a.CommandStaffJobsChannelId, $"[{tag}] Command Staff Jobs", PostPermissions);
                 }
             }
 

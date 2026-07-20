@@ -1,9 +1,10 @@
-@page "/manage/guilds/{GuildId}/command-bridge"
+@page "/manage/guilds/{GuildId}/alliance/command-bridge"
+@page "/manage/guilds/{GuildId}/alliance/{GuildAllianceIdRaw:int}/command-bridge"
 @using HoshiBot.Web.Components.Pages.Manage.Guilds.Features
 @using HoshiBot.Web.Services
 @using NetCord
 @using NetCord.Rest
-@inherits GuildAdminPageBase
+@inherits AllianceAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureService FeatureService
@@ -14,14 +15,23 @@
 {
     <p>Checking access...</p>
 }
-else
+else if (NeedsAllianceLink)
 {
     <h1>Command Bridge</h1>
+    <p class="text-muted">
+        This guild has no alliance linked yet. Link one on the
+        <a href="manage/guilds/@GuildId/audience">Audience</a> page first, then come back to configure it.
+    </p>
+}
+else
+{
+    <h1>Command Bridge — [@allianceTag]</h1>
     <p>
-        Each Command Bridge is a persistent hub message with action buttons. Pick a channel per
-        bridge and click <strong>Publish</strong> to (re)post it — the bot posts it shortly after.
-        Which buttons appear is controlled by enabling/disabling the underlying features (per
-        alliance) on the <a href="manage/guilds/@GuildId/features">Features</a> page.
+        Each Command Bridge is a persistent hub message with action buttons, scoped to this
+        alliance. Pick a channel per bridge and click <strong>Publish</strong> to (re)post it — the
+        bot posts it shortly after. Which buttons appear is controlled by enabling/disabling the
+        underlying features (for this alliance) on the
+        <a href="manage/guilds/@GuildId/features/audience/alliance/@ResolvedAllianceId">Features</a> page.
     </p>
 
     <div class="card-grid mt-1">
@@ -76,6 +86,8 @@ else
 }
 
 @code {
+    protected override string PageSlug => "command-bridge";
+
     private record BridgeInfo(CommandBridgeKind Kind, string Heading, string Subtitle);
 
     private record OverviewItem(string Label, bool Shown, string? Slug);
@@ -89,25 +101,36 @@ else
 
     private record PublishStatus(string Text, bool Done);
 
+    private string allianceTag = "";
     private List<IGuildChannel> channels = [];
     private readonly Dictionary<CommandBridgeKind, string?> channelInputs = new();
     private readonly Dictionary<CommandBridgeKind, PublishStatus> statuses = new();
-    private HashSet<GuildFeature> disabledFeatures = [];
+
+    // Which features are enabled for THIS alliance's hub — a feature counts if it's enabled for
+    // this alliance (Alliance audience) or for any of its non-alliance (guild-scoped) audiences.
+    private HashSet<GuildFeature> enabledForHub = [];
 
     private bool IsBusy(CommandBridgeKind bridge) => statuses.TryGetValue(bridge, out var s) && !s.Done;
 
-    protected override async Task OnAuthorizedParametersSetAsync()
+    protected override async Task OnAllianceResolvedAsync(int guildAllianceId)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId)
-            ?? new GuildSettings { GuildId = ParsedGuildId };
+        var alliance = await AllianceService.FindByIdAsync(ParsedGuildId, guildAllianceId);
+        if (alliance is null)
+            return;
 
-        channelInputs[CommandBridgeKind.User] = settings.CommandBridgeChannelId?.ToString();
-        channelInputs[CommandBridgeKind.Staff] = settings.StaffCommandBridgeChannelId?.ToString();
-        channelInputs[CommandBridgeKind.Friends] = settings.FriendsCommandBridgeChannelId?.ToString();
+        allianceTag = alliance.StfcAlliance.Tag;
+
+        channelInputs[CommandBridgeKind.User] = alliance.CommandBridgeChannelId?.ToString();
+        channelInputs[CommandBridgeKind.Staff] = alliance.StaffCommandBridgeChannelId?.ToString();
+        channelInputs[CommandBridgeKind.Friends] = alliance.FriendsCommandBridgeChannelId?.ToString();
 
         channels = await DiscordData.GetChannelsAsync(ParsedGuildId);
-        disabledFeatures = await FeatureService.GetDisabledAsync(ParsedGuildId);
+
+        var enabled = await FeatureService.GetEnabledAsync(ParsedGuildId);
+        enabledForHub = enabled
+            .Where(e => (e.Audience == GuildAudience.Alliance && e.GuildAllianceId == guildAllianceId) || e.Audience != GuildAudience.Alliance)
+            .Select(e => e.Feature)
+            .ToHashSet();
     }
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
@@ -117,19 +140,19 @@ else
         channelInputs[bridge] = value;
         var id = ParseId(value);
 
+        if (ResolvedAllianceId is not { } allianceId)
+            return;
+
         await using var db = await DbFactory.CreateDbContextAsync();
-        var settings = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == ParsedGuildId);
-        if (settings is null)
-        {
-            settings = new GuildSettings { GuildId = ParsedGuildId };
-            db.GuildSettings.Add(settings);
-        }
+        var alliance = await db.GuildAlliances.FirstOrDefaultAsync(a => a.Id == allianceId && a.GuildId == ParsedGuildId);
+        if (alliance is null)
+            return;
 
         switch (bridge)
         {
-            case CommandBridgeKind.Staff: settings.StaffCommandBridgeChannelId = id; break;
-            case CommandBridgeKind.Friends: settings.FriendsCommandBridgeChannelId = id; break;
-            default: settings.CommandBridgeChannelId = id; break;
+            case CommandBridgeKind.Staff: alliance.StaffCommandBridgeChannelId = id; break;
+            case CommandBridgeKind.Friends: alliance.FriendsCommandBridgeChannelId = id; break;
+            default: alliance.CommandBridgeChannelId = id; break;
         }
 
         await db.SaveChangesAsync();
@@ -141,12 +164,16 @@ else
     // completion (there's no status column by design — an empty queue means "all done").
     private async Task PublishAsync(CommandBridgeKind bridge)
     {
+        if (ResolvedAllianceId is not { } allianceId)
+            return;
+
         int requestId;
         await using (var db = await DbFactory.CreateDbContextAsync())
         {
             var request = new CommandBridgeRepublishRequest
             {
                 GuildId = ParsedGuildId,
+                GuildAllianceId = allianceId,
                 Bridge = bridge,
                 RequestedAt = DateTimeOffset.UtcNow,
             };
@@ -185,16 +212,16 @@ else
             if (entry.Kind == CommandBridgeButtonKind.ContactStaff)
             {
                 // Mirrors the hub's rule approximately: shown when Tickets OR AnonymousMessaging
-                // is enabled (the hub also requires a configured channel; the exact per-audience
-                // check lives in the bot).
-                var shown = !disabledFeatures.Contains(GuildFeature.Tickets)
-                    || !disabledFeatures.Contains(GuildFeature.AnonymousMessaging);
+                // is enabled for this alliance (the hub also requires a configured channel; the
+                // exact per-audience check lives in the bot).
+                var shown = enabledForHub.Contains(GuildFeature.Tickets)
+                    || enabledForHub.Contains(GuildFeature.AnonymousMessaging);
                 items.Add(new OverviewItem(entry.LabelDe, shown, SlugFor(GuildFeature.Tickets)));
                 continue;
             }
 
             if (entry.Feature is { } feature)
-                items.Add(new OverviewItem(entry.LabelDe, !disabledFeatures.Contains(feature), SlugFor(feature)));
+                items.Add(new OverviewItem(entry.LabelDe, enabledForHub.Contains(feature), SlugFor(feature)));
             else
                 // Not gated by a feature (e.g. beta-tests) — always shown, no feature page.
                 items.Add(new OverviewItem(entry.LabelDe, true, null));
@@ -215,7 +242,7 @@ else
         else
         {
             builder.OpenElement(1, "a");
-            builder.AddAttribute(2, "href", $"manage/guilds/{GuildId}/features/{item.Slug}");
+            builder.AddAttribute(2, "href", $"manage/guilds/{GuildId}/features/{item.Slug}/alliance/{ResolvedAllianceId}");
             builder.AddContent(3, item.Label);
             builder.CloseElement();
         }

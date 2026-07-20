@@ -27,20 +27,20 @@ public class CommandBridgeRepublishJob(
         if (requests.Count == 0)
             return;
 
-        // Collapse duplicate requests for the same guild+bridge into a single publish.
-        foreach (var group in requests.GroupBy(r => (r.GuildId, r.Bridge)))
+        // Collapse duplicate requests for the same alliance+bridge into a single publish.
+        foreach (var group in requests.GroupBy(r => (r.GuildId, r.GuildAllianceId, r.Bridge)))
         {
             try
             {
-                await hubService.PublishAsync(group.Key.GuildId, group.Key.Bridge);
+                await hubService.PublishAsync(group.Key.GuildId, group.Key.GuildAllianceId, group.Key.Bridge);
             }
             catch (RestException ex)
             {
                 // Leave these rows queued for retry on the next run (e.g. a transient Discord
                 // error or a missing-permissions issue on the target channel).
                 logger.LogWarning(ex,
-                    "Failed to (re)publish {Bridge} Command Bridge for guild {GuildId}; will retry next run",
-                    group.Key.Bridge, group.Key.GuildId);
+                    "Failed to (re)publish {Bridge} Command Bridge for guild {GuildId} alliance {GuildAllianceId}; will retry next run",
+                    group.Key.Bridge, group.Key.GuildId, group.Key.GuildAllianceId);
                 continue;
             }
 

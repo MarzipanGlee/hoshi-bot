@@ -215,11 +215,7 @@ public class TerritoryCaptureDigestService(
             lines.Add($"Zeit noch unbekannt: {string.Join(", ", unknown.Select(t => t.Name))}");
         }
 
-        var commandBridgeChannelId = await db.GuildSettings
-            .Where(g => g.GuildId == guildId)
-            .Select(g => g.CommandBridgeChannelId)
-            .FirstOrDefaultAsync();
-        var bridgeMention = commandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : "Kommandobrücke";
+        var bridgeMention = link.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : "Kommandobrücke";
 
         var embed = new EmbedProperties
         {

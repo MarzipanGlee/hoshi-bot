@@ -1,0 +1,202 @@
+@page "/manage/guilds/{GuildId}/alliance/settings"
+@page "/manage/guilds/{GuildId}/alliance/{GuildAllianceIdRaw:int}/settings"
+@using HoshiBot.Web.Services
+@using NetCord
+@using NetCord.Rest
+@inherits AllianceAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
+
+<PageTitle>Alliance Settings</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else if (NeedsAllianceLink)
+{
+    <h1>Alliance Settings</h1>
+    <p class="text-muted">
+        This guild has no alliance linked yet. Link one on the
+        <a href="manage/guilds/@GuildId/audience">Audience</a> page first, then come back to configure it.
+    </p>
+}
+else
+{
+    <h1>Alliance Settings — [@allianceTag]</h1>
+    <p>Per-alliance channels and roles. A coalition guild configures each linked alliance separately.</p>
+
+    <h2>Channels</h2>
+    <div class="card-grid mt-1">
+        <SettingsCard Title="Alliance Boarding">
+            <ChannelPicker Label="Alliance Boarding" ShowLabel="false" Usage="Where new-member boarding happens." @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="Reminders (Allies)">
+            <ChannelPicker Label="Reminders (Allies)" ShowLabel="false" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="Reminders (Services)">
+            <ChannelPicker Label="Reminders (Services)" ShowLabel="false" @bind-Value="remindersServicesChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RemindersServicesChannelId = ParseId(remindersServicesChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="Rules (DE)">
+            <ChannelPicker Label="Rules (DE)" ShowLabel="false" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesDeChannelId = ParseId(rulesDeChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="Rules (EN)">
+            <ChannelPicker Label="Rules (EN)" ShowLabel="false" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesEnChannelId = ParseId(rulesEnChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="User Notifications">
+            <ChannelPicker Label="User Notifications" ShowLabel="false" Usage="General user-facing notifications, not tied to one feature." @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.UserNotificationsChannelId = ParseId(userNotificationsChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="Bot Support">
+            <ChannelPicker Label="Bot Support" ShowLabel="false" Usage="Where server admins can ask for help with the bot itself." @bind-Value="botSupportChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.BotSupportChannelId = ParseId(botSupportChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="Command Staff Jobs">
+            <ChannelPicker Label="Command Staff Jobs" ShowLabel="false" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput))" Channels="channels" />
+        </SettingsCard>
+        <SettingsCard Title="Default Channel Category">
+            <ChannelPicker Label="Default Channel Category" ShowLabel="false" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." CategorySelect="true" CreateChannelName="Hoshi Bot" @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
+        </SettingsCard>
+    </div>
+
+    <h2 class="mt-4">Roles</h2>
+    @if (createError is not null)
+    {
+        <p class="text-danger">@createError</p>
+    }
+    <div class="card-grid mt-1">
+        <SettingsCard Title="Member">
+            <RolePicker Label="Member" ShowLabel="false" Usage="This alliance's general membership role." CreateRoleName="@memberRoleName" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+        </SettingsCard>
+        <SettingsCard Title="Officer">
+            <RolePicker Label="Officer" ShowLabel="false" CreateRoleName="@officerRoleName" @bind-Value="officerRoleIdInput" @bind-Value:after="SaveOfficerRoleAsync" Roles="roles" />
+        </SettingsCard>
+        <SettingsCard Title="Diplomat">
+            <RolePicker Label="Diplomat" ShowLabel="false" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+        </SettingsCard>
+        <SettingsCard Title="Boarding">
+            <RolePicker Label="Boarding" ShowLabel="false" CreateRoleName="@boardingRoleName" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
+        </SettingsCard>
+    </div>
+}
+
+@code {
+    protected override string PageSlug => "settings";
+
+    private string allianceTag = "";
+    private string memberRoleName = "Member";
+    private string officerRoleName = "Officer";
+    private string diplomatRoleName = "Diplomat";
+    private string boardingRoleName = "Boarding";
+    private List<IGuildChannel> channels = [];
+    private List<CategoryGuildChannel> categories = [];
+    private List<Role> roles = [];
+    private string? createError;
+
+    private string? allianceBoardingChannelIdInput;
+    private string? remindersAlliesChannelIdInput;
+    private string? remindersServicesChannelIdInput;
+    private string? rulesDeChannelIdInput;
+    private string? rulesEnChannelIdInput;
+    private string? userNotificationsChannelIdInput;
+    private string? botSupportChannelIdInput;
+    private string? commandStaffJobsChannelIdInput;
+    private string? defaultChannelCategoryIdInput;
+    private string? memberRoleIdInput;
+    private string? officerRoleIdInput;
+    private string? diplomatRoleIdInput;
+    private string? boardingRoleIdInput;
+
+    protected override async Task OnAllianceResolvedAsync(int guildAllianceId)
+    {
+        createError = null;
+
+        var alliance = await AllianceService.FindByIdAsync(ParsedGuildId, guildAllianceId);
+        if (alliance is null)
+        {
+            // Raced with an unlink — fall back to the "no alliance" hint on the next render.
+            return;
+        }
+
+        allianceTag = alliance.StfcAlliance.Tag;
+        memberRoleName = $"{allianceTag}-Member";
+        officerRoleName = $"{allianceTag}-Officer";
+        diplomatRoleName = $"{allianceTag}-Diplomat";
+        boardingRoleName = $"{allianceTag}-Boarding";
+
+        channels = await DiscordData.GetChannelsAsync(ParsedGuildId);
+        categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
+        roles = await DiscordData.GetRolesAsync(ParsedGuildId);
+
+        allianceBoardingChannelIdInput = alliance.AllianceBoardingChannelId?.ToString();
+        remindersAlliesChannelIdInput = alliance.RemindersAlliesChannelId?.ToString();
+        remindersServicesChannelIdInput = alliance.RemindersServicesChannelId?.ToString();
+        rulesDeChannelIdInput = alliance.RulesDeChannelId?.ToString();
+        rulesEnChannelIdInput = alliance.RulesEnChannelId?.ToString();
+        userNotificationsChannelIdInput = alliance.UserNotificationsChannelId?.ToString();
+        botSupportChannelIdInput = alliance.BotSupportChannelId?.ToString();
+        commandStaffJobsChannelIdInput = alliance.CommandStaffJobsChannelId?.ToString();
+        defaultChannelCategoryIdInput = alliance.DefaultChannelCategoryId?.ToString();
+        memberRoleIdInput = alliance.MemberRoleId?.ToString();
+        officerRoleIdInput = alliance.OfficerRoleId?.ToString();
+        diplomatRoleIdInput = alliance.DiplomatRoleId?.ToString();
+        boardingRoleIdInput = alliance.BoardingRoleId?.ToString();
+    }
+
+    private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
+
+    private async Task SaveAsync(Action<GuildAlliance> apply)
+    {
+        if (ResolvedAllianceId is not { } id)
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.GuildAlliances.FirstOrDefaultAsync(a => a.Id == id && a.GuildId == ParsedGuildId);
+        if (existing is null)
+            return;
+
+        apply(existing);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task SaveDefaultChannelCategoryAsync()
+    {
+        createError = null;
+        try
+        {
+            var categoryId = await DiscordData.EnsureChannelAsync(ParsedGuildId, defaultChannelCategoryIdInput, "Hoshi Bot", ChannelType.CategoryChannel);
+            defaultChannelCategoryIdInput = categoryId?.ToString();
+            categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
+            await SaveAsync(a => a.DefaultChannelCategoryId = categoryId);
+        }
+        catch (RestException)
+        {
+            createError = "Could not create a category on Discord — does the bot have Manage Channels permission in this server?";
+            if (defaultChannelCategoryIdInput == ChannelPicker.CreateSentinel)
+                defaultChannelCategoryIdInput = null;
+        }
+    }
+
+    // A blank selection creates a new role (named after the alliance tag) instead of saving null.
+    // Mirrors the guild SettingsEditor's SaveRoleAsync.
+    private async Task SaveRoleAsync(Action<GuildAlliance, ulong?> setter, string? currentInput, Action<string?> setInput, string defaultName)
+    {
+        createError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(ParsedGuildId, currentInput, defaultName);
+            setInput(roleId?.ToString());
+            roles = await DiscordData.GetRolesAsync(ParsedGuildId);
+            await SaveAsync(a => setter(a, roleId));
+        }
+        catch (RestException)
+        {
+            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (currentInput == RolePicker.CreateSentinel)
+                setInput(null);
+        }
+    }
+
+    private Task SaveMemberRoleAsync() => SaveRoleAsync((a, id) => a.MemberRoleId = id, memberRoleIdInput, v => memberRoleIdInput = v, memberRoleName);
+    private Task SaveOfficerRoleAsync() => SaveRoleAsync((a, id) => a.OfficerRoleId = id, officerRoleIdInput, v => officerRoleIdInput = v, officerRoleName);
+    private Task SaveDiplomatRoleAsync() => SaveRoleAsync((a, id) => a.DiplomatRoleId = id, diplomatRoleIdInput, v => diplomatRoleIdInput = v, diplomatRoleName);
+    private Task SaveBoardingRoleAsync() => SaveRoleAsync((a, id) => a.BoardingRoleId = id, boardingRoleIdInput, v => boardingRoleIdInput = v, boardingRoleName);
+}

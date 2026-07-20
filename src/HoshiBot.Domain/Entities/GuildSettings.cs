@@ -20,33 +20,16 @@ public class GuildSettings
     // filtering only, never a runtime feature gate.
     public GuildAudience Audiences { get; set; }
 
-    // Channels
+    // Channels. Alliance-scoped channels (Alliance Boarding, Reminders, Rules, User
+    // Notifications, Bot Support, Command Staff Jobs) and the Command Bridge channels/message
+    // IDs moved to GuildAlliance so they can differ per linked alliance.
     public ulong? LogChannelId { get; set; }
     public ulong? AdminChannelId { get; set; }
     public ulong? UserLogChannelId { get; set; }
-    public ulong? AllianceBoardingChannelId { get; set; }
-    public ulong? CommandBridgeChannelId { get; set; }
-    public ulong? StaffCommandBridgeChannelId { get; set; }
-    public ulong? FriendsCommandBridgeChannelId { get; set; }
-    public ulong? RemindersAlliesChannelId { get; set; }
-    public ulong? RemindersServicesChannelId { get; set; }
-    public ulong? RulesDeChannelId { get; set; }
-    public ulong? RulesEnChannelId { get; set; }
-    public ulong? UserNotificationsChannelId { get; set; }
-    public ulong? BotSupportChannelId { get; set; }
-    public ulong? CommandStaffJobsChannelId { get; set; }
 
-    // The posted Command Bridge hub messages (one per bridge), so a (re)publish can edit in
-    // place instead of re-posting a duplicate every time. See CommandBridge / the channel
-    // fields above.
-    public ulong? CommandBridgeMessageId { get; set; }
-    public ulong? StaffCommandBridgeMessageId { get; set; }
-    public ulong? FriendsCommandBridgeMessageId { get; set; }
-
-    // Roles
+    // Roles. Member and Boarding moved to GuildAlliance (Member is the per-alliance
+    // GuildAlliance.MemberRoleId the bot already uses).
     public ulong? CommandStaffRoleId { get; set; }
-    public ulong? MemberRoleId { get; set; }
-    public ulong? BoardingRoleId { get; set; }
     public ulong? CrewsRoleId { get; set; }
     public ulong? BetaTesterRoleId { get; set; }
     public ulong? HoshiTesterRoleId { get; set; }
@@ -54,10 +37,4 @@ public class GuildSettings
     // Stamped when a guild admin completes (or explicitly finishes, even having skipped
     // steps) the Setup Wizard — drives the "needs setup" nudge on Guilds/Index.razor.
     public DateTimeOffset? SetupCompletedAt { get; set; }
-
-    // The category the Setup Wizard's Core-settings step last used/created for
-    // auto-created channels — remembered so it doesn't need re-selecting (or
-    // re-creating!) every time that step runs. Null covers both "never set" and an
-    // explicit "server root" choice — both default to the same behavior either way.
-    public ulong? DefaultChannelCategoryId { get; set; }
 }

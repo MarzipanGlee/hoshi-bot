@@ -252,11 +252,13 @@ public class AbsenceService(
         var active = rows.Where(a => a.StartsAt <= now).ToList();
         var upcoming = rows.Where(a => a.StartsAt > now).ToList();
 
-        var publicEmbed = await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: false);
-        var staffEmbed = await BuildReportEmbedAsync(guildId, active, upcoming, isStaffView: true);
-
         foreach (var allianceId in enabledAllianceIds)
         {
+            // The Command Bridge mention is per-alliance, so build each alliance's embeds with
+            // that alliance's own bridge channel.
+            var publicEmbed = await BuildReportEmbedAsync(guildId, allianceId, active, upcoming, isStaffView: false);
+            var staffEmbed = await BuildReportEmbedAsync(guildId, allianceId, active, upcoming, isStaffView: true);
+
             await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportChannel, AbsencesSettingKeys.ReportMessageId,
                 publicEmbed, "die öffentliche Abwesenheiten-Übersicht");
             await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportStaffChannel, AbsencesSettingKeys.ReportStaffMessageId,
@@ -302,12 +304,15 @@ public class AbsenceService(
         }
     }
 
-    private async Task<EmbedProperties> BuildReportEmbedAsync(ulong guildId, List<Absence> active, List<Absence> upcoming, bool isStaffView)
+    private async Task<EmbedProperties> BuildReportEmbedAsync(ulong guildId, int guildAllianceId, List<Absence> active, List<Absence> upcoming, bool isStaffView)
     {
-        // Link to the Command Bridge where members submit absences (falls back to plain text if
-        // this guild hasn't configured one yet).
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        var bridge = settings?.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : "Kommandobrücke";
+        // Link to this alliance's Command Bridge where members submit absences (falls back to
+        // plain text if it hasn't configured one yet).
+        var bridgeChannelId = await db.GuildAlliances
+            .Where(ga => ga.Id == guildAllianceId)
+            .Select(ga => ga.CommandBridgeChannelId)
+            .FirstOrDefaultAsync();
+        var bridge = bridgeChannelId is { } id ? $"<#{id}>" : "Kommandobrücke";
 
         return new EmbedProperties
         {

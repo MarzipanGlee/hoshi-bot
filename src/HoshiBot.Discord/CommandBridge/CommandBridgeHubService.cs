@@ -18,26 +18,26 @@ public enum CommandBridgePublishResult
     Posted,
 }
 
-// Builds and (re)posts a guild's Command Bridge hub message for a given bridge. The single
-// publish path, shared by the /post-command-bridge slash command and the Web-triggered
-// CommandBridgeRepublishJob. Buttons come from the shared CommandBridgeCatalog, gated by
-// per-guild feature enablement (GuildFeatureService) — the same visibility rule the Web
-// overview mirrors.
+// Builds and (re)posts one linked alliance's Command Bridge hub message for a given bridge. The
+// single publish path, shared by the /post-command-bridge slash command and the Web-triggered
+// CommandBridgeRepublishJob. Command Bridges are per-alliance: each linked alliance has its own
+// channels + posted hub messages (on GuildAlliance). Buttons come from the shared
+// CommandBridgeCatalog, gated by this alliance's feature enablement (GuildFeatureService) — the
+// same visibility rule the Web overview mirrors.
 public class CommandBridgeHubService(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
-    GuildFeatureSettingsService settingsService,
-    GuildAllianceService allianceService)
+    GuildFeatureSettingsService settingsService)
 {
     private const string HubDescription =
         "Commander, ich stehe zu Deinen Diensten! Wähle die gewünschte Aktion mit Hilfe der Schaltflächen.\n\nWie lautet Dein Befehl, Commander?";
 
-    public async Task<CommandBridgePublishResult> PublishAsync(ulong guildId, CommandBridgeKind bridge)
+    public async Task<CommandBridgePublishResult> PublishAsync(ulong guildId, int guildAllianceId, CommandBridgeKind bridge)
     {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings is null || ChannelId(settings, bridge) is not { } channelId)
+        var alliance = await db.GuildAlliances.FindAsync(guildAllianceId);
+        if (alliance is null || alliance.GuildId != guildId || ChannelId(alliance, bridge) is not { } channelId)
             return CommandBridgePublishResult.NoChannel;
 
         var embed = new EmbedProperties
@@ -49,9 +49,9 @@ public class CommandBridgeHubService(
             Footer = embedBranding.BuildFooter(guildId),
         };
 
-        var components = await BuildComponentsAsync(guildId, bridge);
+        var components = await BuildComponentsAsync(guildId, guildAllianceId, bridge);
 
-        if (MessageId(settings, bridge) is { } messageId)
+        if (MessageId(alliance, bridge) is { } messageId)
         {
             try
             {
@@ -74,15 +74,20 @@ public class CommandBridgeHubService(
             Components = components,
         });
 
-        SetMessageId(settings, bridge, message.Id);
+        SetMessageId(alliance, bridge, message.Id);
         await db.SaveChangesAsync();
 
         return CommandBridgePublishResult.Posted;
     }
 
-    private async Task<IMessageComponentProperties[]> BuildComponentsAsync(ulong guildId, CommandBridgeKind bridge)
+    private async Task<IMessageComponentProperties[]> BuildComponentsAsync(ulong guildId, int guildAllianceId, CommandBridgeKind bridge)
     {
-        var disabled = await featureService.GetDisabledAsync(guildId);
+        // Per-alliance gating: a feature button shows on this alliance's hub if the feature is
+        // enabled for this specific alliance (Alliance audience + this alliance id), or for any
+        // of its non-alliance (guild-scoped) audiences.
+        var enabled = await featureService.GetEnabledAsync(guildId);
+        bool IsEnabledForHub(GuildFeature feature) => enabled.Any(e => e.Feature == feature
+            && ((e.Audience == GuildAudience.Alliance && e.GuildAllianceId == guildAllianceId) || e.Audience != GuildAudience.Alliance));
 
         // Group the bridge's catalog buttons by row, filtering out disabled features and
         // expanding the contact-staff button into one per configured audience.
@@ -94,11 +99,11 @@ public class CommandBridgeHubService(
             {
                 if (entry.Kind == CommandBridgeButtonKind.ContactStaff)
                 {
-                    buttons.AddRange(await BuildContactStaffButtonsAsync(guildId));
+                    buttons.AddRange(await BuildContactStaffButtonsAsync(guildId, guildAllianceId));
                     continue;
                 }
 
-                if (entry.Feature is { } feature && disabled.Contains(feature))
+                if (entry.Feature is { } feature && !IsEnabledForHub(feature))
                     continue;
 
                 buttons.Add(new ButtonProperties(entry.CustomId, entry.LabelDe, EmojiProperties.Standard(entry.Emoji), ButtonStyle.Primary));
@@ -114,24 +119,20 @@ public class CommandBridgeHubService(
     // "Configured" for this button = has a channel set AND is enabled for that audience — a
     // guild with 2+ audiences gets one button per configured audience instead of one generic
     // button, so members pick the right one directly rather than being asked again in
-    // ContactCommandStaffPrompt. Ported verbatim from the old CommandBridgeAdminModule.
-    private async Task<List<ButtonProperties>> BuildContactStaffButtonsAsync(ulong guildId)
+    // ContactCommandStaffPrompt. The Alliance audience uses this hub's own alliance.
+    private async Task<List<ButtonProperties>> BuildContactStaffButtonsAsync(ulong guildId, int guildAllianceId)
     {
         var relevant = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Tickets); // same set as AnonymousMessaging
         var configured = new List<GuildAudience>();
 
-        var primaryAllianceId = await allianceService.GetPrimaryIdAsync(guildId);
-
         foreach (var audience in GuildFeatureAudiences.EnumerateFlags(relevant))
         {
-            var guildAllianceId = audience == GuildAudience.Alliance ? primaryAllianceId : null;
-            if (audience == GuildAudience.Alliance && guildAllianceId is null)
-                continue;
+            var allianceId = audience == GuildAudience.Alliance ? guildAllianceId : (int?)null;
 
-            var ticketsReady = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, audience, guildAllianceId)
-                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, guildAllianceId, TicketsSettingKeys.Channel) is not null;
-            var anonymousReady = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, audience, guildAllianceId)
-                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AnonymousMessaging, audience, guildAllianceId, AnonymousMessagingSettingKeys.Channel) is not null;
+            var ticketsReady = await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, audience, allianceId)
+                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, allianceId, TicketsSettingKeys.Channel) is not null;
+            var anonymousReady = await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, audience, allianceId)
+                && await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AnonymousMessaging, audience, allianceId, AnonymousMessagingSettingKeys.Channel) is not null;
 
             if (ticketsReady || anonymousReady)
                 configured.Add(audience);
@@ -150,32 +151,32 @@ public class CommandBridgeHubService(
         _ => "Kommandobrücke",
     };
 
-    private static ulong? ChannelId(GuildSettings s, CommandBridgeKind bridge) => bridge switch
+    private static ulong? ChannelId(GuildAlliance a, CommandBridgeKind bridge) => bridge switch
     {
-        CommandBridgeKind.Staff => s.StaffCommandBridgeChannelId,
-        CommandBridgeKind.Friends => s.FriendsCommandBridgeChannelId,
-        _ => s.CommandBridgeChannelId,
+        CommandBridgeKind.Staff => a.StaffCommandBridgeChannelId,
+        CommandBridgeKind.Friends => a.FriendsCommandBridgeChannelId,
+        _ => a.CommandBridgeChannelId,
     };
 
-    private static ulong? MessageId(GuildSettings s, CommandBridgeKind bridge) => bridge switch
+    private static ulong? MessageId(GuildAlliance a, CommandBridgeKind bridge) => bridge switch
     {
-        CommandBridgeKind.Staff => s.StaffCommandBridgeMessageId,
-        CommandBridgeKind.Friends => s.FriendsCommandBridgeMessageId,
-        _ => s.CommandBridgeMessageId,
+        CommandBridgeKind.Staff => a.StaffCommandBridgeMessageId,
+        CommandBridgeKind.Friends => a.FriendsCommandBridgeMessageId,
+        _ => a.CommandBridgeMessageId,
     };
 
-    private static void SetMessageId(GuildSettings s, CommandBridgeKind bridge, ulong messageId)
+    private static void SetMessageId(GuildAlliance a, CommandBridgeKind bridge, ulong messageId)
     {
         switch (bridge)
         {
             case CommandBridgeKind.Staff:
-                s.StaffCommandBridgeMessageId = messageId;
+                a.StaffCommandBridgeMessageId = messageId;
                 break;
             case CommandBridgeKind.Friends:
-                s.FriendsCommandBridgeMessageId = messageId;
+                a.FriendsCommandBridgeMessageId = messageId;
                 break;
             default:
-                s.CommandBridgeMessageId = messageId;
+                a.CommandBridgeMessageId = messageId;
                 break;
         }
     }

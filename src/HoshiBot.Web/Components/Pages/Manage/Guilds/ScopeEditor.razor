@@ -35,7 +35,10 @@
                     <td>@RoleName(link.MemberRoleId)</td>
                     <td>@RoleName(link.OfficerRoleId)</td>
                     <td>@RoleName(link.DiplomatRoleId)</td>
-                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">Delete</button></td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-secondary me-1" href="manage/guilds/@GuildId/alliance/@link.Id/settings">Settings</a>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">Delete</button>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -62,6 +65,7 @@
             </div>
         </div>
     </div>
+    <p class="text-muted small mt-3 mb-1">Roles for the alliance being added above. After linking, edit an alliance's roles and channels on its own <strong>Settings</strong> page (the Settings button in the table).</p>
     <div class="card-grid mt-1">
         <SettingsCard Title="Member Role">
             <Select TValue="string" Items="memberRoleItems" @bind-Value="memberRoleIdInput" @bind-Value:after="() => OnAllianceRoleChanged(memberRoleIdInput, v => memberColorInput = v, v => memberMentionableInput = v)" />
