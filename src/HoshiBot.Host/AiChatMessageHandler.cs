@@ -24,13 +24,15 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClie
 {
     public async ValueTask HandleAsync(Message message)
     {
-        if (message.Author.IsBot)
+        // Never react to or index our own messages (would be circular).
+        if (message.Author.Id == gatewayClient.Id)
             return;
 
-        // Direct messages (no guild) → the member-lore interview, when one is active for this user.
+        // Direct messages (no guild) → the member-lore interview (real members only, not other bots).
         if (message.GuildId is null)
         {
-            await HandleDirectMessageAsync(message);
+            if (!message.Author.IsBot)
+                await HandleDirectMessageAsync(message);
             return;
         }
 
@@ -39,9 +41,16 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClie
             using var scope = scopeFactory.CreateScope();
 
             // Live-index the message if it's in a knowledge channel (keeps the search index fresh
-            // between periodic backfills). Independent of whether we reply.
+            // between periodic backfills). Done for webhook/crossposted messages too: official
+            // announcements (e.g. maintenance notices) are exactly the content Hoshi should answer
+            // from, and were previously only picked up by the slow backfill — so a freshly-posted
+            // announcement wasn't searchable for up to a backfill cycle. Independent of replying.
             var index = scope.ServiceProvider.GetRequiredService<AiChatIndexService>();
             await index.MaybeIndexIncomingAsync(message, CancellationToken.None);
+
+            // Only *answer* real members — never bots/webhooks (their content is still indexed above).
+            if (message.Author.IsBot)
+                return;
 
             var aiChat = scope.ServiceProvider.GetRequiredService<AiChatService>();
 

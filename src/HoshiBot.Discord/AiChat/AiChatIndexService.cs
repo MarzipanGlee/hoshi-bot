@@ -186,7 +186,9 @@ public partial class AiChatIndexService(
     // the message is in one of its knowledge sources. Cheap and safe to call for every message.
     public async Task MaybeIndexIncomingAsync(Message message, CancellationToken cancellationToken)
     {
-        if (message.GuildId is not { } guildId || message.Author.IsBot)
+        // Index other authors' messages including webhooks/bots (crossposted official announcements
+        // are valuable knowledge) — but never the bot's own messages (would be circular).
+        if (message.GuildId is not { } guildId || message.Author.Id == gatewayClient.Id)
             return;
         if (message.Type is not (MessageType.Default or MessageType.Reply))
             return;

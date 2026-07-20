@@ -13,14 +13,15 @@ namespace HoshiBot.Host;
 //   drops the stored embedding when the text actually changed so it gets re-embedded.
 // - MESSAGE_DELETE / MESSAGE_DELETE_BULK → remove the row(s).
 //
-// Uses GuildMessages intent (already enabled). MaybeIndexIncomingAsync ignores bot authors, so the
-// bot's own streamed message edits don't get indexed here.
+// Uses GuildMessages intent (already enabled). MaybeIndexIncomingAsync guards against the bot's own
+// messages, so an edit to a webhook/crossposted announcement is re-indexed (matching the create path)
+// while the bot's own streamed-message edits are not.
 public class AiChatIndexReconcileHandler(IServiceScopeFactory scopeFactory, ILogger<AiChatIndexReconcileHandler> logger)
     : IMessageUpdateGatewayHandler, IMessageDeleteGatewayHandler, IMessageDeleteBulkGatewayHandler
 {
     public async ValueTask HandleAsync(Message message)
     {
-        if (message.GuildId is null || message.Author.IsBot)
+        if (message.GuildId is null)
             return;
 
         try
