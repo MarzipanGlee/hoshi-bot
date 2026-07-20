@@ -340,7 +340,7 @@ builder.Services.AddQuartz(quartz =>
         .AddTrigger(trigger => trigger
             .ForJob(stfcClientReleaseNotifyJobKey)
             .WithIdentity($"{stfcClientReleaseNotifyJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInSeconds(60).RepeatForever()));
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
 });
 // Seed each job/trigger into the persistent store only once. On every later restart the stored
 // definitions stay authoritative, so a trigger's persisted next-fire-time — and therefore any
