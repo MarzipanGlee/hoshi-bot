@@ -1,0 +1,35 @@
+@using HoshiBot.Web.Components.Pages.Manage.Guild
+@inject GuildFeatureService FeatureService
+
+<p class="form-text">
+    Announces when a tracked STFC server (see this guild's Scope) goes up/down or in/out of
+    maintenance. Currently fed by a one-time seed, not a live sync — see
+    StfcServerStatus for why.
+</p>
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
+           @onchange="e => ToggleAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.ServerStatus" Audience="Audience" />
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
+
+    private bool enabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.ServerStatus, Audience, GuildAllianceId);
+    }
+
+    private async Task ToggleAsync(bool value)
+    {
+        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.ServerStatus, Audience, GuildAllianceId, value);
+        enabled = value;
+    }
+}

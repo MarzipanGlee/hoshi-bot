@@ -46,6 +46,7 @@
         ["setup-wizard"] = "Setup Wizard",
         ["features"] = "Features",
         ["audience"] = "Audience",
+        ["command-bridge"] = "Command Bridge",
         ["permission-check"] = "Permission Check",
     };
 
@@ -73,7 +74,7 @@
         {
             result.Add(("Manage", "manage"));
 
-            if (segments.Length >= 2 && segments[1] == "guilds")
+            if (segments.Length >= 2 && segments[1] == "guild")
             {
                 if (segments.Length >= 3 && ulong.TryParse(segments[2], out var guildId))
                 {
@@ -82,18 +83,39 @@
                         .Where(g => g.Id == guildId)
                         .Select(g => g.Name)
                         .FirstOrDefaultAsync() ?? segments[2];
-                    result.Add((guildName, $"manage/guilds/{guildId}"));
+                    result.Add((guildName, $"manage/guild/{guildId}"));
 
-                    if (segments.Length >= 4 && CrudLabels.TryGetValue(segments[3], out var pageLabel))
+                    if (segments.Length >= 4)
                     {
-                        var isFeatures = segments[3] == "features";
-                        var hasFeatureSlug = isFeatures && segments.Length >= 5;
-                        result.Add((pageLabel, hasFeatureSlug ? $"manage/guilds/{guildId}/features" : null));
-
-                        if (hasFeatureSlug)
+                        if (segments[3] == "alliance" && segments.Length >= 5 && int.TryParse(segments[4], out var allianceId))
                         {
-                            var feature = FeatureCatalog.FindBySlug(segments[4]);
-                            result.Add((feature?.Title ?? segments[4], null));
+                            // Alliance crumb, e.g. "[EU164][LF] Lost Falcons" ({Region}{ServerId} +
+                            // tag + name) — the same server-designation convention as StfcServer.DisplayName.
+                            var a = await db.GuildAlliances
+                                .Where(ga => ga.Id == allianceId)
+                                .Select(ga => new { ga.StfcAlliance.Tag, ga.StfcAlliance.Name, ServerId = ga.StfcAlliance.Server.Id, Region = ga.StfcAlliance.Server.Region.Name })
+                                .FirstOrDefaultAsync();
+                            var allianceLabel = a is null ? segments[4] : $"[{a.Region}{a.ServerId}][{a.Tag}] {a.Name}";
+                            result.Add((allianceLabel, $"manage/guild/{guildId}/alliance/{allianceId}/settings"));
+
+                            // The alliance's page (settings / command-bridge / features [+ feature slug]).
+                            if (segments.Length >= 6)
+                                AddAlliancePageCrumbs(result, segments, 5, $"manage/guild/{guildId}/alliance/{allianceId}");
+                        }
+                        else if (segments[3] == "features")
+                        {
+                            // Guild-wide features (the bare .../features path).
+                            AddFeatureCrumbs(result, segments, 3, $"manage/guild/{guildId}/features");
+                        }
+                        else if (CrudLabels.TryGetValue(segments[3], out var pageLabel))
+                        {
+                            result.Add((pageLabel, null));
+                        }
+                        else if (AudienceDisplay.TryParseSlug(segments[3], out var aud) && segments.Length >= 5 && segments[4] == "features")
+                        {
+                            // Audience features (.../{slug}/features[/{featureSlug}]).
+                            result.Add((AudienceDisplay.Labels(aud).FirstOrDefault() ?? segments[3], null));
+                            AddFeatureCrumbs(result, segments, 4, $"manage/guild/{guildId}/{segments[3]}/features");
                         }
                     }
                 }
@@ -126,6 +148,30 @@
         }
 
         items = result;
+    }
+
+    // Adds the "Features" crumb (+ the feature-title crumb when a feature slug follows) given the
+    // index of the "features" segment and the catalog backlink.
+    private static void AddFeatureCrumbs(List<(string, string?)> result, string[] segments, int featuresIndex, string catalogHref)
+    {
+        var hasSlug = segments.Length >= featuresIndex + 2;
+        result.Add(("Features", hasSlug ? catalogHref : null));
+        if (hasSlug)
+        {
+            var feature = FeatureCatalog.FindBySlug(segments[featuresIndex + 1]);
+            result.Add((feature?.Title ?? segments[featuresIndex + 1], null));
+        }
+    }
+
+    // Maps an alliance sub-page (segments[pageIndex]) to its crumb(s): settings / command-bridge
+    // (a single label) or features (+ optional feature title).
+    private static void AddAlliancePageCrumbs(List<(string, string?)> result, string[] segments, int pageIndex, string allianceBase)
+    {
+        var page = segments[pageIndex];
+        if (page == "features")
+            AddFeatureCrumbs(result, segments, pageIndex, $"{allianceBase}/features");
+        else if (CrudLabels.TryGetValue(page, out var label))
+            result.Add((label, null));
     }
 
     public void Dispose()

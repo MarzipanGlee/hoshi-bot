@@ -1,0 +1,137 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using Microsoft.EntityFrameworkCore
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="Member role">
+        <RolePicker Label="Member role" ShowLabel="false"
+            Usage="Only members holding this role are interviewed. Leave empty to fall back to the alliance's configured member role."
+            @bind-Value="memberRoleInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+    </SettingsCard>
+
+    <SettingsCard Title="Completed role">
+        <RolePicker Label="Completed role" ShowLabel="false"
+            Usage="Granted to a member once they finish their interview, e.g. an introduced/known role. Leave empty for none."
+            @bind-Value="completedRoleInput" @bind-Value:after="SaveCompletedRoleAsync" Roles="roles" />
+    </SettingsCard>
+
+    <SettingsCard Title="Interviews per day">
+        <label for="mlMaxPerDay" class="form-label">
+            How many interview DMs the bot sends per day. Paces the campaign and stays clear of
+            Discord's DM rate limits. Empty → a conservative default (10).
+        </label>
+        <input id="mlMaxPerDay" type="number" min="1" class="form-control" placeholder="10"
+               @bind="maxPerDayInput" @bind:after="SaveMaxPerDayAsync" />
+    </SettingsCard>
+
+    <SettingsCard Title="Campaign">
+        <div class="form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="mlCampaign"
+                   checked="@campaignActive" @onchange="e => SaveCampaignAsync((bool)e.Value!)" />
+            <label class="form-check-label" for="mlCampaign">Campaign active — send interview DMs</label>
+        </div>
+        <div class="form-text">
+            Post the announcement below first, then turn this on. The bot then DMs eligible members
+            (most chat-active first, up to the daily cap). New members become eligible automatically.
+        </div>
+        @if (progress is not null)
+        {
+            <p class="form-text mb-0">
+                Invited @progress.Invited · in progress @progress.InProgress · completed @progress.Completed
+                · declined @progress.Declined · undeliverable @progress.Undeliverable
+            </p>
+        }
+    </SettingsCard>
+
+    <SettingsCard Title="Notes & review">
+        <p class="form-text mt-0">
+            Interview transcripts are turned into per-member notes that Hoshi uses in chat. Review the
+            crowdsourced stories about others and edit any member's notes here.
+        </p>
+        <a class="btn btn-outline-primary btn-sm" href="manage/guild/@GuildId/member-notes">Notizen & Review öffnen</a>
+    </SettingsCard>
+
+    <SettingsCard Title="Announcement (post this yourself)">
+        <label for="mlAnnouncement" class="form-label">
+            Copy this into a channel so members expect the DM. It's optional but appreciated.
+        </label>
+        <textarea id="mlAnnouncement" class="form-control" rows="6" readonly>@AnnouncementText</textarea>
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.MemberLore;
+
+    private const string AnnouncementText =
+        "🖖 Hallo zusammen! Ich bin Hoshi und möchte euch besser kennenlernen, damit ich ein echtes " +
+        "Mitglied unserer Community werde. In den nächsten Tagen schreibe ich einige von euch per DM an " +
+        "und stelle ein paar Fragen — wie ich euch nennen soll, was ihr so macht, und ob ihr lustige " +
+        "Geschichten über andere Spieler habt. Alles völlig freiwillig, aber ich freue mich riesig, wenn " +
+        "ihr mitmacht! Keine Lust? Sag mir einfach Bescheid oder ignoriere mich, dann lasse ich dich in " +
+        "Ruhe. Bis gleich in euren DMs! 🚀";
+
+    private List<Role> roles = [];
+    private string? memberRoleInput;
+    private string? completedRoleInput;
+    private string? maxPerDayInput;
+    private bool campaignActive;
+    private InterviewProgress? progress;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        memberRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MemberRole))?.ToString();
+        completedRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CompletedRole))?.ToString();
+        maxPerDayInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MaxInterviewsPerDay);
+        campaignActive = string.Equals(
+            await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CampaignActive),
+            "true", StringComparison.OrdinalIgnoreCase);
+        await LoadProgressAsync();
+    }
+
+    private async Task LoadProgressAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var counts = await db.MemberInterviews
+            .Where(i => i.GuildId == GuildId)
+            .GroupBy(i => i.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        int Count(MemberInterviewStatus status) => counts.FirstOrDefault(c => c.Status == status)?.Count ?? 0;
+        progress = new InterviewProgress(
+            Count(MemberInterviewStatus.Invited),
+            Count(MemberInterviewStatus.InProgress),
+            Count(MemberInterviewStatus.Completed),
+            Count(MemberInterviewStatus.Declined),
+            Count(MemberInterviewStatus.Undeliverable));
+    }
+
+    private Task SaveMemberRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MemberRole, ParseId(memberRoleInput));
+
+    private Task SaveCompletedRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CompletedRole, ParseId(completedRoleInput));
+
+    private Task SaveMaxPerDayAsync() =>
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MaxInterviewsPerDay, maxPerDayInput);
+
+    private async Task SaveCampaignAsync(bool value)
+    {
+        campaignActive = value;
+        await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CampaignActive, value ? "true" : null);
+    }
+
+    private record InterviewProgress(int Invited, int InProgress, int Completed, int Declined, int Undeliverable);
+}

@@ -1,0 +1,43 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Components.Pages.Manage.Guild
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="Raid Reports">
+        <ChannelPicker Label="Raid Reports" ShowLabel="false" Usage="Where /raid reports are posted."
+            @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+
+    <CommandStaffRoleCard GuildId="GuildId" />
+</div>
+
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="ResolvedAudience" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.RaidAlerts;
+
+    // Not read by any Discord-side consumer today (raid alerts post via the
+    // AlertChannelListEditor list below, GuildAlertChannelKind.Raid) — key stays local.
+    private const string ChannelKey = "Channel";
+
+    private List<IGuildChannel> channels = [];
+    private string? channelIdInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, ChannelKey))?.ToString();
+    }
+
+    private Task SaveChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, ChannelKey, ParseId(channelIdInput));
+}

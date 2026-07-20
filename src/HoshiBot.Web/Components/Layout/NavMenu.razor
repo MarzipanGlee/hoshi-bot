@@ -31,22 +31,22 @@
                     @* The guild's own admin pages + its guild-wide features — always shown. *@
                     <NavMenuGroup Title="Guild" Icon="@AudienceDisplay.Icon(GuildAudience.Guild)" Active="@IsGuildGroupActive(guildId)">
                         <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}")" Match="NavLinkMatch.All">Overview</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}")" Match="NavLinkMatch.All">Overview</NavLink>
                         </div>
                         <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/audience")">Audience</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/audience")">Audience</NavLink>
                         </div>
                         <div class="nav-item px-3 ps-4">
                             <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, GuildAudience.Guild)">Features</NavLink>
                         </div>
                         <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/settings")">Settings</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/settings")">Settings</NavLink>
                         </div>
                         <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/setup-wizard")">Setup Wizard</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/setup-wizard")">Setup Wizard</NavLink>
                         </div>
                         <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guilds/{guildId}/permission-check")">Permission Check</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/permission-check")">Permission Check</NavLink>
                         </div>
                     </NavMenuGroup>
 
@@ -309,19 +309,20 @@
 
     private bool IsGroupActive(string[] hrefs) => Array.Exists(hrefs, IsActive);
 
-    // The per-audience Features catalog page. Guild-scoped audiences carry just their slug;
-    // Alliance is per-alliance and uses AllianceFeaturesHref instead.
+    // The per-audience Features catalog page — the audience comes before "features" in the path
+    // (Guild is the bare .../features; others are .../{slug}/features). Alliance is per-alliance
+    // and uses AllianceFeaturesHref instead.
     private string AudienceFeaturesHref(ulong guildId, GuildAudience audience) =>
-        $"manage/guilds/{guildId}/features/audience/{AudienceDisplay.Slug(audience)}";
+        $"{AudienceDisplay.FeatureScopePrefix(guildId, audience, null)}/features";
 
     private string AllianceFeaturesHref(ulong guildId, int allianceId) =>
-        $"manage/guilds/{guildId}/features/audience/alliance/{allianceId}";
+        $"manage/guild/{guildId}/alliance/{allianceId}/features";
 
     private string AllianceSettingsHref(ulong guildId, int allianceId) =>
-        $"manage/guilds/{guildId}/alliance/{allianceId}/settings";
+        $"manage/guild/{guildId}/alliance/{allianceId}/settings";
 
     private string AllianceCommandBridgeHref(ulong guildId, int allianceId) =>
-        $"manage/guilds/{guildId}/alliance/{allianceId}/command-bridge";
+        $"manage/guild/{guildId}/alliance/{allianceId}/command-bridge";
 
     private string AllianceGroupTitle(GuildAlliance link) => $"Alliance — [{link.StfcAlliance.Tag}]";
 
@@ -330,35 +331,36 @@
     private RenderFragment AllianceEmblemIcon(GuildAlliance link) =>
         @<AllianceEmblem Emblem="link.StfcAlliance.Emblem" Size="18" />;
 
-    // Highlights an alliance's group whenever the URL targets that specific alliance — its
-    // catalog page (.../features/audience/alliance/{id}) or any alliance feature settings page
-    // (.../features/{slug}/alliance/{id}). Ids are distinctive, so a substring check suffices.
+    // Highlights an alliance's group whenever the URL targets that specific alliance — any of its
+    // pages share the .../alliance/{id}/ prefix (settings, command-bridge, features + editors).
+    // Ids are distinctive, so a substring check suffices.
     private bool IsAllianceGroupActive(int allianceId) =>
         currentUrl?.Contains($"/alliance/{allianceId}", StringComparison.OrdinalIgnoreCase) ?? false;
 
-    // The Guild group now holds the guild's own admin pages plus its guild-wide features, so
-    // it's active on any of them. Overview is matched exactly (its route is a prefix of every
-    // other guild page); the rest are distinct paths that don't overlap the alliance/audience
-    // feature pages owned by the other groups.
+    // The Guild group holds the guild's own admin pages plus its guild-wide (bare .../features)
+    // features. Overview is matched exactly (its route is a prefix of every other guild page); the
+    // rest are distinct paths that don't overlap the alliance/audience feature pages owned by the
+    // other groups.
     private bool IsGuildGroupActive(ulong guildId) =>
-        string.Equals(currentUrl, $"manage/guilds/{guildId}", StringComparison.OrdinalIgnoreCase)
+        string.Equals(currentUrl, $"manage/guild/{guildId}", StringComparison.OrdinalIgnoreCase)
         || IsAudienceFeaturesActive(GuildAudience.Guild)
-        || IsActive($"manage/guilds/{guildId}/audience")
-        || IsActive($"manage/guilds/{guildId}/settings")
-        || IsActive($"manage/guilds/{guildId}/setup-wizard")
-        || IsActive($"manage/guilds/{guildId}/permission-check");
+        || IsActive($"manage/guild/{guildId}/audience")
+        || IsActive($"manage/guild/{guildId}/settings")
+        || IsActive($"manage/guild/{guildId}/setup-wizard")
+        || IsActive($"manage/guild/{guildId}/permission-check");
 
-    // Highlights a guild-scoped audience's group on its catalog page
-    // (.../features/audience/{slug}) or a feature settings page for that audience
-    // (.../features/{featureSlug}/{slug}); Guild also owns the bare .../features landing.
+    // Highlights a guild-scoped audience's group on its catalog page and its feature editors,
+    // which share the audience's feature-path prefix: Guild = the bare .../features; every other
+    // audience = .../{slug}/features.
     private bool IsAudienceFeaturesActive(GuildAudience audience)
     {
-        if (currentUrl is not { } url || !url.Contains("/features", StringComparison.OrdinalIgnoreCase))
+        if (GuildContext.GuildId is not { } guildId)
             return false;
 
-        var slug = AudienceDisplay.Slug(audience);
-        return url.EndsWith($"/{slug}", StringComparison.OrdinalIgnoreCase)
-            || (audience == GuildAudience.Guild && url.EndsWith("/features", StringComparison.OrdinalIgnoreCase));
+        var basePath = audience == GuildAudience.Guild
+            ? $"manage/guild/{guildId}/features"
+            : $"manage/guild/{guildId}/{AudienceDisplay.Slug(audience)}/features";
+        return IsActive(basePath);
     }
 
     public void Dispose()

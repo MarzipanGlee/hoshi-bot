@@ -168,6 +168,6 @@
 
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         await GuildContext.SetAsync(guild.Id, authState.User);
-        Nav.NavigateTo($"manage/guilds/{guild.Id}");
+        Nav.NavigateTo($"manage/guild/{guild.Id}");
     }
 }

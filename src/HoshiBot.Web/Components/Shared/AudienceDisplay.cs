@@ -42,9 +42,9 @@ public static class AudienceDisplay
         _ => "oi-tag",
     };
 
-    // Kebab-case route segment for a single audience flag — lets a multi-audience feature's
-    // settings route (manage/guilds/{id}/features/{slug}/{audience}) address one audience at
-    // a time instead of showing every audience stacked on one page.
+    // Kebab-case route segment for a single audience flag — the audience/alliance comes before
+    // "features" in the path (e.g. manage/guild/{id}/server/features/{slug}), so all of an
+    // alliance's pages share the /alliance/{id}/ prefix.
     public static string Slug(GuildAudience audience) => audience switch
     {
         GuildAudience.Guild => "guild",
@@ -53,6 +53,20 @@ public static class AudienceDisplay
         GuildAudience.VeilGroup => "veil-group",
         GuildAudience.Community => "community",
         _ => "",
+    };
+
+    // The route prefix for an audience's Feature pages: the catalog is prefix + "/features",
+    // an editor is prefix + "/features/{featureSlug}". Guild is the bare guild path; Alliance
+    // carries its id (or none, which the pages canonicalize to the primary alliance); every
+    // other audience is prefixed by its slug. Single source of truth for the feature-URL shape,
+    // shared by Features/Index, FeatureSettings and NavMenu.
+    public static string FeatureScopePrefix(ulong guildId, GuildAudience audience, int? guildAllianceId) => audience switch
+    {
+        GuildAudience.Guild => $"manage/guild/{guildId}",
+        GuildAudience.Alliance => guildAllianceId is { } id
+            ? $"manage/guild/{guildId}/alliance/{id}"
+            : $"manage/guild/{guildId}/alliance",
+        _ => $"manage/guild/{guildId}/{Slug(audience)}",
     };
 
     // Ordinal-ignore-case since this parses a route segment a user may have typed/bookmarked.

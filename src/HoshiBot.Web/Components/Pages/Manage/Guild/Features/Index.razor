@@ -1,0 +1,284 @@
+@page "/manage/guild/{GuildId}/features"
+@page "/manage/guild/{GuildId}/{AudienceSlug}/features"
+@page "/manage/guild/{GuildId}/alliance/{GuildAllianceIdRaw:int}/features"
+@implements IDisposable
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject GuildFeatureService FeatureService
+@inject GuildFeatureSettingsService SettingsService
+@inject CurrentAllianceContext AllianceContext
+@inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage Storage
+
+<PageTitle>@Heading()</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else if (audience == GuildAudience.Alliance && scopeAllianceId is null)
+{
+    <h1>Alliance Features</h1>
+    <p class="text-muted">
+        This guild has no alliance linked yet. Link one on the
+        <a href="manage/guild/@GuildId/audience">Audience</a> page first, then come back to configure its features.
+    </p>
+}
+else
+{
+    <div class="d-flex align-items-center justify-content-between mt-3">
+        <h1>@Heading()</h1>
+        <div class="form-switch">
+            <input class="form-check-input" type="checkbox" id="hideInactive" role="switch"
+                   checked="@hideInactive" @onchange="ToggleHideInactiveAsync" />
+            <label class="form-check-label" for="hideInactive">Hide inactive features</label>
+        </div>
+    </div>
+
+    @if (visibleFeatures.Count == 0)
+    {
+        <p class="text-muted mt-4">No features are available for this audience.</p>
+    }
+    else
+    {
+        <div class="card-grid mt-3">
+            @foreach (var feature in visibleFeatures)
+            {
+                var enabled = enabledFeatures.Contains(feature.Feature);
+                // A feature is only "fully configured" (green) when its own settings are present
+                // AND every dependency it needs is enabled+configured — an unmet dependency drops
+                // it back to the yellow warning state even if its own settings are complete.
+                var configured = enabled && configuredFeatures.Contains(feature.Feature)
+                    && DependenciesSatisfied(feature.Feature);
+                var borderClass = !enabled ? "border-danger"
+                    : configured ? "border-success"
+                    : "border-warning";
+                var deps = dependencyStates.GetValueOrDefault(feature.Feature);
+                <ToggleCard Icon="@feature.Icon" Title="@feature.Title" Description="@feature.Description"
+                            BorderClass="@borderClass" Enabled="@enabled"
+                            EnabledChanged="e => ToggleFeatureAsync(feature.Feature, e)">
+                    <Requirements>
+                        @if (deps is { Count: > 0 })
+                        {
+                            var unmet = deps.Where(d => !d.Satisfied).ToList();
+                            <div class="mb-2" style="font-size:0.8rem;">
+                                <span class="@(unmet.Count == 0 ? "text-muted" : "text-warning")">
+                                    <span class="oi oi-link-intact" aria-hidden="true"></span>
+                                    Requires:
+                                </span>
+                                @for (var i = 0; i < deps.Count; i++)
+                                {
+                                    var dep = deps[i];
+                                    <a href="@DependencyHref(dep.Module)">@dep.Module.Title</a>@(i < deps.Count - 1 ? ", " : "")
+                                }
+                                @if (unmet.Count > 0)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">not enabled</span>
+                                }
+                            </div>
+                        }
+                    </Requirements>
+                    <FooterEnd>
+                        <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(feature)">Configure</a>
+                    </FooterEnd>
+                </ToggleCard>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public string? AudienceSlug { get; set; }
+    [Parameter] public int? GuildAllianceIdRaw { get; set; }
+
+    private const string HideInactiveStorageKey = "hoshibot.hideInactiveFeatures";
+
+    // The audience this page renders — Guild by default (bare /features), otherwise parsed from
+    // the route. Guild is always shown; it is not a guild-selectable audience.
+    private GuildAudience audience = GuildAudience.Guild;
+    private int? scopeAllianceId;
+    private List<IFeatureModule> visibleFeatures = [];
+    private HashSet<GuildFeature> enabledFeatures = [];
+    private HashSet<GuildFeature> configuredFeatures = [];
+    // Per-visible-feature dependency states (only features that actually declare dependencies get
+    // an entry) — drives both the "Requires: …" hint and the not-fully-configured border.
+    private Dictionary<GuildFeature, IReadOnlyList<FeatureDependencyState>> dependencyStates = [];
+    private bool hideInactive;
+
+    private bool DependenciesSatisfied(GuildFeature feature) =>
+        !dependencyStates.TryGetValue(feature, out var states) || states.All(s => s.Satisfied);
+
+    // Alliance is per-alliance (scope = selected/route alliance); every other audience is
+    // guild-scoped (null).
+    private int? Scope => audience == GuildAudience.Alliance ? scopeAllianceId : null;
+
+    // "Alliance — [TAG]" for the alliance page (the tag already identifies it); "{Audience}
+    // Features" for every other audience.
+    private string Heading() =>
+        audience == GuildAudience.Alliance && AllianceLink is { } link
+            ? $"Alliance — [{link.StfcAlliance.Tag}]"
+            : $"{AudienceDisplay.Labels(audience).FirstOrDefault() ?? "Guild"} Features";
+
+    private GuildAlliance? AllianceLink =>
+        scopeAllianceId is { } id ? AllianceContext.Alliances.FirstOrDefault(a => a.Id == id) : null;
+
+    private string FeatureHref(IFeatureModule feature) =>
+        $"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, scopeAllianceId)}/features/{feature.Slug}";
+
+    // Configure link for a dependency, relative to this page's context: the same audience/alliance
+    // when the dependency is offered there (e.g. AI Chat under the current Alliance), else the
+    // dependency's own first audience (e.g. Player Assignment always lands on its Guild page).
+    private string DependencyHref(IFeatureModule dep)
+    {
+        var relevant = dep.RelevantAudiences();
+        var depAudience = relevant.HasFlag(audience) ? audience : GuildFeatureAudiences.EnumerateFlags(relevant).First();
+        var allianceId = relevant.HasFlag(audience) ? scopeAllianceId : null;
+
+        return $"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, depAudience, allianceId)}/features/{dep.Slug}";
+    }
+
+    protected override void OnInitialized() => AllianceContext.Changed += OnAllianceChanged;
+
+    private void OnAllianceChanged() => InvokeAsync(async () =>
+    {
+        // Only the Alliance page depends on the selected alliance; refresh its scope + state.
+        if (audience != GuildAudience.Alliance)
+            return;
+        ResolveAudience();
+        await LoadFeaturesAsync();
+        StateHasChanged();
+    });
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        if (AudienceSlug is not null && !AudienceDisplay.TryParseSlug(AudienceSlug, out _))
+        {
+            Nav.NotFound();
+            return;
+        }
+
+        var storedHideInactive = await Storage.GetAsync<bool>(HideInactiveStorageKey);
+        if (storedHideInactive.Success)
+            hideInactive = storedHideInactive.Value;
+
+        ResolveAudience();
+
+        // Canonicalize the no-id alliance form (/alliance/features) to /alliance/{id}/features so
+        // the URL is deep-linkable and the AllianceSelector's /alliance/{id} rewrite works.
+        if (audience == GuildAudience.Alliance && GuildAllianceIdRaw is null && scopeAllianceId is { } id)
+        {
+            Nav.NavigateTo($"manage/guild/{GuildId}/alliance/{id}/features", replace: true);
+            return;
+        }
+
+        await LoadFeaturesAsync();
+    }
+
+    private void ResolveAudience()
+    {
+        var parsed = GuildAudience.Guild;
+        if (AudienceSlug is not null)
+            AudienceDisplay.TryParseSlug(AudienceSlug, out parsed);
+
+        // Alliance arrives either as the /alliance/{id}/features route (GuildAllianceIdRaw set) or
+        // the no-id /alliance/features form (AudienceSlug == "alliance"); both scope to an alliance.
+        if (GuildAllianceIdRaw is not null || parsed == GuildAudience.Alliance)
+        {
+            audience = GuildAudience.Alliance;
+            scopeAllianceId = ResolveAllianceId(GuildAllianceIdRaw);
+            return;
+        }
+
+        audience = parsed;
+        scopeAllianceId = null;
+    }
+
+    // Route id if it's a real link of this guild; else the top-bar selection; else the primary link.
+    private int? ResolveAllianceId(int? routeId)
+    {
+        if (routeId is { } id && AllianceContext.Alliances.Any(a => a.Id == id))
+            return id;
+        if (AllianceContext.GuildAllianceId is { } selected)
+            return selected;
+        return AllianceContext.Alliances.Count > 0 ? AllianceContext.Alliances[0].Id : null;
+    }
+
+    private async Task LoadFeaturesAsync()
+    {
+        enabledFeatures = [];
+        configuredFeatures = [];
+        dependencyStates = [];
+
+        if (audience == GuildAudience.Alliance && scopeAllianceId is null)
+        {
+            visibleFeatures = [];
+            return;
+        }
+
+        var enabledScopes = await FeatureService.GetEnabledAsync(ParsedGuildId);
+        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
+
+        var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
+        foreach (var feature in features)
+        {
+            if (!enabledScopes.Contains((feature.Feature, audience, Scope)))
+                continue;
+
+            enabledFeatures.Add(feature.Feature);
+            if (await feature.IsConfiguredAsync(ParsedGuildId, audience, Scope, context))
+                configuredFeatures.Add(feature.Feature);
+        }
+
+        visibleFeatures = hideInactive
+            ? features.Where(f => enabledFeatures.Contains(f.Feature)).ToList()
+            : features;
+
+        await LoadDependencyStatesAsync(context);
+    }
+
+    // Resolve dependency states for the currently-visible features. A dependency may live in a
+    // different audience than the page being viewed (e.g. Member Onboarding on the Community page
+    // depends on Player Assignment, a Guild feature), so this queries rather than reading the
+    // current page's enabled/configured sets.
+    private async Task LoadDependencyStatesAsync(FeatureModuleContext context)
+    {
+        dependencyStates = [];
+        foreach (var feature in visibleFeatures)
+        {
+            var states = await feature.GetDependencyStatesAsync(ParsedGuildId, audience, Scope, context);
+            if (states.Count > 0)
+                dependencyStates[feature.Feature] = states;
+        }
+    }
+
+    private async Task ToggleFeatureAsync(GuildFeature feature, bool enabled)
+    {
+        await FeatureService.SetEnabledAsync(ParsedGuildId, feature, audience, Scope, enabled);
+        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
+        if (enabled)
+        {
+            enabledFeatures.Add(feature);
+
+            var module = FeatureCatalog.All.First(f => f.Feature == feature);
+            if (await module.IsConfiguredAsync(ParsedGuildId, audience, Scope, context))
+                configuredFeatures.Add(feature);
+        }
+        else
+        {
+            enabledFeatures.Remove(feature);
+            configuredFeatures.Remove(feature);
+        }
+
+        // Toggling one feature can satisfy/break another visible card's dependency (e.g. Player
+        // Assignment for the role-sync features), so refresh the whole page's dependency states.
+        await LoadDependencyStatesAsync(context);
+    }
+
+    public void Dispose() => AllianceContext.Changed -= OnAllianceChanged;
+
+    private async Task ToggleHideInactiveAsync(ChangeEventArgs e)
+    {
+        hideInactive = (bool)e.Value!;
+        await Storage.SetAsync(HideInactiveStorageKey, hideInactive);
+        await LoadFeaturesAsync();
+    }
+}
