@@ -71,6 +71,12 @@
         color: white;
     }
 
+/* Breathing room below the last nav group so it isn't flush against the sidebar's
+   scroll/viewport bottom edge when the nav is taller than the viewport. */
+nav {
+    padding-bottom: 1.5rem;
+}
+
 @media (min-width: 641px) {
     .navbar-toggler {
         display: none;
