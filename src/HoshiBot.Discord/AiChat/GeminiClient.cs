@@ -30,6 +30,12 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
 
     private static readonly ConcurrentDictionary<string, Client> ClientsByApiKey = new();
 
+    // A hung/overloaded Gemini call otherwise runs to the SDK's 100s HttpClient default — far too long
+    // for a chat reply (the asker just sees "typing…" for ~2 min, then a failure). Cap it so a slow or
+    // "high demand" model fails fast and AiChatService's flash-lite failover can take over. Cancelling
+    // our linked token trips the catch below (which returns null) rather than propagating.
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
     // Returns the model's text answer, or null on any failure/empty response (the caller decides
     // what a null means — usually "stay silent"). Never throws for an API/network error.
     public async Task<string?> GenerateAsync(AiChatCompletionRequest request, CancellationToken cancellationToken)
@@ -51,9 +57,12 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
             .Select(t => new Content { Role = ToGeminiRole(t.Role), Parts = [new Part { Text = t.Text }] })
             .ToList();
 
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(RequestTimeout);
+
         try
         {
-            var response = await client.Models.GenerateContentAsync(request.Model, contents, config, cancellationToken);
+            var response = await client.Models.GenerateContentAsync(request.Model, contents, config, timeoutCts.Token);
             var text = response.Text;
             if (!string.IsNullOrWhiteSpace(text))
                 return text.Trim();

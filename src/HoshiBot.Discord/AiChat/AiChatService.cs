@@ -290,6 +290,22 @@ public partial class AiChatService(
                     }
                 }
 
+                // Resilience: an addressed question must get an answer. If the (possibly premium) main
+                // model returned nothing — a real failure mode seen live: gemini-3.5-flash timing out or
+                // "experiencing high demand" while flash-lite stays healthy — retry once on the lighter
+                // model before falling back to the "can't answer" message. Quick, non-streaming.
+                if (answer is null && addressed
+                    && provider.DefaultGateModel is { } fallbackModel
+                    && !string.Equals(model, fallbackModel, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation(
+                        "AiChat guild {Guild} ch {Channel}: main model {Model} returned nothing; retrying on {Fallback}.",
+                        guildId, message.ChannelId, model, fallbackModel);
+                    answer = await provider.GenerateAsync(request with { Model = fallbackModel }, cancellationToken);
+                    if (answer is not null)
+                        model = fallbackModel;
+                }
+
                 var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author, botName);
 
                 // One line per handled message so a "why did it stay silent / only give the fallback"
