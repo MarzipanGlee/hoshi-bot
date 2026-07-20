@@ -562,6 +562,12 @@ public partial class AiChatService(
         var language = await ResolveSearchLanguageAsync(guildId);
         var hits = await indexService.SearchAsync(guildId, language, questionText, knowledgeSnippetLimit, cancellationToken);
 
+        // Trace what retrieval actually surfaced, so "why didn't she know X?" is answerable from logs
+        // (the top hit channels + snippet heads for this question).
+        logger.LogInformation("AiChat knowledge hits guild {Guild} q=\"{Question}\": [{Hits}]",
+            guildId, questionText,
+            string.Join(" | ", hits.Select(h => $"{h.ChannelName}: {h.Content[..Math.Min(50, h.Content.Length)].Replace('\n', ' ')}")));
+
         var sb = new StringBuilder();
         foreach (var hit in hits)
             sb.AppendLine(hit.ChannelId != 0 ? $"- [<#{hit.ChannelId}>] {hit.Content}" : $"- {hit.Content}");
