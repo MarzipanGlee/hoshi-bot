@@ -209,6 +209,13 @@ public partial class AiChatIndexService(
     // Upsert one message by its Discord id.
     public async Task IndexMessageAsync(ulong guildId, RestMessage message, string? channelName, CancellationToken cancellationToken)
     {
+        // Never index the bot's own messages — otherwise she ingests her own past answers as
+        // "knowledge" and cites them back to herself (a self-confirming loop, e.g. re-stating an
+        // earlier "no maintenance" reply). The live path already guards this; the guard here also
+        // covers the backfill, which pages every author's messages in a knowledge channel.
+        if (message.Author.Id == gatewayClient.Id)
+            return;
+
         var content = Truncate(RenderMessageText(message));
         if (string.IsNullOrWhiteSpace(content))
             return;
