@@ -261,6 +261,7 @@ public partial class AiChatService(
 
                 var request = new AiChatCompletionRequest(model, systemInstruction, turns, apiKey);
                 string? answer;
+                var overloaded = false;
 
                 var streaming = onPartial is not null && await IsStreamingEnabledAsync(guildId);
                 if (streaming)
@@ -281,7 +282,9 @@ public partial class AiChatService(
                     var typing = KeepTypingAsync(message.ChannelId, typingCts.Token);
                     try
                     {
-                        answer = await provider.GenerateAsync(request, cancellationToken);
+                        var gen = await provider.GenerateDetailedAsync(request, cancellationToken);
+                        answer = gen.Text;
+                        overloaded |= gen.Failure == AiChatFailureKind.Overloaded;
                     }
                     finally
                     {
@@ -301,12 +304,19 @@ public partial class AiChatService(
                     logger.LogInformation(
                         "AiChat guild {Guild} ch {Channel}: main model {Model} returned nothing; retrying on {Fallback}.",
                         guildId, message.ChannelId, model, fallbackModel);
-                    answer = await provider.GenerateAsync(request with { Model = fallbackModel }, cancellationToken);
+                    var gen = await provider.GenerateDetailedAsync(request with { Model = fallbackModel }, cancellationToken);
+                    answer = gen.Text;
+                    overloaded |= gen.Failure == AiChatFailureKind.Overloaded;
                     if (answer is not null)
                         model = fallbackModel;
                 }
 
-                var replyText = FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author, botName);
+                // Both the main model and the flash-lite failover came up empty because of a transient
+                // overload/timeout (not a genuine "no answer") → give a friendly in-character "busy"
+                // reply that invites a retry, instead of the flat "kann ich leider nicht beantworten".
+                var replyText = answer is null && addressed && overloaded
+                    ? HoshiPersona.BusyReply()
+                    : FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author, botName);
 
                 // One line per handled message so a "why did it stay silent / only give the fallback"
                 // question is answerable straight from the logs.

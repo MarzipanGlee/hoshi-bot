@@ -28,6 +28,19 @@ public sealed record AiChatCompletionRequest(
     IReadOnlyList<AiChatTurn> Turns,
     string? ApiKey);
 
+// Why a generation produced no text — lets callers pick a friendlier reply for a transient provider
+// hiccup (overload / timeout / "high demand") than for a genuinely empty or blocked response.
+public enum AiChatFailureKind
+{
+    None,        // there is text
+    Overloaded,  // transient: timeout, model overloaded, "high demand", 429/503 — worth a "busy, try again" reply
+    Other,       // empty / safety-blocked / config error — an honest "can't answer" fits better
+}
+
+// A generation result plus, on a null Text, why it failed. GenerateAsync returns just the text;
+// GenerateDetailedAsync adds the classification.
+public readonly record struct AiChatGeneration(string? Text, AiChatFailureKind Failure);
+
 // A swappable chat backend. Implementations must never throw for an API/network error — they log
 // and return null so AiChatService's "null ⇒ stay silent / politely-unsure" logic is uniform
 // across providers.
@@ -54,6 +67,15 @@ public interface IAiChatProvider
 
     // Returns the model's text answer, or null on any failure/empty response.
     Task<string?> GenerateAsync(AiChatCompletionRequest request, CancellationToken cancellationToken);
+
+    // Like GenerateAsync but classifies a null result so callers can tell a transient overload/timeout
+    // (worth a friendly "busy, try again" reply) from an empty/blocked one. The default can't
+    // distinguish — it reports Other on null; a provider that knows better (GeminiClient) overrides it.
+    async Task<AiChatGeneration> GenerateDetailedAsync(AiChatCompletionRequest request, CancellationToken cancellationToken)
+    {
+        var text = await GenerateAsync(request, cancellationToken);
+        return new AiChatGeneration(text, text is null ? AiChatFailureKind.Other : AiChatFailureKind.None);
+    }
 
     // Streaming variant: yields the answer incrementally as text *deltas* (each item is the new
     // fragment, not the running total — the caller accumulates). Same never-throw contract as

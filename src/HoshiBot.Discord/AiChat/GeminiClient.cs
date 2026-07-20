@@ -36,14 +36,18 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
     // our linked token trips the catch below (which returns null) rather than propagating.
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
-    // Returns the model's text answer, or null on any failure/empty response (the caller decides
-    // what a null means — usually "stay silent"). Never throws for an API/network error.
     public async Task<string?> GenerateAsync(AiChatCompletionRequest request, CancellationToken cancellationToken)
+        => (await GenerateDetailedAsync(request, cancellationToken)).Text;
+
+    // Returns the model's text answer (or null on any failure/empty response) plus a classification of
+    // why it was null, so AiChatService can pick a friendlier reply for a transient overload/timeout.
+    // Never throws for an API/network error.
+    public async Task<AiChatGeneration> GenerateDetailedAsync(AiChatCompletionRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.ApiKey))
         {
             logger.LogWarning("Gemini generation requested without an API key; staying silent.");
-            return null;
+            return new AiChatGeneration(null, AiChatFailureKind.Other);
         }
 
         var client = ClientsByApiKey.GetOrAdd(request.ApiKey, key => new Client(apiKey: key));
@@ -65,7 +69,7 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
             var response = await client.Models.GenerateContentAsync(request.Model, contents, config, timeoutCts.Token);
             var text = response.Text;
             if (!string.IsNullOrWhiteSpace(text))
-                return text.Trim();
+                return new AiChatGeneration(text.Trim(), AiChatFailureKind.None);
 
             // A successful call that returns no text is usually a safety block or a truncated
             // ("thinking ate the budget") response — surface the reason so it's debuggable.
@@ -73,7 +77,7 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
             logger.LogWarning(
                 "Gemini returned no text (model {Model}, finishReason {FinishReason}, promptFeedback {PromptFeedback})",
                 request.Model, finishReason, response.PromptFeedback?.BlockReason);
-            return null;
+            return new AiChatGeneration(null, AiChatFailureKind.Other);
         }
         // Swallow every provider-side failure (bad key, unknown model, quota, and a timeout —
         // which surfaces as a TaskCanceledException, a subclass of OperationCanceledException).
@@ -82,8 +86,22 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Gemini request failed (model {Model}): {Error}", request.Model, ex.Message);
-            return null;
+            return new AiChatGeneration(null, ClassifyFailure(ex));
         }
+    }
+
+    // A timeout (our linked-CTS cancel surfaces as OperationCanceledException) or an
+    // overload/unavailable/quota signal in the error is transient — worth a friendly "busy, try again"
+    // reply rather than a flat "can't answer". Everything else (bad key, unknown model, safety) is Other.
+    private static AiChatFailureKind ClassifyFailure(Exception ex)
+    {
+        if (ex is OperationCanceledException)
+            return AiChatFailureKind.Overloaded;
+
+        string[] overloadSignals = ["high demand", "overloaded", "unavailable", "503", "resource_exhausted", "429", "try again"];
+        return overloadSignals.Any(s => ex.Message.Contains(s, StringComparison.OrdinalIgnoreCase))
+            ? AiChatFailureKind.Overloaded
+            : AiChatFailureKind.Other;
     }
 
     public async IAsyncEnumerable<string> GenerateStreamAsync(AiChatCompletionRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
