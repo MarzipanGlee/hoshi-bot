@@ -36,6 +36,11 @@ public class CommandBridgeHubService(
 
     public async Task<CommandBridgePublishResult> PublishAsync(ulong guildId, int guildAllianceId, CommandBridgeKind bridge)
     {
+        // Command Bridge is a per-alliance feature — a disabled one isn't (re)posted (this gates
+        // both the republish job and the /post-command-bridge command, which both funnel here).
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.CommandBridge, GuildAudience.Alliance, guildAllianceId))
+            return CommandBridgePublishResult.NoChannel;
+
         var alliance = await db.GuildAlliances.FindAsync(guildAllianceId);
         if (alliance is null || alliance.GuildId != guildId || ChannelId(alliance, bridge) is not { } channelId)
             return CommandBridgePublishResult.NoChannel;

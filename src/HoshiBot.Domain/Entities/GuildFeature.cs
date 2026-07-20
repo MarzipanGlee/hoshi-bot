@@ -60,4 +60,11 @@ public enum GuildFeature
     // optionally prefixed with server/alliance tags (see NicknameSyncSettingKeys). Sibling of
     // Rank/Ops Level Roles — a single Guild-audience toggle driven by the player links.
     NicknameSync,
+
+    // The per-alliance "Kommandobrücke" hub messages (User/Staff/Friends bridges) — the member-
+    // and staff-facing entry point most other features' buttons live on. Alliance-audience; its
+    // channels + posted-message ids are typed columns on GuildAlliance (not the settings store).
+    // Every feature that contributes a bridge button declares this as a dependency
+    // (GuildFeatureDependencies). Keep last so existing enum ordinals/DB rows don't shift.
+    CommandBridge,
 }

@@ -51,6 +51,9 @@ public static class GuildFeatureAudiences
         // Preferred/LastResort knowledge tiers mirror AiChatKnowledge's audiences (same channel buckets).
         GuildFeature.AiChatKnowledgePreferred => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.AiChatKnowledgeLastResort => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        // Per-alliance hub messages — one set of bridges per linked alliance (channels live on
+        // GuildAlliance). Single Alliance audience.
+        GuildFeature.CommandBridge => GuildAudience.Alliance,
         _ => GuildAudience.None,
     };
 

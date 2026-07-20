@@ -29,6 +29,17 @@ public static class GuildFeatureDependencies
         GuildFeature.OpsLevelRoles => [new(GuildFeature.PlayerLink, "Player links can also be created by hand.")],
         GuildFeature.NicknameSync => [new(GuildFeature.PlayerLink, "Player links can also be created by hand.")],
 
+        // Each of these puts a button on a Command Bridge hub — that button is the member/staff
+        // entry point, so without a configured Command Bridge the feature has nowhere to be reached.
+        GuildFeature.RaidAlerts => [new(GuildFeature.CommandBridge, "Members report raids via the Command Bridge button.")],
+        GuildFeature.ShieldReminders => [new(GuildFeature.CommandBridge, "Setup + staff shield actions live on the Command Bridge.")],
+        GuildFeature.Absences => [new(GuildFeature.CommandBridge, "Members manage absences via the Command Bridge button.")],
+        GuildFeature.Announcements => [new(GuildFeature.CommandBridge, "The 'unread announcements' button lives on the Command Bridge.")],
+        GuildFeature.AlertsOptIn => [new(GuildFeature.CommandBridge, "Members manage alerts via the Command Bridge button.")],
+        GuildFeature.RoeViolationReports => [new(GuildFeature.CommandBridge, "Members report RoE violations via the Command Bridge button.")],
+        GuildFeature.Tickets => [new(GuildFeature.CommandBridge, "The 'contact staff' button lives on the Command Bridge.")],
+        GuildFeature.AnonymousMessaging => [new(GuildFeature.CommandBridge, "The 'contact staff' button lives on the Command Bridge.")],
+
         _ => [],
     };
 }

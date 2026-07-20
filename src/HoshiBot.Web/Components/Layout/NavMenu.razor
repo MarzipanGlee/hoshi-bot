@@ -58,9 +58,6 @@
                                 <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceSettingsHref(guildId, link.Id)">Settings</NavLink>
                             </div>
                             <div class="nav-item px-3 ps-4">
-                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceCommandBridgeHref(guildId, link.Id)">Command Bridge</NavLink>
-                            </div>
-                            <div class="nav-item px-3 ps-4">
                                 <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceFeaturesHref(guildId, link.Id)">Features</NavLink>
                             </div>
                         </NavMenuGroup>
@@ -320,9 +317,6 @@
 
     private string AllianceSettingsHref(ulong guildId, int allianceId) =>
         $"manage/guild/{guildId}/alliance/{allianceId}/settings";
-
-    private string AllianceCommandBridgeHref(ulong guildId, int allianceId) =>
-        $"manage/guild/{guildId}/alliance/{allianceId}/command-bridge";
 
     private string AllianceGroupTitle(GuildAlliance link) => $"Alliance — [{link.StfcAlliance.Tag}]";
 
