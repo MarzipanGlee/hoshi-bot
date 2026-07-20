@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Entities;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.Absences;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AiChat;
 using HoshiBot.Web.Components.Pages.Manage.Guilds.Features.AlertsOptIn;
@@ -60,4 +61,11 @@ public static class FeatureCatalog
 
     public static IFeatureModule? FindBySlug(string slug) =>
         All.FirstOrDefault(f => f.Slug == slug);
+
+    // Resolve the module for a GuildFeature — used to turn a declared FeatureDependency into
+    // its Title/Slug/Configure link. Returns null for the storage-only pseudo-features
+    // (AiChatKnowledge*) that have no IFeatureModule; every dependency in the declared map
+    // points at a real, toggleable feature, so it resolves for all of those.
+    public static IFeatureModule? FindByFeature(GuildFeature feature) =>
+        All.FirstOrDefault(f => f.Feature == feature);
 }

@@ -43,13 +43,34 @@ else
             @foreach (var feature in visibleFeatures)
             {
                 var enabled = enabledFeatures.Contains(feature.Feature);
-                var configured = enabled && configuredFeatures.Contains(feature.Feature);
+                // A feature is only "fully configured" (green) when its own settings are present
+                // AND every dependency it needs is enabled+configured — an unmet dependency drops
+                // it back to the yellow warning state even if its own settings are complete.
+                var configured = enabled && configuredFeatures.Contains(feature.Feature)
+                    && DependenciesSatisfied(feature.Feature);
                 var borderClass = !enabled ? "border-danger"
                     : configured ? "border-success"
                     : "border-warning";
+                var deps = dependencyStates.GetValueOrDefault(feature.Feature);
                 <ToggleCard Icon="@feature.Icon" Title="@feature.Title" Description="@feature.Description"
                             BorderClass="@borderClass" Enabled="@enabled"
                             EnabledChanged="e => ToggleFeatureAsync(feature.Feature, e)">
+                    <Requirements>
+                        @if (deps is { Count: > 0 })
+                        {
+                            var unmet = deps.Where(d => !d.Satisfied).ToList();
+                            <div class="mt-2" style="font-size:0.8rem;">
+                                <span class="@(unmet.Count == 0 ? "text-muted" : "text-warning")">
+                                    <span class="oi oi-link-intact" aria-hidden="true"></span>
+                                    Requires: @string.Join(", ", deps.Select(d => d.Module.Title))
+                                </span>
+                                @if (unmet.Count > 0)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">not enabled</span>
+                                }
+                            </div>
+                        }
+                    </Requirements>
                     <FooterEnd>
                         <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(feature)">Configure</a>
                     </FooterEnd>
@@ -72,7 +93,13 @@ else
     private List<IFeatureModule> visibleFeatures = [];
     private HashSet<GuildFeature> enabledFeatures = [];
     private HashSet<GuildFeature> configuredFeatures = [];
+    // Per-visible-feature dependency states (only features that actually declare dependencies get
+    // an entry) — drives both the "Requires: …" hint and the not-fully-configured border.
+    private Dictionary<GuildFeature, IReadOnlyList<FeatureDependencyState>> dependencyStates = [];
     private bool hideInactive;
+
+    private bool DependenciesSatisfied(GuildFeature feature) =>
+        !dependencyStates.TryGetValue(feature, out var states) || states.All(s => s.Satisfied);
 
     // Alliance is per-alliance (scope = selected/route alliance); every other audience is
     // guild-scoped (null).
@@ -144,6 +171,7 @@ else
     {
         enabledFeatures = [];
         configuredFeatures = [];
+        dependencyStates = [];
 
         if (audience == GuildAudience.Alliance && scopeAllianceId is null)
         {
@@ -168,24 +196,46 @@ else
         visibleFeatures = hideInactive
             ? features.Where(f => enabledFeatures.Contains(f.Feature)).ToList()
             : features;
+
+        await LoadDependencyStatesAsync(context);
+    }
+
+    // Resolve dependency states for the currently-visible features. A dependency may live in a
+    // different audience than the page being viewed (e.g. Member Onboarding on the Community page
+    // depends on Player Assignment, a Guild feature), so this queries rather than reading the
+    // current page's enabled/configured sets.
+    private async Task LoadDependencyStatesAsync(FeatureModuleContext context)
+    {
+        dependencyStates = [];
+        foreach (var feature in visibleFeatures)
+        {
+            var states = await feature.GetDependencyStatesAsync(ParsedGuildId, audience, Scope, context);
+            if (states.Count > 0)
+                dependencyStates[feature.Feature] = states;
+        }
     }
 
     private async Task ToggleFeatureAsync(GuildFeature feature, bool enabled)
     {
         await FeatureService.SetEnabledAsync(ParsedGuildId, feature, audience, Scope, enabled);
+        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
         if (enabled)
         {
             enabledFeatures.Add(feature);
 
             var module = FeatureCatalog.All.First(f => f.Feature == feature);
-            var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
             if (await module.IsConfiguredAsync(ParsedGuildId, audience, Scope, context))
                 configuredFeatures.Add(feature);
         }
         else
         {
             enabledFeatures.Remove(feature);
+            configuredFeatures.Remove(feature);
         }
+
+        // Toggling one feature can satisfy/break another visible card's dependency (e.g. Player
+        // Assignment for the role-sync features), so refresh the whole page's dependency states.
+        await LoadDependencyStatesAsync(context);
     }
 
     public void Dispose() => AllianceContext.Changed -= OnAllianceChanged;

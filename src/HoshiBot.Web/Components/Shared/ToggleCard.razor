@@ -5,6 +5,7 @@
     </div>
     <div class="card-body">
         <p class="mb-0" style="color:#5a5a63;font-size:0.9rem;">@Description</p>
+        @Requirements
     </div>
     <div class="card-footer d-flex align-items-center justify-content-between">
         <div class="form-switch mb-0">
@@ -31,4 +32,8 @@
     // button that fires a callback instead — different enough per caller that this stays a
     // slot the caller fills, rather than the component owning "Configure" itself.
     [Parameter] public RenderFragment? FooterEnd { get; set; }
+
+    // Optional line under the description — the Features page fills it with a "Requires: …"
+    // dependency hint (muted when satisfied, warning-styled when not).
+    [Parameter] public RenderFragment? Requirements { get; set; }
 }

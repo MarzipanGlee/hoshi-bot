@@ -2,6 +2,9 @@
 @inherits GuildAdminPageBase
 @inject GuildAllianceService AllianceService
 @inject CurrentAllianceContext AllianceContext
+@inject GuildFeatureService FeatureService
+@inject GuildFeatureSettingsService SettingsService
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <PageTitle>@(descriptor?.Title ?? "Feature Settings")</PageTitle>
 
@@ -30,6 +33,40 @@ else
     <h1>@descriptor.Title</h1>
     <p>@descriptor.Description</p>
 
+    @if (dependencies.Count > 0)
+    {
+        <div class="alert @(dependencies.All(d => d.Satisfied) ? "alert-secondary" : "alert-warning")">
+            <div class="fw-semibold mb-2">
+                <span class="oi oi-link-intact" aria-hidden="true"></span>
+                @(dependencies.All(d => d.Satisfied) ? "Requires other features" : "Needs other features to work")
+            </div>
+            <ul class="mb-0 ps-3">
+                @foreach (var dep in dependencies)
+                {
+                    <li>
+                        <a href="@DependencyHref(dep.Module)">@dep.Module.Title</a>
+                        @if (dep.Satisfied)
+                        {
+                            <span class="badge bg-success ms-1">enabled</span>
+                        }
+                        else if (dep.Enabled)
+                        {
+                            <span class="badge bg-warning text-dark ms-1">not configured</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger ms-1">not enabled</span>
+                        }
+                        @if (dep.Note is { Length: > 0 })
+                        {
+                            <span class="text-muted"> — @dep.Note</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
     <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" @key="editorKey" />
 }
 
@@ -45,10 +82,17 @@ else
     private bool needsAllianceLink;
     private string editorKey = "";
 
+    // The audience/alliance the editor is rendering for — kept so the dependency block can build
+    // correct Configure links for each dependency relative to this feature's context.
+    private GuildAudience resolvedAudience;
+    private int? resolvedAllianceId;
+    private IReadOnlyList<FeatureDependencyState> dependencies = [];
+
     protected override async Task OnAuthorizedParametersSetAsync()
     {
         editorParameters = null;
         needsAllianceLink = false;
+        dependencies = [];
 
         descriptor = FeatureCatalog.FindBySlug(FeatureSlug);
         if (descriptor is null)
@@ -108,6 +152,36 @@ else
         editorParameters["GuildAllianceId"] = guildAllianceId!;
 
         editorKey = $"{effectiveAudience}:{guildAllianceId}";
+
+        resolvedAudience = effectiveAudience;
+        resolvedAllianceId = guildAllianceId;
+        var depContext = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
+        dependencies = await descriptor.GetDependencyStatesAsync(ParsedGuildId, effectiveAudience, guildAllianceId, depContext);
+    }
+
+    // Configure link for a dependency, relative to this feature's context: the same audience/
+    // alliance when the dependency is offered there, else the dependency's own first audience.
+    private string DependencyHref(IFeatureModule dep)
+    {
+        var relevant = dep.RelevantAudiences();
+        GuildAudience audience;
+        int? allianceId = null;
+        if (relevant.HasFlag(resolvedAudience))
+        {
+            audience = resolvedAudience;
+            allianceId = resolvedAllianceId;
+        }
+        else
+        {
+            audience = GuildFeatureAudiences.EnumerateFlags(relevant).First();
+        }
+
+        if (audience == GuildAudience.Alliance)
+            return allianceId is { } id
+                ? $"manage/guilds/{GuildId}/features/{dep.Slug}/alliance/{id}"
+                : $"manage/guilds/{GuildId}/features/{dep.Slug}/alliance";
+
+        return $"manage/guilds/{GuildId}/features/{dep.Slug}/{AudienceDisplay.Slug(audience)}";
     }
 
     // Route id if it's a real link of this guild; else the selected alliance; else the primary.
