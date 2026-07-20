@@ -533,6 +533,14 @@ public partial class AiChatService(
             sb.Append(facts);
         }
 
+        var announcements = await BuildLatestAnnouncementsBlockAsync(guildId, cancellationToken);
+        if (announcements.Length > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Neueste offizielle Ankündigungen (die aktuellsten Nachrichten aus den wichtigsten Kanälen — nutze sie für Fragen zu Neuigkeiten, Wartungen, Updates oder Events; sie sind aktueller und verlässlicher als die Wissensquellen unten):");
+            sb.Append(announcements);
+        }
+
         var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, knowledgeSnippetLimit, cancellationToken);
         if (knowledge.Length > 0)
         {
@@ -572,6 +580,58 @@ public partial class AiChatService(
         foreach (var hit in hits)
             sb.AppendLine(hit.ChannelId != 0 ? $"- [<#{hit.ChannelId}>] {hit.Content}" : $"- {hit.Content}");
 
+        return sb.ToString();
+    }
+
+    // Always-current "latest announcements": the most recent messages from the guild's Preferred
+    // knowledge channels (e.g. official-announcements), live-fetched so a just-posted notice is in
+    // context immediately. This sidesteps both the index/embedding lag and the semantic-ranking miss
+    // that buries a time-sensitive fact (like a maintenance date) inside a long announcement — those
+    // never rank well, but they're always here regardless. Skips the bot's own messages.
+    private const int LatestAnnouncementsCount = 5;
+    private const int LatestAnnouncementCharCap = 700;
+    private const int LatestAnnouncementsCharBudget = 3500;
+
+    private async Task<string> BuildLatestAnnouncementsBlockAsync(ulong guildId, CancellationToken cancellationToken)
+    {
+        // Preferred knowledge channels across every enabled audience (same source SearchAsync tiers on).
+        var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.AiChat);
+        var preferredChannels = new HashSet<ulong>();
+        foreach (var audience in enabledAudiences)
+            preferredChannels.UnionWith(await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledgePreferred, audience));
+        if (preferredChannels.Count == 0)
+            return "";
+
+        var messages = new List<(DateTimeOffset When, ulong ChannelId, string Text)>();
+        foreach (var channelId in preferredChannels)
+        {
+            try
+            {
+                foreach (var message in await indexService.FetchRecentAsync(channelId, LatestAnnouncementsCount, cancellationToken))
+                {
+                    if (message.Author.Id == gatewayClient.Id)
+                        continue;
+                    var text = AiChatIndexService.RenderMessageText(message);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        messages.Add((message.CreatedAt, channelId, text));
+                }
+            }
+            catch (Exception ex)
+            {
+                // A category id or an inaccessible channel just contributes nothing.
+                logger.LogWarning(ex, "Latest-announcements fetch failed for channel {ChannelId}", channelId);
+            }
+        }
+
+        var sb = new StringBuilder();
+        foreach (var (when, channelId, text) in messages.OrderByDescending(m => m.When).Take(LatestAnnouncementsCount))
+        {
+            var trimmed = text.Length > LatestAnnouncementCharCap ? text[..LatestAnnouncementCharCap] + "…" : text;
+            var line = $"- [<#{channelId}>] ({when:yyyy-MM-dd}) {trimmed.Replace('\n', ' ')}";
+            if (sb.Length + line.Length > LatestAnnouncementsCharBudget)
+                break;
+            sb.AppendLine(line);
+        }
         return sb.ToString();
     }
 
