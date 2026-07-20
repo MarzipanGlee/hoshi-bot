@@ -61,6 +61,15 @@ public static class AiChatSettingKeys
     // DefaultGateModel (falling back to the main model for providers with no gate model, e.g. Ollama).
     public const string MemberLoreModel = "MemberLoreModel";
 
+    // Opt-in: when "true", Hoshi forms and recalls memories — the consolidation job distils notable
+    // community events from chat/conversations into GuildMemory rows, and answers get a "was du über
+    // die jüngere Geschichte weißt" block. Unset (default) → off. Stored as the literal string "true".
+    public const string MemoryEnabled = "MemoryEnabled";
+
+    // Internal (not user-facing): ISO-8601 high-water mark of the newest message the memory
+    // consolidation job has already processed for this guild, so each run only distils what's new.
+    public const string MemoryWatermark = "MemoryWatermark";
+
     // The Postgres full-text-search config used to index/search this guild's knowledge content
     // (a regconfig name like "german"/"english"/"simple"). Unset falls back to a value derived
     // from the guild's Discord preferred locale — see FtsLanguage.

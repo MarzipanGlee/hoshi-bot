@@ -165,6 +165,19 @@
         <div class="form-text">Leave empty (or <code>off</code>) to always use the main Model. Enter a model to enable complexity routing.</div>
     </SettingsCard>
 
+    <SettingsCard Title="Memory (experimental)">
+        <div class="form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="aiChatMemory"
+                   checked="@memoryEnabled" @onchange="e => SaveMemoryEnabledAsync((bool)e.Value!)" />
+            <label class="form-check-label" for="aiChatMemory">Let Hoshi remember events</label>
+        </div>
+        <div class="form-text">
+            Hoshi distils notable community events from chat into memories she recalls later in
+            conversation. Needs embeddings (Ollama) configured. Review, edit, or forget them on the
+            <a href="manage/guild/@GuildId/memories">Memories</a> page.
+        </div>
+    </SettingsCard>
+
     <SettingsCard Title="Search language">
         <label for="aiChatSearchLanguage" class="form-label">
             Language for the full-text search over the knowledge sources (controls word-stemming).
@@ -207,6 +220,7 @@
     private string? gateModelInput;
     private string? routerModelInput;
     private bool streamResponses;
+    private bool memoryEnabled;
     private string? searchLanguageInput;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -222,6 +236,7 @@
         gateModelInput = await GetText(AiChatSettingKeys.GateModel);
         routerModelInput = await GetText(AiChatSettingKeys.RouterModel);
         streamResponses = string.Equals(await GetText(AiChatSettingKeys.StreamResponses), "true", StringComparison.OrdinalIgnoreCase);
+        memoryEnabled = string.Equals(await GetText(AiChatSettingKeys.MemoryEnabled), "true", StringComparison.OrdinalIgnoreCase);
 
         // Show the effective search language: the stored choice, or the default derived from the
         // guild's Discord locale when unset (matches what the bot resolves at query time).
@@ -273,6 +288,12 @@
     {
         streamResponses = value;
         await SetText(AiChatSettingKeys.StreamResponses, value ? "true" : null);
+    }
+
+    private async Task SaveMemoryEnabledAsync(bool value)
+    {
+        memoryEnabled = value;
+        await SetText(AiChatSettingKeys.MemoryEnabled, value ? "true" : null);
     }
 
     private Task SaveSearchLanguageAsync() => SetText(AiChatSettingKeys.SearchLanguage, searchLanguageInput);

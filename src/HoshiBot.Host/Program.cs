@@ -88,6 +88,8 @@ builder.Services.AddScoped<AiChatService>();
 builder.Services.AddScoped<AiChatModelResolver>();
 builder.Services.AddScoped<MemberInterviewService>();
 builder.Services.AddScoped<MemberNoteExtractor>();
+builder.Services.AddScoped<MemoryService>();
+builder.Services.AddScoped<MemoryExtractor>();
 builder.Services.AddScoped<PlayerLinkService>();
 builder.Services.AddScoped<MemberOnboardingService>();
 
@@ -250,6 +252,13 @@ builder.Services.AddQuartz(quartz =>
             .ForJob(memberInterviewExtractionJobKey)
             .WithIdentity($"{memberInterviewExtractionJobKey.Name}-trigger")
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+
+    var memoryConsolidationJobKey = new JobKey(nameof(MemoryConsolidationJob));
+    quartz.AddJob<MemoryConsolidationJob>(memoryConsolidationJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(memoryConsolidationJobKey)
+            .WithIdentity($"{memoryConsolidationJobKey.Name}-trigger")
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
 
     var playerLinkSyncJobKey = new JobKey(nameof(PlayerLinkSyncJob));
     quartz.AddJob<PlayerLinkSyncJob>(playerLinkSyncJobKey)

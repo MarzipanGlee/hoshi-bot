@@ -75,6 +75,7 @@ builder.Services.AddScoped<IAuthorizationHandler, GlobalAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, SupportModeGuildAdminHandler>();
 builder.Services.AddScoped<GuildFeatureService>();
 builder.Services.AddScoped<GuildFeatureSettingsService>();
+builder.Services.AddScoped<MemoryService>();
 builder.Services.AddScoped<GuildFeatureChannelService>();
 builder.Services.AddScoped<GuildAllianceService>();
 builder.Services.AddScoped<PlayerLinkService>();

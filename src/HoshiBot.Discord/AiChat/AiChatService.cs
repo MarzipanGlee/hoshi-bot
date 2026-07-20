@@ -34,6 +34,8 @@ public partial class AiChatService(
     AiChatIndexService indexService,
     TerritoryCaptureDigestService territoryCaptureDigest,
     MemberNoteService memberNoteService,
+    MemoryService memoryService,
+    AiChatEmbeddingService embeddingService,
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
@@ -507,6 +509,14 @@ public partial class AiChatService(
             sb.Append(memberNotes);
         }
 
+        var memories = await BuildMemoryBlockAsync(guildId, questionText, cancellationToken);
+        if (memories.Length > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Woran du dich aus dem Leben der Community erinnerst (nutze es für passende Anspielungen auf frühere Ereignisse; wenn es nicht zum Gespräch passt, lass es weg):");
+            sb.Append(memories);
+        }
+
         var facts = await BuildTerritoryCaptureFactsAsync(guildId, cancellationToken);
         if (facts.Length > 0)
         {
@@ -640,6 +650,51 @@ public partial class AiChatService(
 
     // Flatten a multi-line note field (fields accumulate appended lines) into one line for the compact block.
     private static string Inline(string value) => value.Replace("\r", "").Replace("\n", "; ").Trim();
+
+    // Hoshi's episodic memory (Phase 1): the community events she's formed and can recall. Retrieves
+    // the ones most relevant to the current question (semantic search) plus a few recent + salient
+    // ones, so she can reference past happenings like a real member. Reinforces what it surfaces (so
+    // used memories resist decay). Gated on AiChatSettingKeys.MemoryEnabled. See the memory plan.
+    private const int MemoryCharBudget = 3000;
+    private const int MemoryRelevantLimit = 6;
+    private const int MemoryRecentLimit = 3;
+
+    private async Task<string> BuildMemoryBlockAsync(ulong guildId, string questionText, CancellationToken cancellationToken)
+    {
+        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemoryEnabled);
+        if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        var memories = new List<GuildMemory>();
+        if (embeddingService.Enabled && !string.IsNullOrWhiteSpace(questionText)
+            && await embeddingService.EmbedAsync(questionText, cancellationToken) is { } queryVec)
+        {
+            memories.AddRange(await memoryService.SearchEpisodicAsync(guildId, queryVec, MemoryRelevantLimit, cancellationToken));
+        }
+
+        // Always fold in a few recent + salient ones so standout events surface even when the current
+        // question doesn't match them semantically.
+        foreach (var recent in await memoryService.GetRecentSalientAsync(guildId, MemoryScope.Episodic, MemoryRecentLimit, cancellationToken))
+            if (memories.All(m => m.Id != recent.Id))
+                memories.Add(recent);
+
+        if (memories.Count == 0)
+            return "";
+
+        var sb = new StringBuilder();
+        foreach (var memory in memories)
+        {
+            var line = $"- ({memory.CreatedAt:yyyy-MM-dd}) {Inline(memory.Content)}";
+            if (sb.Length + line.Length > MemoryCharBudget)
+                break;
+            sb.AppendLine(line);
+        }
+
+        // Reinforce what we actually surfaced so genuinely useful memories resist decay.
+        await memoryService.ReinforceAsync(memories.Select(m => m.Id), cancellationToken);
+
+        return sb.ToString();
+    }
 
     // Structured, authoritative grounding straight from the DB (not fuzzy chat snippets): this week's
     // Territory Capture zones for the guild's TC-enabled alliances — owned zone, tier and capture
