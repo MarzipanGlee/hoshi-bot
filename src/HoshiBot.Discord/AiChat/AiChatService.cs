@@ -259,7 +259,7 @@ public partial class AiChatService(
 
                 turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(message.Author)}: {content}"));
 
-                var systemInstruction = await BuildSystemInstructionAsync(guildId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, cancellationToken);
+                var systemInstruction = await BuildSystemInstructionAsync(guildId, message.ChannelId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, cancellationToken);
 
                 var request = new AiChatCompletionRequest(model, systemInstruction, turns, apiKey);
                 string? answer;
@@ -481,7 +481,7 @@ public partial class AiChatService(
         return Truncate(text);
     }
 
-    private async Task<string> BuildSystemInstructionAsync(ulong guildId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, int knowledgeSnippetLimit, CancellationToken cancellationToken)
+    private async Task<string> BuildSystemInstructionAsync(ulong guildId, ulong channelId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, int knowledgeSnippetLimit, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder();
         sb.AppendLine(HoshiPersona.Describe(botName));
@@ -499,6 +499,14 @@ public partial class AiChatService(
             sb.AppendLine("Bekannte Nutzer. Um jemanden zu erwähnen oder anzupingen, verwende exakt die Syntax <@ID> mit einer ID aus dieser Liste (niemals eine ID erfinden, niemals @Name als reinen Text schreiben):");
             foreach (var (id, name) in mentionable)
                 sb.AppendLine($"- {name}: <@{id}>");
+        }
+
+        var conversationMemory = await BuildConversationMemoryBlockAsync(guildId, channelId, cancellationToken);
+        if (conversationMemory.Length > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Bisheriger Gesprächsverlauf in diesem Kanal (Zusammenfassungen älterer Nachrichten; die neuesten Nachrichten stehen bereits oben im Verlauf):");
+            sb.Append(conversationMemory);
         }
 
         var memberNotes = await BuildMemberNotesAsync(guildId, cancellationToken);
@@ -693,6 +701,29 @@ public partial class AiChatService(
         // Reinforce what we actually surfaced so genuinely useful memories resist decay.
         await memoryService.ReinforceAsync(memories.Select(m => m.Id), cancellationToken);
 
+        return sb.ToString();
+    }
+
+    // Hoshi's longer conversation memory (Phase 2): the current channel's recent conversation snapshots
+    // — summaries of what was discussed here before the messages that are still in the live window — so
+    // a thread survives past the 15-message window. Recency-scoped to this channel; gated on MemoryEnabled.
+    private const int ConversationSnapshotLimit = 4;
+
+    private async Task<string> BuildConversationMemoryBlockAsync(ulong guildId, ulong channelId, CancellationToken cancellationToken)
+    {
+        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemoryEnabled);
+        if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        var snapshots = await memoryService.GetRecentConversationAsync(guildId, channelId, ConversationSnapshotLimit, cancellationToken);
+        if (snapshots.Count == 0)
+            return "";
+
+        var sb = new StringBuilder();
+        foreach (var snapshot in snapshots)
+            sb.AppendLine($"- ({snapshot.CreatedAt:yyyy-MM-dd HH:mm}) {Inline(snapshot.Content)}");
+
+        await memoryService.ReinforceAsync(snapshots.Select(m => m.Id), cancellationToken);
         return sb.ToString();
     }
 

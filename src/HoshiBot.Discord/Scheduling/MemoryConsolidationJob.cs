@@ -30,6 +30,12 @@ public class MemoryConsolidationJob(
     private const int MaxMessagesPerChannel = 60;
     private const int MaxCandidateChars = 8000;
 
+    // Conversation memory (Phase 2): only summarise a channel whose new segment is substantial, keep a
+    // few recent snapshots per channel, and store them at a modest fixed salience.
+    private const int MinMessagesToSummarize = 6;
+    private const int KeepSnapshotsPerChannel = 5;
+    private const int ConversationSalience = 2;
+
     public async Task Execute(IJobExecutionContext context)
     {
         var cancellationToken = context.CancellationToken;
@@ -78,7 +84,10 @@ public class MemoryConsolidationJob(
         if (channels.Count == 0)
             return;
 
-        var lines = new List<string>();
+        // Gather new messages since the watermark: pooled (for guild-wide episodic distillation) and
+        // grouped per channel (for the per-channel conversation snapshots).
+        var episodicLines = new List<string>();
+        var perChannelLines = new Dictionary<ulong, List<string>>();
         var newest = watermark;
         foreach (var channelId in channels)
         {
@@ -90,24 +99,25 @@ public class MemoryConsolidationJob(
                 var text = AiChatIndexService.RenderMessageText(message);
                 if (string.IsNullOrWhiteSpace(text))
                     continue;
-                lines.Add($"{CommanderName.Of(message.Author)}: {text}");
+                var line = $"{CommanderName.Of(message.Author)}: {text}";
+                episodicLines.Add(line);
+                if (!perChannelLines.TryGetValue(channelId, out var channelLines))
+                    perChannelLines[channelId] = channelLines = [];
+                channelLines.Add(line);
                 if (message.CreatedAt > newest)
                     newest = message.CreatedAt;
             }
         }
 
-        if (lines.Count == 0)
+        if (episodicLines.Count == 0)
         {
             await SetWatermarkAsync(guildId, DateTimeOffset.UtcNow);
             return;
         }
 
-        // Keep the most recent tail if the window is huge, so a burst can't blow past the model's budget.
-        var conversationText = Cap(string.Join("\n", lines), MaxCandidateChars);
-        var items = await extractor.ExtractAsync(model, conversationText, cancellationToken);
-
-        var stored = 0;
-        foreach (var item in items)
+        // Episodic: notable community events, distilled from all channels pooled together.
+        var episodicStored = 0;
+        foreach (var item in await extractor.ExtractAsync(model, Cap(string.Join("\n", episodicLines), MaxCandidateChars), cancellationToken))
         {
             var embedding = await embeddingService.EmbedAsync(item.Content!, cancellationToken);
             await memoryService.AddIfNovelAsync(new GuildMemory
@@ -117,19 +127,43 @@ public class MemoryConsolidationJob(
                 Content = item.Content!,
                 Salience = item.Salience,
                 CreatedAt = DateTimeOffset.UtcNow,
-                SourceChannelId = null,
                 Embedding = embedding,
                 EmbeddingModel = embedding is null ? null : embeddingService.Model,
             }, cancellationToken);
-            stored++;
+            episodicStored++;
+        }
+
+        // Conversation snapshots: a short per-channel summary so a thread survives past the live window.
+        var snapshots = 0;
+        foreach (var (channelId, channelLines) in perChannelLines)
+        {
+            if (channelLines.Count < MinMessagesToSummarize)
+                continue;
+            var summary = await extractor.SummarizeConversationAsync(model, Cap(string.Join("\n", channelLines), MaxCandidateChars), cancellationToken);
+            if (summary is null)
+                continue;
+            var embedding = await embeddingService.EmbedAsync(summary, cancellationToken);
+            await memoryService.AddConversationSnapshotAsync(new GuildMemory
+            {
+                GuildId = guildId,
+                Scope = MemoryScope.Conversation,
+                ChannelId = channelId,
+                SourceChannelId = channelId,
+                Content = summary,
+                Salience = ConversationSalience,
+                CreatedAt = DateTimeOffset.UtcNow,
+                Embedding = embedding,
+                EmbeddingModel = embedding is null ? null : embeddingService.Model,
+            }, KeepSnapshotsPerChannel, cancellationToken);
+            snapshots++;
         }
 
         await memoryService.PruneAsync(guildId, cancellationToken);
         await SetWatermarkAsync(guildId, newest);
 
         logger.LogInformation(
-            "Memory consolidation for guild {Guild} (model {Model}): {Lines} new message(s) → {Items} memory candidate(s).",
-            guildId, model.Model, lines.Count, stored);
+            "Memory consolidation for guild {Guild} (model {Model}): {Lines} new message(s) → {Episodic} event(s), {Snapshots} conversation snapshot(s).",
+            guildId, model.Model, episodicLines.Count, episodicStored, snapshots);
     }
 
     private Task SetWatermarkAsync(ulong guildId, DateTimeOffset value) =>

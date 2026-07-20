@@ -80,6 +80,38 @@ public class MemoryService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    // Phase 2 (conversation memory): store a per-channel conversation snapshot, then keep only the
+    // newest `keepPerChannel` for that channel — recency is the decay here, and consecutive snapshots
+    // on one topic are meant to be distinct time points (so no dedup, unlike episodic).
+    public async Task AddConversationSnapshotAsync(GuildMemory memory, int keepPerChannel, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        db.GuildMemories.Add(memory);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var stale = await db.GuildMemories
+            .Where(m => m.GuildId == memory.GuildId && m.Scope == MemoryScope.Conversation && m.ChannelId == memory.ChannelId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip(keepPerChannel)
+            .Select(m => m.Id)
+            .ToListAsync(cancellationToken);
+        if (stale.Count > 0)
+            await db.GuildMemories.Where(m => stale.Contains(m.Id)).ExecuteDeleteAsync(cancellationToken);
+    }
+
+    // The current channel's most recent conversation snapshots, oldest→newest for the prompt.
+    public async Task<List<GuildMemory>> GetRecentConversationAsync(ulong guildId, ulong channelId, int limit, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var recent = await db.GuildMemories
+            .Where(m => m.GuildId == guildId && m.Scope == MemoryScope.Conversation && m.ChannelId == channelId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+        recent.Reverse();
+        return recent;
+    }
+
     // Reinforcement: mark the memories that were actually recalled into a prompt as recently used, so
     // genuinely useful ones survive decay while never-recalled ones fade.
     public async Task ReinforceAsync(IEnumerable<int> ids, CancellationToken cancellationToken = default)

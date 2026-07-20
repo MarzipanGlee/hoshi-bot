@@ -61,6 +61,26 @@ public class MemoryExtractor(ILogger<MemoryExtractor> logger)
         }
     }
 
+    // Phase 2: a short, factual snapshot of what a channel's recent conversation was about — Hoshi's
+    // longer-term conversation memory once messages scroll past the live window. Returns null when the
+    // slice is just small talk with nothing worth keeping.
+    public async Task<string?> SummarizeConversationAsync(ResolvedAiChatModel model, string conversationText, CancellationToken cancellationToken)
+    {
+        var systemPrompt =
+            "Fasse den folgenden Chat-Ausschnitt aus einem Community-Kanal in 1–3 knappen, sachlichen Sätzen zusammen: " +
+            "worüber gesprochen wurde, was entschieden oder vereinbart wurde, wichtige Fragen oder Ergebnisse. Schreibe " +
+            "aus der Beobachterperspektive auf Deutsch (keine Anrede, keine Ich-Form). Wenn es nur belangloser Smalltalk " +
+            "ohne erinnernswerten Inhalt ist, antworte mit exakt dem Wort NICHTS und sonst nichts.";
+
+        var userTurn = new AiChatTurn(AiChatRole.User, conversationText);
+        var summary = (await model.Provider.GenerateAsync(
+            new AiChatCompletionRequest(model.Model, systemPrompt, [userTurn], model.ApiKey), cancellationToken))?.Trim();
+
+        if (string.IsNullOrWhiteSpace(summary) || summary.Equals("NICHTS", StringComparison.OrdinalIgnoreCase))
+            return null;
+        return summary;
+    }
+
     private static string? ExtractJsonObject(string raw)
     {
         var start = raw.IndexOf('{');
