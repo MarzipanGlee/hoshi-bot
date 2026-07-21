@@ -52,6 +52,7 @@
         .Where(f => f.RelevantAudiences().HasFlag(audience))
         .Select(f => (f.Icon, f.Title, f.Description))
         .Concat(ExtraCards.GetValueOrDefault(audience, []))
+        .OrderBy(c => c.Title, StringComparer.OrdinalIgnoreCase)
         .ToList();
 
     <section id="audience-@audience" class="features">
