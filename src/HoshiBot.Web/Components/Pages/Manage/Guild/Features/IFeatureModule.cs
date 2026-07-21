@@ -128,14 +128,29 @@ public static class FeatureModuleExtensions
                 configured = false;
                 foreach (var a in enabledAudiences)
                 {
-                    var scope = a == GuildAudience.Alliance ? guildAllianceId : null;
-                    if (a == GuildAudience.Alliance && scope is null)
-                        continue; // no alliance in context to scope this check to — skip, matches the pinning guard above
-                    if (await depModule.IsConfiguredAsync(guildId, a, scope, context))
+                    if (a == GuildAudience.Alliance)
+                    {
+                        // There's no alliance in the dependent's own context (it isn't Alliance-scoped
+                        // itself), so check every alliance the dependency is actually enabled for —
+                        // unlike the precise-pin case above, we can't assume "the same alliance" because
+                        // there isn't one. GetEnabledAllianceIdsAsync only ever returns non-null ids, so
+                        // this never trips FeatureScopeGuard.
+                        foreach (var allianceId in await context.FeatureService.GetEnabledAllianceIdsAsync(guildId, dep.Feature))
+                        {
+                            if (await depModule.IsConfiguredAsync(guildId, GuildAudience.Alliance, allianceId, context))
+                            {
+                                configured = true;
+                                break;
+                            }
+                        }
+                    }
+                    else if (await depModule.IsConfiguredAsync(guildId, a, null, context))
                     {
                         configured = true;
-                        break;
                     }
+
+                    if (configured)
+                        break;
                 }
             }
 
