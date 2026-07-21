@@ -517,6 +517,14 @@ public partial class AiChatService(
             sb.Append(memberNotes);
         }
 
+        var memberMemory = await BuildMemberMemoryBlockAsync(guildId, mentionable, cancellationToken);
+        if (memberMemory.Length > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Was du zuletzt mit einzelnen Mitgliedern besprochen hast (nutze es, um persönlich am letzten Gespräch anzuknüpfen, z. B. \"letztes Mal hast du erzählt, dass...\"; nur relevant für die Person, an die es sich richtet):");
+            sb.Append(memberMemory);
+        }
+
         var memories = await BuildMemoryBlockAsync(guildId, questionText, cancellationToken);
         if (memories.Length > 0)
         {
@@ -790,6 +798,44 @@ public partial class AiChatService(
             sb.AppendLine($"- ({snapshot.CreatedAt:yyyy-MM-dd HH:mm}) {Inline(snapshot.Content)}");
 
         await memoryService.ReinforceAsync(snapshots.Select(m => m.Id), cancellationToken);
+        return sb.ToString();
+    }
+
+    // Hoshi's per-member interaction memory (Phase 3): a conversational recap for whoever is actually
+    // taking part in this exchange right now — "letztes Mal hast du mir erzählt...". Deliberately
+    // scoped to conversation PARTICIPANTS only, unlike the always-on-for-everyone member-lore notes
+    // block above: a personal recollection only makes sense addressed to that person directly, not as
+    // a third-person aside about someone who isn't here. Person-key resolution consolidates a
+    // participant's linked alt accounts onto the same memories.
+    private const int MemberMemoryLimit = 4;
+
+    private async Task<string> BuildMemberMemoryBlockAsync(ulong guildId, IReadOnlyDictionary<ulong, string> mentionable, CancellationToken cancellationToken)
+    {
+        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemoryEnabled);
+        if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase) || mentionable.Count == 0)
+            return "";
+
+        var personKeyByUser = await memberNoteService.GetPersonKeysAsync(mentionable.Keys, cancellationToken);
+        var sb = new StringBuilder();
+        var recalledIds = new List<int>();
+
+        foreach (var personKey in personKeyByUser.Values.Distinct())
+        {
+            var memories = await memoryService.GetRecentMemberAsync(guildId, personKey, MemberMemoryLimit, cancellationToken);
+            if (memories.Count == 0)
+                continue;
+
+            // Label the block with every mentionable account sharing this person key (an alt-account pair).
+            var ids = personKeyByUser.Where(kv => kv.Value == personKey).Select(kv => kv.Key);
+            var name = mentionable.Where(kv => personKeyByUser.GetValueOrDefault(kv.Key) == personKey).Select(kv => kv.Value).FirstOrDefault() ?? "";
+            sb.AppendLine($"{name} ({string.Join(", ", ids.Select(id => $"<@{id}>"))}):");
+            foreach (var memory in memories)
+                sb.AppendLine($"- ({memory.CreatedAt:yyyy-MM-dd}) {Inline(memory.Content)}");
+            recalledIds.AddRange(memories.Select(m => m.Id));
+        }
+
+        if (recalledIds.Count > 0)
+            await memoryService.ReinforceAsync(recalledIds, cancellationToken);
         return sb.ToString();
     }
 

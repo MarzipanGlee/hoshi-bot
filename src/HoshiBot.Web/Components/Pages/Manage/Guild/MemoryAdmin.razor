@@ -1,8 +1,10 @@
 @page "/manage/guild/{GuildId}/memories"
 @using HoshiBot.Data
 @using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
 @inherits GuildAdminPageBase
 @inject MemoryService MemoryService
+@inject DiscordGuildDataService DiscordData
 
 <PageTitle>Memories</PageTitle>
 
@@ -34,7 +36,13 @@ else
             <div class="card mb-2">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge bg-secondary">@m.Scope</span>
+                        <span>
+                            <span class="badge bg-secondary">@m.Scope</span>
+                            @if (m.Scope == MemoryScope.Member && m.SubjectDiscordUserId is { } subjectId)
+                            {
+                                <span class="badge bg-info text-dark ms-1">@MemberName(subjectId)</span>
+                            }
+                        </span>
                         <small class="text-muted">
                             created @m.CreatedAt.ToString("yyyy-MM-dd")@(m.LastRecalledAt is { } r ? $" · last recalled {r:yyyy-MM-dd}" : " · never recalled")
                         </small>
@@ -64,6 +72,7 @@ else
 @code {
     private bool loading = true;
     private List<GuildMemory> memories = [];
+    private IReadOnlyDictionary<ulong, string> memberNames = new Dictionary<ulong, string>();
     private int? savedId;
 
     protected override async Task OnAuthorizedParametersSetAsync() => await ReloadAsync();
@@ -71,9 +80,12 @@ else
     private async Task ReloadAsync()
     {
         loading = true;
+        memberNames = await DiscordData.GetMemberDisplayNamesAsync(ParsedGuildId);
         memories = await MemoryService.GetForGuildAsync(ParsedGuildId);
         loading = false;
     }
+
+    private string MemberName(ulong id) => memberNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id.ToString();
 
     private async Task SaveAsync(GuildMemory m)
     {

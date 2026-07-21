@@ -112,6 +112,39 @@ public class MemoryService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         return recent;
     }
 
+    // Phase 3 (per-member interaction memory): store a conversational recap about one person — formed
+    // from either a DM interview or their guild-chat participation — then keep only the newest
+    // `keepPerPerson` for that person (one shared rolling timeline regardless of source). Mirrors
+    // AddConversationSnapshotAsync exactly, scoped by SubjectPersonKey instead of ChannelId.
+    public async Task AddMemberMemoryAsync(GuildMemory memory, int keepPerPerson, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        db.GuildMemories.Add(memory);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var stale = await db.GuildMemories
+            .Where(m => m.GuildId == memory.GuildId && m.Scope == MemoryScope.Member && m.SubjectPersonKey == memory.SubjectPersonKey)
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip(keepPerPerson)
+            .Select(m => m.Id)
+            .ToListAsync(cancellationToken);
+        if (stale.Count > 0)
+            await db.GuildMemories.Where(m => stale.Contains(m.Id)).ExecuteDeleteAsync(cancellationToken);
+    }
+
+    // One person's most recent interaction memories, oldest→newest for the prompt.
+    public async Task<List<GuildMemory>> GetRecentMemberAsync(ulong guildId, string personKey, int limit, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var recent = await db.GuildMemories
+            .Where(m => m.GuildId == guildId && m.Scope == MemoryScope.Member && m.SubjectPersonKey == personKey)
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+        recent.Reverse();
+        return recent;
+    }
+
     // Reinforcement: mark the memories that were actually recalled into a prompt as recently used, so
     // genuinely useful ones survive decay while never-recalled ones fade.
     public async Task ReinforceAsync(IEnumerable<int> ids, CancellationToken cancellationToken = default)

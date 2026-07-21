@@ -24,6 +24,7 @@ public class MemoryConsolidationJob(
     MemoryExtractor extractor,
     AiChatEmbeddingService embeddingService,
     MemoryService memoryService,
+    MemberNoteService noteService,
     ILogger<MemoryConsolidationJob> logger) : IJob
 {
     private const GuildAudience SettingsScope = GuildAudience.None;
@@ -35,6 +36,14 @@ public class MemoryConsolidationJob(
     private const int MinMessagesToSummarize = 6;
     private const int KeepSnapshotsPerChannel = 5;
     private const int ConversationSalience = 2;
+
+    // Per-member interaction memory (Phase 3): a much lower bar than a whole-channel conversation —
+    // one person's own volume in a window is naturally small, but a handful of their own messages is
+    // still worth a personal recollection. Keeps the same rolling-per-person cap as the interview job
+    // (one shared timeline regardless of source) and the same modest salience as conversation snapshots.
+    private const int MinMessagesForMemberMemory = 3;
+    private const int KeepMemoriesPerPerson = 5;
+    private const int MemberMemorySalience = 2;
 
     public async Task Execute(IJobExecutionContext context)
     {
@@ -84,10 +93,14 @@ public class MemoryConsolidationJob(
         if (channels.Count == 0)
             return;
 
-        // Gather new messages since the watermark: pooled (for guild-wide episodic distillation) and
-        // grouped per channel (for the per-channel conversation snapshots).
+        // Gather new messages since the watermark: pooled (for guild-wide episodic distillation), grouped
+        // per channel (for the per-channel conversation snapshots), and grouped per author (for
+        // per-member interaction memories — across all channels, not just one, since the point is "what
+        // has this person been up to", not "what happened in this channel").
         var episodicLines = new List<string>();
         var perChannelLines = new Dictionary<ulong, List<string>>();
+        var perAuthorLines = new Dictionary<ulong, List<string>>();
+        var authorNames = new Dictionary<ulong, string>();
         var newest = watermark;
         foreach (var channelId in channels)
         {
@@ -99,11 +112,16 @@ public class MemoryConsolidationJob(
                 var text = AiChatIndexService.RenderMessageText(message);
                 if (string.IsNullOrWhiteSpace(text))
                     continue;
-                var line = $"{CommanderName.Of(message.Author)}: {text}";
+                var authorName = CommanderName.Of(message.Author);
+                var line = $"{authorName}: {text}";
                 episodicLines.Add(line);
                 if (!perChannelLines.TryGetValue(channelId, out var channelLines))
                     perChannelLines[channelId] = channelLines = [];
                 channelLines.Add(line);
+                if (!perAuthorLines.TryGetValue(message.Author.Id, out var authorLines))
+                    perAuthorLines[message.Author.Id] = authorLines = [];
+                authorLines.Add(text);
+                authorNames[message.Author.Id] = authorName;
                 if (message.CreatedAt > newest)
                     newest = message.CreatedAt;
             }
@@ -158,12 +176,43 @@ public class MemoryConsolidationJob(
             snapshots++;
         }
 
+        // Per-member interaction memories: what has this person personally been up to, distinct from
+        // the structured GuildMemberNote lore fields. Person-key resolution (via MemberNoteService)
+        // consolidates a person's alt accounts onto one rolling timeline.
+        var memberMemories = 0;
+        if (perAuthorLines.Count > 0)
+        {
+            var personKeyByUser = await noteService.GetPersonKeysAsync(perAuthorLines.Keys, cancellationToken);
+            foreach (var (authorId, authorLines) in perAuthorLines)
+            {
+                if (authorLines.Count < MinMessagesForMemberMemory)
+                    continue;
+                var summary = await extractor.SummarizeMemberActivityAsync(model, authorNames[authorId], Cap(string.Join("\n", authorLines), MaxCandidateChars), cancellationToken);
+                if (summary is null)
+                    continue;
+                var embedding = await embeddingService.EmbedAsync(summary, cancellationToken);
+                await memoryService.AddMemberMemoryAsync(new GuildMemory
+                {
+                    GuildId = guildId,
+                    Scope = MemoryScope.Member,
+                    SubjectDiscordUserId = authorId,
+                    SubjectPersonKey = personKeyByUser.GetValueOrDefault(authorId, $"user:{authorId}"),
+                    Content = summary,
+                    Salience = MemberMemorySalience,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    Embedding = embedding,
+                    EmbeddingModel = embedding is null ? null : embeddingService.Model,
+                }, KeepMemoriesPerPerson, cancellationToken);
+                memberMemories++;
+            }
+        }
+
         await memoryService.PruneAsync(guildId, cancellationToken);
         await SetWatermarkAsync(guildId, newest);
 
         logger.LogInformation(
-            "Memory consolidation for guild {Guild} (model {Model}): {Lines} new message(s) → {Episodic} event(s), {Snapshots} conversation snapshot(s).",
-            guildId, model.Model, episodicLines.Count, episodicStored, snapshots);
+            "Memory consolidation for guild {Guild} (model {Model}): {Lines} new message(s) → {Episodic} event(s), {Snapshots} conversation snapshot(s), {MemberMemories} member memory/ies.",
+            guildId, model.Model, episodicLines.Count, episodicStored, snapshots, memberMemories);
     }
 
     private Task SetWatermarkAsync(ulong guildId, DateTimeOffset value) =>

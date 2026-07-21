@@ -25,8 +25,17 @@ public class MemberInterviewExtractionJob(
     AiChatModelResolver modelResolver,
     MemberNoteService noteService,
     MemberNoteExtractor extractor,
+    GuildFeatureSettingsService settingsService,
+    MemoryExtractor memoryExtractor,
+    AiChatEmbeddingService embeddingService,
+    MemoryService memoryService,
     ILogger<MemberInterviewExtractionJob> logger) : IJob
 {
+    // Memory Phase 3: how many interaction memories to keep per person (one shared rolling timeline
+    // across interview- and chat-derived memories — MemoryConsolidationJob prunes to the same cap).
+    private const int KeepMemoriesPerPerson = 5;
+
+    private const int MemberMemorySalience = 2;
     public async Task Execute(IJobExecutionContext context)
     {
         var cancellationToken = context.CancellationToken;
@@ -70,6 +79,13 @@ public class MemberInterviewExtractionJob(
 
         var (idToName, nameToIds, personKeyById) = await BuildRosterAsync(guildId, cancellationToken);
 
+        // Memory Phase 3: a per-interview interaction memory is a separate, opt-in concern from the
+        // lore extraction below — resolved once per guild so a disabled/no-embeddings guild just skips
+        // that sub-step without affecting note extraction at all.
+        var memoryEnabled = string.Equals(
+            await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, GuildAudience.None, null, AiChatSettingKeys.MemoryEnabled),
+            "true", StringComparison.OrdinalIgnoreCase) && embeddingService.Enabled;
+
         var extracted = 0;
         var suggestions = 0;
         foreach (var interview in pending)
@@ -94,6 +110,9 @@ public class MemberInterviewExtractionJob(
             await ApplySelfAsync(guildId, interview.DiscordUserId, result.Self, interview, cancellationToken);
             suggestions += AddPeerSuggestions(guildId, interview, result.Peers, nameToIds, personKeyById);
 
+            if (memoryEnabled)
+                await FormMemberMemoryAsync(guildId, interview, intervieweeName, transcript, personKeyById, model, cancellationToken);
+
             interview.ExtractedAt = DateTimeOffset.UtcNow;
             extracted++;
         }
@@ -102,6 +121,31 @@ public class MemberInterviewExtractionJob(
         logger.LogInformation(
             "MemberLore extraction for guild {Guild} (model {Model}): {Extracted}/{Pending} interview(s) extracted, {Suggestions} peer suggestion(s) queued.",
             guildId, model.Model, extracted, pending.Count, suggestions);
+    }
+
+    // Memory Phase 3: a personal recollection from this interview, distinct from the structured lore
+    // fields above — a narrative Hoshi can bring up next time she talks with this member.
+    private async Task FormMemberMemoryAsync(ulong guildId, MemberInterview interview, string intervieweeName,
+        List<AiChatTurn> transcript, IReadOnlyDictionary<ulong, string> personKeyById, ResolvedAiChatModel model, CancellationToken cancellationToken)
+    {
+        var transcriptText = string.Join("\n", transcript.Select(t => $"{(t.Role == AiChatRole.Assistant ? "Hoshi" : intervieweeName)}: {t.Text}"));
+        var summary = await memoryExtractor.SummarizeMemberActivityAsync(model, intervieweeName, transcriptText, cancellationToken);
+        if (summary is null)
+            return;
+
+        var embedding = await embeddingService.EmbedAsync(summary, cancellationToken);
+        await memoryService.AddMemberMemoryAsync(new GuildMemory
+        {
+            GuildId = guildId,
+            Scope = MemoryScope.Member,
+            SubjectDiscordUserId = interview.DiscordUserId,
+            SubjectPersonKey = personKeyById.GetValueOrDefault(interview.DiscordUserId, $"user:{interview.DiscordUserId}"),
+            Content = summary,
+            Salience = MemberMemorySalience,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Embedding = embedding,
+            EmbeddingModel = embedding is null ? null : embeddingService.Model,
+        }, KeepMemoriesPerPerson, cancellationToken);
     }
 
     // Fill the interviewee's own empty self-fields directly (auto-publish — consensual, about them);

@@ -81,6 +81,31 @@ public class MemoryExtractor(ILogger<MemoryExtractor> logger)
         return summary;
     }
 
+    // Phase 3: a short, personal recollection about one member — from a DM interview or their guild-chat
+    // participation — for Hoshi to bring up next time she talks with them ("letztes Mal hast du mir
+    // erzählt..."). Deliberately narrative/conversational (a plan, a story, something going on in their
+    // life), NOT a restatement of structured facts already captured in their GuildMemberNote
+    // (name/interests/background) — those are a different, already-solved concern. Returns null
+    // ("NICHTS") for nothing personally memorable.
+    public async Task<string?> SummarizeMemberActivityAsync(ResolvedAiChatModel model, string memberName, string text, CancellationToken cancellationToken)
+    {
+        var systemPrompt =
+            $"Der folgende Text ist ein Gesprächsausschnitt mit oder von {memberName}. Fasse in 1–2 knappen Sätzen " +
+            $"zusammen, was du sich über {memberName} persönlich merken solltest, um beim nächsten Gespräch daran " +
+            "anzuknüpfen — z. B. ein Plan, eine Geschichte, etwas Aktuelles aus seinem/ihrem Leben oder Spiel-Alltag. " +
+            "Wiederhole KEINE bereits erfassten Steckbrief-Fakten wie Name, Interessen oder Hintergrund, sondern nur " +
+            "den konkreten Gesprächsinhalt. Schreibe aus der Beobachterperspektive auf Deutsch (keine Anrede, keine " +
+            "Ich-Form). Wenn nichts persönlich Erinnernswertes vorkommt, antworte mit exakt dem Wort NICHTS und sonst nichts.";
+
+        var userTurn = new AiChatTurn(AiChatRole.User, text);
+        var summary = (await model.Provider.GenerateAsync(
+            new AiChatCompletionRequest(model.Model, systemPrompt, [userTurn], model.ApiKey), cancellationToken))?.Trim();
+
+        if (string.IsNullOrWhiteSpace(summary) || summary.Equals("NICHTS", StringComparison.OrdinalIgnoreCase))
+            return null;
+        return summary;
+    }
+
     private static string? ExtractJsonObject(string raw)
     {
         var start = raw.IndexOf('{');
