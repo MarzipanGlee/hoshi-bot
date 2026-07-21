@@ -1,0 +1,39 @@
+@page "/manage/guild/{GuildId}/features/{FeatureSlug}/{ExtraSlug}"
+@inherits GuildAdminPageBase
+
+<PageTitle>@(extra?.Title ?? "Not Found")</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else if (extra is null)
+{
+    <p>Unknown page.</p>
+}
+else
+{
+    <DynamicComponent Type="extra.ComponentType" Parameters="parameters" />
+}
+
+@code {
+    [Parameter] public string FeatureSlug { get; set; } = "";
+    [Parameter] public string ExtraSlug { get; set; } = "";
+
+    private FeatureExtraPage? extra;
+    private IDictionary<string, object> parameters = new Dictionary<string, object>();
+
+    protected override Task OnAuthorizedParametersSetAsync()
+    {
+        var descriptor = FeatureCatalog.FindBySlug(FeatureSlug);
+        extra = descriptor?.ExtraPages.FirstOrDefault(p => p.Slug == ExtraSlug);
+        if (extra is null)
+        {
+            Nav.NotFound();
+            return Task.CompletedTask;
+        }
+
+        parameters = new Dictionary<string, object> { ["GuildId"] = ParsedGuildId };
+        return Task.CompletedTask;
+    }
+}

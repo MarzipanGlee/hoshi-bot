@@ -149,16 +149,28 @@
         items = result;
     }
 
-    // Adds the "Features" crumb (+ the feature-title crumb when a feature slug follows) given the
-    // index of the "features" segment and the catalog backlink.
+    // Adds the "Features" crumb (+ the feature-title crumb when a feature slug follows, + an extra-page
+    // crumb when the feature's own IFeatureModule.ExtraPages declares a matching one) given the index
+    // of the "features" segment and the catalog backlink. The extra-page title is resolved from that
+    // same declaration — so a feature's own auxiliary admin page (FeatureExtraPageHost.razor's route)
+    // is correctly breadcrumbed automatically, with no changes needed here when a new one is added.
     private static void AddFeatureCrumbs(List<(string, string?)> result, string[] segments, int featuresIndex, string catalogHref)
     {
         var hasSlug = segments.Length >= featuresIndex + 2;
         result.Add(("Features", hasSlug ? catalogHref : null));
-        if (hasSlug)
+        if (!hasSlug)
+            return;
+
+        var featureSlug = segments[featuresIndex + 1];
+        var feature = FeatureCatalog.FindBySlug(featureSlug);
+        var hasExtraSlug = segments.Length >= featuresIndex + 3;
+        result.Add((feature?.Title ?? featureSlug, hasExtraSlug ? $"{catalogHref}/{featureSlug}" : null));
+
+        if (hasExtraSlug)
         {
-            var feature = FeatureCatalog.FindBySlug(segments[featuresIndex + 1]);
-            result.Add((feature?.Title ?? segments[featuresIndex + 1], null));
+            var extraSlug = segments[featuresIndex + 2];
+            var extra = feature?.ExtraPages.FirstOrDefault(p => p.Slug == extraSlug);
+            result.Add((extra?.Title ?? extraSlug, null));
         }
     }
 

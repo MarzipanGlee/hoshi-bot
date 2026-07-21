@@ -20,6 +20,14 @@ public interface IFeatureModule
     string Icon { get; }              // Open Iconic class, e.g. "oi-calendar"
     Type EditorComponentType { get; }
 
+    // A feature's own auxiliary admin pages beyond its main editor (e.g. MemberLore's notes/review
+    // queue, AiChat's memories) — routed generically by FeatureExtraPage.razor at
+    // /manage/guild/{GuildId}/features/{Slug}/{ExtraSlug} and auto-breadcrumbed by
+    // PageBreadcrumb.razor's AddFeatureCrumbs from this same declaration. Deliberately guild-wide only
+    // (no audience/alliance nesting) — these pages' underlying data (GuildMemberNote, GuildMemory, …)
+    // isn't alliance-scoped even when the owning feature is. Empty for every feature that has none.
+    IReadOnlyList<FeatureExtraPage> ExtraPages => [];
+
     // Identical logic for every feature (just checks GuildEnabledFeature for Feature+
     // audience+alliance) — a default interface method, so this is written once here rather than
     // duplicated verbatim across all module classes. guildAllianceId scopes the Alliance
@@ -33,6 +41,11 @@ public interface IFeatureModule
     // implements its own — no default body.
     Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context);
 }
+
+// One of a feature's auxiliary admin pages — see IFeatureModule.ExtraPages. ComponentType must be a
+// component accepting a single [Parameter] ulong GuildId (FeatureExtraPage.razor is all that ever
+// instantiates it, and only ever passes that one parameter).
+public record FeatureExtraPage(string Slug, string Title, Type ComponentType);
 
 // Everything a module's own checks might need, bundled so the interface members stay one
 // parameter: FeatureService for IsEnabledAsync (uniform); Settings for most

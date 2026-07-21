@@ -188,6 +188,14 @@ locally by re-running `HoshiBot.Migrator` against the local connection string (s
   reach for its components first (`<Select>`/`<AutoComplete>` instead of a plain
   `<select>`, `<Collapse>` instead of a hand-rolled checkbox/label toggle, etc.) rather than
   writing the plain-HTML equivalent from scratch.
+- **A feature's own auxiliary admin page (not its main editor) belongs in that feature's own
+  `Features/{Name}/` folder, registered via `IFeatureModule.ExtraPages`** — never as a stray sibling
+  of `Index.razor`/`Settings.razor` directly under `Manage/Guild/`. Declaring it there gets routing
+  (`FeatureExtraPageHost.razor`, `/manage/guild/{GuildId}/features/{FeatureSlug}/{ExtraSlug}`) and the
+  breadcrumb (`PageBreadcrumb.razor`'s `AddFeatureCrumbs`) for free — both are driven off the same
+  `ExtraPages` declaration, so a new one never needs a `PageBreadcrumb.razor` edit. This was a repeated
+  miss (`MemberNotesAdmin`/`MemoryAdmin`/`PlayerAssignmentsAdmin` all landed as flat `Manage/Guild/`
+  pages with hand-picked URLs and no breadcrumb) before the mechanism existed — don't reintroduce it.
 - **Deciding CRUD vs. read-only for a new admin page**: does anything else (a Quartz job, a
   Discord command, another Web page) already write to this table automatically? If yes, it's
   job/Discord-managed — read-only (`StfcServerStatus`/`StfcEventStatus`/`StfcClientRelease`

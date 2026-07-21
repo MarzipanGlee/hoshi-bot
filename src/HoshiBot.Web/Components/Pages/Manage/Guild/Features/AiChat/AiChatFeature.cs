@@ -17,6 +17,9 @@ public class AiChatFeature : IFeatureModule
     public string Icon => "oi-chat";
     public Type EditorComponentType => typeof(AiChatEditor);
 
+    public IReadOnlyList<FeatureExtraPage> ExtraPages =>
+        [new FeatureExtraPage("memories", "Memories", typeof(MemoryAdmin))];
+
     // "Configured" means the guild has actually supplied its Gemini API key — without it the
     // feature stays silent even when enabled. The key is guild-wide (None/null scope), so it's the
     // same check on every audience tab.

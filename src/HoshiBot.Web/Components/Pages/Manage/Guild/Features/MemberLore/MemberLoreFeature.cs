@@ -16,6 +16,9 @@ public class MemberLoreFeature : IFeatureModule
     public string Icon => "oi-people";
     public Type EditorComponentType => typeof(MemberLoreEditor);
 
+    public IReadOnlyList<FeatureExtraPage> ExtraPages =>
+        [new FeatureExtraPage("notes", "Member Notes", typeof(MemberNotesAdmin))];
+
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
         await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, MemberLoreSettingKeys.MemberRole) is not null;
 }
