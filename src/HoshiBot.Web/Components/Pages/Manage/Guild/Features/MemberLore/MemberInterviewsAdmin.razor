@@ -1,0 +1,91 @@
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
+
+<PageTitle>Interviews</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else if (loading)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <h1>Member Lore — Interviews</h1>
+    <p class="text-muted">
+        Every member the bot has invited to (or is running) a DM interview, and where they are in it.
+        Bot-managed — status/progress come from the interview job/DM conversation, not editable here.
+    </p>
+
+    @if (interviews.Count == 0)
+    {
+        <p class="text-muted">No interviews yet — enable the campaign to start inviting members.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Status</th>
+                        <th>Invited</th>
+                        <th>Last activity</th>
+                        <th>Completed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in interviews)
+                    {
+                        <tr>
+                            <td>@MemberName(i.DiscordUserId)</td>
+                            <td><span class="badge @StatusBadgeClass(i.Status)">@i.Status</span></td>
+                            <td>@i.InvitedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@i.LastActivityAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@(i.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private bool loading = true;
+    private List<MemberInterview> interviews = [];
+    private IReadOnlyDictionary<ulong, string> memberNames = new Dictionary<ulong, string>();
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        loading = true;
+        memberNames = await DiscordData.GetMemberDisplayNamesAsync(ParsedGuildId);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        interviews = await db.MemberInterviews
+            .Where(i => i.GuildId == ParsedGuildId)
+            .OrderByDescending(i => i.InvitedAt)
+            .ToListAsync();
+
+        loading = false;
+    }
+
+    private string MemberName(ulong id) => memberNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id.ToString();
+
+    private static string StatusBadgeClass(MemberInterviewStatus status) => status switch
+    {
+        MemberInterviewStatus.Completed => "bg-success",
+        MemberInterviewStatus.InProgress => "bg-primary",
+        MemberInterviewStatus.Invited => "bg-secondary",
+        MemberInterviewStatus.Declined => "bg-warning text-dark",
+        MemberInterviewStatus.Undeliverable => "bg-danger",
+        _ => "bg-secondary",
+    };
+}

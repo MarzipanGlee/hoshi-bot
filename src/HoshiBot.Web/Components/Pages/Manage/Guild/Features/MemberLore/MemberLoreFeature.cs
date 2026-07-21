@@ -17,7 +17,10 @@ public class MemberLoreFeature : IFeatureModule
     public Type EditorComponentType => typeof(MemberLoreEditor);
 
     public IReadOnlyList<FeatureExtraPage> ExtraPages =>
-        [new FeatureExtraPage("notes", "Member Notes", typeof(MemberNotesAdmin))];
+        [
+            new FeatureExtraPage("notes", "Member Notes", typeof(MemberNotesAdmin)),
+            new FeatureExtraPage("interviews", "Interviews", typeof(MemberInterviewsAdmin)),
+        ];
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
         await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, MemberLoreSettingKeys.MemberRole) is not null;

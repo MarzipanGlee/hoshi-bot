@@ -47,11 +47,12 @@
         </div>
         @if (progress is not null)
         {
-            <p class="form-text mb-0">
+            <p class="form-text mb-2">
                 Invited @progress.Invited · in progress @progress.InProgress · completed @progress.Completed
                 · declined @progress.Declined · undeliverable @progress.Undeliverable
             </p>
         }
+        <a class="btn btn-outline-secondary btn-sm" href="@($"{AudienceDisplay.FeatureScopePrefix(GuildId, ResolvedAudience, GuildAllianceId)}/features/member-lore/interviews")">View interviews</a>
     </SettingsCard>
 
     <SettingsCard Title="Notes & review">
