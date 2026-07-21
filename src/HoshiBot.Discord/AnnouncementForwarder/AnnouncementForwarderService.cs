@@ -177,8 +177,10 @@ public class AnnouncementForwarderService(
             Description = translation,
             Color = EmbedBranding.InformationColor,
             Author = await embedBranding.BuildAuthorAsync(guildId),
+            // No Timestamp: Discord renders it as a "• <time>" stamp appended right after the footer
+            // text, which read as noise here — the "Aktualisiert" field already carries the when-edited
+            // info when relevant.
             Footer = embedBranding.BuildFooter(guildId),
-            Timestamp = DateTimeOffset.UtcNow,
             Fields = fields,
         };
     }

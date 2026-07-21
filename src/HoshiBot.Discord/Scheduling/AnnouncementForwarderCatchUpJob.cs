@@ -4,6 +4,7 @@ using HoshiBot.Discord.AnnouncementForwarder;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetCord.Rest;
 using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
@@ -74,18 +75,20 @@ public class AnnouncementForwarderCatchUpJob(
             out var parsed) ? parsed : AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours;
         var cutoff = DateTimeOffset.UtcNow.AddHours(-windowHours);
 
-        var checkedCount = 0;
+        // FetchRecentAsync returns Discord's natural newest-first order; gather every channel's
+        // candidates and sort oldest-first before forwarding, so a multi-message catch-up run posts
+        // them in the same order they were originally announced instead of backwards.
+        var candidates = new List<RestMessage>();
         foreach (var channelId in sourceChannels)
         {
             var recent = await indexService.FetchRecentAsync(channelId, MessagesPerChannel, cancellationToken);
-            foreach (var message in recent.Where(m => m.CreatedAt >= cutoff))
-            {
-                await forwarder.MaybeForwardAsync(guildId, message, cancellationToken);
-                checkedCount++;
-            }
+            candidates.AddRange(recent.Where(m => m.CreatedAt >= cutoff));
         }
 
-        if (checkedCount > 0)
-            logger.LogInformation("Announcement forwarder catch-up for guild {Guild}: checked {Count} message(s) within the {Hours}h window.", guildId, checkedCount, windowHours);
+        foreach (var message in candidates.OrderBy(m => m.CreatedAt))
+            await forwarder.MaybeForwardAsync(guildId, message, cancellationToken);
+
+        if (candidates.Count > 0)
+            logger.LogInformation("Announcement forwarder catch-up for guild {Guild}: checked {Count} message(s) within the {Hours}h window.", guildId, candidates.Count, windowHours);
     }
 }
