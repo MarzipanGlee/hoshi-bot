@@ -33,7 +33,9 @@ else
             return Task.CompletedTask;
         }
 
-        parameters = new Dictionary<string, object> { ["GuildId"] = ParsedGuildId };
+        // Every extra-page component inherits GuildAdminPageBase itself (unchanged from when it had
+        // its own @page route), so it expects the raw string GuildId — not the already-parsed ulong.
+        parameters = new Dictionary<string, object> { ["GuildId"] = GuildId };
         return Task.CompletedTask;
     }
 }

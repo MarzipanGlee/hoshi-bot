@@ -42,9 +42,9 @@ public interface IFeatureModule
     Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context);
 }
 
-// One of a feature's auxiliary admin pages — see IFeatureModule.ExtraPages. ComponentType must be a
-// component accepting a single [Parameter] ulong GuildId (FeatureExtraPage.razor is all that ever
-// instantiates it, and only ever passes that one parameter).
+// One of a feature's auxiliary admin pages — see IFeatureModule.ExtraPages. ComponentType must inherit
+// GuildAdminPageBase (a [Parameter] string GuildId, same as any other guild-scoped page) —
+// FeatureExtraPageHost.razor is all that ever instantiates it, and only ever passes that one parameter.
 public record FeatureExtraPage(string Slug, string Title, Type ComponentType);
 
 // Everything a module's own checks might need, bundled so the interface members stay one
