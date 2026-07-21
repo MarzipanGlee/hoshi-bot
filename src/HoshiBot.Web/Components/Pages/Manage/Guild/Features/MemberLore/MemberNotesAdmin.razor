@@ -141,7 +141,10 @@ else
         // The full (untrimmed) nickname, alliance tag prefix and all — ordering the note cards by this
         // instead of the tag-stripped display name naturally groups them by alliance, then name.
         memberNicknames = await DiscordData.GetMemberNicknamesAsync(ParsedGuildId);
-        memberOptions = memberNames.Select(kv => new MemberOption(kv.Key, kv.Value)).OrderBy(m => m.Name).ToList();
+        // Full nicknames (tag and all) here too — the dropdowns otherwise show several visually
+        // identical "Name" entries when members share a tag-stripped display name (alt accounts, or
+        // just a common name), with no way to tell them apart.
+        memberOptions = memberNicknames.Select(kv => new MemberOption(kv.Key, kv.Value)).OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
         await using var db = await DbFactory.CreateDbContextAsync();
         notes = await db.GuildMemberNotes.AsNoTracking()

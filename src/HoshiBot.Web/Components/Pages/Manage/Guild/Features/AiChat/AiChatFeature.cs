@@ -11,8 +11,10 @@ public class AiChatFeature : IFeatureModule
 
     public string Description =>
         "Lets the bot answer questions conversationally (via Google Gemini) in a configurable set of " +
-        "listen channels, grounded in a configurable set of knowledge channels. Each guild uses its own " +
-        "Gemini API key.";
+        "listen channels, grounded in a configurable set of knowledge channels. It can also build a " +
+        "genuine memory over time — notable community events, past conversations, and its own history " +
+        "with individual members — so answers feel like they come from someone who was actually there. " +
+        "Each guild uses its own Gemini API key.";
 
     public string Icon => "oi-chat";
     public Type EditorComponentType => typeof(AiChatEditor);

@@ -93,23 +93,36 @@
     // guided flow, not a toggleable feature; nickname/role sync and onboarding are
     // guild-level settings, not their own admin page. Kept here so the page can still
     // advertise them without pretending they're feature modules.
+    // Announcement Forwarder is a Guild-audience feature (one destination for the whole Discord, not
+    // per-alliance/server/veil-group/community), so it never matches the per-audience FeatureCatalog
+    // filter above — listed here, duplicated across every section like Member Name & Role Sync below,
+    // since translating official game announcements is equally useful for any kind of Discord.
+    private const string AnnouncementForwarderTitle = "Announcement Forwarder";
+    private const string AnnouncementForwarderDescription =
+        "Auto-translates official game announcements into your community's language and reposts them " +
+        "where members actually read — so no one misses a maintenance window or update because it only " +
+        "went out in English.";
+
     private static readonly Dictionary<GuildAudience, (string Icon, string Title, string Description)[]> ExtraCards = new()
     {
         [GuildAudience.Alliance] =
         [
             ("oi-wrench", "Setup Wizard", "Get a new server configured in minutes with a guided, step-by-step setup flow."),
+            ("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription),
         ],
         [GuildAudience.Server] =
         [
             ("oi-loop-circular", "Member Name & Role Sync", "Keep Discord nicknames and roles in sync with in-game commander names, automatically."),
             ("oi-account-login", "Member Onboarding", "A guided welcome flow gets new members oriented before they touch the rest of the server."),
+            ("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription),
         ],
         [GuildAudience.VeilGroup] =
         [
             ("oi-loop-circular", "Member Name & Role Sync", "Keep Discord nicknames and roles in sync with in-game commander names, automatically."),
             ("oi-account-login", "Member Onboarding", "A guided welcome flow gets new members oriented before they touch the rest of the server."),
+            ("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription),
         ],
-        [GuildAudience.Community] = [],
+        [GuildAudience.Community] = [("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription)],
     };
 
     private static string Tagline(GuildAudience audience) => audience switch
