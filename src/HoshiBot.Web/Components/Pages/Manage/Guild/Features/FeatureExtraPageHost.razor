@@ -1,4 +1,6 @@
 @page "/manage/guild/{GuildId}/features/{FeatureSlug}/{ExtraSlug}"
+@page "/manage/guild/{GuildId}/{AudienceSlug}/features/{FeatureSlug}/{ExtraSlug}"
+@page "/manage/guild/{GuildId}/alliance/{GuildAllianceIdRaw:int}/features/{FeatureSlug}/{ExtraSlug}"
 @inherits GuildAdminPageBase
 
 <PageTitle>@(extra?.Title ?? "Not Found")</PageTitle>
@@ -19,6 +21,14 @@ else
 @code {
     [Parameter] public string FeatureSlug { get; set; } = "";
     [Parameter] public string ExtraSlug { get; set; } = "";
+
+    // Accepted so the URL can be reached from wherever a feature's editor currently is (an alliance
+    // or audience context — matching FeatureSettings.razor's own three route shapes), purely so the
+    // breadcrumb/URL stays nested under that context. The extra page's content is always guild-wide
+    // (GuildMemberNote/GuildMemory aren't alliance-scoped even when the owning feature is) — these are
+    // deliberately never read for data purposes, only matched so the route resolves.
+    [Parameter] public string? AudienceSlug { get; set; }
+    [Parameter] public int? GuildAllianceIdRaw { get; set; }
 
     private FeatureExtraPage? extra;
     private IDictionary<string, object> parameters = new Dictionary<string, object>();

@@ -174,7 +174,7 @@
         <div class="form-text">
             Hoshi distils notable community events from chat into memories she recalls later in
             conversation. Needs embeddings (Ollama) configured. Review, edit, or forget them on the
-            <a href="manage/guild/@GuildId/features/ai-chat/memories">Memories</a> page.
+            <a href="@($"{AudienceDisplay.FeatureScopePrefix(GuildId, ResolvedAudience, GuildAllianceId)}/features/ai-chat/memories")">Memories</a> page.
         </div>
     </SettingsCard>
 
