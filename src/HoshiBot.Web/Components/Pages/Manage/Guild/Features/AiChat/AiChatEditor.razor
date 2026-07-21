@@ -53,7 +53,7 @@
                        @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
                 @if (hasKey)
                 {
-                    <button type="button" class="btn btn-outline-danger" @onclick="ClearApiKeyAsync">Delete</button>
+                    <button type="button" class="btn btn-sm btn-danger" @onclick="ClearApiKeyAsync">Delete</button>
                 }
             </div>
         </SettingsCard>
@@ -171,11 +171,12 @@
                    checked="@memoryEnabled" @onchange="e => SaveMemoryEnabledAsync((bool)e.Value!)" />
             <label class="form-check-label" for="aiChatMemory">Let Hoshi remember events</label>
         </div>
-        <div class="form-text">
+        <p class="form-text mt-0">
             Hoshi distils notable community events from chat into memories she recalls later in
-            conversation. Needs embeddings (Ollama) configured. Review, edit, or forget them on the
-            <a href="@($"{AudienceDisplay.FeatureScopePrefix(GuildId, ResolvedAudience, GuildAllianceId)}/features/ai-chat/memories")">Memories</a> page.
-        </div>
+            conversation. Needs embeddings (Ollama) configured. Review, edit, or forget them here.
+        </p>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="ai-chat" ExtraSlug="memories" Label="Open memories" />
     </SettingsCard>
 
     <SettingsCard Title="Search language">

@@ -52,7 +52,8 @@
                 · declined @progress.Declined · undeliverable @progress.Undeliverable
             </p>
         }
-        <a class="btn btn-outline-secondary btn-sm" href="@($"{AudienceDisplay.FeatureScopePrefix(GuildId, ResolvedAudience, GuildAllianceId)}/features/member-lore/interviews")">View interviews</a>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="member-lore" ExtraSlug="interviews" Label="View interviews" />
     </SettingsCard>
 
     <SettingsCard Title="Notes & review">
@@ -60,7 +61,8 @@
             Interview transcripts are turned into per-member notes that Hoshi uses in chat. Review the
             crowdsourced stories about others and edit any member's notes here.
         </p>
-        <a class="btn btn-outline-primary btn-sm" href="@($"{AudienceDisplay.FeatureScopePrefix(GuildId, ResolvedAudience, GuildAllianceId)}/features/member-lore/notes")">Notizen & Review öffnen</a>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="member-lore" ExtraSlug="notes" Label="Open notes & review" />
     </SettingsCard>
 
     <SettingsCard Title="Announcement (post this yourself)">

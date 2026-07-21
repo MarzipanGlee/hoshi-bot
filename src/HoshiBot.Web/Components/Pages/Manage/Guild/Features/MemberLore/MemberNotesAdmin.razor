@@ -86,36 +86,40 @@ else
     }
     else
     {
-        @foreach (var n in notes)
-        {
-            <div class="card mb-2">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong>@MemberName(n.DiscordUserId)</strong>
-                        @if (n.PeerLoreHidden)
-                        {
-                            <span class="badge bg-warning text-dark">Peer-Lore vom Mitglied ausgeblendet</span>
-                        }
-                    </div>
-                    <div class="row g-2">
-                        <div class="col-md-4">@TextField("Bevorzugter Name", n, MemberNoteField.PreferredName)</div>
-                        <div class="col-md-4">@TextField("Spitznamen", n, MemberNoteField.Nicknames)</div>
-                        <div class="col-md-4">@TextField("Sprachen", n, MemberNoteField.Languages)</div>
-                        <div class="col-md-6">@AreaField("Interessen", n, MemberNoteField.Interests)</div>
-                        <div class="col-md-6">@AreaField("Hintergrund", n, MemberNoteField.Background)</div>
-                        <div class="col-md-6">@AreaField("Running Gags (Peer)", n, MemberNoteField.RunningJokes)</div>
-                        <div class="col-md-6">@AreaField("Necken ok (Peer)", n, MemberNoteField.TeaseAbout)</div>
-                    </div>
-                    <div class="mt-2 d-flex gap-2">
-                        <button class="btn btn-sm btn-primary" @onclick="() => SaveNoteAsync(n)">Speichern</button>
-                        @if (n.PeerLoreHidden)
-                        {
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetHiddenAsync(n, false)">Peer-Lore wieder anzeigen</button>
-                        }
-                    </div>
-                </div>
-            </div>
-        }
+        <Collapse IsAccordion="true" class="border-top">
+            <CollapseItems>
+                @foreach (var n in notes)
+                {
+                    <CollapseItem @key="n.Id" Text="@FullNickname(n.DiscordUserId)" IsCollapsed="true">
+                        <HeaderTemplate>
+                            <span>@FullNickname(n.DiscordUserId)</span>
+                            @if (n.PeerLoreHidden)
+                            {
+                                <span class="badge bg-warning text-dark ms-2">Peer-Lore vom Mitglied ausgeblendet</span>
+                            }
+                        </HeaderTemplate>
+                        <ChildContent>
+                            <div class="row g-2">
+                                <div class="col-md-4">@TextField("Bevorzugter Name", n, MemberNoteField.PreferredName)</div>
+                                <div class="col-md-4">@TextField("Spitznamen", n, MemberNoteField.Nicknames)</div>
+                                <div class="col-md-4">@TextField("Sprachen", n, MemberNoteField.Languages)</div>
+                                <div class="col-md-6">@AreaField("Interessen", n, MemberNoteField.Interests)</div>
+                                <div class="col-md-6">@AreaField("Hintergrund", n, MemberNoteField.Background)</div>
+                                <div class="col-md-6">@AreaField("Running Gags (Peer)", n, MemberNoteField.RunningJokes)</div>
+                                <div class="col-md-6">@AreaField("Necken ok (Peer)", n, MemberNoteField.TeaseAbout)</div>
+                            </div>
+                            <div class="mt-2 d-flex gap-2">
+                                <button class="btn btn-sm btn-primary" @onclick="() => SaveNoteAsync(n)">Speichern</button>
+                                @if (n.PeerLoreHidden)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetHiddenAsync(n, false)">Peer-Lore wieder anzeigen</button>
+                                }
+                            </div>
+                        </ChildContent>
+                    </CollapseItem>
+                }
+            </CollapseItems>
+        </Collapse>
     }
 }
 
@@ -125,6 +129,7 @@ else
     private List<GuildMemberNote> notes = [];
     private List<MemberOption> memberOptions = [];
     private IReadOnlyDictionary<ulong, string> memberNames = new Dictionary<ulong, string>();
+    private IReadOnlyDictionary<ulong, string> memberNicknames = new Dictionary<ulong, string>();
     private ulong? addMemberId;
 
     protected override async Task OnAuthorizedParametersSetAsync() => await ReloadAsync();
@@ -133,12 +138,16 @@ else
     {
         loading = true;
         memberNames = await DiscordData.GetMemberDisplayNamesAsync(ParsedGuildId);
+        // The full (untrimmed) nickname, alliance tag prefix and all — ordering the note cards by this
+        // instead of the tag-stripped display name naturally groups them by alliance, then name.
+        memberNicknames = await DiscordData.GetMemberNicknamesAsync(ParsedGuildId);
         memberOptions = memberNames.Select(kv => new MemberOption(kv.Key, kv.Value)).OrderBy(m => m.Name).ToList();
 
         await using var db = await DbFactory.CreateDbContextAsync();
         notes = await db.GuildMemberNotes.AsNoTracking()
             .Where(n => n.GuildId == ParsedGuildId)
             .ToListAsync();
+        notes = notes.OrderBy(n => FullNickname(n.DiscordUserId), StringComparer.OrdinalIgnoreCase).ToList();
 
         var pending = await db.MemberNoteSuggestions.AsNoTracking()
             .Where(s => s.GuildId == ParsedGuildId && s.Status == MemberNoteSuggestionStatus.Pending)
@@ -210,6 +219,8 @@ else
     }
 
     private string MemberName(ulong id) => memberNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id.ToString();
+
+    private string FullNickname(ulong id) => memberNicknames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : MemberName(id);
 
     private static string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 

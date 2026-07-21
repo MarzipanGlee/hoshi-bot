@@ -196,6 +196,18 @@ locally by re-running `HoshiBot.Migrator` against the local connection string (s
   `ExtraPages` declaration, so a new one never needs a `PageBreadcrumb.razor` edit. This was a repeated
   miss (`MemberNotesAdmin`/`MemoryAdmin`/`PlayerAssignmentsAdmin` all landed as flat `Manage/Guild/`
   pages with hand-picked URLs and no breadcrumb) before the mechanism existed — don't reintroduce it.
+  **Link to one from its editor with `<ExtraPageLink>`** (`Features/ExtraPageLink.razor`), not a
+  hand-rolled `<a class="btn ...">` — before this existed, three editors each styled their "open the
+  related page" button differently (`btn-outline-primary`/`btn-outline-secondary`/solid `btn-primary`,
+  one even a plain unstyled inline link) and one hardcoded a flat guild-wide URL instead of carrying the
+  current audience/alliance context forward. `ExtraPageLink` is the one convention for both.
+- **Destructive inline actions (a table-row "Delete"/"Remove", a "Forget") use `btn btn-sm btn-danger`**
+  — the dominant, already-established convention (`MultiChannelPicker`, every `ScopeEditor`/admin-list
+  row, 20+ places) for an inline action inside a card/table row. A dedicated full-page delete
+  *confirmation* button (`Manage/Stfc/**/Delete.razor`) is the one legitimate exception — no `-sm`, since
+  that's a standalone page, not an inline row action. `btn-outline-danger` crept in once
+  (`AiChatEditor`'s API-key Delete) — don't reintroduce a second one-off style for what's the same kind
+  of action as everywhere else.
 - **Deciding CRUD vs. read-only for a new admin page**: does anything else (a Quartz job, a
   Discord command, another Web page) already write to this table automatically? If yes, it's
   job/Discord-managed — read-only (`StfcServerStatus`/`StfcEventStatus`/`StfcClientRelease`

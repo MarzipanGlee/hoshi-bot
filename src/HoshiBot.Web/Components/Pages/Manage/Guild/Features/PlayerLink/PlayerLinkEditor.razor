@@ -17,9 +17,8 @@
             alliances — with <strong>no message to the member</strong>. Everyone else (members from other
             alliances/servers, renamed players, alts) you assign by hand on the member page.
         </p>
-        <a class="btn btn-primary btn-sm mt-2" href="manage/guild/@GuildId/features/player-link/assignments">
-            Spielerzuordnung öffnen
-        </a>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="player-link" ExtraSlug="assignments" Label="Open player assignments" />
     </SettingsCard>
 
     <SettingsCard Title="Status">

@@ -1,0 +1,17 @@
+@* The one styling + href-building convention for a "open this feature's related admin page" button
+   (e.g. MemberLore's Notes/Interviews, AiChat's Memories, PlayerLink's Assignments) — every
+   FeatureExtraPage link goes through this instead of hand-building its own class/href, so a new one
+   can't drift into its own one-off style. Carries the current audience/alliance context forward, same
+   as FeatureExtraPageHost.razor's own route shapes. *@
+<a class="btn btn-outline-primary btn-sm" href="@Href">@Label</a>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
+    [Parameter, EditorRequired] public string FeatureSlug { get; set; } = "";
+    [Parameter, EditorRequired] public string ExtraSlug { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    private string Href => $"{AudienceDisplay.FeatureScopePrefix(GuildId, Audience, GuildAllianceId)}/features/{FeatureSlug}/{ExtraSlug}";
+}
