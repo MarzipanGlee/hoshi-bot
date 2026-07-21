@@ -67,4 +67,9 @@ public enum GuildFeature
     // Every feature that contributes a bridge button declares this as a dependency
     // (GuildFeatureDependencies). Keep last so existing enum ordinals/DB rows don't shift.
     CommandBridge,
+
+    // Auto-translates crossposted official announcements (e.g. Scopely's English STFC news) posted in
+    // the configured source channels and reposts a branded translation into a destination channel, so
+    // members who don't read the source language still see them. Guild-wide, like AiChat.
+    AnnouncementForwarder,
 }

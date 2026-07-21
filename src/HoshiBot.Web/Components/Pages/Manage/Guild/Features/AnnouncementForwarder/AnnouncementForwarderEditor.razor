@@ -1,0 +1,57 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<div class="card-grid mt-1">
+    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AnnouncementForwarder" Audience="ResolvedAudience"
+        Title="Source channels" Usage="Channels to watch for official announcements (e.g. the crossposted Scopely news channel)." />
+
+    <SettingsCard Title="Destination channel">
+        <ChannelPicker Label="Destination channel" ShowLabel="false" Usage="Where the translated announcement is posted."
+            @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+    </SettingsCard>
+
+    <SettingsCard Title="Target language (optional)">
+        <label for="forwarderLanguage" class="form-label">
+            Language to translate into. Leave empty to use the server's Discord language.
+        </label>
+        <select id="forwarderLanguage" class="form-select" @bind="targetLanguageInput" @bind:after="SaveTargetLanguageAsync">
+            <option value="">— server language —</option>
+            @foreach (var lang in FtsLanguage.SupportedConfigs.Where(l => l != FtsLanguage.Default))
+            {
+                <option value="@lang">@lang</option>
+            }
+        </select>
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.AnnouncementForwarder;
+
+    private List<IGuildChannel> channels = [];
+    private string? channelInput;
+    private string? targetLanguageInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.Channel))?.ToString();
+        targetLanguageInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.TargetLanguage);
+    }
+
+    private Task SaveChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.Channel, ParseId(channelInput));
+
+    private Task SaveTargetLanguageAsync() =>
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.TargetLanguage, targetLanguageInput);
+}

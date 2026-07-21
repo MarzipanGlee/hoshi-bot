@@ -199,3 +199,15 @@ public static class OpsLevelRolesSettingKeys
         _ => throw new ArgumentOutOfRangeException(nameof(group), group, "Unknown Ops group."),
     };
 }
+
+public static class AnnouncementForwarderSettingKeys
+{
+    // Where the translated announcement is posted — same key string as AnnouncementsSettingKeys.Channel,
+    // just under this feature, so it follows the same "Channel" convention used across simple
+    // single-destination features (RoeViolationReports, Announcements).
+    public const string Channel = "Channel";
+
+    // Optional override for the language to translate into (an FtsLanguage-style config name); unset
+    // falls back to the guild's Discord preferred locale.
+    public const string TargetLanguage = "TargetLanguage";
+}

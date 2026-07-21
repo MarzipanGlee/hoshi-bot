@@ -3,6 +3,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Absences;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiChat;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AlertsOptIn;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AllianceTournament;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AnnouncementForwarder;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Announcements;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AnonymousMessaging;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ClientRelease;
@@ -40,6 +41,7 @@ public static class FeatureCatalog
         new AiChatFeature(),
         new AlertsOptInFeature(),
         new AllianceTournamentFeature(),
+        new AnnouncementForwarderFeature(),
         new AnnouncementsFeature(),
         new AnonymousMessagingFeature(),
         new ClientReleaseFeature(),

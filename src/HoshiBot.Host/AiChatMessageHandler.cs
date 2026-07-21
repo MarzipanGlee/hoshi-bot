@@ -1,4 +1,5 @@
 using HoshiBot.Discord.AiChat;
+using HoshiBot.Discord.AnnouncementForwarder;
 using HoshiBot.Discord.MemberLore;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
@@ -47,6 +48,11 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClie
             // announcement wasn't searchable for up to a backfill cycle. Independent of replying.
             var index = scope.ServiceProvider.GetRequiredService<AiChatIndexService>();
             await index.MaybeIndexIncomingAsync(message, CancellationToken.None);
+
+            // Auto-translate + repost official announcements (also webhook/bot authors, e.g. Scopely's
+            // crossposted news) into the configured destination channel. Independent of replying.
+            var forwarder = scope.ServiceProvider.GetRequiredService<AnnouncementForwarderService>();
+            await forwarder.MaybeForwardAsync(message, CancellationToken.None);
 
             // Only *answer* real members — never bots/webhooks (their content is still indexed above).
             if (message.Author.IsBot)

@@ -54,6 +54,9 @@ public static class GuildFeatureAudiences
         // Per-alliance hub messages — one set of bridges per linked alliance (channels live on
         // GuildAlliance). Single Alliance audience.
         GuildFeature.CommandBridge => GuildAudience.Alliance,
+        // Guild-wide, single toggle: Scopely's official announcements aren't alliance-specific, so
+        // one destination channel/source-channel set for the whole Discord, not per audience.
+        GuildFeature.AnnouncementForwarder => GuildAudience.Guild,
         _ => GuildAudience.None,
     };
 

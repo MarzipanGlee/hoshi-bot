@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord;
 using HoshiBot.Discord.Absences;
 using HoshiBot.Discord.AiChat;
+using HoshiBot.Discord.AnnouncementForwarder;
 using HoshiBot.Discord.AnonymousMessages;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.CommandBridge;
@@ -90,6 +91,8 @@ builder.Services.AddScoped<MemberInterviewService>();
 builder.Services.AddScoped<MemberNoteExtractor>();
 builder.Services.AddScoped<MemoryService>();
 builder.Services.AddScoped<MemoryExtractor>();
+builder.Services.AddScoped<AnnouncementTranslator>();
+builder.Services.AddScoped<AnnouncementForwarderService>();
 builder.Services.AddScoped<PlayerLinkService>();
 builder.Services.AddScoped<MemberOnboardingService>();
 
