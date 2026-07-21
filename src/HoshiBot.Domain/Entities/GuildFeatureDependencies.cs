@@ -18,6 +18,10 @@ public static class GuildFeatureDependencies
         // ground AI Chat's answers.
         GuildFeature.MemberLore => [new(GuildFeature.AiChat)],
 
+        // The forwarder's translation calls reuse AI Chat's configured model/API key
+        // (AiChatModelResolver) — without AI Chat configured, it has no model to translate with.
+        GuildFeature.AnnouncementForwarder => [new(GuildFeature.AiChat, "Uses AI Chat's configured model to translate.")],
+
         // Member Onboarding builds directly on Player Assignment's matcher (it DMs the members
         // Player Assignment couldn't place automatically).
         GuildFeature.MemberOnboarding => [new(GuildFeature.PlayerLink)],

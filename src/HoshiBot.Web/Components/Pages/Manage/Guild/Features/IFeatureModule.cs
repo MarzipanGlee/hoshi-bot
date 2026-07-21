@@ -115,8 +115,28 @@ public static class FeatureModuleExtensions
             }
             else
             {
-                enabled = await context.FeatureService.IsEnabledAsync(guildId, dep.Feature);
-                configured = enabled;
+                // Nothing to pin — the dependent's own audience doesn't overlap any audience the
+                // dependency supports (e.g. a Guild-audience feature depending on an Alliance/Server/
+                // VeilGroup/Community one like AiChat). Still check IsConfiguredAsync rather than
+                // assuming "enabled anywhere" means configured: try each audience the dependency is
+                // actually enabled under and treat it as configured if any one of them is — correct
+                // for a guild-wide-settings dependency (its check ignores the audience argument
+                // entirely, e.g. AiChatFeature's API key) and still meaningful for a genuinely
+                // per-audience one.
+                var enabledAudiences = await context.FeatureService.GetEnabledAudiencesAsync(guildId, dep.Feature);
+                enabled = enabledAudiences.Count > 0;
+                configured = false;
+                foreach (var a in enabledAudiences)
+                {
+                    var scope = a == GuildAudience.Alliance ? guildAllianceId : null;
+                    if (a == GuildAudience.Alliance && scope is null)
+                        continue; // no alliance in context to scope this check to — skip, matches the pinning guard above
+                    if (await depModule.IsConfiguredAsync(guildId, a, scope, context))
+                    {
+                        configured = true;
+                        break;
+                    }
+                }
             }
 
             states.Add(new FeatureDependencyState(depModule, dep.Note, enabled, configured));

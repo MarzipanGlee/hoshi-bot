@@ -52,7 +52,7 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClie
             // Auto-translate + repost official announcements (also webhook/bot authors, e.g. Scopely's
             // crossposted news) into the configured destination channel. Independent of replying.
             var forwarder = scope.ServiceProvider.GetRequiredService<AnnouncementForwarderService>();
-            await forwarder.MaybeForwardAsync(message, CancellationToken.None);
+            await forwarder.MaybeForwardAsync(message.GuildId.Value, message, CancellationToken.None);
 
             // Only *answer* real members — never bots/webhooks (their content is still indexed above).
             if (message.Author.IsBot)

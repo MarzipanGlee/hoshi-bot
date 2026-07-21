@@ -33,6 +33,18 @@
             }
         </select>
     </SettingsCard>
+
+    <SettingsCard Title="Catch-up window (optional)">
+        <label for="forwarderCatchUpWindow" class="form-label">
+            How far back (in hours) to look for a missed announcement — e.g. one posted while the bot
+            was down. Only messages newer than this are ever caught up, so a long-idle source channel
+            doesn't get its whole history dumped into the destination. Leave empty for the default
+            (@AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours hours).
+        </label>
+        <input id="forwarderCatchUpWindow" type="number" min="1" class="form-control"
+               placeholder="@AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours"
+               @bind="catchUpWindowInput" @bind:after="SaveCatchUpWindowAsync" />
+    </SettingsCard>
 </div>
 
 @code {
@@ -41,12 +53,14 @@
     private List<IGuildChannel> channels = [];
     private string? channelInput;
     private string? targetLanguageInput;
+    private string? catchUpWindowInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
         channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.Channel))?.ToString();
         targetLanguageInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.TargetLanguage);
+        catchUpWindowInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.CatchUpWindowHours);
     }
 
     private Task SaveChannelAsync() =>
@@ -54,4 +68,7 @@
 
     private Task SaveTargetLanguageAsync() =>
         SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.TargetLanguage, targetLanguageInput);
+
+    private Task SaveCatchUpWindowAsync() =>
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.CatchUpWindowHours, catchUpWindowInput);
 }

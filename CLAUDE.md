@@ -169,6 +169,18 @@ locally by re-running `HoshiBot.Migrator` against the local connection string (s
   guilds so no notifications go out for a paused feature). When adding a new toggleable
   feature, check all three — it's easy to guard the slash command and forget the hub
   button or the job.
+- **When a new feature genuinely can't do anything without another feature configured (not
+  just "nice to combine with"), declare it in `GuildFeatureDependencies.Of`** (`HoshiBot.Domain`)
+  — e.g. MemberLore/AnnouncementForwarder both need `AiChat` configured, since their
+  translation/lore calls reuse its model+API key. This is what makes the Features page's
+  dependency hint/badge show up at all; skipping it silently leaves a feature that "does
+  nothing" with no clue why. If the dependency is only usable/checkable from a subset of
+  audiences (e.g. a Guild-audience feature depending on an Alliance/Server/VeilGroup/Community
+  one like AiChat), don't assume `GetDependencyStatesAsync`'s generic "enabled anywhere" fallback
+  is checking the real `IsConfiguredAsync` — verify it actually resolves via one of the
+  dependency's genuinely-enabled audiences (see the fix in `IFeatureModule.cs`'s
+  `GetDependencyStatesAsync`, prompted by `AnnouncementForwarder` → `AiChat` not lining up on
+  audience).
 - Run `dotnet format --verify-no-changes` before committing — there's no CI here yet, so
   this is the only formatting check in place.
 - **HoshiBot.Web UI: prefer BootstrapBlazor components over hand-rolled HTML.** The package

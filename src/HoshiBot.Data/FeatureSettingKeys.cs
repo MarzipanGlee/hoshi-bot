@@ -210,4 +210,11 @@ public static class AnnouncementForwarderSettingKeys
     // Optional override for the language to translate into (an FtsLanguage-style config name); unset
     // falls back to the guild's Discord preferred locale.
     public const string TargetLanguage = "TargetLanguage";
+
+    // How far back (in hours) AnnouncementForwarderCatchUpJob will ever look for a missed
+    // announcement. Unset -> DefaultCatchUpWindowHours. Time-bounded rather than count-bounded: these
+    // source channels post rarely, so a fixed message count would span months and risk resurrecting
+    // stale news on first enable or after a long outage.
+    public const string CatchUpWindowHours = "CatchUpWindowHours";
+    public const int DefaultCatchUpWindowHours = 96;
 }

@@ -263,6 +263,13 @@ builder.Services.AddQuartz(quartz =>
             .WithIdentity($"{memoryConsolidationJobKey.Name}-trigger")
             .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
 
+    var announcementForwarderCatchUpJobKey = new JobKey(nameof(AnnouncementForwarderCatchUpJob));
+    quartz.AddJob<AnnouncementForwarderCatchUpJob>(announcementForwarderCatchUpJobKey)
+        .AddTrigger(trigger => trigger
+            .ForJob(announcementForwarderCatchUpJobKey)
+            .WithIdentity($"{announcementForwarderCatchUpJobKey.Name}-trigger")
+            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+
     var playerLinkSyncJobKey = new JobKey(nameof(PlayerLinkSyncJob));
     quartz.AddJob<PlayerLinkSyncJob>(playerLinkSyncJobKey)
         .AddTrigger(trigger => trigger
