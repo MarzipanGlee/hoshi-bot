@@ -680,15 +680,29 @@ public partial class AiChatIndexService(
         catch (RestException) { return []; }
     }
 
-    private ulong? ResolveParentId(ulong guildId, ulong channelId) =>
-        gatewayClient.Cache.Guilds.TryGetValue(guildId, out var g) && g.Channels.TryGetValue(channelId, out var ch)
-            ? ParentIdOf(ch)
-            : null;
+    // Forum posts are threads, and NetCord's gateway cache tracks those in a separate
+    // ActiveThreads dictionary — never merged into Channels (confirmed against NetCord's
+    // Guild ctor, which populates each from its own distinct JSON array). A lookup that only
+    // checks Channels silently misses every forum thread, which would make a Preferred/
+    // LastResort tier assigned to the forum itself never resolve for any of its posts (they'd
+    // all quietly fall back to Normal weight) — so both lookups here also check ActiveThreads.
+    private ulong? ResolveParentId(ulong guildId, ulong channelId)
+    {
+        if (!gatewayClient.Cache.Guilds.TryGetValue(guildId, out var g))
+            return null;
+        if (g.Channels.TryGetValue(channelId, out var ch))
+            return ParentIdOf(ch);
+        return g.ActiveThreads.TryGetValue(channelId, out var thread) ? thread.ParentId : null;
+    }
 
-    private string? ResolveChannelName(ulong guildId, ulong channelId) =>
-        gatewayClient.Cache.Guilds.TryGetValue(guildId, out var g) && g.Channels.TryGetValue(channelId, out var ch)
-            ? ch.Name
-            : null;
+    private string? ResolveChannelName(ulong guildId, ulong channelId)
+    {
+        if (!gatewayClient.Cache.Guilds.TryGetValue(guildId, out var g))
+            return null;
+        if (g.Channels.TryGetValue(channelId, out var ch))
+            return ch.Name;
+        return g.ActiveThreads.TryGetValue(channelId, out var thread) ? thread.Name : null;
+    }
 
     private static ulong? ParentIdOf(IGuildChannel channel) => channel switch
     {
@@ -713,6 +727,10 @@ public partial class AiChatIndexService(
     private static string Truncate(string text) =>
         text.Length <= MaxContentLength ? text : text[..MaxContentLength];
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"[^\p{L}\p{N}]+")]
+    // Apostrophes are kept as part of a word (not a delimiter) so a proper noun like "V'GER"
+    // survives as one specific token instead of shredding into "V" (dropped, too short) and
+    // "GER" (kept, but generic) — the exact split that let an unrelated Gorn-crew thread
+    // outrank the real V'GER answer, since only the generic fragment reached the query.
+    [System.Text.RegularExpressions.GeneratedRegex(@"[^\p{L}\p{N}']+")]
     private static partial System.Text.RegularExpressions.Regex TokenSplitter();
 }
