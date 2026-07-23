@@ -84,7 +84,7 @@ public class MemberInterviewExtractionJob(
         // that sub-step without affecting note extraction at all.
         var memoryEnabled = string.Equals(
             await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, GuildAudience.None, null, AiChatSettingKeys.MemoryEnabled),
-            "true", StringComparison.OrdinalIgnoreCase) && embeddingService.Enabled;
+            "true", StringComparison.OrdinalIgnoreCase) && await embeddingService.IsEnabledAsync(guildId);
 
         var extracted = 0;
         var suggestions = 0;
@@ -133,7 +133,8 @@ public class MemberInterviewExtractionJob(
         if (summary is null)
             return;
 
-        var embedding = await embeddingService.EmbedAsync(summary, cancellationToken);
+        var embedding = await embeddingService.EmbedAsync(guildId, summary, cancellationToken);
+        var embeddingModel = embedding is null ? null : await embeddingService.GetModelAsync(guildId);
         await memoryService.AddMemberMemoryAsync(new GuildMemory
         {
             GuildId = guildId,
@@ -144,7 +145,7 @@ public class MemberInterviewExtractionJob(
             Salience = MemberMemorySalience,
             CreatedAt = DateTimeOffset.UtcNow,
             Embedding = embedding,
-            EmbeddingModel = embedding is null ? null : embeddingService.Model,
+            EmbeddingModel = embeddingModel,
         }, KeepMemoriesPerPerson, cancellationToken);
     }
 

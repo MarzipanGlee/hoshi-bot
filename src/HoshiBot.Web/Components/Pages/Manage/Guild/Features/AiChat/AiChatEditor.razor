@@ -107,6 +107,29 @@
         }
     </SettingsCard>
 
+    <SettingsCard Title="Embeddings (optional)">
+        <label for="aiChatEmbeddingProvider" class="form-label">
+            Which backend powers semantic search (paraphrase-aware knowledge lookup) and memory
+            recall. Independent of the AI provider above — you can chat with Gemini while keeping
+            Ollama embeddings, or vice versa.
+        </label>
+        <select id="aiChatEmbeddingProvider" class="form-select"
+                @bind="embeddingProviderInput" @bind:after="SaveEmbeddingProviderAsync">
+            <option value="ollama">Ollama (default, local, no key needed)</option>
+            <option value="gemini-embedding-001">Gemini Embedding 1 (text)</option>
+            <option value="gemini-embedding-2">Gemini Embedding 2 (multimodal-capable; text used here)</option>
+        </select>
+        <div class="form-text">
+            Gemini Embedding options reuse this guild's <strong>Gemini API key</strong> (set above) —
+            no separate key needed, but a Gemini choice stays disabled until a key is configured.
+            Switching doesn't need a manual re-index: existing content re-embeds automatically over
+            the next few scheduled passes (a brief window where search quietly skips not-yet-re-embedded
+            content is expected and self-corrects). Gemini Embedding 1 is text-only; Gemini Embedding 2
+            additionally supports image/video/audio/PDF input at the API level, though Hoshi doesn't
+            index those yet.
+        </div>
+    </SettingsCard>
+
     <SettingsCard Title="Gate model (optional)">
         <label for="aiChatGateModel" class="form-label">
             A small, fast model that pre-screens messages in listen channels: it decides whether a
@@ -173,7 +196,8 @@
         </div>
         <p class="form-text mt-0">
             Hoshi distils notable community events from chat into memories she recalls later in
-            conversation. Needs embeddings (Ollama) configured. Review, edit, or forget them here.
+            conversation. Needs embeddings configured (see the Embeddings setting above). Review,
+            edit, or forget them here.
         </p>
         <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
             FeatureSlug="ai-chat" ExtraSlug="memories" Label="Open memories" />
@@ -218,6 +242,7 @@
     private string providerInput = "gemini";
     private string? systemPromptInput;
     private string? modelInput;
+    private string embeddingProviderInput = "ollama";
     private string? gateModelInput;
     private string? routerModelInput;
     private bool streamResponses;
@@ -234,6 +259,10 @@
         providerInput = string.Equals(storedProvider, "ollama", StringComparison.OrdinalIgnoreCase) ? "ollama" : "gemini";
         systemPromptInput = await GetText(AiChatSettingKeys.SystemPrompt);
         modelInput = await GetText(AiChatSettingKeys.Model);
+        var storedEmbeddingProvider = await GetText(AiChatSettingKeys.EmbeddingProvider);
+        embeddingProviderInput = storedEmbeddingProvider is "gemini-embedding-001" or "gemini-embedding-2"
+            ? storedEmbeddingProvider
+            : "ollama";
         gateModelInput = await GetText(AiChatSettingKeys.GateModel);
         routerModelInput = await GetText(AiChatSettingKeys.RouterModel);
         streamResponses = string.Equals(await GetText(AiChatSettingKeys.StreamResponses), "true", StringComparison.OrdinalIgnoreCase);
@@ -280,6 +309,8 @@
     private Task SaveSystemPromptAsync() => SetText(AiChatSettingKeys.SystemPrompt, systemPromptInput);
 
     private Task SaveModelAsync() => SetText(AiChatSettingKeys.Model, modelInput);
+
+    private Task SaveEmbeddingProviderAsync() => SetText(AiChatSettingKeys.EmbeddingProvider, embeddingProviderInput);
 
     private Task SaveGateModelAsync() => SetText(AiChatSettingKeys.GateModel, gateModelInput);
 

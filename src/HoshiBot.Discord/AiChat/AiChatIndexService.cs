@@ -156,20 +156,29 @@ public partial class AiChatIndexService(
     // when embeddings are disabled, none are stored yet, or the query-embed call fails.
     private async Task<List<Candidate>> VectorCandidatesAsync(HoshiBotDbContext db, ulong guildId, string queryText, CancellationToken cancellationToken)
     {
-        if (!embeddingService.Enabled || string.IsNullOrWhiteSpace(queryText))
+        if (!await embeddingService.IsEnabledAsync(guildId) || string.IsNullOrWhiteSpace(queryText))
             return [];
 
-        // Cheap guard so we don't pay the query-embed cost before any row is embedded.
+        var model = await embeddingService.GetModelAsync(guildId);
+
+        // Cheap guard so we don't pay the query-embed cost before any row is embedded under the
+        // guild's *currently* resolved model — rows embedded under a since-abandoned model (e.g.
+        // before a guild switched embedding backend) don't count, matching the model filter below.
         var hasEmbeddings = await db.AiChatIndexedMessages
-            .AnyAsync(m => m.GuildId == guildId && m.Embedding != null, cancellationToken);
+            .AnyAsync(m => m.GuildId == guildId && m.Embedding != null && m.EmbeddingModel == model, cancellationToken);
         if (!hasEmbeddings)
             return [];
 
-        if (await embeddingService.EmbedAsync(queryText, cancellationToken) is not { } queryVec)
+        if (await embeddingService.EmbedAsync(guildId, queryText, cancellationToken) is not { } queryVec)
             return [];
 
+        // Filtering by EmbeddingModel matters here in a way it wouldn't for a same-family model bump:
+        // an Ollama vector and a Gemini vector are different coordinate systems entirely, so cosine
+        // distance across them is close to meaningless, not just "a bit stale". Rows embedded under a
+        // different model than the guild's current choice are excluded until EmbedPendingAsync's
+        // stale-model detection re-embeds them, rather than polluting ranking with incomparable hits.
         return await db.AiChatIndexedMessages
-            .Where(m => m.GuildId == guildId && m.Embedding != null)
+            .Where(m => m.GuildId == guildId && m.Embedding != null && m.EmbeddingModel == model)
             .OrderBy(m => m.Embedding!.CosineDistance(queryVec))
             .Take(CandidatePoolSize)
             .Select(m => new Candidate(m.Id, m.ChannelId, m.ChannelName, m.Content))
@@ -412,10 +421,10 @@ public partial class AiChatIndexService(
     // semantic search is disabled. Newest messages first (most likely to be queried).
     public async Task EmbedPendingAsync(ulong guildId, CancellationToken cancellationToken)
     {
-        if (!embeddingService.Enabled)
+        if (!await embeddingService.IsEnabledAsync(guildId))
             return;
 
-        var model = embeddingService.Model;
+        var model = await embeddingService.GetModelAsync(guildId);
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
         var maxPerRun = MaxEmbedPerRun;
@@ -435,7 +444,7 @@ public partial class AiChatIndexService(
         for (var i = 0; i < pending.Count; i += EmbedBatchSize)
         {
             var batch = pending.Skip(i).Take(EmbedBatchSize).ToList();
-            var vectors = await embeddingService.EmbedBatchAsync(batch.Select(m => m.Content).ToList(), cancellationToken);
+            var vectors = await embeddingService.EmbedBatchAsync(guildId, batch.Select(m => m.Content).ToList(), cancellationToken);
 
             var any = false;
             for (var j = 0; j < batch.Count; j++)

@@ -1,79 +1,89 @@
+using HoshiBot.Data;
+using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using OllamaSharp;
-using OllamaSharp.Models;
 using Pgvector;
 
 namespace HoshiBot.Discord.AiChat;
 
-// Generates text embeddings via the shared local Ollama server (deployment-wide, independent of
-// each guild's chat provider) using OllamaSharp's /api/embed. Powers the vector leg of the hybrid
-// knowledge search: AiChatIndexService embeds indexed messages (in the backfill job) and the live
-// query with the same model, so their vectors are comparable.
+// Resolves and calls this guild's embedding backend: local Ollama (deployment-wide default,
+// today's/legacy behavior) or Google Gemini (gemini-embedding-001/gemini-embedding-2, per-guild
+// opt-in via AiChatSettingKeys.EmbeddingProvider, reusing the guild's existing chat API key). Thin
+// facade over IAiEmbeddingProvider so callers (AiChatIndexService, AiChatService,
+// MemoryConsolidationJob, MemberInterviewExtractionJob) keep calling EmbedAsync/EmbedBatchAsync
+// exactly as before, just with a guildId added — all resolution happens here.
 //
-// Enabled only when Ollama:EmbeddingModel is set (default embeddinggemma, 768 dims to match the
-// AiChatIndexedMessage.Embedding column). Blank config ⇒ semantic search is off and retrieval
-// stays FTS-only. Never throws for an API/network error — logs and returns null(s) so callers
-// degrade to FTS-only.
+// A guild that has never touched the new setting resolves to exactly today's behavior: Ollama +
+// Ollama:EmbeddingModel (or disabled if that's blanked) — see ResolveAsync's default branch. This is
+// deliberate: an unrecognized/unset value must never resolve to Gemini, so a typo or stale value
+// can't silently start billing a guild's API key.
 public class AiChatEmbeddingService(
-    IHttpClientFactory httpClientFactory,
-    IConfiguration configuration,
-    ILogger<AiChatEmbeddingService> logger)
+    IEnumerable<IAiEmbeddingProvider> providers,
+    GuildFeatureSettingsService settingsService,
+    IConfiguration configuration)
 {
-    public const string DefaultModel = "embeddinggemma";
+    public const string DefaultOllamaModel = "embeddinggemma";
 
-    // Must match the vector(N) column dimension in AiChatIndexedMessageConfiguration.
+    // Must match the vector(N) column dimension in AiChatIndexedMessageConfiguration /
+    // GuildMemoryConfiguration. Both providers are required to honor this — Ollama's embeddinggemma
+    // is natively 768-dim; Gemini truncates its native (larger) output via OutputDimensionality.
     public const int Dimensions = 768;
 
-    public string Model =>
-        configuration["Ollama:EmbeddingModel"] is { Length: > 0 } m ? m : DefaultModel;
+    private const GuildAudience SettingsScope = GuildAudience.None;
 
-    // Semantic search is disabled when the model is explicitly blanked in config.
-    public bool Enabled => !string.IsNullOrWhiteSpace(configuration["Ollama:EmbeddingModel"] ?? DefaultModel);
+    private readonly record struct Resolved(IAiEmbeddingProvider Provider, string Model, string? ApiKey, bool Enabled);
 
-    // Reuses the named HttpClient registered for OllamaClient (same base URL + timeout). The
-    // OllamaApiClient does not own/dispose an externally supplied HttpClient.
-    private OllamaApiClient CreateClient() => new(httpClientFactory.CreateClient(nameof(OllamaClient)));
-
-    // Embeds a single text; null on failure/disabled.
-    public async Task<Vector?> EmbedAsync(string text, CancellationToken cancellationToken)
+    // Resolves this guild's effective (provider, model, apiKey, enabled). Unset/"ollama"/any
+    // unrecognized value -> Ollama + deployment config (today's behavior, unconditionally).
+    // "gemini-embedding-001"/"gemini-embedding-2" -> Gemini + that literal model name, using the
+    // guild's existing AiChatSettingKeys.ApiKey (the same key already used for chat); enabled only
+    // if that key is configured.
+    private async Task<Resolved> ResolveAsync(ulong guildId)
     {
-        var results = await EmbedBatchAsync([text], cancellationToken);
+        var configured = await settingsService.GetTextAsync(
+            guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.EmbeddingProvider);
+
+        if (configured is { } value
+            && (string.Equals(value, "gemini-embedding-001", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "gemini-embedding-2", StringComparison.OrdinalIgnoreCase)))
+        {
+            var apiKey = await settingsService.GetSecretAsync(
+                guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
+            var geminiProvider = providers.First(p => p.Kind == EmbeddingProvider.Gemini);
+            return new Resolved(geminiProvider, value.Trim().ToLowerInvariant(), apiKey, Enabled: !string.IsNullOrWhiteSpace(apiKey));
+        }
+
+        var ollamaModel = configuration["Ollama:EmbeddingModel"] is { Length: > 0 } m ? m : DefaultOllamaModel;
+        var ollamaProvider = providers.First(p => p.Kind == EmbeddingProvider.Ollama);
+        return new Resolved(ollamaProvider, ollamaModel, ApiKey: null,
+            Enabled: !string.IsNullOrWhiteSpace(configuration["Ollama:EmbeddingModel"] ?? DefaultOllamaModel));
+    }
+
+    // Whether semantic search/recall is available for this guild right now (false => callers
+    // degrade to FTS-only / no-recall). False for Ollama when Ollama:EmbeddingModel is explicitly
+    // blanked (deployment opt-out, unchanged from today); false for Gemini when no API key is
+    // configured yet.
+    public async Task<bool> IsEnabledAsync(ulong guildId) => (await ResolveAsync(guildId)).Enabled;
+
+    // The model name currently in effect for this guild — used only to stamp
+    // AiChatIndexedMessage.EmbeddingModel / GuildMemory.EmbeddingModel so the existing stale-model
+    // re-embed queries (and the cross-model search-filter hardening) keep working.
+    public async Task<string> GetModelAsync(ulong guildId) => (await ResolveAsync(guildId)).Model;
+
+    public async Task<Vector?> EmbedAsync(ulong guildId, string text, CancellationToken cancellationToken)
+    {
+        var results = await EmbedBatchAsync(guildId, [text], cancellationToken);
         return results.Count > 0 ? results[0] : null;
     }
 
-    // Embeds a batch in one /api/embed call. Returns one entry per input (same order); an entry is
-    // null if the whole call failed. Returns all-null (never throws) on any API/network error.
-    public async Task<IReadOnlyList<Vector?>> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Vector?>> EmbedBatchAsync(ulong guildId, IReadOnlyList<string> texts, CancellationToken cancellationToken)
     {
-        if (!Enabled || texts.Count == 0)
+        if (texts.Count == 0)
+            return [];
+
+        var resolved = await ResolveAsync(guildId);
+        if (!resolved.Enabled)
             return new Vector?[texts.Count];
 
-        try
-        {
-            var client = CreateClient();
-            var response = await client.EmbedAsync(new EmbedRequest { Model = Model, Input = [.. texts] }, cancellationToken);
-
-            var embeddings = response?.Embeddings;
-            if (embeddings is null || embeddings.Count != texts.Count)
-            {
-                logger.LogWarning(
-                    "Ollama embed returned {Got} vectors for {Expected} inputs (model {Model})",
-                    embeddings?.Count.ToString() ?? "null", texts.Count, Model);
-                return new Vector?[texts.Count];
-            }
-
-            var result = new Vector?[texts.Count];
-            for (var i = 0; i < texts.Count; i++)
-                result[i] = new Vector(embeddings[i]);
-            return result;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            // Model not pulled, server down, dimension mismatch, etc. — the line to check when
-            // semantic search silently stays FTS-only.
-            logger.LogWarning(ex, "Ollama embed failed (model {Model}, {Count} inputs): {Error}", Model, texts.Count, ex.Message);
-            return new Vector?[texts.Count];
-        }
+        return await resolved.Provider.EmbedBatchAsync(resolved.Model, resolved.ApiKey, texts, cancellationToken);
     }
 }

@@ -74,4 +74,18 @@ public static class AiChatSettingKeys
     // (a regconfig name like "german"/"english"/"simple"). Unset falls back to a value derived
     // from the guild's Discord preferred locale — see FtsLanguage.
     public const string SearchLanguage = "SearchLanguage";
+
+    // Which embedding backend powers semantic search (the vector leg of hybrid knowledge retrieval)
+    // and episodic/member memory recall — independent of Provider above (chat and embeddings can
+    // use different backends). Stored value is the literal effective identifier:
+    //   - unset / "ollama" / any unrecognized value -> Ollama, the shared local server's
+    //     Ollama:EmbeddingModel deployment config (today's behavior — the only default that never
+    //     changes an existing guild's behavior or cost).
+    //   - "gemini-embedding-001" -> Google's gemini-embedding-001 (text-only).
+    //   - "gemini-embedding-2" -> Google's gemini-embedding-2 (multimodal-capable at the API level;
+    //     only text input is exercised today — see docs/backlog.md's image/vision backlog item).
+    // Both Gemini options reuse this guild's existing ApiKey (the same key already configured for
+    // chat) and are truncated to a fixed 768-dim output (AiChatEmbeddingService.Dimensions) to
+    // match the vector(768) column — no schema migration involved in switching.
+    public const string EmbeddingProvider = "EmbeddingProvider";
 }

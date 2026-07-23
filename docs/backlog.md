@@ -83,6 +83,30 @@ history progressively** (paging backward in bounded per-run steps, tracked per c
 - **FTS GIN index** — still none (per-guild language rules out a single constant config); revisit
   (functional GIN per language, or a stored tsvector repopulated on language change) only if needed.
 
+## AI chat — image/vision support (indexing + live replies)
+
+Hoshi is entirely text-only today, in both places that matter — confirmed no code path sends
+image data to a model or extracts anything from one:
+
+- **Indexing**: `AiChatIndexService.RenderMessageText` only reads `message.Content` and
+  `message.Embeds`; it never looks at `message.Attachments`. A bare image post with no caption
+  text and no embed renders to an empty string and is silently dropped — not even indexed as a
+  placeholder. Community-authored reference material that's commonly posted as an infographic
+  (e.g. a crew-recommendation chart image) is currently invisible to the knowledge base.
+- **Live replies**: `AiChatTurn` (`IAiChatProvider.cs`) is a plain `record struct(AiChatRole
+  Role, string Text)` — no image/byte field. `GeminiClient.cs` and `OllamaClient.cs` both build
+  every turn as a text-only part; neither ever populates Gemini's `InlineData` image part or
+  Ollama's `Images` field, even though both underlying APIs support multimodal input (Gemini
+  natively; Ollama for vision-capable models like llava/gemma3/qwen2-vl).
+
+Adding this is architecturally straightforward but a real feature, not a tweak: extend
+`AiChatTurn`/`AiChatCompletionRequest` with an image payload, fetch attachment bytes, and wire it
+through both the indexing pass (so an image-only post contributes *something* — at minimum a
+model-generated caption/description to index as text) and/or live-turn building (so a directly
+attached image can be reasoned about in the moment). Deferred until it's clear how much of the
+guild's actual reference material is image-only vs. text/embed-based — worth auditing the crew
+guide channels first to see how much this would actually move the needle.
+
 ## Multi-alliance: per-alliance contact buttons & announcements
 
 The multi-alliance work made feature settings/toggles and most Discord behaviour per-alliance

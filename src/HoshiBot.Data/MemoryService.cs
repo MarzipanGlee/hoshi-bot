@@ -20,12 +20,15 @@ public class MemoryService(IDbContextFactory<HoshiBotDbContext> dbFactory)
     private const int PoolSize = 24;
 
     // Episodic memories most relevant to queryVec, re-ranked so semantic relevance leads (the cosine
-    // pre-filter) while salience and recency break ties. Reinforcement is the caller's job.
-    public async Task<List<GuildMemory>> SearchEpisodicAsync(ulong guildId, Vector queryVec, int limit, CancellationToken cancellationToken = default)
+    // pre-filter) while salience and recency break ties. Reinforcement is the caller's job. `model`
+    // must match the guild's currently-resolved embedding model (AiChatEmbeddingService.GetModelAsync)
+    // — a memory embedded under a different (possibly incompatible, e.g. Ollama vs Gemini) model is
+    // excluded rather than ranked by a cosine distance that would be meaningless across vector spaces.
+    public async Task<List<GuildMemory>> SearchEpisodicAsync(ulong guildId, Vector queryVec, string model, int limit, CancellationToken cancellationToken = default)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var pool = await db.GuildMemories
-            .Where(m => m.GuildId == guildId && m.Scope == MemoryScope.Episodic && m.Embedding != null)
+            .Where(m => m.GuildId == guildId && m.Scope == MemoryScope.Episodic && m.Embedding != null && m.EmbeddingModel == model)
             .OrderBy(m => m.Embedding!.CosineDistance(queryVec))
             .Take(PoolSize)
             .ToListAsync(cancellationToken);
@@ -62,8 +65,11 @@ public class MemoryService(IDbContextFactory<HoshiBotDbContext> dbFactory)
 
         if (memory.Embedding is { } vec)
         {
+            // Same cross-model-safety reasoning as SearchEpisodicAsync: only dedup against memories
+            // embedded under the same model as the new one, so a provider switch can't compare
+            // incompatible vector spaces (which would look "novel" or "duplicate" essentially at random).
             var nearest = await db.GuildMemories
-                .Where(m => m.GuildId == memory.GuildId && m.Scope == memory.Scope && m.Embedding != null)
+                .Where(m => m.GuildId == memory.GuildId && m.Scope == memory.Scope && m.Embedding != null && m.EmbeddingModel == memory.EmbeddingModel)
                 .Select(m => new { Memory = m, Distance = m.Embedding!.CosineDistance(vec) })
                 .OrderBy(x => x.Distance)
                 .FirstOrDefaultAsync(cancellationToken);

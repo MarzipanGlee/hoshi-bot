@@ -748,10 +748,11 @@ public partial class AiChatService(
             return "";
 
         var memories = new List<GuildMemory>();
-        if (embeddingService.Enabled && !string.IsNullOrWhiteSpace(questionText)
-            && await embeddingService.EmbedAsync(questionText, cancellationToken) is { } queryVec)
+        if (!string.IsNullOrWhiteSpace(questionText) && await embeddingService.IsEnabledAsync(guildId)
+            && await embeddingService.EmbedAsync(guildId, questionText, cancellationToken) is { } queryVec)
         {
-            memories.AddRange(await memoryService.SearchEpisodicAsync(guildId, queryVec, MemoryRelevantLimit, cancellationToken));
+            var model = await embeddingService.GetModelAsync(guildId);
+            memories.AddRange(await memoryService.SearchEpisodicAsync(guildId, queryVec, model, MemoryRelevantLimit, cancellationToken));
         }
 
         // Always fold in a few recent + salient ones so standout events surface even when the current

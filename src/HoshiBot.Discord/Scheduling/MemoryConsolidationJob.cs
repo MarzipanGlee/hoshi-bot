@@ -75,11 +75,12 @@ public class MemoryConsolidationJob(
             return;
 
         // Recall + dedup need embeddings; without them a memory can't be found again, so don't form any.
-        if (!embeddingService.Enabled)
+        if (!await embeddingService.IsEnabledAsync(guildId))
         {
             logger.LogInformation("Memory consolidation for guild {GuildId} skipped: embeddings disabled.", guildId);
             return;
         }
+        var embeddingModel = await embeddingService.GetModelAsync(guildId);
 
         var model = await modelResolver.ResolveLightweightAsync(guildId);
         if (model.Provider.Kind == AiProvider.Gemini && string.IsNullOrWhiteSpace(model.ApiKey))
@@ -137,7 +138,7 @@ public class MemoryConsolidationJob(
         var episodicStored = 0;
         foreach (var item in await extractor.ExtractAsync(model, Cap(string.Join("\n", episodicLines), MaxCandidateChars), cancellationToken))
         {
-            var embedding = await embeddingService.EmbedAsync(item.Content!, cancellationToken);
+            var embedding = await embeddingService.EmbedAsync(guildId, item.Content!, cancellationToken);
             await memoryService.AddIfNovelAsync(new GuildMemory
             {
                 GuildId = guildId,
@@ -146,7 +147,7 @@ public class MemoryConsolidationJob(
                 Salience = item.Salience,
                 CreatedAt = DateTimeOffset.UtcNow,
                 Embedding = embedding,
-                EmbeddingModel = embedding is null ? null : embeddingService.Model,
+                EmbeddingModel = embedding is null ? null : embeddingModel,
             }, cancellationToken);
             episodicStored++;
         }
@@ -160,7 +161,7 @@ public class MemoryConsolidationJob(
             var summary = await extractor.SummarizeConversationAsync(model, Cap(string.Join("\n", channelLines), MaxCandidateChars), cancellationToken);
             if (summary is null)
                 continue;
-            var embedding = await embeddingService.EmbedAsync(summary, cancellationToken);
+            var embedding = await embeddingService.EmbedAsync(guildId, summary, cancellationToken);
             await memoryService.AddConversationSnapshotAsync(new GuildMemory
             {
                 GuildId = guildId,
@@ -171,7 +172,7 @@ public class MemoryConsolidationJob(
                 Salience = ConversationSalience,
                 CreatedAt = DateTimeOffset.UtcNow,
                 Embedding = embedding,
-                EmbeddingModel = embedding is null ? null : embeddingService.Model,
+                EmbeddingModel = embedding is null ? null : embeddingModel,
             }, KeepSnapshotsPerChannel, cancellationToken);
             snapshots++;
         }
@@ -190,7 +191,7 @@ public class MemoryConsolidationJob(
                 var summary = await extractor.SummarizeMemberActivityAsync(model, authorNames[authorId], Cap(string.Join("\n", authorLines), MaxCandidateChars), cancellationToken);
                 if (summary is null)
                     continue;
-                var embedding = await embeddingService.EmbedAsync(summary, cancellationToken);
+                var embedding = await embeddingService.EmbedAsync(guildId, summary, cancellationToken);
                 await memoryService.AddMemberMemoryAsync(new GuildMemory
                 {
                     GuildId = guildId,
@@ -201,7 +202,7 @@ public class MemoryConsolidationJob(
                     Salience = MemberMemorySalience,
                     CreatedAt = DateTimeOffset.UtcNow,
                     Embedding = embedding,
-                    EmbeddingModel = embedding is null ? null : embeddingService.Model,
+                    EmbeddingModel = embedding is null ? null : embeddingModel,
                 }, KeepMemoriesPerPerson, cancellationToken);
                 memberMemories++;
             }
