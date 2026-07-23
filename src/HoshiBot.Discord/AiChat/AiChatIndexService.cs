@@ -220,8 +220,8 @@ public partial class AiChatIndexService(
     {
         // Never index the bot's own messages — otherwise she ingests her own past answers as
         // "knowledge" and cites them back to herself (a self-confirming loop, e.g. re-stating an
-        // earlier "no maintenance" reply). The live path already guards this; the guard here also
-        // covers the backfill, which pages every author's messages in a knowledge channel.
+        // earlier wrong reply). This covers the live single-message path (MaybeIndexIncomingAsync);
+        // backfill's own upsert path (UpsertMessagesAsync) has the same guard separately.
         if (message.Author.Id == gatewayClient.Id)
             return;
 
@@ -371,6 +371,11 @@ public partial class AiChatIndexService(
     private async Task<int> UpsertMessagesAsync(HoshiBotDbContext db, ulong guildId, ulong channelId, string? channelName, List<RestMessage> messages, DateTimeOffset now, HashSet<ulong> seen, CancellationToken cancellationToken)
     {
         var rendered = messages
+            // Never index the bot's own messages here either — IndexMessageAsync already guards the
+            // live/single-message path, but backfill pages every author's messages via this method, so
+            // without this check Hoshi's own past (possibly wrong) answers get ingested as "knowledge"
+            // and cited back to herself.
+            .Where(m => m.Author.Id != gatewayClient.Id)
             .Where(m => seen.Add(m.Id))
             .Select(m => new { Msg = m, Text = Truncate(RenderMessageText(m)) })
             .Where(x => !string.IsNullOrWhiteSpace(x.Text))
