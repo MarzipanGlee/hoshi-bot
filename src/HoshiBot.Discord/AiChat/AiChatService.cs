@@ -557,6 +557,7 @@ public partial class AiChatService(
             sb.Append(knowledge);
             sb.AppendLine();
             sb.AppendLine("Wenn du auf einen Kanal verweist, verwende exakt die Discord-Link-Syntax <#ID> mit einer ID aus den Wissensquellen (Discord macht daraus einen klickbaren Link). Schreibe niemals [#Name] oder #Name als reinen Text und erfinde keine IDs.");
+            sb.AppendLine("Jede Zeile in den Wissensquellen ist eine eigenständige Information aus einer einzelnen Nachricht. Verknüpfe keine getrennten Zeilen oder Aufzählungspunkte zu einer neuen Behauptung, die so nirgends steht, auch wenn sie plausibel klingt. Wenn die Wissensquellen eine Frage nicht eindeutig und direkt beantworten, sag ehrlich, dass du es nicht sicher weißt, statt Fakten zu kombinieren oder zu raten.");
         }
 
         sb.AppendLine();
