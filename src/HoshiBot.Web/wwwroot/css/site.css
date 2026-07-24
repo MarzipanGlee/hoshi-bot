@@ -12,7 +12,7 @@ h1:focus {
    page has the same breadcrumb → title → subtitle → section → content rhythm. Scoped to `article`
    (the MainLayout content wrapper) so public/login pages are untouched. */
 article h1 {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 /* When a lead paragraph (subtitle) follows the title, hug it to the title... */
@@ -24,7 +24,7 @@ article h1:has(+ p) {
    or left it a plain <p>. */
 article h1 + p {
     color: var(--bs-secondary-color, #6c757d);
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 /* Section-separator spacing above intra-page <h2>s (was a per-page mt-4). Adjacent-sibling margins
