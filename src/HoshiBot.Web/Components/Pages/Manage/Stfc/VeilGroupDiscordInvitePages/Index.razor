@@ -1,6 +1,5 @@
 @page "/manage/stfc/veil-group-invites"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Veil Group Discord Invites</PageTitle>
 
@@ -10,7 +9,7 @@
     <a href="manage/stfc/veil-group-invites/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="context.StfcVeilGroupDiscordInvites.Include(i => i.VeilGroup).OrderBy(i => i.VeilGroup.Name)">
+<QuickGrid Class="table" Items="Context.StfcVeilGroupDiscordInvites.Include(i => i.VeilGroup).OrderBy(i => i.VeilGroup.Name)">
     <PropertyColumn Property="invite => invite.VeilGroup.Name" Title="Veil Group" Sortable="true" />
     <PropertyColumn Property="invite => invite.Url" Sortable="true" />
 
@@ -19,15 +18,3 @@
         <a href="@($"manage/stfc/veil-group-invites/delete?id={invite.Id}")">Delete</a>
     </TemplateColumn>
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

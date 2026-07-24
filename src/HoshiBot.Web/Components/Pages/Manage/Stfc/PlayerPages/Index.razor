@@ -1,13 +1,12 @@
 @page "/manage/stfc/players"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Players</PageTitle>
 
 <h1>Players</h1>
 <p>One-time seed snapshot, not a live sync by default — see StfcPlayerSeedData. Use <a href="manage/stfc/players/import">Import</a> to bring in a fresh roster (incl. rank/Ops level) for a server.</p>
 
-<QuickGrid Class="table" Items="context.StfcPlayers.Include(p => p.Server).ThenInclude(s => s.Region).Include(p => p.Alliance).OrderBy(p => p.ServerId).ThenBy(p => p.Name)" Pagination="pagination">
+<QuickGrid Class="table" Items="Context.StfcPlayers.Include(p => p.Server).ThenInclude(s => s.Region).Include(p => p.Alliance).OrderBy(p => p.ServerId).ThenBy(p => p.Name)" Pagination="pagination">
     <PropertyColumn Property="player => player.Name" Sortable="true" />
     @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
        (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
@@ -33,14 +32,5 @@
 <Paginator State="pagination" />
 
 @code {
-    private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
 }

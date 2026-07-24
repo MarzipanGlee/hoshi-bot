@@ -1,6 +1,5 @@
 @page "/manage/stfc/server-status"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Server Status</PageTitle>
 
@@ -11,7 +10,7 @@
     observed; Notified* is what ServerStatusNotifyJob last announced to Discord.
 </p>
 
-<QuickGrid Class="table" Items="context.StfcServerStatuses.Include(s => s.StfcServer).ThenInclude(s => s.Region).OrderBy(s => s.StfcServerId)" Pagination="pagination">
+<QuickGrid Class="table" Items="Context.StfcServerStatuses.Include(s => s.StfcServer).ThenInclude(s => s.Region).OrderBy(s => s.StfcServerId)" Pagination="pagination">
     @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
        (that's TemplateColumn-only), so this sorts by the real StfcServerId column instead. *@
     <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcServerStatus>.ByAscending(s => s.StfcServerId))" Context="status">
@@ -29,14 +28,5 @@
 <Paginator State="pagination" />
 
 @code {
-    private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
 }

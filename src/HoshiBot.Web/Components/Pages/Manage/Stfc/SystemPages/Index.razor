@@ -1,13 +1,12 @@
 @page "/manage/stfc/systems"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Systems</PageTitle>
 
 <h1>Systems</h1>
 <p>Synced daily from stfc.space by StfcSystemSyncService — read-only here, no manual edits (they'd just get overwritten on the next sync).</p>
 
-<QuickGrid Class="table" Items="context.StfcSystems.OrderBy(s => s.Number)" Pagination="pagination">
+<QuickGrid Class="table" Items="Context.StfcSystems.OrderBy(s => s.Number)" Pagination="pagination">
     <PropertyColumn Property="system => system.Number" Sortable="true" />
     <PropertyColumn Property="system => system.Name" Sortable="true" />
     <PropertyColumn Title="Station Housing" Property="system => system.HasStationHousing" Sortable="true" />
@@ -16,14 +15,5 @@
 <Paginator State="pagination" />
 
 @code {
-    private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
 }

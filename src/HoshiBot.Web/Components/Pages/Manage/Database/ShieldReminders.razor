@@ -1,6 +1,5 @@
 @page "/manage/database/shield-reminders"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Shield Reminders</PageTitle>
 
@@ -10,7 +9,7 @@
 @* ShieldExpiration is a DateTimeOffset and GuildId/DiscordUserId are ulong (Discord
    snowflakes) — SQLite's EF Core provider can't translate any of them in ORDER BY, so
    this orders by Id instead and leaves the others non-sortable. *@
-<QuickGrid Class="table" Items="context.ShieldReminders.Include(r => r.StfcSystem).OrderByDescending(r => r.Id)">
+<QuickGrid Class="table" Items="Context.ShieldReminders.Include(r => r.StfcSystem).OrderByDescending(r => r.Id)">
     <PropertyColumn Property="reminder => reminder.Id" Sortable="true" />
     <PropertyColumn Property="reminder => reminder.GuildId" />
     <PropertyColumn Property="reminder => reminder.DiscordUserId" />
@@ -18,15 +17,3 @@
     <PropertyColumn Property="reminder => reminder.StfcSystem == null ? null : reminder.StfcSystem.Name" Title="System" Sortable="true" />
     <PropertyColumn Property="reminder => reminder.Disabled" Sortable="true" />
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

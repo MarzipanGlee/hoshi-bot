@@ -1,6 +1,5 @@
 @page "/manage/database/pending-modal-inputs"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Pending Modal Inputs</PageTitle>
 
@@ -13,7 +12,7 @@
 @* CreatedAt is a DateTimeOffset, and GuildId/DiscordUserId are ulong (Discord snowflakes) —
    SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by Id
    instead and leaves the other three non-sortable. *@
-<QuickGrid Class="table" Items="context.PendingModalInputs.OrderByDescending(i => i.Id)">
+<QuickGrid Class="table" Items="Context.PendingModalInputs.OrderByDescending(i => i.Id)">
     <PropertyColumn Property="input => input.Id" Sortable="true" />
     <PropertyColumn Property="input => input.GuildId" />
     <PropertyColumn Property="input => input.DiscordUserId" />
@@ -24,15 +23,3 @@
     <PropertyColumn Property="input => input.Field4" />
     <PropertyColumn Property="input => input.CreatedAt" />
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

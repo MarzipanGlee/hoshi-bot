@@ -1,6 +1,5 @@
 @page "/manage/stfc/servers"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Servers</PageTitle>
 
@@ -11,7 +10,7 @@
     <a href="manage/stfc/servers/import">Import</a>
 </p>
 
-<QuickGrid Class="table" Items="context.StfcServers.Include(s => s.Region).Include(s => s.VeilGroup).OrderBy(s => s.Id)" Pagination="pagination">
+<QuickGrid Class="table" Items="Context.StfcServers.Include(s => s.Region).Include(s => s.VeilGroup).OrderBy(s => s.Id)" Pagination="pagination">
     @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
        (that's TemplateColumn-only), so this sorts by the real Id column instead. *@
     <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcServer>.ByAscending(s => s.Id))" Context="server">
@@ -30,14 +29,5 @@
 <Paginator State="pagination" />
 
 @code {
-    private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
 }

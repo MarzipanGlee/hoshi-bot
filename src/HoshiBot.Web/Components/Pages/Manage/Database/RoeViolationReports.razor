@@ -1,6 +1,5 @@
 @page "/manage/database/roe-violation-reports"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>RoE Violation Reports</PageTitle>
 
@@ -10,7 +9,7 @@
 @* CreatedAt/ClosedAt are DateTimeOffset and GuildId is a ulong (Discord snowflake) —
    SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
    Id instead and leaves the others non-sortable. *@
-<QuickGrid Class="table" Items="context.RoeViolationReports.OrderByDescending(r => r.Id)">
+<QuickGrid Class="table" Items="Context.RoeViolationReports.OrderByDescending(r => r.Id)">
     <PropertyColumn Property="report => report.Id" Sortable="true" />
     <PropertyColumn Property="report => report.GuildId" />
     <PropertyColumn Property="report => report.ThreadId" />
@@ -24,15 +23,3 @@
     <PropertyColumn Property="report => report.ClosedAt" />
     <PropertyColumn Property="report => report.ClosedByDiscordUserId" />
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

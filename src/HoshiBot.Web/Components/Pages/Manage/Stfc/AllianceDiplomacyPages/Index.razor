@@ -1,6 +1,5 @@
 @page "/manage/stfc/alliance-diplomacy"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Alliance Diplomacy</PageTitle>
 
@@ -10,7 +9,7 @@
     <a href="manage/stfc/alliance-diplomacy/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="context.StfcAllianceDiplomacies.Include(d => d.SourceAlliance).Include(d => d.TargetAlliance).OrderBy(d => d.SourceAlliance.Tag).ThenBy(d => d.TargetAlliance.Tag)">
+<QuickGrid Class="table" Items="Context.StfcAllianceDiplomacies.Include(d => d.SourceAlliance).Include(d => d.TargetAlliance).OrderBy(d => d.SourceAlliance.Tag).ThenBy(d => d.TargetAlliance.Tag)">
     <PropertyColumn Property="diplomacy => diplomacy.SourceAlliance.Tag" Title="Source" Sortable="true" />
     <PropertyColumn Property="diplomacy => diplomacy.TargetAlliance.Tag" Title="Target" Sortable="true" />
     <PropertyColumn Property="diplomacy => diplomacy.Status" Sortable="true" />
@@ -20,15 +19,3 @@
         <a href="@($"manage/stfc/alliance-diplomacy/delete?id={diplomacy.Id}")">Delete</a>
     </TemplateColumn>
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

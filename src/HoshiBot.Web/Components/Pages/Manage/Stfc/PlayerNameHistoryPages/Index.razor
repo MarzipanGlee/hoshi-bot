@@ -1,6 +1,5 @@
 @page "/manage/stfc/player-name-history"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Player Name History</PageTitle>
 
@@ -9,7 +8,7 @@
 
 @* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
    insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
-<QuickGrid Class="table" Items="context.StfcPlayerNameHistories.Include(h => h.StfcPlayer).ThenInclude(p => p.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
+<QuickGrid Class="table" Items="Context.StfcPlayerNameHistories.Include(h => h.StfcPlayer).ThenInclude(p => p.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
     @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
        (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
     <TemplateColumn Title="Server" Sortable="true" SortBy="@(GridSort<StfcPlayerNameHistory>.ByAscending(h => h.StfcPlayer.ServerId))" Context="h">
@@ -26,14 +25,5 @@
 <Paginator State="pagination" />
 
 @code {
-    private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
 }

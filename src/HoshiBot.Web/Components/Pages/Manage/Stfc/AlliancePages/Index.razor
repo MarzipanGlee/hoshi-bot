@@ -1,6 +1,5 @@
 @page "/manage/stfc/alliances"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Alliances</PageTitle>
 
@@ -11,7 +10,7 @@
     <a href="manage/stfc/alliances/import">Import</a>
 </p>
 
-<QuickGrid Class="table" Items="context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
+<QuickGrid Class="table" Items="Context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).OrderBy(a => a.Server.Id).ThenBy(a => a.Tag)" Pagination="pagination">
     <TemplateColumn Title="Emblem" Context="alliance">
         <AllianceEmblem Emblem="alliance.Emblem" Size="28" />
     </TemplateColumn>
@@ -32,14 +31,5 @@
 <Paginator State="pagination" />
 
 @code {
-    private HoshiBotDbContext context = default!;
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
 }

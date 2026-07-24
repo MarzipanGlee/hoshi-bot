@@ -1,6 +1,5 @@
 @page "/manage/database/announcement-read-receipts"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Announcement Read Receipts</PageTitle>
 
@@ -10,22 +9,10 @@
 @* ReadAt is a DateTimeOffset and GuildId/DiscordUserId are ulong (Discord snowflakes) —
    SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
    Id instead and leaves the others non-sortable. *@
-<QuickGrid Class="table" Items="context.AnnouncementReadReceipts.OrderByDescending(r => r.Id)">
+<QuickGrid Class="table" Items="Context.AnnouncementReadReceipts.OrderByDescending(r => r.Id)">
     <PropertyColumn Property="receipt => receipt.Id" Sortable="true" />
     <PropertyColumn Property="receipt => receipt.AnnouncementId" Sortable="true" />
     <PropertyColumn Property="receipt => receipt.GuildId" />
     <PropertyColumn Property="receipt => receipt.DiscordUserId" />
     <PropertyColumn Property="receipt => receipt.ReadAt" />
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

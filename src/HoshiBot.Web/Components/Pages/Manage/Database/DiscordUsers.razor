@@ -1,6 +1,5 @@
 @page "/manage/database/discord-users"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Discord Users</PageTitle>
 
@@ -9,20 +8,8 @@
 
 @* DiscordUserId is a ulong (Discord snowflake) — SQLite's EF Core provider can't
    translate it in ORDER BY, so this is left unordered and DiscordUserId non-sortable. *@
-<QuickGrid Class="table" Items="context.DiscordUsers">
+<QuickGrid Class="table" Items="Context.DiscordUsers">
     <PropertyColumn Property="user => user.DiscordUserId" />
     <PropertyColumn Property="user => user.PlayerLinks.Count" Title="Linked Players" />
     <PropertyColumn Property="user => user.GuildMemberships.Count" Title="Guild Memberships" />
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

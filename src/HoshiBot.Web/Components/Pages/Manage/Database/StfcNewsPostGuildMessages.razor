@@ -1,6 +1,5 @@
 @page "/manage/database/stfc-news-post-guild-messages"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>STFC News Post Guild Messages</PageTitle>
 
@@ -9,7 +8,7 @@
 
 @* GuildId is a ulong (Discord snowflake) — SQLite's EF Core provider can't translate it
    in ORDER BY, so it's left non-sortable here. *@
-<QuickGrid Class="table" Items="context.StfcNewsPostGuildMessages.OrderByDescending(m => m.Id)">
+<QuickGrid Class="table" Items="Context.StfcNewsPostGuildMessages.OrderByDescending(m => m.Id)">
     <PropertyColumn Property="message => message.Id" Sortable="true" />
     <PropertyColumn Property="message => message.StfcNewsPostId" Sortable="true" />
     <PropertyColumn Property="message => message.GuildId" />
@@ -17,15 +16,3 @@
     <PropertyColumn Property="message => message.MessageId" />
     <PropertyColumn Property="message => message.EligibleMemberCount" Sortable="true" />
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

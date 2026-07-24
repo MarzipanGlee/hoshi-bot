@@ -1,6 +1,5 @@
 @page "/manage/stfc/territories"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Territories</PageTitle>
 
@@ -10,7 +9,7 @@
     <a href="manage/stfc/territories/create">Create New</a>
 </p>
 
-<QuickGrid Class="table" Items="context.StfcTerritories.OrderBy(t => t.Name)">
+<QuickGrid Class="table" Items="Context.StfcTerritories.OrderBy(t => t.Name)">
     <PropertyColumn Property="territory => territory.Id" Sortable="true" />
     <PropertyColumn Property="territory => territory.Name" Sortable="true" />
     <PropertyColumn Property="territory => territory.Tier" Sortable="true" />
@@ -26,15 +25,3 @@
         <a href="@($"manage/stfc/territories/delete?id={territory.Id}")">Delete</a>
     </TemplateColumn>
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}

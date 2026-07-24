@@ -1,6 +1,5 @@
 @page "/manage/stfc/event-status"
-@implements IAsyncDisposable
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inherits DbContextPageBase
 
 <PageTitle>Event Status</PageTitle>
 
@@ -12,7 +11,7 @@
 
 @* EventStart/EventEnd/UpdatedAt/NotifiedEventStart aren't sortable — they're
    DateTimeOffset, which SQLite's EF provider can't translate in ORDER BY. *@
-<QuickGrid Class="table" Items="context.StfcEventStatuses.OrderBy(e => e.EventGroup)">
+<QuickGrid Class="table" Items="Context.StfcEventStatuses.OrderBy(e => e.EventGroup)">
     <PropertyColumn Property="status => status.EventGroup" Sortable="true" />
     <PropertyColumn Property="status => status.EventStart" />
     <PropertyColumn Property="status => status.EventEnd" />
@@ -20,15 +19,3 @@
     <PropertyColumn Property="status => status.UpdatedAt" />
     <PropertyColumn Property="status => status.NotifiedEventStart" Title="Notified Event Start" />
 </QuickGrid>
-
-@code {
-    private HoshiBotDbContext context = default!;
-
-    protected override void OnInitialized() => context = DbFactory.CreateDbContext();
-
-    public async ValueTask DisposeAsync()
-    {
-        if (context is not null)
-            await context.DisposeAsync();
-    }
-}
