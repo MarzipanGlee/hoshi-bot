@@ -66,16 +66,28 @@
 
         <div class="card-grid mt-4">
             <SettingsCard Href="manage/stfc/regions">
-                <span class="oi oi-globe fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-                <h2 class="fs-6 fw-semibold mt-2 mb-1">STFC Catalog</h2>
-                <p class="mb-0" style="color:#5a5a63;">Regions, servers, alliances, and territories</p>
+                <HeaderContent>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="oi oi-globe fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                        <h2 class="fs-6 fw-semibold mb-0">STFC Catalog</h2>
+                    </div>
+                </HeaderContent>
+                <Footer>
+                    <p class="mb-0" style="color:#5a5a63;">Regions, servers, alliances, and territories</p>
+                </Footer>
             </SettingsCard>
             @if (isGlobalAdmin)
             {
                 <SettingsCard Href="manage/bot/global-admins">
-                    <span class="oi oi-shield fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-                    <h2 class="fs-6 fw-semibold mt-2 mb-1">Bot</h2>
-                    <p class="mb-0" style="color:#5a5a63;">Manage global admin access</p>
+                    <HeaderContent>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="oi oi-shield fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                            <h2 class="fs-6 fw-semibold mb-0">Bot</h2>
+                        </div>
+                    </HeaderContent>
+                    <Footer>
+                        <p class="mb-0" style="color:#5a5a63;">Manage global admin access</p>
+                    </Footer>
                 </SettingsCard>
             }
         </div>

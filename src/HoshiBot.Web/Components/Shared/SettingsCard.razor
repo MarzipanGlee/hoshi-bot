@@ -2,18 +2,16 @@
 {
     <a class="card h-100 text-decoration-none text-body @Class" href="@Href">
         @Header
-        <div class="card-body d-flex flex-column gap-3">
-            @ChildContent
-        </div>
+        @Body
+        @FooterSection
     </a>
 }
 else
 {
     <div class="card h-100 @Class">
         @Header
-        <div class="card-body d-flex flex-column gap-3">
-            @ChildContent
-        </div>
+        @Body
+        @FooterSection
     </div>
 }
 
@@ -41,6 +39,11 @@ else
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
+    // Optional status/action line pinned to the bottom in a card-footer — the shortcut cards
+    // (Dashboard/Guild/Alliance overview) put their subtitle here so they read like GuildCard/
+    // AllianceCard (header on top, status footer below), instead of stacking everything in the body.
+    [Parameter] public RenderFragment? Footer { get; set; }
+
     private RenderFragment? Header => HeaderContent is null && string.IsNullOrEmpty(Title)
         ? null
         : @<div class="card-header">
@@ -53,4 +56,14 @@ else
                   <strong>@Title</strong>
               }
           </div>;
+
+    // The body only renders when there's ChildContent — a shortcut card that only has a header +
+    // footer shouldn't emit an empty card-body between them.
+    private RenderFragment? Body => ChildContent is null
+        ? null
+        : @<div class="card-body d-flex flex-column gap-3">@ChildContent</div>;
+
+    private RenderFragment? FooterSection => Footer is null
+        ? null
+        : @<div class="card-footer">@Footer</div>;
 }

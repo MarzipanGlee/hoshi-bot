@@ -22,9 +22,15 @@ else
         @foreach (var p in GuildAdminPages.All.Where(x => x.ShowOnOverviewCard))
         {
             <SettingsCard Href="@GuildAdminPages.Href(ParsedGuildId, p)">
-                <span class="oi @p.Icon fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-                <h2 class="fs-5 fw-semibold mt-2 mb-1">@p.Label</h2>
-                <p class="mb-0" style="color:#5a5a63;">@CardSubtitle(p)</p>
+                <HeaderContent>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="oi @p.Icon fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                        <h2 class="fs-6 fw-semibold mb-0">@p.Label</h2>
+                    </div>
+                </HeaderContent>
+                <Footer>
+                    <p class="mb-0" style="color:#5a5a63;">@CardSubtitle(p)</p>
+                </Footer>
             </SettingsCard>
         }
     </div>
