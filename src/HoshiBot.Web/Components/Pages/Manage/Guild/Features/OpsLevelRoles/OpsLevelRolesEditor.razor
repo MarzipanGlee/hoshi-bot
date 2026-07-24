@@ -1,148 +1,25 @@
-@using HoshiBot.Web.Services
-@using NetCord
-@using NetCord.Rest
-
 @inherits FeatureEditorBase
-@inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
-@if (createRoleError is not null)
-{
-    <p class="text-danger">@createRoleError</p>
-}
-
-<div class="card-grid mt-1">
-    @foreach (var state in groupStates)
-    {
-        <SettingsCard @key="state">
-            <HeaderContent>
-                <strong>@state.DefaultName</strong>
-                <span class="text-secondary ms-1">(@state.RangeLabel)</span>
-            </HeaderContent>
-            <ChildContent>
-                <RolePicker Label="@state.DefaultName" ShowLabel="false" CreateRoleName="@state.DefaultName"
-                            @bind-Value="state.RoleId" @bind-Value:after="() => OnRoleChangedAsync(state)" Roles="roles" />
-                <RoleColorMentionableInputs @bind-ColorValue="state.Color" @bind-ColorValue:after="() => SaveGroupRoleAsync(state)"
-                                             MentionableValue="state.Mentionable" MentionableValueChanged="m => OnMentionableChangedAsync(state, m)" />
-            </ChildContent>
-        </SettingsCard>
-    }
-</div>
+<RoleTierEditor GuildId="GuildId" Feature="Feature" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" Tiers="Tiers">
+    <HeaderTemplate Context="tier">
+        <strong>@tier.DefaultName</strong>
+        <span class="text-secondary ms-1">(@tier.Note)</span>
+    </HeaderTemplate>
+</RoleTierEditor>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.OpsLevelRoles;
 
-    // Groups an Ops tier's identity (name/setting key) with its 3 pieces of live state
-    // (role, color, mentionable) — same state-bag pattern as RankRolesEditor's RankRoleState,
-    // replacing what would otherwise be 21 near-duplicate fields/methods (7 tiers × 3
-    // concerns) with one state class, a handful of shared handlers, and a @foreach over 7
-    // instances.
-    private class OpsGroupState
-    {
-        public required string DefaultName;
-        public required string RangeLabel;
-        public required string SettingKey;
-        public string? RoleId;
-        public string? Color;
-        public bool Mentionable;
-    }
-
-    private readonly List<OpsGroupState> groupStates =
+    private static readonly IReadOnlyList<RoleTierSpec> Tiers =
     [
-        new() { DefaultName = "G1", RangeLabel = "1-9", SettingKey = OpsLevelRolesSettingKeys.G1Role },
-        new() { DefaultName = "G2", RangeLabel = "10-19", SettingKey = OpsLevelRolesSettingKeys.G2Role },
-        new() { DefaultName = "G3", RangeLabel = "20-39", SettingKey = OpsLevelRolesSettingKeys.G3Role },
-        new() { DefaultName = "G4", RangeLabel = "40-50", SettingKey = OpsLevelRolesSettingKeys.G4Role },
-        new() { DefaultName = "G5", RangeLabel = "51-60", SettingKey = OpsLevelRolesSettingKeys.G5Role },
-        new() { DefaultName = "G6", RangeLabel = "61-70", SettingKey = OpsLevelRolesSettingKeys.G6Role },
-        new() { DefaultName = "G7", RangeLabel = "71-80", SettingKey = OpsLevelRolesSettingKeys.G7Role },
+        new("G1", OpsLevelRolesSettingKeys.G1Role, "1-9"),
+        new("G2", OpsLevelRolesSettingKeys.G2Role, "10-19"),
+        new("G3", OpsLevelRolesSettingKeys.G3Role, "20-39"),
+        new("G4", OpsLevelRolesSettingKeys.G4Role, "40-50"),
+        new("G5", OpsLevelRolesSettingKeys.G5Role, "51-60"),
+        new("G6", OpsLevelRolesSettingKeys.G6Role, "61-70"),
+        new("G7", OpsLevelRolesSettingKeys.G7Role, "71-80"),
     ];
-
-    private List<Role> roles = [];
-    private string? createRoleError;
-
-    protected override async Task OnSettingsLoadedAsync()
-    {
-        roles = await DiscordData.GetRolesAsync(GuildId);
-
-        foreach (var state in groupStates)
-            await LoadGroupRoleAsync(state);
-    }
-
-    // Falls back to an existing role literally named after the tier (e.g. "G1") when
-    // nothing's configured yet — without this, picking a guild that already has these roles
-    // from an earlier manual setup left every picker on "create new", and saving then tried
-    // (and failed) to create a role Discord already had.
-    private async Task LoadGroupRoleAsync(OpsGroupState state)
-    {
-        var saved = await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, state.SettingKey);
-        if (saved is { } savedId)
-        {
-            state.RoleId = savedId.ToString();
-        }
-        else if (roles.FirstOrDefault(r => r.Name == state.DefaultName) is { } role)
-        {
-            // Persist the name-matched fallback right away: the picker shows it as the current
-            // selection, so re-picking the same role fires no change event and it would
-            // otherwise never be saved (nor picked up by the role-sync job).
-            state.RoleId = role.Id.ToString();
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, state.SettingKey, role.Id);
-        }
-
-        ApplyRoleDisplayState(state);
-    }
-
-    // Reflects the currently-selected role's real color/mentionable in the UI (or Discord's
-    // own new-role defaults for "create new") — keeps the picker honest about what saving
-    // will actually apply, rather than showing stale state left over from a previous selection.
-    private void ApplyRoleDisplayState(OpsGroupState state)
-    {
-        if (ulong.TryParse(state.RoleId, out var id) && roles.FirstOrDefault(r => r.Id == id) is { } role)
-        {
-            state.Color = DiscordGuildDataService.ToHex(role.Colors.PrimaryColor);
-            state.Mentionable = role.Mentionable;
-        }
-        else
-        {
-            state.Color = null;
-            state.Mentionable = false;
-        }
-    }
-
-    private Task OnRoleChangedAsync(OpsGroupState state)
-    {
-        ApplyRoleDisplayState(state);
-        return SaveGroupRoleAsync(state);
-    }
-
-    private Task OnMentionableChangedAsync(OpsGroupState state, bool mentionable)
-    {
-        state.Mentionable = mentionable;
-        return SaveGroupRoleAsync(state);
-    }
-
-    // A blank selection creates a new role instead of just saving null — named after the
-    // tier so it's clear at a glance what it's for. Color/mentionable always apply, whether
-    // that means setting them on a freshly created role or updating an already-selected one.
-    private async Task SaveGroupRoleAsync(OpsGroupState state)
-    {
-        createRoleError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, state.RoleId, state.DefaultName, state.Color, state.Mentionable, roles);
-            state.RoleId = roleId?.ToString();
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, state.SettingKey, roleId);
-        }
-        catch (RestException)
-        {
-            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            // Only reset a failed *creation* back to blank — a failed *modify* of an already-
-            // selected existing role should keep that selection, not silently drop it.
-            if (state.RoleId == RolePicker.CreateSentinel)
-                state.RoleId = null;
-        }
-    }
 }

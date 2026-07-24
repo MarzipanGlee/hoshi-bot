@@ -1,0 +1,134 @@
+@using HoshiBot.Web.Services
+@using NetCord
+@using NetCord.Rest
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+
+@* Shared editor for a set of "tier" roles (Rank roles, Ops-level roles): a card per tier with a
+   RolePicker + colour/mentionable inputs, autosaving each change and creating a role named after the
+   tier for a blank pick. The parent feature editor supplies the tier list + a header template; all
+   the load / colour-reflect / create-on-blank / save-with-error logic lives here once instead of
+   being duplicated per feature (RankRolesEditor + OpsLevelRolesEditor were ~90% identical). *@
+@if (saveError is not null)
+{
+    <p class="text-danger">@saveError</p>
+}
+
+<div class="card-grid mt-1">
+    @foreach (var state in states)
+    {
+        <SettingsCard @key="state">
+            <HeaderContent>
+                @HeaderTemplate(state.Spec)
+            </HeaderContent>
+            <ChildContent>
+                <RolePicker Label="@state.Spec.DefaultName" ShowLabel="false" CreateRoleName="@state.Spec.DefaultName"
+                            @bind-Value="state.RoleId" @bind-Value:after="() => OnRoleChangedAsync(state)" Roles="roles" />
+                <RoleColorMentionableInputs @bind-ColorValue="state.Color" @bind-ColorValue:after="() => SaveAsync(state)"
+                                             MentionableValue="state.Mentionable" MentionableValueChanged="m => OnMentionableChangedAsync(state, m)" />
+            </ChildContent>
+        </SettingsCard>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildFeature Feature { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyList<RoleTierSpec> Tiers { get; set; } = [];
+    [Parameter, EditorRequired] public RenderFragment<RoleTierSpec> HeaderTemplate { get; set; } = default!;
+
+    // One tier's identity (Spec) plus its 3 pieces of live UI state.
+    private sealed class TierState
+    {
+        public required RoleTierSpec Spec;
+        public string? RoleId;
+        public string? Color;
+        public bool Mentionable;
+    }
+
+    private List<TierState> states = [];
+    private List<Role> roles = [];
+    private string? saveError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        states = Tiers.Select(t => new TierState { Spec = t }).ToList();
+        roles = await DiscordData.GetRolesAsync(GuildId);
+
+        foreach (var state in states)
+            await LoadAsync(state);
+    }
+
+    // Falls back to an existing role literally named after the tier (e.g. "Admiral" / "G1") when
+    // nothing's configured yet — without this, a guild that already has these roles from an earlier
+    // manual setup left every picker on "create new", and saving then tried (and failed) to create a
+    // role Discord already had. Persists the name-matched fallback right away: the picker shows it as
+    // the current selection, so re-picking fires no change event and it would otherwise never save.
+    private async Task LoadAsync(TierState state)
+    {
+        var saved = await SettingsService.GetSnowflakeAsync(GuildId, Feature, Audience, GuildAllianceId, state.Spec.SettingKey);
+        if (saved is { } savedId)
+        {
+            state.RoleId = savedId.ToString();
+        }
+        else if (roles.FirstOrDefault(r => r.Name == state.Spec.DefaultName) is { } role)
+        {
+            state.RoleId = role.Id.ToString();
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, Audience, GuildAllianceId, state.Spec.SettingKey, role.Id);
+        }
+
+        ApplyRoleDisplayState(state);
+    }
+
+    // Reflects the currently-selected role's real colour/mentionable in the UI (or Discord's own
+    // new-role defaults for "create new"), so the picker is honest about what saving will apply.
+    private void ApplyRoleDisplayState(TierState state)
+    {
+        if (ulong.TryParse(state.RoleId, out var id) && roles.FirstOrDefault(r => r.Id == id) is { } role)
+        {
+            state.Color = DiscordGuildDataService.ToHex(role.Colors.PrimaryColor);
+            state.Mentionable = role.Mentionable;
+        }
+        else
+        {
+            state.Color = null;
+            state.Mentionable = false;
+        }
+    }
+
+    private Task OnRoleChangedAsync(TierState state)
+    {
+        ApplyRoleDisplayState(state);
+        return SaveAsync(state);
+    }
+
+    private Task OnMentionableChangedAsync(TierState state, bool mentionable)
+    {
+        state.Mentionable = mentionable;
+        return SaveAsync(state);
+    }
+
+    // A blank selection creates a new role named after the tier. Colour/mentionable always apply,
+    // whether setting them on a freshly created role or updating an already-selected one.
+    private async Task SaveAsync(TierState state)
+    {
+        saveError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, state.RoleId, state.Spec.DefaultName, state.Color, state.Mentionable, roles);
+            state.RoleId = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, Audience, GuildAllianceId, state.Spec.SettingKey, roleId);
+        }
+        catch (RestException)
+        {
+            saveError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            // Only reset a failed *creation* back to blank — a failed *modify* of an already-selected
+            // existing role should keep that selection, not silently drop it.
+            if (state.RoleId == RolePicker.CreateSentinel)
+                state.RoleId = null;
+        }
+    }
+}
