@@ -1,0 +1,46 @@
+@* The confirm-delete shell shared by the Stfc/**/Delete pages: the "Delete X / Are you sure /
+   {details} / [Delete] | Back" skeleton. The page supplies the entity's <dl> rows (Details) and a
+   confirm handler; loading + the actual load/delete stay on the page. The EditForm's OnValidSubmit
+   is an EventCallback to the page's handler — a supported static-SSR pattern (the form re-renders on
+   POST and dispatches by FormName). *@
+<PageTitle>Delete @EntityName</PageTitle>
+
+<h1>Delete @EntityName</h1>
+
+<p>Are you sure you want to delete this?@(Warning is null ? null : $" {Warning}")</p>
+<div>
+    @if (Loaded)
+    {
+        <dl class="row">
+            @Details
+        </dl>
+        <EditForm method="post" Model="model" OnValidSubmit="OnConfirm" FormName="delete" Enhance>
+            <button type="submit" class="btn btn-danger">Delete</button> |
+            <a href="@BackHref">Back to List</a>
+        </EditForm>
+    }
+    else
+    {
+        <p><em>Loading...</em></p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string EntityName { get; set; } = "";
+
+    [Parameter, EditorRequired] public string BackHref { get; set; } = "";
+
+    // Optional extra sentence after the standard prompt (e.g. a cascade-delete warning).
+    [Parameter] public string? Warning { get; set; }
+
+    // True once the page has loaded the entity to delete — gates the details + confirm form.
+    [Parameter] public bool Loaded { get; set; }
+
+    // The entity's <dt>/<dd> rows, rendered inside the shared <dl class="row">.
+    [Parameter] public RenderFragment? Details { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    // EditForm needs a model; the delete form has no fields, so a throwaway object suffices.
+    private readonly object model = new();
+}

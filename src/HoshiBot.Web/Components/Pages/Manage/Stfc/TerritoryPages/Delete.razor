@@ -2,34 +2,17 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Delete Territory</PageTitle>
-
-<h1>Delete Territory</h1>
-
-<p>Are you sure you want to delete this? Linked systems, neighbour links, and ownership rows are removed too.</p>
-<div>
-    @if (territory is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else
-    {
-        <dl class="row">
-            <dt class="col-sm-2">Name</dt>
-            <dd class="col-sm-10">@territory.Name</dd>
-            <dt class="col-sm-2">Tier</dt>
-            <dd class="col-sm-10">@territory.Tier</dd>
-            <dt class="col-sm-2">Weekday</dt>
-            <dd class="col-sm-10">@(territory.Weekday?.ToString() ?? "Unknown")</dd>
-            <dt class="col-sm-2">Capture Time (UTC)</dt>
-            <dd class="col-sm-10">@(territory.CaptureTimeUtc?.ToString("HH:mm") ?? "Unknown")</dd>
-        </dl>
-        <EditForm method="post" Model="territory" OnValidSubmit="DeleteTerritory" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger">Delete</button> |
-            <a href="/manage/stfc/territories">Back to List</a>
-        </EditForm>
-    }
-</div>
+<DeleteConfirmation EntityName="Territory" BackHref="/manage/stfc/territories" Loaded="territory is not null" OnConfirm="DeleteTerritory"
+                    Warning="Linked systems, neighbour links, and ownership rows are removed too.">
+    <dt class="col-sm-2">Name</dt>
+    <dd class="col-sm-10">@territory!.Name</dd>
+    <dt class="col-sm-2">Tier</dt>
+    <dd class="col-sm-10">@territory!.Tier</dd>
+    <dt class="col-sm-2">Weekday</dt>
+    <dd class="col-sm-10">@(territory!.Weekday?.ToString() ?? "Unknown")</dd>
+    <dt class="col-sm-2">Capture Time (UTC)</dt>
+    <dd class="col-sm-10">@(territory!.CaptureTimeUtc?.ToString("HH:mm") ?? "Unknown")</dd>
+</DeleteConfirmation>
 
 @code {
     private StfcTerritory? territory;

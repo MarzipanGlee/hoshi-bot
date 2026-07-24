@@ -2,30 +2,12 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject NavigationManager NavigationManager
 
-<PageTitle>Delete Veil Group</PageTitle>
-
-<h1>Delete Veil Group</h1>
-
-<p>Are you sure you want to delete this?</p>
-<div>
-    @if (veilGroup is null)
-    {
-        <p><em>Loading...</em></p>
-    }
-    else
-    {
-        <dl class="row">
-            <dt class="col-sm-2">Name</dt>
-            <dd class="col-sm-10">@veilGroup.Name</dd>
-            <dt class="col-sm-2">Region</dt>
-            <dd class="col-sm-10">@veilGroup.Region.Name</dd>
-        </dl>
-        <EditForm method="post" Model="veilGroup" OnValidSubmit="DeleteVeilGroup" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger">Delete</button> |
-            <a href="/manage/stfc/veil-groups">Back to List</a>
-        </EditForm>
-    }
-</div>
+<DeleteConfirmation EntityName="Veil Group" BackHref="/manage/stfc/veil-groups" Loaded="veilGroup is not null" OnConfirm="DeleteVeilGroup">
+    <dt class="col-sm-2">Name</dt>
+    <dd class="col-sm-10">@veilGroup!.Name</dd>
+    <dt class="col-sm-2">Region</dt>
+    <dd class="col-sm-10">@veilGroup!.Region.Name</dd>
+</DeleteConfirmation>
 
 @code {
     private StfcVeilGroup? veilGroup;
