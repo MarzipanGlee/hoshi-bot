@@ -38,13 +38,7 @@ public class AllianceTournamentNotifyJob(
 
         foreach (var guildId in guildIds)
         {
-            var embed = new EmbedProperties
-            {
-                Description = content,
-                Color = EmbedBranding.WarningColor,
-                Author = await embedBranding.BuildAuthorAsync(guildId),
-                Footer = embedBranding.BuildFooter(guildId),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.WarningColor);
             await dispatcher.SendPublicToEnabledAudiencesAsync(
                 guildId, GuildAlertChannelKind.AllianceTournament, GuildFeature.AllianceTournament, content, embed: embed);
         }

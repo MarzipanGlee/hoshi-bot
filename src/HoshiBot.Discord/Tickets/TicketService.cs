@@ -71,13 +71,7 @@ public class TicketService(
         {
             await gatewayClient.Rest.AddGuildThreadUserAsync(thread.Id, openedByUserId);
 
-            var embed = new EmbedProperties
-            {
-                Description = string.Format(WelcomeMessageFormat, openerName),
-                Color = EmbedBranding.BotColor,
-                Author = await embedBranding.BuildAuthorAsync(guildId),
-                Footer = embedBranding.BuildFooter(guildId),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(guildId, string.Format(WelcomeMessageFormat, openerName));
 
             await gatewayClient.Rest.SendMessageAsync(thread.Id, new MessageProperties
             {

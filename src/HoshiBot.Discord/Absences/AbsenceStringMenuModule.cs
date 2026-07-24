@@ -15,14 +15,7 @@ public class AbsenceStringMenuModule(AbsenceService absenceService, EmbedBrandin
         var absence = await absenceService.GetOwnAsync(absenceId, Context.User.Id);
         if (absence is null)
         {
-            var guildId = Context.Guild!.Id;
-            var errorEmbed = new EmbedProperties
-            {
-                Description = "Abwesenheit nicht gefunden.",
-                Color = EmbedBranding.BotColor,
-                Author = await embedBranding.BuildAuthorAsync(guildId),
-                Footer = embedBranding.BuildFooter(guildId),
-            };
+            var errorEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, "Abwesenheit nicht gefunden.");
             return InteractionCallback.ModifyMessage(m => { m.Embeds = [errorEmbed]; m.Components = []; });
         }
 

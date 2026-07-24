@@ -23,18 +23,11 @@ public class AnonymousMessageService(
         if (channelIdResult is not { } channelId)
             return "Der Kanal für anonyme Nachrichten ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
 
-        var embed = new EmbedProperties
-        {
-            Title = subject,
-            // "im Auftrag von einem Mitglied" moves into the description (a short
-            // attribution phrase, not a labeled data point) now that Author is reserved
-            // for the bot's own standardized branding.
-            Description = $"*im Auftrag von einem Mitglied*\n\n{message}",
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-            Timestamp = DateTimeOffset.UtcNow,
-        };
+        // "im Auftrag von einem Mitglied" moves into the description (a short
+        // attribution phrase, not a labeled data point) now that Author is reserved
+        // for the bot's own standardized branding.
+        var embed = await embedBranding.BuildBrandedAsync(guildId, $"*im Auftrag von einem Mitglied*\n\n{message}", title: subject);
+        embed.Timestamp = DateTimeOffset.UtcNow;
 
         try
         {

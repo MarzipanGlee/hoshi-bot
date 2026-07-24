@@ -111,15 +111,9 @@ public class AlertService(
             fields.Add(new EmbedFieldProperties { Name = "Vergangene Raids", Value = string.Join('\n', lines) });
         }
 
-        var embed = new EmbedProperties
-        {
-            Title = "Raid Alarm",
-            Description = $"Commander, die Station von Commander <@{targetUserId}> wird geraidet!",
-            Color = EmbedBranding.DangerColor,
-            Fields = fields,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            $"Commander, die Station von Commander <@{targetUserId}> wird geraidet!", EmbedBranding.DangerColor, "Raid Alarm");
+        embed.Fields = fields;
 
         var publicContent = $"Commander, <@{targetUserId}> wird geraidet!";
 
@@ -153,13 +147,8 @@ public class AlertService(
             }
         }
 
-        var dmEmbed = new EmbedProperties
-        {
-            Description = $"Commander, you're being raided in **{stfcSystem.Name}**! Use the button below or /raid-terminate once it's resolved.",
-            Color = EmbedBranding.DangerColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
+        var dmEmbed = await embedBranding.BuildBrandedAsync(guildId,
+            $"Commander, you're being raided in **{stfcSystem.Name}**! Use the button below or /raid-terminate once it's resolved.", EmbedBranding.DangerColor);
         var dmMessageId = await dispatcher.SendDirectMessageAsync(targetUserId, "", terminateButton, dmEmbed);
         alert.Notifications.Add(new AlertNotification
         {

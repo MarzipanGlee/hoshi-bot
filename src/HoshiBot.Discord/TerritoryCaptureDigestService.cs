@@ -217,18 +217,13 @@ public class TerritoryCaptureDigestService(
 
         var bridgeMention = link.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : "Kommandobrücke";
 
-        var embed = new EmbedProperties
-        {
-            Title = title,
-            Description = $"Bitte haltet Euch diese Termine nach Möglichkeit frei oder meldet Euch für einzelne Termine hier oder generell auf der {bridgeMention} ab!",
-            Fields =
-            [
-                new EmbedFieldProperties { Name = "Termine", Value = Clamp(string.Join("\n", lines)) },
-            ],
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            $"Bitte haltet Euch diese Termine nach Möglichkeit frei oder meldet Euch für einzelne Termine hier oder generell auf der {bridgeMention} ab!",
+            title: title);
+        embed.Fields =
+        [
+            new EmbedFieldProperties { Name = "Termine", Value = Clamp(string.Join("\n", lines)) },
+        ];
 
         var instructions = await settingsService.GetTextAsync(
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.Instructions);

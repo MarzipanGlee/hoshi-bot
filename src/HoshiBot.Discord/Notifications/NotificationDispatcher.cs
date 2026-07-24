@@ -223,14 +223,10 @@ public class NotificationDispatcher(
 
         try
         {
-            var embed = new EmbedProperties
-            {
-                Description = $"⚠️ Eine Nachricht konnte nicht in <#{channelId}> gesendet werden — {reason}. " +
-                              "Bitte die Kanal-Berechtigungen des Bots prüfen (Permission Check).",
-                Color = EmbedBranding.DangerColor,
-                Author = await embedBranding.BuildAuthorAsync(guildId),
-                Footer = embedBranding.BuildFooter(guildId),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(guildId,
+                $"⚠️ Eine Nachricht konnte nicht in <#{channelId}> gesendet werden — {reason}. " +
+                "Bitte die Kanal-Berechtigungen des Bots prüfen (Permission Check).",
+                EmbedBranding.DangerColor);
             await gatewayClient.Rest.SendMessageAsync(logChannelId, new MessageProperties { Embeds = [embed] });
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
@@ -273,13 +269,9 @@ public class NotificationDispatcher(
 
         try
         {
-            var embed = new EmbedProperties
-            {
-                Description = $"⚠️ Der Bot konnte folgende Aktion nicht ausführen: {context} ({missingPermissionHint}). Bitte Berechtigungen prüfen.",
-                Color = EmbedBranding.DangerColor,
-                Author = await embedBranding.BuildAuthorAsync(guildId),
-                Footer = embedBranding.BuildFooter(guildId),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(guildId,
+                $"⚠️ Der Bot konnte folgende Aktion nicht ausführen: {context} ({missingPermissionHint}). Bitte Berechtigungen prüfen.",
+                EmbedBranding.DangerColor);
             await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties { Embeds = [embed] });
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)

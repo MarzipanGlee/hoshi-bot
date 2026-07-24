@@ -314,22 +314,18 @@ public class AbsenceService(
             .FirstOrDefaultAsync();
         var bridge = bridgeChannelId is { } id ? $"<#{id}>" : "Kommandobrücke";
 
-        return new EmbedProperties
-        {
-            Title = "Abwesenheiten",
-            Description = $"Bitte meldet Euch frühzeitig auf der {bridge} ab, solltet Ihr mehrere Tage verhindert sein.",
-            Fields =
-            [
-                new EmbedFieldProperties { Name = "Aktuelle Abwesenheiten", Value = BuildSection(active, isStaffView) },
-                new EmbedFieldProperties { Name = "Kommende Abwesenheiten", Value = BuildSection(upcoming, isStaffView) },
-                // In-body Discord timestamp (localized per viewer), not the embed footer — a
-                // <t:…> stamp only renders in the body, and the members here span time zones.
-                new EmbedFieldProperties { Name = "Stand", Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:f>" },
-            ],
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            $"Bitte meldet Euch frühzeitig auf der {bridge} ab, solltet Ihr mehrere Tage verhindert sein.",
+            title: "Abwesenheiten");
+        embed.Fields =
+        [
+            new EmbedFieldProperties { Name = "Aktuelle Abwesenheiten", Value = BuildSection(active, isStaffView) },
+            new EmbedFieldProperties { Name = "Kommende Abwesenheiten", Value = BuildSection(upcoming, isStaffView) },
+            // In-body Discord timestamp (localized per viewer), not the embed footer — a
+            // <t:…> stamp only renders in the body, and the members here span time zones.
+            new EmbedFieldProperties { Name = "Stand", Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:f>" },
+        ];
+        return embed;
     }
 
     // Staff view always shows full detail regardless of Visibility (staff need it for

@@ -45,14 +45,7 @@ public class CommandBridgeHubService(
         if (alliance is null || alliance.GuildId != guildId || ChannelId(alliance, bridge) is not { } channelId)
             return CommandBridgePublishResult.NoChannel;
 
-        var embed = new EmbedProperties
-        {
-            Title = Title(bridge),
-            Description = HubDescription,
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
+        var embed = await embedBranding.BuildBrandedAsync(guildId, HubDescription, title: Title(bridge));
 
         var components = await BuildComponentsAsync(guildId, guildAllianceId, bridge);
 

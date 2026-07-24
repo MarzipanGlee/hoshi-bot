@@ -36,14 +36,9 @@ public class CommandBridgeStaffMenuModule(AlertService alertService, EmbedBrandi
                 ? "EIN — öffentliche Benachrichtigungen bei Schildablauf deaktiviert"
                 : "AUS — öffentliche Benachrichtigungen bei Schildablauf aktiviert";
 
-            var embed = new EmbedProperties
-            {
-                Title = "Öffentliche Schildablaufwarnungen verwalten",
-                Description = $"Die Stummschaltung der Schildablaufwarnungen für <@{target.Id}> ist aktuell:\n\n- **{status}**",
-                Color = EmbedBranding.BotColor,
-                Author = await embedBranding.BuildAuthorAsync(Context.Guild!.Id),
-                Footer = embedBranding.BuildFooter(Context.Guild!.Id),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id,
+                $"Die Stummschaltung der Schildablaufwarnungen für <@{target.Id}> ist aktuell:\n\n- **{status}**",
+                title: "Öffentliche Schildablaufwarnungen verwalten");
 
             return m =>
             {

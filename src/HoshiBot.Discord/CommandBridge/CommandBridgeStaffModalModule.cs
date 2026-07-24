@@ -20,14 +20,7 @@ public class CommandBridgeStaffModalModule(AlertService alertService, EmbedBrand
 
             var result = await alertService.ReportStaffShieldLossAsync(Context.Guild!.Id, targetUserId, system, parsedVariant);
 
-            var embed = new EmbedProperties
-            {
-                Title = "Schildverlust melden",
-                Description = result,
-                Color = EmbedBranding.BotColor,
-                Author = await embedBranding.BuildAuthorAsync(Context.Guild!.Id),
-                Footer = embedBranding.BuildFooter(Context.Guild!.Id),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: "Schildverlust melden");
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 

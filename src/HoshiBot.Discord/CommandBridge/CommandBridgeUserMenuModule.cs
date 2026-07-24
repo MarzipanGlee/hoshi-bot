@@ -16,13 +16,7 @@ public class CommandBridgeUserMenuModule(EmbedBranding embedBranding) : Componen
         var target = Context.SelectedValues[0];
         var guildId = Context.Guild!.Id;
 
-        var embed = new EmbedProperties
-        {
-            Description = "Auf welchem Server wird die Station geraidet?",
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
+        var embed = await embedBranding.BuildBrandedAsync(guildId, "Auf welchem Server wird die Station geraidet?");
 
         return InteractionCallback.ModifyMessage(m =>
         {

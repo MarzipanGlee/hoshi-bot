@@ -16,9 +16,9 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
         if (!configured)
             return EphemeralReply.Of("Es ist keine Beta-Tester-Rolle konfiguriert (siehe Guild-Einstellungen).");
 
-        var embed = await BuildEmbedAsync(
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id,
             $"Die Beta-Tests sind für Dich aktuell:\n\n- **{(hasRole ? "EIN" : "AUS")}**",
-            "Beta-Tests verwalten");
+            title: "Beta-Tests verwalten");
 
         return new InteractionMessageProperties
         {
@@ -41,16 +41,7 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var result = await betaTesterService.SetAsync(Context.Guild!.Id, Context.User.Id, action == "on");
-            var embed = await BuildEmbedAsync(result, "Beta-Tests verwalten");
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: "Beta-Tests verwalten");
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
-
-    private async Task<EmbedProperties> BuildEmbedAsync(string description, string title) => new()
-    {
-        Title = title,
-        Description = description,
-        Color = EmbedBranding.BotColor,
-        Author = await embedBranding.BuildAuthorAsync(Context.Guild!.Id),
-        Footer = embedBranding.BuildFooter(Context.Guild!.Id),
-    };
 }

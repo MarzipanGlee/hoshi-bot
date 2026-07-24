@@ -42,14 +42,7 @@ public class ServerStatusNotifyJob(
 
             foreach (var guildId in guildIds)
             {
-                var embed = new EmbedProperties
-                {
-                    Title = "Server Status Change",
-                    Description = content,
-                    Color = color,
-                    Author = await embedBranding.BuildAuthorAsync(guildId),
-                    Footer = embedBranding.BuildFooter(guildId),
-                };
+                var embed = await embedBranding.BuildBrandedAsync(guildId, content, color, "Server Status Change");
                 await dispatcher.SendPublicToEnabledAudiencesAsync(
                     guildId, GuildAlertChannelKind.ServerStatus, GuildFeature.ServerStatus, content, embed: embed);
             }

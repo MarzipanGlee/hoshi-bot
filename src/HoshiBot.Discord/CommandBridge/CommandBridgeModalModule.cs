@@ -9,29 +9,15 @@ namespace HoshiBot.Discord.CommandBridge;
 public class CommandBridgeModalModule(AlertService alertService, PendingModalInputService pendingModalInputService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ModalInteractionContext>
 {
-    // Shared shape for the "your input didn't validate" step — same branded style as
-    // every real bot message, with a Zurück (reopen the modal, pre-filled) / Abbrechen
-    // pair so a typo doesn't force restarting the whole flow.
-    private async Task<EmbedProperties> RetryEmbedAsync(string description)
-    {
-        var guildId = Context.Guild!.Id;
-        return new EmbedProperties
-        {
-            Title = "Ungültige Eingabe",
-            Description = description,
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
-    }
-
     // The "invalid input, try again" edit (retry/cancel buttons). Applied to whichever response
     // the caller acked: Raid edits its own ephemeral wizard message in place (ModifyDelayed),
     // while Shield Reminder — opened directly from the shared hub — acks a NEW ephemeral
-    // (SendDelayedEdit) so this private prompt never lands on the public hub message.
+    // (SendDelayedEdit) so this private prompt never lands on the public hub message. The embed
+    // uses the same branded style as every real bot message, with a Zurück (reopen the modal,
+    // pre-filled) / Abbrechen pair so a typo doesn't force restarting the whole flow.
     private async Task<Action<MessageOptions>> RetryEditAsync(string description, int pendingId)
     {
-        var embed = await RetryEmbedAsync(description);
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: "Ungültige Eingabe");
         return m =>
         {
             m.Embeds = [embed];

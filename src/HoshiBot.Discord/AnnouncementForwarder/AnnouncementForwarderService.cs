@@ -171,18 +171,12 @@ public class AnnouncementForwarderService(
         if (updated)
             fields.Add(new EmbedFieldProperties { Name = "Aktualisiert", Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>" });
 
-        return new EmbedProperties
-        {
-            Title = "🌐 Automatische Übersetzung",
-            Description = translation,
-            Color = EmbedBranding.InformationColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            // No Timestamp: Discord renders it as a "• <time>" stamp appended right after the footer
-            // text, which read as noise here — the "Aktualisiert" field already carries the when-edited
-            // info when relevant.
-            Footer = embedBranding.BuildFooter(guildId),
-            Fields = fields,
-        };
+        // No Timestamp: Discord renders it as a "• <time>" stamp appended right after the footer
+        // text, which read as noise here — the "Aktualisiert" field already carries the when-edited
+        // info when relevant.
+        var embed = await embedBranding.BuildBrandedAsync(guildId, translation, EmbedBranding.InformationColor, "🌐 Automatische Übersetzung");
+        embed.Fields = fields;
+        return embed;
     }
 
     private static string JumpLink(ulong guildId, ulong channelId, ulong messageId) =>

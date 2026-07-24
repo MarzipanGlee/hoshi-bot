@@ -11,25 +11,12 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
     // (the wizard experience the legacy bot had) instead of stacking a fresh ephemeral per step.
     private async Task<InteractionCallbackProperties<MessageOptions>> EphemeralEmbedModifyAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null)
     {
-        var embed = await BuildEmbedAsync(description, title);
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: title);
         return InteractionCallback.ModifyMessage(m =>
         {
             m.Embeds = [embed];
             m.Components = components ?? [];
         });
-    }
-
-    private async Task<EmbedProperties> BuildEmbedAsync(string description, string? title = null, Color? color = null)
-    {
-        var guildId = Context.Guild!.Id;
-        return new EmbedProperties
-        {
-            Title = title,
-            Description = description,
-            Color = color ?? EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
     }
 
     // Fetching upcoming absences can take a moment under load, so — matching legacy's own
@@ -56,7 +43,7 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
                 $"{AbsenceService.BuildOwnListText(own)}\n\n" +
                 "Wie lautet Dein Befehl, Commander?";
 
-            var finalEmbed = await BuildEmbedAsync(description, title: "Abwesenheiten verwalten");
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: "Abwesenheiten verwalten");
 
             return m =>
             {
@@ -115,7 +102,7 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
-            var finalEmbed = await BuildEmbedAsync(CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du bearbeiten?"),
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du bearbeiten?"),
                 title: "Abwesenheit bearbeiten");
 
             return m =>
@@ -130,7 +117,7 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
-            var finalEmbed = await BuildEmbedAsync(CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du löschen?"),
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du löschen?"),
                 title: "Abwesenheit löschen");
 
             return m =>

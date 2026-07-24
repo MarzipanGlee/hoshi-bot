@@ -56,31 +56,18 @@ public class CommandBridgeStaffButtonModule(
         {
             var muted = action == "on";
             var result = await alertService.SetShieldMutedAsync(Context.Guild!.Id, targetUserId, muted);
-            var embed = await BuildEmbedAsync(result, title: "Öffentliche Schildablaufwarnungen verwalten");
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: "Öffentliche Schildablaufwarnungen verwalten");
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 
     private async Task<InteractionMessageProperties> EphemeralEmbedAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null)
     {
-        var embed = await BuildEmbedAsync(description, title);
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: title);
         return new InteractionMessageProperties
         {
             Embeds = [embed],
             Flags = MessageFlags.Ephemeral,
             Components = components,
-        };
-    }
-
-    private async Task<EmbedProperties> BuildEmbedAsync(string description, string? title = null, Color? color = null)
-    {
-        var guildId = Context.Guild!.Id;
-        return new EmbedProperties
-        {
-            Title = title,
-            Description = description,
-            Color = color ?? EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
         };
     }
 }

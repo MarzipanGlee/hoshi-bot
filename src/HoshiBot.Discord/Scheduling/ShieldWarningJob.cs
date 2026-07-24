@@ -51,13 +51,7 @@ public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispa
             if (!reminder.Muted && reminder.Notifications.All(n => n.Kind != NotificationKind.Public))
             {
                 var content = $"Commander, <@{reminder.DiscordUserId}>'s shield has expired in **{reminder.StfcSystem?.Name}**! Please assist.";
-                var publicEmbed = new EmbedProperties
-                {
-                    Description = content,
-                    Color = EmbedBranding.DangerColor,
-                    Author = await embedBranding.BuildAuthorAsync(reminder.GuildId),
-                    Footer = embedBranding.BuildFooter(reminder.GuildId),
-                };
+                var publicEmbed = await embedBranding.BuildBrandedAsync(reminder.GuildId, content, EmbedBranding.DangerColor);
                 var publicResults = await dispatcher.SendPublicAsync(reminder.GuildId, GuildAlertChannelKind.Shield, content, embed: publicEmbed);
                 foreach (var (channelId, messageId) in publicResults)
                 {
@@ -87,13 +81,7 @@ public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispa
         if (lastUserNotification is not null && now - lastUserNotification.SentAt < interval)
             return;
 
-        var embed = new EmbedProperties
-        {
-            Description = content,
-            Color = EmbedBranding.DangerColor,
-            Author = await embedBranding.BuildAuthorAsync(reminder.GuildId),
-            Footer = embedBranding.BuildFooter(reminder.GuildId),
-        };
+        var embed = await embedBranding.BuildBrandedAsync(reminder.GuildId, content, EmbedBranding.DangerColor);
         var messageId = await dispatcher.SendDirectMessageAsync(reminder.DiscordUserId, "",
             AlertService.ShieldReminderTerminateButton(reminder.GuildId), embed);
 

@@ -27,7 +27,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     // every real bot message, just also used for these interactive in-between steps.
     private async Task<InteractionMessageProperties> EphemeralEmbedAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null, Color? color = null)
     {
-        var embed = await BuildEmbedAsync(description, title, color);
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, color, title);
         return new InteractionMessageProperties
         {
             Embeds = [embed],
@@ -41,25 +41,12 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     // instead of stacking a new one.
     private async Task<InteractionCallbackProperties<MessageOptions>> EphemeralEmbedModifyAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null)
     {
-        var embed = await BuildEmbedAsync(description, title);
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: title);
         return InteractionCallback.ModifyMessage(m =>
         {
             m.Embeds = [embed];
             m.Components = components ?? [];
         });
-    }
-
-    private async Task<EmbedProperties> BuildEmbedAsync(string description, string? title = null, Color? color = null)
-    {
-        var guildId = Context.Guild!.Id;
-        return new EmbedProperties
-        {
-            Title = title,
-            Description = description,
-            Color = color ?? EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
     }
 
     [ComponentInteraction("raid-report")]
@@ -219,7 +206,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
             if (unread.Count == 0)
             {
-                var doneEmbed = await BuildEmbedAsync(CommanderName.Address(Context.User, "Du hast alle Ankündigungen gelesen. 🎉"), title: "Ungelesene Ankündigungen");
+                var doneEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Address(Context.User, "Du hast alle Ankündigungen gelesen. 🎉"), title: "Ungelesene Ankündigungen");
                 return m => { m.Embeds = [doneEmbed]; m.Components = []; };
             }
 
@@ -234,7 +221,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             var lines = unread.Select(a =>
                 $"{SeverityEmoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
 
-            var finalEmbed = await BuildEmbedAsync(CommanderName.Greeting(Context.User) + "Deine ungelesenen Ankündigungen:\n" + string.Join('\n', lines), title: "Ungelesene Ankündigungen");
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Greeting(Context.User) + "Deine ungelesenen Ankündigungen:\n" + string.Join('\n', lines), title: "Ungelesene Ankündigungen");
             return m => { m.Embeds = [finalEmbed]; m.Components = rows; };
         });
     }

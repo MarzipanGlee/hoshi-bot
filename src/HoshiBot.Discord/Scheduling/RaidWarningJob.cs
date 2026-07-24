@@ -44,13 +44,9 @@ public class RaidWarningJob(HoshiBotDbContext db, NotificationDispatcher dispatc
             if (lastUserNotification is not null && now - lastUserNotification.SentAt < ReminderInterval)
                 continue;
 
-            var embed = new EmbedProperties
-            {
-                Description = $"Commander, you're still being raided in **{alert.StfcSystem?.Name}**! Use the button below or /raid-terminate once it's resolved.",
-                Color = EmbedBranding.DangerColor,
-                Author = await embedBranding.BuildAuthorAsync(alert.GuildId),
-                Footer = embedBranding.BuildFooter(alert.GuildId),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(alert.GuildId,
+                $"Commander, you're still being raided in **{alert.StfcSystem?.Name}**! Use the button below or /raid-terminate once it's resolved.",
+                EmbedBranding.DangerColor);
             var messageId = await dispatcher.SendDirectMessageAsync(alert.TargetDiscordUserId, "",
                 AlertService.RaidTerminateButton(alert.GuildId, alert.TargetDiscordUserId), embed);
 

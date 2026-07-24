@@ -62,24 +62,18 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         if (severity != AnnouncementSeverity.Direct)
             fields.Add(new EmbedFieldProperties { Name = "Im Auftrag von", Value = attribution, Inline = true });
 
-        var embed = new EmbedProperties
+        // Matches legacy's exact palette (reaction-handler.yag:47-60) — Information/
+        // Warning/Danger/Bot, not approximated Bootstrap colors.
+        var color = severity switch
         {
-            Title = title,
-            Description = body,
-            // Matches legacy's exact palette (reaction-handler.yag:47-60) — Information/
-            // Warning/Danger/Bot, not approximated Bootstrap colors.
-            Color = severity switch
-            {
-                AnnouncementSeverity.Elevated => EmbedBranding.WarningColor,
-                AnnouncementSeverity.High => EmbedBranding.DangerColor,
-                AnnouncementSeverity.Direct => EmbedBranding.BotColor,
-                _ => EmbedBranding.InformationColor,
-            },
-            Fields = fields,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-            Timestamp = DateTimeOffset.UtcNow,
+            AnnouncementSeverity.Elevated => EmbedBranding.WarningColor,
+            AnnouncementSeverity.High => EmbedBranding.DangerColor,
+            AnnouncementSeverity.Direct => EmbedBranding.BotColor,
+            _ => EmbedBranding.InformationColor,
         };
+        var embed = await embedBranding.BuildBrandedAsync(guildId, body, color, title);
+        embed.Fields = fields;
+        embed.Timestamp = DateTimeOffset.UtcNow;
 
         var imageUrl = attachmentUrls.FirstOrDefault(url => draft.Attachments.First(a => a.Url == url).ContentType?.StartsWith("image/") == true);
         if (imageUrl is not null)

@@ -94,14 +94,8 @@ public class RoeViolationService(
     // Branded confirmation embed shown back to the reporter after the modal — matches the rest
     // of the bot's author/footer styling (the legacy report post did the same). Public so the
     // modal module's fallback branch can build one too.
-    public async Task<EmbedProperties> ResultEmbedAsync(ulong guildId, string title, string description) => new()
-    {
-        Title = title,
-        Description = description,
-        Color = EmbedBranding.BotColor,
-        Author = await embedBranding.BuildAuthorAsync(guildId),
-        Footer = embedBranding.BuildFooter(guildId),
-    };
+    public Task<EmbedProperties> ResultEmbedAsync(ulong guildId, string title, string description) =>
+        embedBranding.BuildBrandedAsync(guildId, description, title: title);
 
     public async Task<EmbedProperties> CreateReportAsync(ulong guildId, ulong reporterId, string reporterDisplayName, string attackerTag, string attackerName,
         string defenderTag, string defenderName, ulong? attackerDiscordUserId, bool reporterIsVictim)
@@ -147,14 +141,9 @@ public class RoeViolationService(
         // A forum post's starter message is required at creation time — unlike a normal text
         // channel's thread (create empty, send the first message after), Discord's forum-thread
         // endpoint has no "create, then fill in" step, so the embed has to be built first.
-        var embed = new EmbedProperties
-        {
-            Title = $"[{attackerTag}] {attackerName} - [{defenderTag}] {defenderName}",
-            Description = BuildInstructions(reporterDisplayName, reporterIsVictim, diplomatMention),
-            Color = EmbedBranding.BotColor,
-            Author = await embedBranding.BuildAuthorAsync(guildId),
-            Footer = embedBranding.BuildFooter(guildId),
-        };
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            BuildInstructions(reporterDisplayName, reporterIsVictim, diplomatMention),
+            title: $"[{attackerTag}] {attackerName} - [{defenderTag}] {defenderName}");
 
         // Ping the reporter (and the reported own player, if known) in the starter message so
         // they're pulled into the forum post and notified — same as pinging them by hand.
@@ -219,13 +208,7 @@ public class RoeViolationService(
 
         try
         {
-            var embed = new EmbedProperties
-            {
-                Description = "Der Fall ist bereit und kann übernommen werden.",
-                Color = EmbedBranding.BotColor,
-                Author = await embedBranding.BuildAuthorAsync(report.GuildId),
-                Footer = embedBranding.BuildFooter(report.GuildId),
-            };
+            var embed = await embedBranding.BuildBrandedAsync(report.GuildId, "Der Fall ist bereit und kann übernommen werden.");
             await gatewayClient.Rest.SendMessageAsync(report.ThreadId,
                 new MessageProperties { Content = mention, Embeds = [embed] });
         }

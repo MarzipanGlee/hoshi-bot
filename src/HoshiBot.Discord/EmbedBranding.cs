@@ -23,6 +23,20 @@ public class EmbedBranding(GatewayClient gatewayClient, EmbedBrandingOptions opt
     public static readonly Color InformationColor = new(0xFFFAF0);
     public static readonly Color WarningColor = new(0xFFD700);
 
+    // The whole branded embed in one call — the author line + guild footer + palette every real
+    // bot message shares, so call sites stop hand-assembling the same EmbedProperties. Defaults to
+    // the informational BotColor; pass a color for alerts/warnings. Callers that need Fields or
+    // other props set them on the returned embed.
+    public async Task<EmbedProperties> BuildBrandedAsync(ulong guildId, string description, Color? color = null, string? title = null) =>
+        new()
+        {
+            Title = title,
+            Description = description,
+            Color = color ?? BotColor,
+            Author = await BuildAuthorAsync(guildId),
+            Footer = BuildFooter(guildId),
+        };
+
     public async Task<EmbedAuthorProperties> BuildAuthorAsync(ulong guildId)
     {
         return new EmbedAuthorProperties

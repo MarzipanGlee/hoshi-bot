@@ -101,14 +101,7 @@ public class StfcClientReleaseNotifyJob(
 
                 var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.ClientRelease, GuildAudience.None, null, roleKey);
 
-                var embed = new EmbedProperties
-                {
-                    Title = $"New {DisplayName(platform)} Version",
-                    Description = content,
-                    Color = EmbedBranding.InformationColor,
-                    Author = await embedBranding.BuildAuthorAsync(guildId),
-                    Footer = embedBranding.BuildFooter(guildId),
-                };
+                var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.InformationColor, $"New {DisplayName(platform)} Version");
                 await dispatcher.SendToChannelIdsAsync(guildId, channelIds, roleId, content, embed);
             }
 
