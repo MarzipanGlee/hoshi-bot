@@ -5,11 +5,7 @@
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 
-<div class="form-switch mb-3">
-    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
-           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
-    <label class="form-check-label">Enabled</label>
-</div>
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
     <SettingsCard Title="Raid Reports">

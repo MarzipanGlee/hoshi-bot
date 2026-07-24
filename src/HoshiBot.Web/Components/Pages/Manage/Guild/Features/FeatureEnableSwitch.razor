@@ -1,0 +1,17 @@
+@* The per-feature "Enabled" toggle shown at the top of every feature editor. Extracted so the ~26
+   editors don't each hand-roll the same form-switch + checkbox + label (and so its spacing lives in
+   one place). Markup-only: each editor keeps its own enabled state and toggle handler — some also
+   read that state for their own rendering (e.g. CommandBridge disables its post buttons when off). *@
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch"
+           checked="@Enabled" @onchange="e => OnToggle.InvokeAsync((bool)e.Value!)" />
+    <label class="form-check-label">@Label</label>
+</div>
+
+@code {
+    [Parameter] public bool Enabled { get; set; }
+
+    [Parameter] public EventCallback<bool> OnToggle { get; set; }
+
+    [Parameter] public string Label { get; set; } = "Enabled";
+}

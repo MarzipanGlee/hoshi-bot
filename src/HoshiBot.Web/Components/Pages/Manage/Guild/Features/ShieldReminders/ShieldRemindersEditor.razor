@@ -1,11 +1,7 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Components.Pages.Manage.Guild
 
-<div class="form-switch mb-3">
-    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
-           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
-    <label class="form-check-label">Enabled</label>
-</div>
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="ResolvedAudience" />
 

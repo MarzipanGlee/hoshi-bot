@@ -5,11 +5,7 @@
 @inject GuildFeatureSettingsService SettingsService
 @inject GuildFeatureService FeatureService
 
-<div class="form-switch mb-3">
-    <input type="checkbox" class="form-check-input" role="switch" checked="@enabled"
-           @onchange="e => ToggleAsync((bool)e.Value!)" />
-    <label class="form-check-label">Enabled</label>
-</div>
+<FeatureEnableSwitch Enabled="enabled" OnToggle="ToggleAsync" />
 
 <div class="card-grid mt-1">
     <SettingsCard Title="Announcements">
