@@ -44,6 +44,14 @@ public partial class AiChatIndexService(
     // Reciprocal Rank Fusion constant (standard 60): score += 1 / (RrfK + rank).
     private const int RrfK = 60;
 
+    // Recency fusion: a third RRF term ranks the already-retrieved candidates newest-first, scaled by
+    // this weight, so a fresher relevant row wins a near-tie over an older one that merely reads more
+    // similarly (the general form of the promo-code/stale-content bug). Deliberately < 1 so it only
+    // breaks near-ties, never overrides a clear relevance win — and applied only over the FTS/vector
+    // candidate union, so it never pulls in recent-but-irrelevant chatter and can't bury a lone
+    // evergreen hit (nothing fresher competes with it). Tunable.
+    private const double RecencyWeight = 0.5;
+
     // Per-channel knowledge priority tiers (soft down-rank): after RRF fusion a candidate's score is
     // multiplied by its channel's tier factor, so Preferred sources win ties/near-ties and LastResort
     // sources only surface when nothing better matches. Values are tunable.
@@ -76,7 +84,8 @@ public partial class AiChatIndexService(
     public readonly record struct KnowledgeHit(ulong ChannelId, string? ChannelName, string Content);
 
     // One retrieval candidate (from either the FTS or the vector leg), keyed by row Id for fusion.
-    private readonly record struct Candidate(int Id, ulong ChannelId, string? ChannelName, string Content);
+    // CreatedAt drives the recency fusion term (see SearchAsync).
+    private readonly record struct Candidate(int Id, ulong ChannelId, string? ChannelName, string Content, DateTimeOffset CreatedAt);
 
     // Hybrid search of this guild's index: keyword full-text search AND semantic vector search,
     // fused with Reciprocal Rank Fusion. FTS keeps exact-term/rare-word precision (proper nouns,
@@ -93,21 +102,29 @@ public partial class AiChatIndexService(
         if (ftsCandidates.Count == 0 && vectorCandidates.Count == 0)
             return [];
 
-        // Reciprocal Rank Fusion: a row's score is the sum of 1/(RrfK + rank) across the two lists,
-        // so a hit ranked well by either leg — or moderately by both — floats to the top.
+        // Reciprocal Rank Fusion: a row's score is the sum of 1/(RrfK + rank) across the lists, so a
+        // hit ranked well by either leg — or moderately by both — floats to the top. The weight lets
+        // the recency leg (below) contribute a fractional term.
         var scores = new Dictionary<int, double>();
         var byId = new Dictionary<int, Candidate>();
-        void Fuse(List<Candidate> list)
+        void Fuse(IReadOnlyList<Candidate> list, double weight = 1.0)
         {
             for (var i = 0; i < list.Count; i++)
             {
                 var c = list[i];
-                scores[c.Id] = scores.GetValueOrDefault(c.Id) + 1.0 / (RrfK + i + 1);
+                scores[c.Id] = scores.GetValueOrDefault(c.Id) + weight / (RrfK + i + 1);
                 byId[c.Id] = c;
             }
         }
         Fuse(ftsCandidates);
         Fuse(vectorCandidates);
+
+        // Recency leg: rank the ALREADY-retrieved candidate union newest-first and fuse it at a
+        // fractional weight. Because it only reorders rows FTS/vector already surfaced, it nudges a
+        // fresher relevant row above an older near-tie without introducing recent-but-irrelevant rows
+        // or burying a lone evergreen hit (see RecencyWeight).
+        var byRecency = byId.Values.OrderByDescending(c => c.CreatedAt).ToList();
+        Fuse(byRecency, RecencyWeight);
 
         // Soft down-rank by channel priority tier: multiply each fused score by its tier factor, so
         // Preferred sources win ties/near-ties and LastResort sources only surface when nothing
@@ -149,7 +166,7 @@ public partial class AiChatIndexService(
                 .Rank(EF.Functions.WebSearchToTsQuery(language, search)))
             .ThenByDescending(m => m.CreatedAt)
             .Take(CandidatePoolSize)
-            .Select(m => new Candidate(m.Id, m.ChannelId, m.ChannelName, m.Content))
+            .Select(m => new Candidate(m.Id, m.ChannelId, m.ChannelName, m.Content, m.CreatedAt))
             .ToListAsync(cancellationToken);
     }
 
@@ -182,7 +199,7 @@ public partial class AiChatIndexService(
             .Where(m => m.GuildId == guildId && m.Embedding != null && m.EmbeddingModel == model)
             .OrderBy(m => m.Embedding!.CosineDistance(queryVec))
             .Take(CandidatePoolSize)
-            .Select(m => new Candidate(m.Id, m.ChannelId, m.ChannelName, m.Content))
+            .Select(m => new Candidate(m.Id, m.ChannelId, m.ChannelName, m.Content, m.CreatedAt))
             .ToListAsync(cancellationToken);
     }
 
