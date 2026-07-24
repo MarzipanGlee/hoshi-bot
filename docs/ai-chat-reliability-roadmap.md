@@ -1,8 +1,9 @@
 # AI chat — reliability & retrieval roadmap
 
 *Status: phased plan. Captured 2026-07-24 after a two-day live debugging session (the testing
-guild), not a hypothetical — every incident below actually happened. Phases 0 and 1 are done;
-Phases 2–5 are not built yet.*
+guild), not a hypothetical — every incident below actually happened. Phases 0–2 are done; Phases
+3–6 are not built yet (Phase 3, memory grounding, is the high-priority next one — it actively
+causes wrong answers).*
 
 ## Why this roadmap
 
@@ -84,7 +85,17 @@ MemoryAdmin.razor`), e.g. `"health" → AiChatHealthAdmin.razor`, showing per gu
 `AiChatProviderHealth` entity + migration, `AiChatIndexService.cs`/`GeminiEmbeddingProvider.cs`/
 `GeminiClient.cs`/`OllamaClient.cs` (write health rows alongside existing catch/log sites).
 
-## Phase 2 — Recency-aware ranking
+## Phase 2 — Recency-aware ranking — DONE
+
+Shipped (commit `773a10d`, deployed + verified 2026-07-24). A third RRF term ranks the
+already-retrieved FTS+vector candidate union newest-first at a fractional weight (`RecencyWeight =
+0.5`) in `AiChatIndexService.SearchAsync`, so a fresher relevant row wins a near-tie without
+introducing recent-but-irrelevant rows or burying a lone evergreen hit. A **forum-title search gap**
+surfaced during verification and rode along (commit `b8a872a`): thread titles live in `ChannelName`
+and were invisible to search, so a title-only query couldn't retrieve the post — fixed by matching
+FTS over `Content + ChannelName` (immediate, all rows; SQL-verified) and prepending `ChannelName` to
+the embedded text (semantic, forward). Verification of this phase also exposed the memory-grounding
+problem now tracked as Phase 3 below.
 
 **Why:** incident #4's root cause generalizes — the hybrid search's Reciprocal Rank Fusion has
 **no time-decay at all**, so any channel (not just ones an admin forgot to mark Preferred) can
@@ -112,7 +123,7 @@ context, not action items:
 - One incident this roadmap responds to was fundamentally a **cross-lingual** miss — a German
   query ("Überholung") failed to lexically match an English correction ("Refits") in plain FTS,
   and the semantic/vector leg that could have bridged that gap was unavailable (embedding-quota
-  outage, see Phase 3). Both articles flag multilingual strength as a real differentiator between
+  outage, see Phase 4). Both articles flag multilingual strength as a real differentiator between
   embedding models (one specifically calls out BGE-M3 as outperforming for mixed-language
   content) — worth keeping in mind if `embeddinggemma`/`gemini-embedding-2` ever show a pattern of
   missing German-query-to-English-content matches once Phase 1's observability exists to actually
@@ -125,7 +136,52 @@ context, not action items:
   enough to change the fixed `vector(768)` column now (would need a dimension migration + full
   re-embed per this doc's "Larger / different embedding model" note, see `docs/backlog.md`).
 
-## Phase 3 — Embedding-provider degradation signaling
+## Phase 3 — Memory grounding & confabulation guard — HIGH PRIORITY (do next)
+
+**Why (live incident, 2026-07-24):** even after retrieval was fixed (Phase 2 + the forum-title
+fix) and the complexity router disabled so the strong model answered, Hoshi still cited a *wrong*
+immortality-crew (Annorax/E-Data + Chang + S31 Georgiou; the authoritative forum post is Old Mudd /
+Ro Mudd / Eurydice) and repeated a confabulated date ("24. Juli 2026") verbatim across attempts.
+Root cause found in `GuildMemories`: the memory-consolidation extractor had distilled **speculative
+user chatter** ("angeblich unsterblich", "Geheimtipp von Anor") and earlier confabulated exchanges
+into confident, declarative "fact" memories (rows Id 5/8/9), which then **outweighed the correctly
+retrieved authoritative post** in the prompt. This is the memory-layer analogue of the index
+self-citation bug (`1628feb`) — a self-reinforcing hallucination loop — but subtler: the memory job
+already skips the bot's own messages (`MemoryConsolidationJob.cs:116`), so it's not the same guard.
+Two distinct gaps:
+
+1. **Extraction over-commitment** — `MemoryExtractor` turns speculation, questions, and unverified
+   claims from chat into declarative facts. Factual game-mechanics/build claims especially should
+   not be manufactured from chat distillation; those belong to authoritative knowledge channels.
+2. **Grounding precedence** — a chat-derived episodic memory can override an authoritative retrieved
+   knowledge source in the prompt; here the model weighted a memory above the actual post.
+
+**Shape (design during implementation):**
+
+- **Extraction discipline** — tighten the `MemoryExtractor` prompt to only capture what actually
+  happened/was stated, not speculation/questions/unverified claims; skip distilling factual
+  game-mechanic/build/how-to claims entirely (reserve memory for social/community-flavored episodic
+  context, which is its actual purpose per `docs/ai-chat-member-lore.md`). Possibly drop
+  interrogative/hedged source lines ("angeblich", "?", "gibt es …?") before extraction.
+- **Precedence in the prompt** — in `AiChatService.BuildSystemInstructionAsync`, make authoritative
+  blocks (retrieved knowledge sources, structured DB facts) explicitly outrank the episodic-memory
+  block, and instruct the model that memories are soft recollections that must yield to (or be
+  omitted when they conflict with) a retrieved source. Consider not injecting episodic memories at
+  all for factual/how-to questions where the knowledge index is the right authority.
+- **Confabulation containment** — optionally dampen or skip forming a memory that contradicts the
+  knowledge index, and/or gate factual-sounding memories on corroboration from an authoritative
+  source.
+
+**Open questions:** how to cheaply classify "authoritative vs speculative" at extraction time;
+whether factual memories should exist at all vs only social/episodic ones; whether to add a one-off
+cleanup for any already-formed confabulated memories (the test guild's were hand-deleted
+2026-07-24).
+
+**Verification:** reproduce with a speculative-question conversation and confirm no confident
+factual memory forms; confirm that when a memory conflicts with a retrieved authoritative post, the
+post wins in the answer (re-run the immortality-crew question → cites Old Mudd / Ro Mudd / Eurydice).
+
+## Phase 4 — Embedding-provider degradation signaling
 
 **Why:** incident #3 wasn't just invisible to the operator — it was invisible to the *bot's own
 behavior*, too: FTS-only degradation is silent and "graceful" by design (per
@@ -141,7 +197,7 @@ human-confirmed changes over silent automatic ones (see the member-messaging-opt
 an auto-fallback could be a later opt-in toggle once the visibility exists to know if it's even
 needed.
 
-## Phase 4 — ANN vector index (HNSW)
+## Phase 5 — ANN vector index (HNSW)
 
 **Why:** already flagged in `docs/backlog.md` as deferred ("v1 does a sequential cosine scan...
 add an index if a guild's index grows large"). The test guild is already at ~39k indexed rows —
@@ -152,7 +208,7 @@ chosen threshold; benchmark query latency before/after on the current sequential
 confirm it's worth the write-side cost (HNSW build/maintenance overhead). Lowest-risk phase — pure
 performance, no behavior change.
 
-## Phase 5 — Chunking (larger structural change, do last)
+## Phase 6 — Chunking (larger structural change, do last)
 
 **Why:** flagged as a deliberate "v1 compromise" in `docs/ai-chat-rag.md` — retrieval unit is
 still one whole Discord message (capped at 4000 chars). Incident #1's original over-synthesis bug
@@ -162,7 +218,7 @@ conflate facts than if each bullet were its own retrievable chunk.
 
 **Shape:** deliberately under-specified here — this is the highest-effort, highest-risk phase
 (needs a chunk-to-parent-message reference, re-chunking on edit, chunk-level dedup in ranking) and
-should get its own dedicated design pass once Phases 1–4 land, informed by real data from Phase 1's
+should get its own dedicated design pass once Phases 1–5 land, informed by real data from Phase 1's
 observability (e.g., "how often does a single indexed message actually contain multiple
 independent facts that get conflated?").
 
