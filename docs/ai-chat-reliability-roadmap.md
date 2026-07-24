@@ -1,8 +1,8 @@
 # AI chat — reliability & retrieval roadmap
 
 *Status: phased plan. Captured 2026-07-24 after a two-day live debugging session (the testing
-guild), not a hypothetical — every incident below actually happened. Phases 0–4 are done; Phases
-5–6 are not built yet.*
+guild), not a hypothetical — every incident below actually happened. Phases 0–5 are done; Phase 6
+(chunking) is not built yet.*
 
 ## Why this roadmap
 
@@ -235,7 +235,17 @@ human-confirmed changes over silent automatic ones (see the member-messaging-opt
 an auto-fallback could be a later opt-in toggle once the visibility exists to know if it's even
 needed.
 
-## Phase 5 — ANN vector index (HNSW)
+## Phase 5 — ANN vector index (HNSW) — DONE
+
+Shipped (commit `6fc1b5d`), deployed + measured on the testing guild 2026-07-24. HNSW index on
+`AiChatIndexedMessages.Embedding` (`vector_cosine_ops`) took the vector leg from a **1443 ms
+sequential scan to 30 ms** (48×) on the 39k-row guild — verified via `EXPLAIN ANALYZE` (now `Index
+Scan using IX_AiChatIndexedMessages_Embedding`). Crucially, the migration also sets pgvector 0.8's
+`hnsw.iterative_scan = relaxed_order` (+ `ef_search = 100`) at the database level: the query filters
+by `GuildId`/`EmbeddingModel`, and a global HNSW index returns the global top-k *then* filters —
+without iterative scan the 27-row second guild would have gotten near-zero results; verified it still
+returns all 27. `GuildMemories` (a handful of rows) stays a seq scan with a note to copy this pattern
+when it grows. No behavior change beyond approximate-vs-exact ranking (fine in the RRF-fused pool).
 
 **Why:** already flagged in `docs/backlog.md` as deferred ("v1 does a sequential cosine scan...
 add an index if a guild's index grows large"). The test guild is already at ~39k indexed rows —
