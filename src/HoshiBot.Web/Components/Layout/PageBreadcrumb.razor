@@ -95,7 +95,7 @@
                                 .Select(ga => new { ga.StfcAlliance.Tag, ga.StfcAlliance.Name, ServerId = ga.StfcAlliance.Server.Id, Region = ga.StfcAlliance.Server.Region.Name })
                                 .FirstOrDefaultAsync();
                             var allianceLabel = a is null ? segments[4] : $"[{a.Region}{a.ServerId}][{a.Tag}] {a.Name}";
-                            result.Add((allianceLabel, $"manage/guild/{guildId}/alliance/{allianceId}/settings"));
+                            result.Add((allianceLabel, $"manage/guild/{guildId}/alliance/{allianceId}"));
 
                             // The alliance's page (settings / command-bridge / features [+ feature slug]).
                             if (segments.Length >= 6)

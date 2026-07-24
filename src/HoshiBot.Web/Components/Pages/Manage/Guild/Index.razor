@@ -140,6 +140,6 @@ else
     private async Task OpenAllianceAsync(int guildAllianceId)
     {
         await AllianceContext.SetAsync(guildAllianceId);
-        Nav.NavigateTo($"manage/guild/{GuildId}/features");
+        Nav.NavigateTo($"manage/guild/{GuildId}/alliance/{guildAllianceId}");
     }
 }

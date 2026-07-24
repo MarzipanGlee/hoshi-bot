@@ -22,7 +22,8 @@ public abstract class AllianceAdminPageBase : GuildAdminPageBase
     // True when the guild has no alliance linked at all — the page shows a "link one first" hint.
     protected bool NeedsAllianceLink { get; private set; }
 
-    // The path segment after /alliance/{id}/ this page lives at (e.g. "settings").
+    // The path segment after /alliance/{id}/ this page lives at (e.g. "settings"). The Overview
+    // page lives at the bare /alliance/{id} and returns "" — canonicalization drops the segment.
     protected abstract string PageSlug { get; }
 
     protected sealed override async Task OnAuthorizedParametersSetAsync()
@@ -37,10 +38,13 @@ public abstract class AllianceAdminPageBase : GuildAdminPageBase
             return;
         }
 
-        // Canonicalize so the URL is deep-linkable and the AllianceSelector's rewrite works.
+        // Canonicalize so the URL is deep-linkable and the AllianceSelector's rewrite works. The
+        // Overview page's PageSlug is "", so it canonicalizes to the bare /alliance/{id} (no trailing
+        // slash) rather than /alliance/{id}/.
         if (GuildAllianceIdRaw != id)
         {
-            Nav.NavigateTo($"manage/guild/{GuildId}/alliance/{id}/{PageSlug}", replace: true);
+            var suffix = PageSlug.Length == 0 ? "" : $"/{PageSlug}";
+            Nav.NavigateTo($"manage/guild/{GuildId}/alliance/{id}{suffix}", replace: true);
             return;
         }
 

@@ -1,0 +1,77 @@
+@page "/manage/guild/{GuildId}/alliance"
+@page "/manage/guild/{GuildId}/alliance/{GuildAllianceIdRaw:int}"
+@inherits AllianceAdminPageBase
+@inject GuildFeatureService FeatureService
+
+<PageTitle>@(allianceTag is null ? "Alliance" : $"[{allianceTag}]")</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else if (NeedsAllianceLink)
+{
+    <h1>Alliance</h1>
+    <p class="text-muted">
+        This guild has no alliance linked yet. Link one on the
+        <a href="manage/guild/@GuildId/audience">Audience</a> page first, then come back to configure it.
+    </p>
+}
+else
+{
+    <h1>[@allianceTag] @allianceName</h1>
+
+    <div class="card-grid">
+        @foreach (var p in AllianceAdminPages.All.Where(x => x.ShowOnOverviewCard))
+        {
+            <SettingsCard Href="@AllianceAdminPages.Href(ParsedGuildId, ResolvedAllianceId!.Value, p)">
+                <span class="oi @p.Icon fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                <h2 class="fs-5 fw-semibold mt-2 mb-1">@p.Label</h2>
+                <p class="mb-0" style="color:#5a5a63;">@CardSubtitle(p)</p>
+            </SettingsCard>
+        }
+    </div>
+}
+
+@code {
+    private string? allianceTag;
+    private string? allianceName;
+    private int enabledCount;
+    private int featureTotal;
+
+    protected override string PageSlug => "";
+
+    protected override async Task OnAllianceResolvedAsync(int guildAllianceId)
+    {
+        var alliance = await AllianceService.FindByIdAsync(ParsedGuildId, guildAllianceId);
+        if (alliance is null)
+        {
+            // Raced with an unlink — leave the labels blank; the next navigation re-resolves.
+            return;
+        }
+
+        allianceTag = alliance.StfcAlliance.Tag;
+        allianceName = alliance.StfcAlliance.Name;
+
+        // Only the real, toggleable Alliance-audience features count — the storage-only
+        // AiChatKnowledge* pseudo-features have no FeatureCatalog entry, so they're excluded from
+        // both the denominator and the enabled numerator (same guard as the guild Overview's
+        // Alliance cards, which would otherwise read "21/18").
+        var allianceRelevantFeatures = FeatureCatalog.All
+            .Where(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance))
+            .Select(f => f.Feature)
+            .ToHashSet();
+        featureTotal = allianceRelevantFeatures.Count;
+        enabledCount = (await FeatureService.GetEnabledAsync(ParsedGuildId))
+            .Count(s => s.Audience == GuildAudience.Alliance && s.GuildAllianceId == guildAllianceId && allianceRelevantFeatures.Contains(s.Feature));
+    }
+
+    // Per-card subtitle for the Overview grid, keyed by the page's route suffix. Settings has no
+    // single headline number, so it gets a static descriptor.
+    private string CardSubtitle(AllianceAdminPage page) => page.RouteSuffix switch
+    {
+        "features" => $"{enabledCount}/{featureTotal} enabled",
+        "settings" => "Channels & roles",
+        _ => "",
+    };
+}

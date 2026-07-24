@@ -42,12 +42,12 @@
                     @foreach (var link in AllianceContext.Alliances)
                     {
                         <NavMenuGroup Title="@AllianceGroupTitle(link)" Icon="oi-star" IconContent="@AllianceEmblemIcon(link)" Active="@IsAllianceGroupActive(link.Id)">
-                            <div class="nav-item px-3 ps-4">
-                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceSettingsHref(guildId, link.Id)">Settings</NavLink>
-                            </div>
-                            <div class="nav-item px-3 ps-4">
-                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceFeaturesHref(guildId, link.Id)">Features</NavLink>
-                            </div>
+                            @foreach (var ap in AllianceAdminPages.All)
+                            {
+                                <div class="nav-item px-3 ps-4">
+                                    <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceAdminPages.Href(guildId, link.Id, ap)" Match="@(ap.ExactMatch ? NavLinkMatch.All : NavLinkMatch.Prefix)">@ap.Label</NavLink>
+                                </div>
+                            }
                         </NavMenuGroup>
                     }
 
@@ -295,16 +295,10 @@
     private bool IsGroupActive(string[] hrefs) => Array.Exists(hrefs, IsActive);
 
     // The per-audience Features catalog page — the audience comes before "features" in the path
-    // (Guild is the bare .../features; others are .../{slug}/features). Alliance is per-alliance
-    // and uses AllianceFeaturesHref instead.
+    // (Guild is the bare .../features; others are .../{slug}/features). Alliance pages are
+    // per-alliance and come from AllianceAdminPages.Href instead.
     private string AudienceFeaturesHref(ulong guildId, GuildAudience audience) =>
         $"{AudienceDisplay.FeatureScopePrefix(guildId, audience, null)}/features";
-
-    private string AllianceFeaturesHref(ulong guildId, int allianceId) =>
-        $"manage/guild/{guildId}/alliance/{allianceId}/features";
-
-    private string AllianceSettingsHref(ulong guildId, int allianceId) =>
-        $"manage/guild/{guildId}/alliance/{allianceId}/settings";
 
     private string AllianceGroupTitle(GuildAlliance link) => $"Alliance — [{link.StfcAlliance.Tag}]";
 
