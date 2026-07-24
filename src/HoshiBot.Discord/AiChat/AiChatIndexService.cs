@@ -158,11 +158,17 @@ public partial class AiChatIndexService(
         if (string.IsNullOrWhiteSpace(search))
             return [];
 
+        // Search over the content PLUS the channel name, which for a forum/thread message holds the
+        // thread title ("parent / Die Unsterblichkeits-Crew"). A forum post's title is often its most
+        // important term and frequently appears nowhere in the body, so without this a title-only
+        // query (e.g. "Unsterblichkeits-Crew") can't retrieve the post at all — only point at the
+        // channel. Applies to existing rows immediately (no re-index); the vector leg gets the same
+        // title context via EmbedPendingAsync's embed text.
         return await db.AiChatIndexedMessages
             .Where(m => m.GuildId == guildId
-                && EF.Functions.ToTsVector(language, m.Content)
+                && EF.Functions.ToTsVector(language, m.Content + " " + (m.ChannelName ?? ""))
                     .Matches(EF.Functions.WebSearchToTsQuery(language, search)))
-            .OrderByDescending(m => EF.Functions.ToTsVector(language, m.Content)
+            .OrderByDescending(m => EF.Functions.ToTsVector(language, m.Content + " " + (m.ChannelName ?? ""))
                 .Rank(EF.Functions.WebSearchToTsQuery(language, search)))
             .ThenByDescending(m => m.CreatedAt)
             .Take(CandidatePoolSize)
@@ -468,7 +474,7 @@ public partial class AiChatIndexService(
         for (var i = 0; i < pending.Count; i += EmbedBatchSize)
         {
             var batch = pending.Skip(i).Take(EmbedBatchSize).ToList();
-            var result = await embeddingService.EmbedBatchDetailedAsync(guildId, batch.Select(m => m.Content).ToList(), cancellationToken);
+            var result = await embeddingService.EmbedBatchDetailedAsync(guildId, batch.Select(EmbedText).ToList(), cancellationToken);
 
             var any = false;
             for (var j = 0; j < batch.Count; j++)
@@ -505,6 +511,14 @@ public partial class AiChatIndexService(
                 "AiChat embedding guild {Guild}: embedded {Embedded} messages (model {Model}){Capped}",
                 guildId, embedded, model, capped ? $"; per-run cap {maxPerRun} hit, more remain" : "");
     }
+
+    // The text embedded for a row: the channel name (which for a forum/thread message carries the
+    // thread title, often the post's most important term and absent from the body) prepended to the
+    // content, so the semantic leg gains that title/topic context — the vector counterpart to
+    // FtsCandidatesAsync also searching the channel name. Rows already embedded keep their old vector
+    // until naturally re-embedded (content edit / model switch); new and re-embedded rows get this.
+    private static string EmbedText(AiChatIndexedMessage m) =>
+        string.IsNullOrWhiteSpace(m.ChannelName) ? m.Content : $"{m.ChannelName}\n{m.Content}";
 
     // Zero-regression path used before the index has any content for a guild: the old "gather
     // recent messages of every knowledge source" behavior, formatted as prompt lines.
