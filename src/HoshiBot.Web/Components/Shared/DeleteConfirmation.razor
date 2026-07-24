@@ -12,7 +12,7 @@
     @if (Loaded)
     {
         <dl class="row">
-            @Details
+            @ChildContent
         </dl>
         <EditForm method="post" Model="model" OnValidSubmit="OnConfirm" FormName="delete" Enhance>
             <button type="submit" class="btn btn-danger">Delete</button> |
@@ -36,8 +36,9 @@
     // True once the page has loaded the entity to delete — gates the details + confirm form.
     [Parameter] public bool Loaded { get; set; }
 
-    // The entity's <dt>/<dd> rows, rendered inside the shared <dl class="row">.
-    [Parameter] public RenderFragment? Details { get; set; }
+    // The entity's <dt>/<dd> rows (passed as the component's child content), rendered inside the
+    // shared <dl class="row">.
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 
     [Parameter] public EventCallback OnConfirm { get; set; }
 
