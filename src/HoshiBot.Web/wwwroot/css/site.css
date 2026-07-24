@@ -8,6 +8,37 @@ h1:focus {
     outline: none;
 }
 
+/* Page-heading spacing, standardized here instead of per-page utility classes so every admin
+   page has the same breadcrumb → title → subtitle → section → content rhythm. Scoped to `article`
+   (the MainLayout content wrapper) so public/login pages are untouched. */
+article h1 {
+    margin-bottom: 1rem;
+}
+
+/* When a lead paragraph (subtitle) follows the title, hug it to the title... */
+article h1:has(+ p) {
+    margin-bottom: 0.25rem;
+}
+
+/* ...and render that subtitle muted + consistently spaced, whether the page marked it text-muted
+   or left it a plain <p>. */
+article h1 + p {
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: 1rem;
+}
+
+/* Section-separator spacing above intra-page <h2>s (was a per-page mt-4). Adjacent-sibling margins
+   collapse, so a subtitle (1rem) directly before a section h2 (1.5rem) yields 1.5rem, not 2.5rem. */
+article h2 {
+    margin-top: 1.5rem;
+}
+
+/* <h2> is also used as a card title/header (AllianceCard/GuildCard/overview cards) — no section gap
+   inside a card. Higher specificity (0,1,1) than `article h2` (0,0,2), so this wins. */
+.card h2 {
+    margin-top: 0;
+}
+
 a, .btn-link {
     color: #0071c1;
 }

@@ -25,8 +25,8 @@ else if (audience == GuildAudience.Alliance && scopeAllianceId is null)
 }
 else
 {
-    <div class="d-flex align-items-center justify-content-between mt-3">
-        <h1>@Heading()</h1>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="mb-0">@Heading()</h1>
         <div class="form-switch">
             <input class="form-check-input" type="checkbox" id="hideInactive" role="switch"
                    checked="@hideInactive" @onchange="ToggleHideInactiveAsync" />
@@ -40,7 +40,7 @@ else
     }
     else
     {
-        <div class="card-grid mt-3">
+        <div class="card-grid">
             @foreach (var feature in visibleFeatures)
             {
                 var enabled = enabledFeatures.Contains(feature.Feature);

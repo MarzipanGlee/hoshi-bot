@@ -43,7 +43,7 @@ else
         }
     </div>
 
-    <h2 class="mt-4">Bot Posting Access</h2>
+    <h2>Bot Posting Access</h2>
     <p>
         Every channel the bot is configured to post to (feature channels, alert channels, and the
         guild's Settings channels), checked for the permissions the bot actually needs there —
@@ -153,7 +153,7 @@ else
         }
     }
 
-    <h2 class="mt-4">Expected Permissions</h2>
+    <h2>Expected Permissions</h2>
     <table class="table">
         <thead><tr><th>Channel</th><th>Role</th><th>Allow</th><th>Deny</th><th></th></tr></thead>
         <tbody>
@@ -232,7 +232,7 @@ else
         <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
     }
 
-    <h2 class="mt-4">Audit</h2>
+    <h2>Audit</h2>
     <button class="btn btn-primary" disabled="@auditing" @onclick="RunAudit">@(auditing ? "Checking..." : "Run Audit")</button>
 
     @if (auditResults is not null)

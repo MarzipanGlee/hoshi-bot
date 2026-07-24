@@ -49,10 +49,10 @@ else
         </div>
     </div>
 
-    <h2 class="mt-4">Systems</h2>
+    <h2>Systems</h2>
     <p>@(systems.Count == 0 ? "No linked systems yet — StfcSystemSyncService links them automatically." : string.Join(", ", systems.Select(s => s.Name)))</p>
 
-    <h2 class="mt-4">Neighbours</h2>
+    <h2>Neighbours</h2>
     <table class="table">
         <thead><tr><th>Zone</th><th></th></tr></thead>
         <tbody>
@@ -76,7 +76,7 @@ else
         <button type="submit" class="btn btn-primary">Add</button>
     </EditForm>
 
-    <h2 class="mt-4">Ownership</h2>
+    <h2>Ownership</h2>
     <table class="table">
         <thead><tr><th>Server</th><th>Alliance</th><th></th></tr></thead>
         <tbody>
