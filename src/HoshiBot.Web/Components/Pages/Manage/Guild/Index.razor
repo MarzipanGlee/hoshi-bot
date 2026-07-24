@@ -24,12 +24,12 @@ else
             <SettingsCard Href="@GuildAdminPages.Href(ParsedGuildId, p)">
                 <HeaderContent>
                     <div class="d-flex align-items-center gap-3">
-                        <span class="oi @p.Icon fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                        <span class="oi @p.Icon fs-4 card-icon" aria-hidden="true"></span>
                         <h2 class="fs-6 fw-semibold mb-0">@p.Label</h2>
                     </div>
                 </HeaderContent>
                 <ChildContent>
-                    <p class="mb-0" style="color:#5a5a63;">@CardSubtitle(p)</p>
+                    <p class="mb-0 card-subtext">@CardSubtitle(p)</p>
                 </ChildContent>
             </SettingsCard>
         }
@@ -38,7 +38,7 @@ else
     @if (links.Count > 0)
     {
         <h2 class="fs-5 fw-semibold mb-2">Alliances</h2>
-        <p class="mb-3" style="color:#5a5a63;">Select an alliance to configure its features and settings.</p>
+        <p class="mb-3 card-subtext">Select an alliance to configure its features and settings.</p>
         <div class="card-grid">
             @foreach (var link in links)
             {

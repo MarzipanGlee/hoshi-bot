@@ -77,6 +77,16 @@ a, .btn-link {
     gap: 1rem;
 }
 
+/* The shortcut/overview cards' navy icon glyph and grey subtitle text — shared here instead of a
+   repeated inline style on each card. (Not .card-subtitle: that's a Bootstrap class.) */
+.card-icon {
+    color: rgb(5, 39, 103);
+}
+
+.card-subtext {
+    color: #5a5a63;
+}
+
 /* Opt-in exception: a single card that spans the whole grid width instead of one 250-350px
    track — for a wide element (e.g. a multi-column table) the default track squeezes. Spanning
    1 / -1 works at every track count (full width when 1 track, all tracks when several). */

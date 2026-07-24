@@ -21,6 +21,9 @@
 
 .nav-item {
     font-size: 0.9rem;
+    /* Horizontal padding (was per-link px-3 ps-4 utilities): ps-4 left, px-3 right. */
+    padding-left: 1.5rem;
+    padding-right: 1rem;
     padding-bottom: 0.25rem;
 }
 
