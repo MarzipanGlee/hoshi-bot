@@ -1,9 +1,12 @@
 @page "/manage/guild/{GuildId}"
 @inherits GuildAdminPageBase
+@using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject GuildFeatureService FeatureService
 @inject GuildAllianceService AllianceService
 @inject CurrentAllianceContext AllianceContext
+@inject DiscordGuildDataService DiscordData
+@inject IConfiguration Configuration
 
 <PageTitle>@(guildName ?? "Guild")</PageTitle>
 
@@ -16,21 +19,14 @@ else
     <h1>@guildName</h1>
 
     <div class="card-grid">
-        <SettingsCard Href="@($"manage/guild/{GuildId}/features")">
-            <span class="oi oi-puzzle-piece fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-            <h2 class="fs-5 fw-semibold mt-2 mb-1">Features</h2>
-            <p class="mb-0" style="color:#5a5a63;">@enabledCount/@totalCount enabled</p>
-        </SettingsCard>
-        <SettingsCard Href="@($"manage/guild/{GuildId}/settings")">
-            <span class="oi oi-cog fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-            <h2 class="fs-5 fw-semibold mt-2 mb-1">Settings</h2>
-            <p class="mb-0" style="color:#5a5a63;">@audienceSummary</p>
-        </SettingsCard>
-        <SettingsCard Href="@($"manage/guild/{GuildId}/setup-wizard")">
-            <span class="oi oi-list-rich fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
-            <h2 class="fs-5 fw-semibold mt-2 mb-1">Setup Wizard</h2>
-            <p class="mb-0" style="color:#5a5a63;">@(setupComplete ? "Setup complete" : "Needs setup")</p>
-        </SettingsCard>
+        @foreach (var p in GuildAdminPages.All.Where(x => x.ShowOnOverviewCard))
+        {
+            <SettingsCard Href="@GuildAdminPages.Href(ParsedGuildId, p)">
+                <span class="oi @p.Icon fs-4" style="color:rgb(5,39,103);" aria-hidden="true"></span>
+                <h2 class="fs-5 fw-semibold mt-2 mb-1">@p.Label</h2>
+                <p class="mb-0" style="color:#5a5a63;">@CardSubtitle(p)</p>
+            </SettingsCard>
+        }
     </div>
 
     @if (links.Count > 0)
@@ -53,6 +49,7 @@ else
 
     private string? guildName;
     private string audienceSummary = "Not configured yet";
+    private string botStatusSummary = "…";
     private bool setupComplete;
     private int enabledCount;
     private int totalCount;
@@ -107,7 +104,43 @@ else
                     enabledCount++;
             }
         }
+
+        await LoadBotStatusSummaryAsync();
     }
+
+    // Live one-liner for the Permission Check card, mirroring that page's top banner: whether the
+    // bot has Manage Roles and whether any non-admin role outranks it. A Discord hiccup shouldn't
+    // break the Overview, so a REST failure just shows a neutral fallback.
+    private async Task LoadBotStatusSummaryAsync()
+    {
+        try
+        {
+            var botUserId = ulong.Parse(Configuration["Discord:ClientId"]!);
+            var status = await DiscordData.GetBotRoleStatusAsync(ParsedGuildId, botUserId);
+            botStatusSummary = !status.HasManageRoles
+                ? "⚠ Missing Manage Roles"
+                : status.NonAdminRolesAbove > 0
+                    ? $"⚠ {status.NonAdminRolesAbove} role{(status.NonAdminRolesAbove == 1 ? "" : "s")} above the bot"
+                    : "✓ Permissions OK";
+        }
+        catch (RestException)
+        {
+            botStatusSummary = "Couldn't reach Discord";
+        }
+    }
+
+    // Per-card subtitle for the Overview grid, keyed by the page's route suffix. The dynamic bits
+    // (audience summary, feature counts, setup + permission status) are computed above; Settings
+    // has no single headline number, so it gets a static descriptor.
+    private string CardSubtitle(GuildAdminPage page) => page.RouteSuffix switch
+    {
+        "audience" => audienceSummary,
+        "features" => $"{enabledCount}/{totalCount} enabled",
+        "settings" => "Channels, roles & general config",
+        "setup-wizard" => setupComplete ? "Setup complete" : "Needs setup",
+        "permission-check" => botStatusSummary,
+        _ => "",
+    };
 
     private async Task OpenAllianceAsync(int guildAllianceId)
     {

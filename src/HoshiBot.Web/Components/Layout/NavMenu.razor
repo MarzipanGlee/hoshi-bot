@@ -30,24 +30,12 @@
                 {
                     @* The guild's own admin pages + its guild-wide features — always shown. *@
                     <NavMenuGroup Title="Guild" Icon="@AudienceDisplay.Icon(GuildAudience.Guild)" Active="@IsGuildGroupActive(guildId)">
-                        <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}")" Match="NavLinkMatch.All">Overview</NavLink>
-                        </div>
-                        <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/audience")">Audience</NavLink>
-                        </div>
-                        <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, GuildAudience.Guild)">Features</NavLink>
-                        </div>
-                        <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/settings")">Settings</NavLink>
-                        </div>
-                        <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/setup-wizard")">Setup Wizard</NavLink>
-                        </div>
-                        <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@($"manage/guild/{guildId}/permission-check")">Permission Check</NavLink>
-                        </div>
+                        @foreach (var p in GuildAdminPages.All)
+                        {
+                            <div class="nav-item px-3 ps-4">
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@GuildAdminPages.Href(guildId, p)" Match="@(p.ExactMatch ? NavLinkMatch.All : NavLinkMatch.Prefix)">@p.Label</NavLink>
+                            </div>
+                        }
                     </NavMenuGroup>
 
                     @* One group per linked alliance — a coalition guild has several. *@
@@ -334,14 +322,11 @@
     // The Guild group holds the guild's own admin pages plus its guild-wide (bare .../features)
     // features. Overview is matched exactly (its route is a prefix of every other guild page); the
     // rest are distinct paths that don't overlap the alliance/audience feature pages owned by the
-    // other groups.
+    // other groups. Both the links above and this active test iterate the same GuildAdminPages list.
     private bool IsGuildGroupActive(ulong guildId) =>
-        string.Equals(currentUrl, $"manage/guild/{guildId}", StringComparison.OrdinalIgnoreCase)
-        || IsAudienceFeaturesActive(GuildAudience.Guild)
-        || IsActive($"manage/guild/{guildId}/audience")
-        || IsActive($"manage/guild/{guildId}/settings")
-        || IsActive($"manage/guild/{guildId}/setup-wizard")
-        || IsActive($"manage/guild/{guildId}/permission-check");
+        GuildAdminPages.All.Any(p => p.ExactMatch
+            ? string.Equals(currentUrl, GuildAdminPages.Href(guildId, p), StringComparison.OrdinalIgnoreCase)
+            : IsActive(GuildAdminPages.Href(guildId, p)));
 
     // Highlights a guild-scoped audience's group on its catalog page and its feature editors,
     // which share the audience's feature-path prefix: Guild = the bare .../features; every other

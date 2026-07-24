@@ -170,6 +170,69 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         return allRoles.OrderByDescending(r => r.Position).ToList();
     }
 
+    // The bot's own role/permission standing in a guild — its effective guild permissions (the OR
+    // of @everyone plus every role it holds), its highest role, and how many roles outrank it.
+    // Single source for both the Permission Check page's top banner and the Overview's permission
+    // card. AllRolesById includes @everyone (needed for the permission/hierarchy math and for
+    // PermissionCheck's per-channel fixability checks). BotMember is null only if Discord couldn't
+    // be reached, in which case every count is 0 / TopRoleName is "@everyone".
+    public sealed record BotGuildRoleStatus(
+        GuildUser? BotMember,
+        Permissions BotPermissions,
+        int HighestRolePosition,
+        ulong? TopRoleId,
+        string TopRoleName,
+        int RolesAbove,
+        int NonAdminRolesAbove,
+        IReadOnlyDictionary<ulong, Role> AllRolesById)
+    {
+        public bool HasManageRoles =>
+            BotPermissions.HasFlag(Permissions.Administrator) || BotPermissions.HasFlag(Permissions.ManageRoles);
+    }
+
+    // Discord computes a member's effective guild permissions as the OR of @everyone's permissions
+    // plus every explicit role they hold (RoleIds never includes @everyone itself, so it's added
+    // separately). The bot member is cached 60s under the same key PermissionCheck uses. Throws
+    // RestException on a Discord failure — callers wrap it (the Overview shows a fallback line).
+    public async Task<BotGuildRoleStatus> GetBotRoleStatusAsync(ulong guildId, ulong botUserId)
+    {
+        var botMember = await cache.GetOrCreateAsync($"discord-bot-member:{guildId}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            return await botRestClient.GetGuildUserAsync(guildId, botUserId);
+        });
+
+        var allRolesById = (await GetAllRolesAsync(guildId)).ToDictionary(r => r.Id);
+
+        var botRoles = (botMember?.RoleIds ?? [])
+            .Select(id => allRolesById.GetValueOrDefault(id))
+            .Where(r => r is not null)
+            .Select(r => r!)
+            .ToList();
+
+        // @everyone always applies to every member — Discord's guild-permission baseline.
+        if (allRolesById.TryGetValue(guildId, out var everyoneRole))
+            botRoles.Add(everyoneRole);
+
+        var botPermissions = botRoles.Aggregate(default(Permissions), (acc, r) => acc | r.Permissions);
+
+        var topRole = botRoles.OrderByDescending(r => r.RawPosition).FirstOrDefault();
+        var highestRolePosition = topRole?.RawPosition ?? 0;
+        var topRoleId = topRole?.Id;
+        var topRoleName = topRole is { Id: var id } && id != guildId ? topRole.Name : "@everyone";
+
+        // How many roles sit above the bot's highest — the "rank from the top" a user sees in
+        // Server Settings → Roles. These are exactly the roles the bot can't manage. Roles above it
+        // that hold Administrator don't matter (admin bypasses every channel overwrite), so only a
+        // non-admin role above is a real concern.
+        var rolesAbove = allRolesById.Values.Where(r => r.RawPosition > highestRolePosition).ToList();
+        var nonAdminRolesAbove = rolesAbove.Count(r => !r.Permissions.HasFlag(Permissions.Administrator));
+
+        return new BotGuildRoleStatus(
+            botMember, botPermissions, highestRolePosition, topRoleId, topRoleName,
+            rolesAbove.Count, nonAdminRolesAbove, allRolesById);
+    }
+
     // userId → display label (nickname/global name, alliance-tag prefix stripped like the bot's
     // CommanderName.Of) for a guild's non-bot members — used by the member-lore notes/review UI to
     // label rows by name instead of raw ids. When two members share a display name (e.g. a person's
