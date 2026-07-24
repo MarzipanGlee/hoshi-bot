@@ -24,10 +24,18 @@ public class MemoryExtractor(ILogger<MemoryExtractor> logger)
     {
         var systemPrompt =
             "Du bist das Gedächtnis einer Star-Trek-Fleet-Command-Allianz-Community. Lies den folgenden Chat-Ausschnitt " +
-            "und extrahiere NUR wirklich bemerkenswerte, dauerhaft erinnernswerte Ereignisse oder Fakten über die Allianz " +
-            "bzw. die Community: z. B. Kriege, Siege/Niederlagen, Gebietsübernahmen, Ein- oder Austritte von Mitgliedern, " +
-            "Events, Ankündigungen, denkwürdige/lustige Momente. Ignoriere Smalltalk, Tagesgeschäft, Begrüßungen und alles " +
-            "Belanglose. Erfinde nichts, fasse dich knapp (ein Satz pro Erinnerung), keine sensiblen privaten Daten.\n\n" +
+            "und extrahiere NUR wirklich bemerkenswerte, dauerhaft erinnernswerte SOZIALE Ereignisse der Allianz bzw. " +
+            "Community: z. B. Kriege, Siege/Niederlagen, Gebietsübernahmen, Ein- oder Austritte von Mitgliedern, Turniere, " +
+            "Events, denkwürdige oder lustige Momente.\n\n" +
+            "WICHTIG:\n" +
+            "- Halte NUR fest, was tatsächlich passiert ist oder eindeutig als Tatsache gesagt wurde. Reine Spekulationen, " +
+            "Fragen, Gerüchte, Vermutungen, Wünsche oder unbestätigte Behauptungen (\"angeblich\", \"vielleicht\", " +
+            "\"gibt es ...?\") sind KEINE Ereignisse und werden NICHT gespeichert. Dass jemand nach etwas fragt oder über " +
+            "etwas spekuliert, ist keine Erinnerung.\n" +
+            "- Speichere KEINE Spielmechaniken, Crew-Zusammenstellungen, Builds, Offiziers-Aufstellungen, Werte/Zahlen " +
+            "oder Taktik-/Anleitungs-Tipps. Solche Spielfakten gehören in die Wissenskanäle, nicht ins Community-Gedächtnis.\n" +
+            "- Ignoriere Smalltalk, Tagesgeschäft, Begrüßungen und alles Belanglose. Erfinde nichts, fasse dich knapp " +
+            "(ein Satz pro Erinnerung), keine sensiblen privaten Daten.\n\n" +
             "Gib AUSSCHLIESSLICH gültiges JSON in genau dieser Form zurück (kein Markdown, keine Code-Fences):\n" +
             "{ \"memories\": [ { \"content\": string, \"salience\": 1-5 } ] }\n" +
             "salience: 5 = sehr bedeutend/langlebig, 1 = nur am Rande erwähnenswert. Wenn nichts Bemerkenswertes vorkommt, " +
@@ -68,9 +76,11 @@ public class MemoryExtractor(ILogger<MemoryExtractor> logger)
     {
         var systemPrompt =
             "Fasse den folgenden Chat-Ausschnitt aus einem Community-Kanal in 1–3 knappen, sachlichen Sätzen zusammen: " +
-            "worüber gesprochen wurde, was entschieden oder vereinbart wurde, wichtige Fragen oder Ergebnisse. Schreibe " +
-            "aus der Beobachterperspektive auf Deutsch (keine Anrede, keine Ich-Form). Wenn es nur belangloser Smalltalk " +
-            "ohne erinnernswerten Inhalt ist, antworte mit exakt dem Wort NICHTS und sonst nichts.";
+            "worüber gesprochen wurde, was entschieden oder vereinbart wurde, wichtige Fragen oder Ergebnisse. Gib " +
+            "Spekulationen, Vermutungen oder offene Fragen ausdrücklich als solche wieder (z. B. \"... wurde diskutiert\", " +
+            "\"... war unklar\") und stelle sie NICHT als feststehende Fakten dar. Schreibe aus der Beobachterperspektive " +
+            "auf Deutsch (keine Anrede, keine Ich-Form). Wenn es nur belangloser Smalltalk ohne erinnernswerten Inhalt " +
+            "ist, antworte mit exakt dem Wort NICHTS und sonst nichts.";
 
         var userTurn = new AiChatTurn(AiChatRole.User, conversationText);
         var summary = (await model.Provider.GenerateAsync(

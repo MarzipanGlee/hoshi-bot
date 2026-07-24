@@ -519,6 +519,7 @@ public partial class AiChatService(
         var sb = new StringBuilder();
         sb.AppendLine(HoshiPersona.Describe(botName));
         sb.AppendLine("Antworte auf Deutsch, freundlich und knapp. Nutze zum Beantworten in erster Linie die unten angegebenen verlässlichen Fakten, Wissensquellen und den bisherigen Chatverlauf.");
+        sb.AppendLine("Bei Sachfragen (Spielmechaniken, Crews, Aufstellungen, Zahlen, Daten, Ereignisse) sind allein die Wissensquellen, die verlässlichen Fakten und die offiziellen Ankündigungen maßgeblich — sie haben Vorrang vor deinen Erinnerungen und vor allgemeinem Wissen. Wenn diese Quellen eine Sachfrage nicht abdecken, rate nicht und stütze dich nicht auf Erinnerungen, sondern sag ehrlich, dass du es nicht sicher weißt.");
 
         if (!string.IsNullOrWhiteSpace(systemExtra))
         {
@@ -562,7 +563,7 @@ public partial class AiChatService(
         if (memories.Length > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("Woran du dich aus dem Leben der Community erinnerst (nutze es für passende Anspielungen auf frühere Ereignisse; wenn es nicht zum Gespräch passt, lass es weg):");
+            sb.AppendLine("Woran du dich aus dem Leben der Community erinnerst (weiche, evtl. ungenaue Erinnerungen aus früheren Gesprächen — nutze sie NUR für lockere, soziale Anspielungen auf frühere Ereignisse, NIEMALS als Quelle für Spielfakten, Mechaniken, Crews, Zahlen oder Daten. Wenn eine Erinnerung den Wissensquellen oder verlässlichen Fakten weiter unten widerspricht, gelten die Quellen — lass die Erinnerung dann weg):");
             sb.Append(memories);
         }
 
