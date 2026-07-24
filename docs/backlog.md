@@ -391,3 +391,33 @@ risky or fragile for what are low-traffic admin pages:
   a "pick a server first" guard; ServerPages stages **two** separate file uploads (servers + invites)
   behind an explicit "Run Import" button. Bespoke enough that a shared component would need to model
   those flows — left as their own pages.
+
+## Bug: Territory Capture — 30-minutes-before reminder missing
+
+Seen 2026-07 in the test guild: the Territory Capture reminder fires a **15-minutes-before** warning
+("Gebietsübernahme {Zone} **in 15 minutes**"), but the expected **30-minutes-before** reminder never
+arrives — only the 15-min one shows. Expected: both a 30-min and a 15-min advance reminder before
+each capture. Check the reminder scheduling in the Territory Capture reminder path (the
+`TerritoryCapture*` job/service in `HoshiBot.Discord` that emits the "in N minutes" warning) — likely
+only the 15-min offset is scheduled/checked, or the 30-min window is computed wrong. Confirm the
+intended offsets, then ensure both fire (and don't double-fire).
+
+Related: **TC reminder messages are never deleted** — the "in N minutes" capture reminders pile up in
+the channel instead of being cleaned up after the capture passes. Check how the **legacy bot**
+(the YAGPDB/PHP/Symfony sources under MarzipanGlee/, see the legacy-bot-sources memory) handled the
+reminder lifecycle — it presumably deleted/expired old reminders — and port that so stale reminders
+are removed once their capture is over.
+
+## Bug: Territory Capture weekly digest — wrong week window + missing pin
+
+Seen 2026-07 (Lost Falcons): the weekly TC digest posts a **past** week rather than the coming one —
+e.g. on 2026-07-20 it posted "Gebietsübernahmen vom July 15 bis July 21" (a window that's almost
+entirely in the past), and on 07-21 "vom July 22 bis July 29". The **week boundary is off**: the TC
+week was assumed to start **Wednesday**, but Scopely has changed the schedule a lot, so the
+week-start day (and thus the digest's date window) needs re-deriving from current data — verify the
+real current TC week start and compute the window so the digest covers the **upcoming** week, not a
+mostly-elapsed one. Separately, **pinning is missing/inconsistent** — the weekly digest should be
+pinned in its channel (and the previous week's unpinned) so the current schedule is always the pinned
+message; the screenshots show a pin happened once but it isn't reliably applied. Check
+`TerritoryCaptureWeeklyDigestJob` / `TerritoryCaptureDigestService` for both the week-window
+computation and a pin/unpin step after posting.
