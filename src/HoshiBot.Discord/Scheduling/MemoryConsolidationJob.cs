@@ -25,6 +25,7 @@ public class MemoryConsolidationJob(
     AiChatEmbeddingService embeddingService,
     MemoryService memoryService,
     MemberNoteService noteService,
+    GuildFeatureService featureService,
     ILogger<MemoryConsolidationJob> logger) : IJob
 {
     private const GuildAudience SettingsScope = GuildAudience.None;
@@ -49,11 +50,7 @@ public class MemoryConsolidationJob(
     {
         var cancellationToken = context.CancellationToken;
 
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.AiChat)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.AiChat, cancellationToken);
 
         foreach (var guildId in guildIds)
         {

@@ -28,11 +28,7 @@ public class PlayerLinkSyncJob(
     {
         var cancellationToken = context.CancellationToken;
 
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.PlayerLink)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.PlayerLink, cancellationToken);
 
         foreach (var guildId in guildIds)
         {

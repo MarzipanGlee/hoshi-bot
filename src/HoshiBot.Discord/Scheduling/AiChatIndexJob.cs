@@ -19,17 +19,14 @@ namespace HoshiBot.Discord.Scheduling;
 public class AiChatIndexJob(
     HoshiBotDbContext db,
     AiChatIndexService indexService,
+    GuildFeatureService featureService,
     ILogger<AiChatIndexJob> logger) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
         var cancellationToken = context.CancellationToken;
 
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.AiChat)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.AiChat, cancellationToken);
 
         foreach (var guildId in guildIds)
         {

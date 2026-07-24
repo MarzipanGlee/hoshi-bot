@@ -28,6 +28,7 @@ public class MemberInterviewExtractionJob(
     MemoryExtractor memoryExtractor,
     AiChatEmbeddingService embeddingService,
     MemoryService memoryService,
+    GuildFeatureService featureService,
     ILogger<MemberInterviewExtractionJob> logger) : IJob
 {
     // Memory Phase 3: how many interaction memories to keep per person (one shared rolling timeline
@@ -39,11 +40,7 @@ public class MemberInterviewExtractionJob(
     {
         var cancellationToken = context.CancellationToken;
 
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.MemberLore)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.MemberLore, cancellationToken);
 
         foreach (var guildId in guildIds)
         {

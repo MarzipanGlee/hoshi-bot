@@ -31,11 +31,7 @@ public class MemberOnboardingSyncJob(
     {
         var cancellationToken = context.CancellationToken;
 
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.MemberOnboarding)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.MemberOnboarding, cancellationToken);
 
         var sentThisRun = 0;
         foreach (var guildId in guildIds)

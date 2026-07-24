@@ -42,11 +42,7 @@ public class AnnouncementForwarderCatchUpJob(
     {
         var cancellationToken = context.CancellationToken;
 
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.AnnouncementForwarder)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.AnnouncementForwarder, cancellationToken);
 
         foreach (var guildId in guildIds)
         {

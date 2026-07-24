@@ -39,6 +39,20 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
     public async Task<string?> EnsureEnabledAsync(ulong guildId, GuildFeature feature) =>
         await IsEnabledAsync(guildId, feature) ? null : DisabledMessage(feature);
 
+    // The distinct guilds that have this feature enabled for any audience/alliance — the guild set a
+    // feature's periodic job iterates. Replaces the verbatim
+    // `db.GuildEnabledFeatures.Where(f => f.Feature == X).Select(f => f.GuildId).Distinct()` that was
+    // copy-pasted across ~11 sync/notify jobs.
+    public async Task<List<ulong>> GetEnabledGuildIdsAsync(GuildFeature feature, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.GuildEnabledFeatures
+            .Where(f => f.Feature == feature)
+            .Select(f => f.GuildId)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
     // Distinct audiences enabled for this feature (across all alliances for the Alliance
     // audience). Alliance identity is not distinguished here — use GetEnabledAllianceIdsAsync
     // for that; this answers "is the feature on for any scope of this audience?".

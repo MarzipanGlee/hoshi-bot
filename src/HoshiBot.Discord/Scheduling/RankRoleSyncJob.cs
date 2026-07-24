@@ -25,11 +25,7 @@ public class RankRoleSyncJob(
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.RankRoles)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync();
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.RankRoles);
 
         foreach (var guildId in guildIds)
         {

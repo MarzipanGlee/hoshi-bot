@@ -26,11 +26,7 @@ public class NicknameSyncJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.NicknameSync)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync();
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.NicknameSync);
 
         foreach (var guildId in guildIds)
         {

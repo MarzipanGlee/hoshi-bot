@@ -26,11 +26,7 @@ public class OpsLevelRoleSyncJob(
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        var guildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.OpsLevelRoles)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync();
+        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.OpsLevelRoles);
 
         foreach (var guildId in guildIds)
         {

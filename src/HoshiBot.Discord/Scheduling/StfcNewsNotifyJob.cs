@@ -34,6 +34,7 @@ public class StfcNewsNotifyJob(
     HoshiBotDbContext db,
     NotificationDispatcher dispatcher,
     GatewayClient gatewayClient,
+    GuildFeatureService featureService,
     ILogger<StfcNewsNotifyJob> logger) : IJob
 {
     private const string FeedUrl = "https://startrekfleetcommand.com/feed/";
@@ -51,11 +52,7 @@ public class StfcNewsNotifyJob(
     {
         var ct = context.CancellationToken;
 
-        var enabledGuildIds = await db.GuildEnabledFeatures
-            .Where(f => f.Feature == GuildFeature.StfcNews)
-            .Select(f => f.GuildId)
-            .Distinct()
-            .ToListAsync(ct);
+        var enabledGuildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.StfcNews, ct);
 
         if (enabledGuildIds.Count == 0)
             return;
