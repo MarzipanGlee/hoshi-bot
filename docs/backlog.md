@@ -340,3 +340,22 @@ lifecycle to manage — the daily and weekly digests become two such sweeps (or 
 both). Keep the same misfire-replay + persistent-store behaviour the hard-coded triggers now have.
 Also expose the time (+ zone) in the Web feature-settings UI. Until then the hard-coded 09:00/19:00
 Europe/Zurich is the default for everyone.
+
+## Bug: `Absence.CreatedAt` never set (shows `0001-01-01`)
+
+Seen 2026-07 on the `Manage/Database/Absences` debug page: every `Absence` row shows
+**`CreatedAt = 01/01/0001 00:00:00 +00:00`** — the default `DateTimeOffset`, i.e. the field is
+never assigned when an absence is created via the Discord flow
+(`AbsenceModalModule` / the absence-creation service in `HoshiBot.Discord`). Likely the `Absence`
+entity is inserted without `CreatedAt = DateTimeOffset.UtcNow`, so EF persists the CLR default.
+Fix server-side at creation (the Database page is read-only debug output): set `CreatedAt` where
+`Absence` rows are inserted, and check whether the edit flow (`EditsAbsenceId`) needs it too.
+
+## STFC in-game languages — i18n reference
+
+STFC's in-game Language Settings offer **9 languages** (per a 2026-07 screenshot of the game's
+Language Settings screen): English, Français, Italian, German, Spanish, Russian, Portuguese,
+Japanese, Korean. Keep this set in mind for any future feature that mirrors the player's game
+language — e.g. per-language rules channels (the bot already has Rules DE/EN channels on
+`GuildAlliance`), localized notifications, or AI-chat / announcement translation targets. The
+bot's Discord-facing text is currently German-primary; the Web admin UI is English-only.
