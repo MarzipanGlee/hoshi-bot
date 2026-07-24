@@ -359,3 +359,35 @@ Japanese, Korean. Keep this set in mind for any future feature that mirrors the 
 language — e.g. per-language rules channels (the bot already has Rules DE/EN channels on
 `GuildAlliance`), localized notifications, or AI-chat / announcement translation targets. The
 bot's Discord-facing text is currently German-primary; the Web admin UI is English-only.
+
+## Stfc CRUD scaffold — remaining DRY (deferred: risk > reward)
+
+A 2026-07 housekeeping round DRY'd most of the machine-scaffolded `Manage/Stfc/**` CRUD pages
+(`DbContextPageBase` for the 35 list pages, `FormField` for the Create/Edit fields,
+`DeleteConfirmation` for the 12 Delete pages, `ImportForm` for the simple Import pages). Three
+pieces were **left as-is on purpose** — the duplication is real but the extraction is either
+risky or fragile for what are low-traffic admin pages:
+
+- **Create/Edit form-markup shell (`CrudFormShell`).** After `FormField`, the only shared markup
+  left on each Create/Edit page is the thin outer wrapper (`EditForm` + `DataAnnotationsValidator`
+  + `ValidationSummary` + row/col + Save button + Back-to-List) — ~10 lines/page across ~23 pages.
+  **Risk:** wrapping that `EditForm` in a component moves the real inputs (with `@bind-Value`,
+  `[SupplyParameterFromForm]` model binding, and validation) *across a component boundary in static
+  SSR*. `DeleteConfirmation` proved the pattern works for a form with **no** inputs, but a Create/Edit
+  form adds model binding + validation that a `dotnet build` can't verify — only creating/editing a
+  row confirms it. Low reward, highest risk of the effort → skipped. If picked up: build the shell,
+  then live-verify a create **and** an edit on every distinct entity, and be ready to revert.
+
+- **Edit concurrency-save code-behind.** The 12 `Edit.razor` pages each repeat ~20 lines of
+  `context.Attach(entity).State = Modified; try SaveChangesAsync catch DbUpdateConcurrencyException →
+  EntityExists? NotFound : throw; NavigateTo(list)`. **Risk:** a generic base (`StfcEditPageBase<T>`)
+  needs each page to supply a `DbSet<T>` accessor **and** an `Expression<Func<T,bool>>` key predicate
+  (a C# `KeyMatches` method can't be EF-translated), plus `[SupplyParameterFromForm]`/`FromQuery` on
+  base-class properties — more surface area and EF-translation pitfalls for a modest net saving.
+  Only worth it as part of doing the form shell above.
+
+- **PlayerPages / ServerPages imports.** These two Import pages did **not** fit the extracted
+  `ImportForm<TResult>`: PlayerPages has region/server `<Select>` dropdowns + multi-file upload +
+  a "pick a server first" guard; ServerPages stages **two** separate file uploads (servers + invites)
+  behind an explicit "Run Import" button. Bespoke enough that a shared component would need to model
+  those flows — left as their own pages.
