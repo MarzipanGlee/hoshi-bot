@@ -14,13 +14,18 @@ public static class GuildFeatureDependencies
 {
     public static IReadOnlyList<FeatureDependency> Of(GuildFeature feature) => feature switch
     {
-        // Member Lore only does anything once AI Chat is on — the lore it collects exists to
-        // ground AI Chat's answers.
-        GuildFeature.MemberLore => [new(GuildFeature.AiChat)],
+        // AI Chat needs the guild-wide AI backend (provider + API key + model) configured before it
+        // can answer anything.
+        GuildFeature.AiChat => [new(GuildFeature.AiBackend)],
 
-        // The forwarder's translation calls reuse AI Chat's configured model/API key
-        // (AiChatModelResolver) — without AI Chat configured, it has no model to translate with.
-        GuildFeature.AnnouncementForwarder => [new(GuildFeature.AiChat, "Uses AI Chat's configured model to translate.")],
+        // Member Lore needs both: the AI backend to run its DM interviews + note extraction (via
+        // AiChatModelResolver), and AI Chat itself — the lore it collects only does anything once
+        // AI Chat injects it into answers.
+        GuildFeature.MemberLore => [new(GuildFeature.AiBackend), new(GuildFeature.AiChat, "The collected lore is used to ground AI Chat's answers.")],
+
+        // The forwarder's translation calls reuse the guild-wide AI backend model/API key
+        // (AiChatModelResolver) — without it configured, it has no model to translate with.
+        GuildFeature.AnnouncementForwarder => [new(GuildFeature.AiBackend, "Uses the AI backend's configured model to translate.")],
 
         // Member Onboarding builds directly on Player Assignment's matcher (it DMs the members
         // Player Assignment couldn't place automatically).

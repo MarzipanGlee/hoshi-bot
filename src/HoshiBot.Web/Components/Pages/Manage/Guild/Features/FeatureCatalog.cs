@@ -1,5 +1,6 @@
 using HoshiBot.Domain.Entities;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Absences;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiBackend;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiChat;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AlertsOptIn;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AllianceTournament;
@@ -39,6 +40,7 @@ public static class FeatureCatalog
     [
         new AbsencesFeature(),
         new AiChatFeature(),
+        new AiBackendFeature(),
         new AlertsOptInFeature(),
         new AllianceTournamentFeature(),
         new AnnouncementForwarderFeature(),

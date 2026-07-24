@@ -4,7 +4,7 @@ namespace HoshiBot.Discord.AiChat;
 
 // Which embedding backend produces the vector leg of hybrid knowledge search and episodic/member
 // memory recall for a guild. Independent of AiProvider (which selects the *chat* backend) — a
-// guild's embedding backend is resolved separately via AiChatSettingKeys.EmbeddingProvider. One
+// guild's embedding backend is resolved separately via AiBackendSettingKeys.EmbeddingProvider. One
 // enum value per implementation class, same convention as AiProvider: Gemini's two embedding
 // models ("gemini-embedding-001", "gemini-embedding-2") are just different `model` strings passed
 // into the same GeminiEmbeddingProvider, mirroring how AiProvider.Gemini already carries a

@@ -31,7 +31,7 @@ public class OllamaClient(
 
     // Ollama gate is opt-in: the small classifier model must be pulled first (docker compose exec
     // ollama ollama pull <model>), so there's no baked-in default — the gate stays off until a
-    // deployment sets Ollama:GateModel (or a guild sets AiChatSettingKeys.GateModel). Null keeps the
+    // deployment sets Ollama:GateModel (or a guild sets AiBackendSettingKeys.GateModel). Null keeps the
     // current behaviour (main model decides via [NO_ANSWER]).
     public string? DefaultGateModel =>
         configuration["Ollama:GateModel"] is { Length: > 0 } m ? m : null;

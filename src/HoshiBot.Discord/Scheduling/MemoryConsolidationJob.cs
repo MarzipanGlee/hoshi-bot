@@ -70,8 +70,13 @@ public class MemoryConsolidationJob(
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {
-        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemoryEnabled);
-        if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
+        // MemoryEnabled is a per-audience AiChat setting, but the GuildMemory store and this job are
+        // guild-wide — so run for the guild if memory is enabled under ANY audience (any true row).
+        var memoryEnabled = await db.GuildFeatureSettingTexts.AnyAsync(
+            s => s.GuildId == guildId && s.Feature == GuildFeature.AiChat
+                && s.Key == AiChatSettingKeys.MemoryEnabled && s.Value.ToLower() == "true",
+            cancellationToken);
+        if (!memoryEnabled)
             return;
 
         // Recall + dedup need embeddings; without them a memory can't be found again, so don't form any.

@@ -4,11 +4,11 @@
 @inject DiscordGuildDataService DiscordData
 
 <p class="form-text">
-    The bot listens to every message in the <strong>listen channels</strong> and answers with Google
-    Gemini <strong>or</strong> a local Ollama model when it has a genuinely helpful reply (staying
-    silent otherwise). It always answers when addressed by its nickname or @@mention. Answers are
-    grounded in the recent conversation plus the configured <strong>knowledge channels</strong>.
-    Gemini requires this guild's own API key; Ollama runs on the shared local server (no key).
+    The bot listens to every message in the <strong>listen channels</strong> and answers when it has
+    a genuinely helpful reply (staying silent otherwise). It always answers when addressed by its
+    nickname or @@mention. Answers are grounded in the recent conversation plus the configured
+    <strong>knowledge channels</strong>. The language-model provider, API key and models are shared
+    across every AI feature and configured on the <strong>AI Provider</strong> page.
 </p>
 
 <p class="form-text">
@@ -26,39 +26,6 @@
 </div>
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="AI provider">
-        <label for="aiChatProvider" class="form-label">
-            Which language model this guild uses. <strong>Gemini</strong> (Google Cloud, needs its own
-            API key) or <strong>Ollama</strong> (local model on the shared server, no key needed).
-        </label>
-        <select id="aiChatProvider" class="form-select" @bind="providerInput" @bind:after="SaveProviderAsync">
-            <option value="gemini">Google Gemini</option>
-            <option value="ollama">Ollama (local)</option>
-        </select>
-    </SettingsCard>
-
-    @if (providerInput != "ollama")
-    {
-        <SettingsCard Title="Gemini API key">
-            <label class="form-label">
-                This guild's own Google Gemini API key. Used for all AI answers and stored encrypted at rest.
-            </label>
-            @if (hasKey)
-            {
-                <p class="form-text mb-1 text-success">A key is saved. Enter a new value to replace it.</p>
-            }
-            <div class="d-flex gap-2">
-                <input type="password" class="form-control" autocomplete="off"
-                       placeholder="@(hasKey ? "•••••••• (saved)" : "Enter API key")"
-                       @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
-                @if (hasKey)
-                {
-                    <button type="button" class="btn btn-sm btn-danger" @onclick="ClearApiKeyAsync">Delete</button>
-                }
-            </div>
-        </SettingsCard>
-    }
-
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChat" Audience="ResolvedAudience"
         Title="Listen channels" Usage="Channels the bot reads and answers in." />
 
@@ -88,74 +55,6 @@
                   @bind="systemPromptInput" @bind:after="SaveSystemPromptAsync"></textarea>
     </SettingsCard>
 
-    <SettingsCard Title="Model (optional)">
-        @if (providerInput == "ollama")
-        {
-            <label for="aiChatModel" class="form-label">
-                Ollama model. Leave empty for the server's default model.
-            </label>
-            <input id="aiChatModel" class="form-control" placeholder="Server default model"
-                   @bind="modelInput" @bind:after="SaveModelAsync" />
-        }
-        else
-        {
-            <label for="aiChatModel" class="form-label">
-                Gemini model. Leave empty for the default (@AiChatSettingKeys.DefaultModel).
-            </label>
-            <input id="aiChatModel" class="form-control" placeholder="@AiChatSettingKeys.DefaultModel"
-                   @bind="modelInput" @bind:after="SaveModelAsync" />
-        }
-    </SettingsCard>
-
-    <SettingsCard Title="Embeddings (optional)">
-        <label for="aiChatEmbeddingProvider" class="form-label">
-            Which backend powers semantic search (paraphrase-aware knowledge lookup) and memory
-            recall. Independent of the AI provider above — you can chat with Gemini while keeping
-            Ollama embeddings, or vice versa.
-        </label>
-        <select id="aiChatEmbeddingProvider" class="form-select"
-                @bind="embeddingProviderInput" @bind:after="SaveEmbeddingProviderAsync">
-            <option value="ollama">Ollama (default, local, no key needed)</option>
-            <option value="gemini-embedding-001">Gemini Embedding 1 (text)</option>
-            <option value="gemini-embedding-2">Gemini Embedding 2 (multimodal-capable; text used here)</option>
-        </select>
-        <div class="form-text">
-            Gemini Embedding options reuse this guild's <strong>Gemini API key</strong> (set above) —
-            no separate key needed, but a Gemini choice stays disabled until a key is configured.
-            Switching doesn't need a manual re-index: existing content re-embeds automatically over
-            the next few scheduled passes (a brief window where search quietly skips not-yet-re-embedded
-            content is expected and self-corrects). Gemini Embedding 1 is text-only; Gemini Embedding 2
-            additionally supports image/video/audio/PDF input at the API level, though Hoshi doesn't
-            index those yet.
-        </div>
-    </SettingsCard>
-
-    <SettingsCard Title="Gate model (optional)">
-        <label for="aiChatGateModel" class="form-label">
-            A small, fast model that pre-screens messages in listen channels: it decides whether a
-            message the bot wasn't directly asked is even worth a full answer, so the bot doesn't run
-            (and show "typing…" for) an expensive answer on every bit of chatter. It only ever stays
-            <em>quiet</em> on clear non-questions — anything unsure still gets a full answer. Direct
-            @@mentions always answer and skip this.
-        </label>
-        @if (providerInput == "ollama")
-        {
-            <input id="aiChatGateModel" class="form-control" placeholder="Server default"
-                   @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
-            <div class="form-text">
-                Leave empty to use the server's default (the <code>Ollama__GateModel</code> deployment
-                setting — the gate is off only if that's unset too). Enter a pulled model to override it
-                for this guild, or <code>off</code> to disable the gate here.
-            </div>
-        }
-        else
-        {
-            <input id="aiChatGateModel" class="form-control" placeholder="Default (@AiChatSettingKeys.DefaultGateModel)"
-                   @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
-            <div class="form-text">Leave empty for the default (<code>@AiChatSettingKeys.DefaultGateModel</code>). Enter a model to override it, or <code>off</code> to disable the gate.</div>
-        }
-    </SettingsCard>
-
     <SettingsCard Title="Response streaming">
         <div class="form-switch">
             <input type="checkbox" class="form-check-input" role="switch" id="aiChatStreaming"
@@ -168,26 +67,6 @@
         </div>
     </SettingsCard>
 
-    <SettingsCard Title="Router model (optional)">
-        <label for="aiChatRouterModel" class="form-label">
-            A small/cheap model that answers <em>simple</em> questions and classifies each question's
-            complexity; <em>complex</em> questions escalate to the main Model above. Leave empty to
-            always use the main Model.
-            @if (providerInput != "ollama")
-            {
-                <span>
-                    Free-tier tip: set <code>@AiChatSettingKeys.DefaultGateModel</code> here — it allows
-                    far more requests per day than the main flash model, so the small quota is only spent
-                    on genuinely complex questions.
-                </span>
-            }
-        </label>
-        <input id="aiChatRouterModel" class="form-control"
-               placeholder="@(providerInput == "ollama" ? "Off — a smaller pulled model to enable" : "Off — e.g. " + AiChatSettingKeys.DefaultGateModel)"
-               @bind="routerModelInput" @bind:after="SaveRouterModelAsync" />
-        <div class="form-text">Leave empty (or <code>off</code>) to always use the main Model. Enter a model to enable complexity routing.</div>
-    </SettingsCard>
-
     <SettingsCard Title="Memory (experimental)">
         <div class="form-switch">
             <input type="checkbox" class="form-check-input" role="switch" id="aiChatMemory"
@@ -196,7 +75,7 @@
         </div>
         <p class="form-text mt-0">
             Hoshi distils notable community events from chat into memories she recalls later in
-            conversation. Needs embeddings configured (see the Embeddings setting above). Review,
+            conversation. Needs embeddings configured (see the AI Provider page). Review,
             edit, or forget them here.
         </p>
         <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
@@ -237,34 +116,14 @@
         if (lastResortPicker is not null) await lastResortPicker.ReloadAsync();
     }
 
-    private bool hasKey;
-    private string? apiKeyInput;
-    private string providerInput = "gemini";
     private string? systemPromptInput;
-    private string? modelInput;
-    private string embeddingProviderInput = "ollama";
-    private string? gateModelInput;
-    private string? routerModelInput;
     private bool streamResponses;
     private bool memoryEnabled;
     private string? searchLanguageInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        // The stored API key is never echoed back into the field — we only track whether one
-        // exists and let the admin overwrite it.
-        hasKey = !string.IsNullOrWhiteSpace(await GetText(AiChatSettingKeys.ApiKey));
-        // Unset/unknown provider means Gemini (matches AiChatService's default).
-        var storedProvider = await GetText(AiChatSettingKeys.Provider);
-        providerInput = string.Equals(storedProvider, "ollama", StringComparison.OrdinalIgnoreCase) ? "ollama" : "gemini";
         systemPromptInput = await GetText(AiChatSettingKeys.SystemPrompt);
-        modelInput = await GetText(AiChatSettingKeys.Model);
-        var storedEmbeddingProvider = await GetText(AiChatSettingKeys.EmbeddingProvider);
-        embeddingProviderInput = storedEmbeddingProvider is "gemini-embedding-001" or "gemini-embedding-2"
-            ? storedEmbeddingProvider
-            : "ollama";
-        gateModelInput = await GetText(AiChatSettingKeys.GateModel);
-        routerModelInput = await GetText(AiChatSettingKeys.RouterModel);
         streamResponses = string.Equals(await GetText(AiChatSettingKeys.StreamResponses), "true", StringComparison.OrdinalIgnoreCase);
         memoryEnabled = string.Equals(await GetText(AiChatSettingKeys.MemoryEnabled), "true", StringComparison.OrdinalIgnoreCase);
 
@@ -276,45 +135,16 @@
             : FtsLanguage.FromDiscordLocale(await DiscordData.GetPreferredLocaleAsync(GuildId));
     }
 
-    // The API key, system prompt, and model are guild-wide (one Gemini account per guild), so
-    // they're stored at the None/null scope and shown identically on every audience tab — only the
-    // channel lists below are per-audience. Mirrors ClientRelease's guild-wide platform roles.
+    // These behavioral settings are per-audience — each audience/alliance tab keeps its own system
+    // prompt, streaming, memory toggle and search language (ResolvedAudience + GuildAllianceId from
+    // FeatureEditorBase). The guild-wide backend settings live on the AI Provider page instead.
     private Task<string?> GetText(string key) =>
-        SettingsService.GetTextAsync(GuildId, Feature, GuildAudience.None, null, key);
+        SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
 
     private Task SetText(string key, string? value) =>
-        SettingsService.SetTextAsync(GuildId, Feature, GuildAudience.None, null, key, value);
-
-    private async Task SaveApiKeyAsync()
-    {
-        // Blank submit leaves the existing key untouched (use "Löschen" to remove it).
-        if (string.IsNullOrWhiteSpace(apiKeyInput))
-            return;
-
-        // Encrypted at rest — write via the secret path, not the plain SetText helper.
-        await SettingsService.SetSecretAsync(GuildId, Feature, GuildAudience.None, null, AiChatSettingKeys.ApiKey, apiKeyInput.Trim());
-        apiKeyInput = null;
-        hasKey = true;
-    }
-
-    private async Task ClearApiKeyAsync()
-    {
-        await SetText(AiChatSettingKeys.ApiKey, null);
-        apiKeyInput = null;
-        hasKey = false;
-    }
-
-    private Task SaveProviderAsync() => SetText(AiChatSettingKeys.Provider, providerInput);
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
 
     private Task SaveSystemPromptAsync() => SetText(AiChatSettingKeys.SystemPrompt, systemPromptInput);
-
-    private Task SaveModelAsync() => SetText(AiChatSettingKeys.Model, modelInput);
-
-    private Task SaveEmbeddingProviderAsync() => SetText(AiChatSettingKeys.EmbeddingProvider, embeddingProviderInput);
-
-    private Task SaveGateModelAsync() => SetText(AiChatSettingKeys.GateModel, gateModelInput);
-
-    private Task SaveRouterModelAsync() => SetText(AiChatSettingKeys.RouterModel, routerModelInput);
 
     private async Task SaveStreamResponsesAsync(bool value)
     {

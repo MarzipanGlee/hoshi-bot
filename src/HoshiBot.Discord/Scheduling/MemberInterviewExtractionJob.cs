@@ -25,7 +25,6 @@ public class MemberInterviewExtractionJob(
     AiChatModelResolver modelResolver,
     MemberNoteService noteService,
     MemberNoteExtractor extractor,
-    GuildFeatureSettingsService settingsService,
     MemoryExtractor memoryExtractor,
     AiChatEmbeddingService embeddingService,
     MemoryService memoryService,
@@ -82,9 +81,12 @@ public class MemberInterviewExtractionJob(
         // Memory Phase 3: a per-interview interaction memory is a separate, opt-in concern from the
         // lore extraction below — resolved once per guild so a disabled/no-embeddings guild just skips
         // that sub-step without affecting note extraction at all.
-        var memoryEnabled = string.Equals(
-            await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, GuildAudience.None, null, AiChatSettingKeys.MemoryEnabled),
-            "true", StringComparison.OrdinalIgnoreCase) && await embeddingService.IsEnabledAsync(guildId);
+        // MemoryEnabled is a per-audience AiChat setting; this per-guild job runs the memory sub-step
+        // if it's enabled under ANY audience (any true row), matching MemoryConsolidationJob.
+        var memoryEnabled = await db.GuildFeatureSettingTexts.AnyAsync(
+            s => s.GuildId == guildId && s.Feature == GuildFeature.AiChat
+                && s.Key == AiChatSettingKeys.MemoryEnabled && s.Value.ToLower() == "true",
+            cancellationToken) && await embeddingService.IsEnabledAsync(guildId);
 
         var extracted = 0;
         var suggestions = 0;

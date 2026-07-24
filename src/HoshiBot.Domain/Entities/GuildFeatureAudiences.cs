@@ -41,11 +41,12 @@ public static class GuildFeatureAudiences
         // between those pages.
         GuildFeature.StfcNews => GuildAudience.Alliance,
         GuildFeature.ClientRelease => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,
-        // AI chat is available under any audience — its listen/knowledge channel lists are
-        // per-audience (like Announcements/Tickets). The guild-wide scalars (API key, system
-        // prompt, model) are stored separately at the None/null scope, so multi-audience here only
-        // governs the channel buckets and the per-audience enable toggle. AiChatKnowledge mirrors
-        // the same audiences so its channel bucket lines up with AiChat's per audience.
+        // AI chat is available under any audience — its listen/knowledge channel lists and its
+        // per-audience behavioral settings (system prompt, search language, memory toggle,
+        // streaming) are per-audience (like Announcements/Tickets). The guild-wide backend scalars
+        // (provider, API key, models, embeddings) live in the separate AiBackend feature below.
+        // AiChatKnowledge mirrors the same audiences so its channel bucket lines up with AiChat's
+        // per audience.
         GuildFeature.AiChat => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         GuildFeature.AiChatKnowledge => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         // Preferred/LastResort knowledge tiers mirror AiChatKnowledge's audiences (same channel buckets).
@@ -57,6 +58,9 @@ public static class GuildFeatureAudiences
         // Guild-wide, single toggle: Scopely's official announcements aren't alliance-specific, so
         // one destination channel/source-channel set for the whole Discord, not per audience.
         GuildFeature.AnnouncementForwarder => GuildAudience.Guild,
+        // Guild-wide AI backend/credentials/models shared by every AI feature — one account per
+        // guild, so a single Guild-audience toggle (like NicknameSync/AnnouncementForwarder).
+        GuildFeature.AiBackend => GuildAudience.Guild,
         _ => GuildAudience.None,
     };
 

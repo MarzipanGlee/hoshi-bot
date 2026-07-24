@@ -72,4 +72,12 @@ public enum GuildFeature
     // the configured source channels and reposts a branded translation into a destination channel, so
     // members who don't read the source language still see them. Guild-wide, like AiChat.
     AnnouncementForwarder,
+
+    // Guild-wide AI backend configuration: the LLM provider, API key, and model choices (chat, gate,
+    // router, member-lore, embeddings) shared by every AI-powered feature. One AI account per guild,
+    // so this is a single Guild-audience toggle — AiChat, MemberLore and AnnouncementForwarder all
+    // depend on it. Split out of AiChat (where these scalars used to live guild-wide at the None
+    // scope) so the per-audience AiChat feature no longer carries guild-wide credentials. Keep last
+    // so existing enum ordinals/DB rows don't shift.
+    AiBackend,
 }

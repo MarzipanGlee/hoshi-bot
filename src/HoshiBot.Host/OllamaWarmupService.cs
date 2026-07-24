@@ -70,11 +70,11 @@ public class OllamaWarmupService(
         var defaultChatModel = configuration["Ollama:DefaultModel"];
         foreach (var guildId in guildIds)
         {
-            var provider = await settings.GetTextAsync(guildId, GuildFeature.AiChat, GuildAudience.None, null, AiChatSettingKeys.Provider);
+            var provider = await settings.GetTextAsync(guildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.Provider);
             if (!string.Equals(provider, "ollama", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var model = await settings.GetTextAsync(guildId, GuildFeature.AiChat, GuildAudience.None, null, AiChatSettingKeys.Model);
+            var model = await settings.GetTextAsync(guildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.Model);
             model = string.IsNullOrWhiteSpace(model) ? defaultChatModel : model.Trim();
             if (!string.IsNullOrWhiteSpace(model))
                 models.TryAdd(model, false);

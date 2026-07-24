@@ -7,7 +7,7 @@ namespace HoshiBot.Discord.AiChat;
 
 // Resolves and calls this guild's embedding backend: local Ollama (deployment-wide default,
 // today's/legacy behavior) or Google Gemini (gemini-embedding-001/gemini-embedding-2, per-guild
-// opt-in via AiChatSettingKeys.EmbeddingProvider, reusing the guild's existing chat API key). Thin
+// opt-in via AiBackendSettingKeys.EmbeddingProvider, reusing the guild's existing chat API key). Thin
 // facade over IAiEmbeddingProvider so callers (AiChatIndexService, AiChatService,
 // MemoryConsolidationJob, MemberInterviewExtractionJob) keep calling EmbedAsync/EmbedBatchAsync
 // exactly as before, just with a guildId added — all resolution happens here.
@@ -28,26 +28,29 @@ public class AiChatEmbeddingService(
     // is natively 768-dim; Gemini truncates its native (larger) output via OutputDimensionality.
     public const int Dimensions = 768;
 
-    private const GuildAudience SettingsScope = GuildAudience.None;
+    // The embedding backend settings are guild-wide, stored under the AiBackend feature at the
+    // Guild scope (same account/key as chat).
+    private const GuildFeature BackendFeature = GuildFeature.AiBackend;
+    private const GuildAudience SettingsScope = GuildAudience.Guild;
 
     private readonly record struct Resolved(IAiEmbeddingProvider Provider, string Model, string? ApiKey, bool Enabled);
 
     // Resolves this guild's effective (provider, model, apiKey, enabled). Unset/"ollama"/any
     // unrecognized value -> Ollama + deployment config (today's behavior, unconditionally).
     // "gemini-embedding-001"/"gemini-embedding-2" -> Gemini + that literal model name, using the
-    // guild's existing AiChatSettingKeys.ApiKey (the same key already used for chat); enabled only
+    // guild's existing AiBackendSettingKeys.ApiKey (the same key already used for chat); enabled only
     // if that key is configured.
     private async Task<Resolved> ResolveAsync(ulong guildId)
     {
         var configured = await settingsService.GetTextAsync(
-            guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.EmbeddingProvider);
+            guildId, BackendFeature, SettingsScope, null, AiBackendSettingKeys.EmbeddingProvider);
 
         if (configured is { } value
             && (string.Equals(value, "gemini-embedding-001", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(value, "gemini-embedding-2", StringComparison.OrdinalIgnoreCase)))
         {
             var apiKey = await settingsService.GetSecretAsync(
-                guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
+                guildId, BackendFeature, SettingsScope, null, AiBackendSettingKeys.ApiKey);
             var geminiProvider = providers.First(p => p.Kind == EmbeddingProvider.Gemini);
             return new Resolved(geminiProvider, value.Trim().ToLowerInvariant(), apiKey, Enabled: !string.IsNullOrWhiteSpace(apiKey));
         }

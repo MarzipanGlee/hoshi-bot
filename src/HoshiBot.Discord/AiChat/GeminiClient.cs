@@ -18,11 +18,11 @@ public class GeminiClient(ILogger<GeminiClient> logger) : IAiChatProvider
 {
     public AiProvider Kind => AiProvider.Gemini;
 
-    public string DefaultModel => AiChatSettingKeys.DefaultModel;
+    public string DefaultModel => AiBackendSettingKeys.DefaultModel;
 
     // Gemini gate is on by default: a flash-lite tier is cheap and always available to a valid key,
     // so the passive-listening cost/noise win lands with no per-guild setup. Overridable per guild.
-    public string? DefaultGateModel => AiChatSettingKeys.DefaultGateModel;
+    public string? DefaultGateModel => AiBackendSettingKeys.DefaultGateModel;
 
     // Cloud backend: latency is network-bound, not prompt-eval-bound, so use the full window.
     public int HistoryLimit => 15;

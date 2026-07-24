@@ -1,0 +1,202 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@inject GuildFeatureSettingsService SettingsService
+
+<p class="form-text">
+    The guild-wide AI backend. These settings — provider, API key, and model choices — are shared by
+    every AI-powered feature (AI Chat, Member Lore, Announcement Forwarder). One AI account per guild.
+</p>
+
+<div class="form-switch mb-3">
+    <input type="checkbox" class="form-check-input" role="switch" checked="@Enabled"
+           @onchange="e => ToggleEnabledAsync((bool)e.Value!)" />
+    <label class="form-check-label">Enabled</label>
+</div>
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="AI provider">
+        <label for="aiProvider" class="form-label">
+            Which language model this guild uses. <strong>Gemini</strong> (Google Cloud, needs its own
+            API key) or <strong>Ollama</strong> (local model on the shared server, no key needed).
+        </label>
+        <select id="aiProvider" class="form-select" @bind="providerInput" @bind:after="SaveProviderAsync">
+            <option value="gemini">Google Gemini</option>
+            <option value="ollama">Ollama (local)</option>
+        </select>
+    </SettingsCard>
+
+    @if (providerInput != "ollama")
+    {
+        <SettingsCard Title="Gemini API key">
+            <label class="form-label">
+                This guild's own Google Gemini API key. Used for all AI answers and stored encrypted at rest.
+            </label>
+            @if (hasKey)
+            {
+                <p class="form-text mb-1 text-success">A key is saved. Enter a new value to replace it.</p>
+            }
+            <div class="d-flex gap-2">
+                <input type="password" class="form-control" autocomplete="off"
+                       placeholder="@(hasKey ? "•••••••• (saved)" : "Enter API key")"
+                       @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
+                @if (hasKey)
+                {
+                    <button type="button" class="btn btn-sm btn-danger" @onclick="ClearApiKeyAsync">Delete</button>
+                }
+            </div>
+        </SettingsCard>
+    }
+
+    <SettingsCard Title="Model (optional)">
+        @if (providerInput == "ollama")
+        {
+            <label for="aiModel" class="form-label">
+                Ollama model. Leave empty for the server's default model.
+            </label>
+            <input id="aiModel" class="form-control" placeholder="Server default model"
+                   @bind="modelInput" @bind:after="SaveModelAsync" />
+        }
+        else
+        {
+            <label for="aiModel" class="form-label">
+                Gemini model. Leave empty for the default (@AiBackendSettingKeys.DefaultModel).
+            </label>
+            <input id="aiModel" class="form-control" placeholder="@AiBackendSettingKeys.DefaultModel"
+                   @bind="modelInput" @bind:after="SaveModelAsync" />
+        }
+    </SettingsCard>
+
+    <SettingsCard Title="Embeddings (optional)">
+        <label for="aiEmbeddingProvider" class="form-label">
+            Which backend powers semantic search (paraphrase-aware knowledge lookup) and memory
+            recall. Independent of the AI provider above — you can chat with Gemini while keeping
+            Ollama embeddings, or vice versa.
+        </label>
+        <select id="aiEmbeddingProvider" class="form-select"
+                @bind="embeddingProviderInput" @bind:after="SaveEmbeddingProviderAsync">
+            <option value="ollama">Ollama (default, local, no key needed)</option>
+            <option value="gemini-embedding-001">Gemini Embedding 1 (text)</option>
+            <option value="gemini-embedding-2">Gemini Embedding 2 (multimodal-capable; text used here)</option>
+        </select>
+        <div class="form-text">
+            Gemini Embedding options reuse this guild's <strong>Gemini API key</strong> (set above) —
+            no separate key needed, but a Gemini choice stays disabled until a key is configured.
+            Switching doesn't need a manual re-index: existing content re-embeds automatically over
+            the next few scheduled passes (a brief window where search quietly skips not-yet-re-embedded
+            content is expected and self-corrects). Gemini Embedding 1 is text-only; Gemini Embedding 2
+            additionally supports image/video/audio/PDF input at the API level, though Hoshi doesn't
+            index those yet.
+        </div>
+    </SettingsCard>
+
+    <SettingsCard Title="Gate model (optional)">
+        <label for="aiGateModel" class="form-label">
+            A small, fast model that pre-screens messages in listen channels: it decides whether a
+            message the bot wasn't directly asked is even worth a full answer, so the bot doesn't run
+            (and show "typing…" for) an expensive answer on every bit of chatter. It only ever stays
+            <em>quiet</em> on clear non-questions — anything unsure still gets a full answer. Direct
+            @@mentions always answer and skip this.
+        </label>
+        @if (providerInput == "ollama")
+        {
+            <input id="aiGateModel" class="form-control" placeholder="Server default"
+                   @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
+            <div class="form-text">
+                Leave empty to use the server's default (the <code>Ollama__GateModel</code> deployment
+                setting — the gate is off only if that's unset too). Enter a pulled model to override it
+                for this guild, or <code>off</code> to disable the gate here.
+            </div>
+        }
+        else
+        {
+            <input id="aiGateModel" class="form-control" placeholder="Default (@AiBackendSettingKeys.DefaultGateModel)"
+                   @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
+            <div class="form-text">Leave empty for the default (<code>@AiBackendSettingKeys.DefaultGateModel</code>). Enter a model to override it, or <code>off</code> to disable the gate.</div>
+        }
+    </SettingsCard>
+
+    <SettingsCard Title="Router model (optional)">
+        <label for="aiRouterModel" class="form-label">
+            A small/cheap model that answers <em>simple</em> questions and classifies each question's
+            complexity; <em>complex</em> questions escalate to the main Model above. Leave empty to
+            always use the main Model.
+            @if (providerInput != "ollama")
+            {
+                <span>
+                    Free-tier tip: set <code>@AiBackendSettingKeys.DefaultGateModel</code> here — it allows
+                    far more requests per day than the main flash model, so the small quota is only spent
+                    on genuinely complex questions.
+                </span>
+            }
+        </label>
+        <input id="aiRouterModel" class="form-control"
+               placeholder="@(providerInput == "ollama" ? "Off — a smaller pulled model to enable" : "Off — e.g. " + AiBackendSettingKeys.DefaultGateModel)"
+               @bind="routerModelInput" @bind:after="SaveRouterModelAsync" />
+        <div class="form-text">Leave empty (or <code>off</code>) to always use the main Model. Enter a model to enable complexity routing.</div>
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.AiBackend;
+
+    private bool hasKey;
+    private string? apiKeyInput;
+    private string providerInput = "gemini";
+    private string? modelInput;
+    private string embeddingProviderInput = "ollama";
+    private string? gateModelInput;
+    private string? routerModelInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        // The stored API key is never echoed back into the field — we only track whether one exists.
+        hasKey = !string.IsNullOrWhiteSpace(await GetText(AiBackendSettingKeys.ApiKey));
+        // Unset/unknown provider means Gemini (matches AiChatService's default).
+        var storedProvider = await GetText(AiBackendSettingKeys.Provider);
+        providerInput = string.Equals(storedProvider, "ollama", StringComparison.OrdinalIgnoreCase) ? "ollama" : "gemini";
+        modelInput = await GetText(AiBackendSettingKeys.Model);
+        var storedEmbeddingProvider = await GetText(AiBackendSettingKeys.EmbeddingProvider);
+        embeddingProviderInput = storedEmbeddingProvider is "gemini-embedding-001" or "gemini-embedding-2"
+            ? storedEmbeddingProvider
+            : "ollama";
+        gateModelInput = await GetText(AiBackendSettingKeys.GateModel);
+        routerModelInput = await GetText(AiBackendSettingKeys.RouterModel);
+    }
+
+    // Guild-wide backend settings: ResolvedAudience is Guild and GuildAllianceId is null for this
+    // single-audience feature, so the same helper serves every read/write.
+    private Task<string?> GetText(string key) =>
+        SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
+
+    private Task SetText(string key, string? value) =>
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
+
+    private async Task SaveApiKeyAsync()
+    {
+        // Blank submit leaves the existing key untouched (use Delete to remove it).
+        if (string.IsNullOrWhiteSpace(apiKeyInput))
+            return;
+
+        // Encrypted at rest — write via the secret path, not the plain SetText helper.
+        await SettingsService.SetSecretAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AiBackendSettingKeys.ApiKey, apiKeyInput.Trim());
+        apiKeyInput = null;
+        hasKey = true;
+    }
+
+    private async Task ClearApiKeyAsync()
+    {
+        await SetText(AiBackendSettingKeys.ApiKey, null);
+        apiKeyInput = null;
+        hasKey = false;
+    }
+
+    private Task SaveProviderAsync() => SetText(AiBackendSettingKeys.Provider, providerInput);
+
+    private Task SaveModelAsync() => SetText(AiBackendSettingKeys.Model, modelInput);
+
+    private Task SaveEmbeddingProviderAsync() => SetText(AiBackendSettingKeys.EmbeddingProvider, embeddingProviderInput);
+
+    private Task SaveGateModelAsync() => SetText(AiBackendSettingKeys.GateModel, gateModelInput);
+
+    private Task SaveRouterModelAsync() => SetText(AiBackendSettingKeys.RouterModel, routerModelInput);
+}

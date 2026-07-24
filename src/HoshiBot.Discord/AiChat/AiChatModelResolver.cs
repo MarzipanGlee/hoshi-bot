@@ -10,15 +10,17 @@ public sealed record ResolvedAiChatModel(IAiChatProvider Provider, string Model,
 
 public class AiChatModelResolver(IEnumerable<IAiChatProvider> providers, GuildFeatureSettingsService settingsService)
 {
-    // The scalar AI-chat settings are guild-wide (one account per guild), stored at the None scope.
-    private const GuildAudience SettingsScope = GuildAudience.None;
+    // The AI backend settings are guild-wide (one account per guild), stored under the AiBackend
+    // feature at the Guild scope.
+    private const GuildFeature BackendFeature = GuildFeature.AiBackend;
+    private const GuildAudience SettingsScope = GuildAudience.Guild;
 
     public async Task<ResolvedAiChatModel> ResolveAsync(ulong guildId)
     {
         var provider = await ResolveProviderAsync(guildId);
-        var apiKey = await settingsService.GetSecretAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
+        var apiKey = await settingsService.GetSecretAsync(guildId, BackendFeature, SettingsScope, null, AiBackendSettingKeys.ApiKey);
 
-        var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Model);
+        var model = await settingsService.GetTextAsync(guildId, BackendFeature, SettingsScope, null, AiBackendSettingKeys.Model);
         model = string.IsNullOrWhiteSpace(model) ? provider.DefaultModel : model.Trim();
 
         return new ResolvedAiChatModel(provider, model, apiKey);
@@ -27,14 +29,14 @@ public class AiChatModelResolver(IEnumerable<IAiChatProvider> providers, GuildFe
     // The model for member-lore background tasks (DM interviews + note extraction): same provider/key
     // as the main chat, but a lighter, cheaper model by default (the gate/flash-lite tier) so these
     // frequent calls don't spend the premium answer model's tiny per-day request quota. Overridable
-    // per guild via AiChatSettingKeys.MemberLoreModel; falls back to the main model for a provider
+    // per guild via AiBackendSettingKeys.MemberLoreModel; falls back to the main model for a provider
     // with no gate model (e.g. local Ollama, where there's no quota to conserve).
     public async Task<ResolvedAiChatModel> ResolveLightweightAsync(ulong guildId)
     {
         var provider = await ResolveProviderAsync(guildId);
-        var apiKey = await settingsService.GetSecretAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
+        var apiKey = await settingsService.GetSecretAsync(guildId, BackendFeature, SettingsScope, null, AiBackendSettingKeys.ApiKey);
 
-        var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemberLoreModel);
+        var model = await settingsService.GetTextAsync(guildId, BackendFeature, SettingsScope, null, AiBackendSettingKeys.MemberLoreModel);
         model = string.IsNullOrWhiteSpace(model) ? (provider.DefaultGateModel ?? provider.DefaultModel) : model.Trim();
 
         return new ResolvedAiChatModel(provider, model, apiKey);
@@ -43,7 +45,7 @@ public class AiChatModelResolver(IEnumerable<IAiChatProvider> providers, GuildFe
     // The guild's configured chat backend (default Gemini on unset/unknown).
     public async Task<IAiChatProvider> ResolveProviderAsync(ulong guildId)
     {
-        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Provider);
+        var configured = await settingsService.GetTextAsync(guildId, BackendFeature, SettingsScope, null, AiBackendSettingKeys.Provider);
         var kind = Enum.TryParse<AiProvider>(configured, ignoreCase: true, out var parsed) ? parsed : AiProvider.Gemini;
         return providers.First(p => p.Kind == kind);
     }

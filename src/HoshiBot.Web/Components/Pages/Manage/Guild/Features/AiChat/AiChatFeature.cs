@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiChat;
 
@@ -22,12 +23,14 @@ public class AiChatFeature : IFeatureModule
     public IReadOnlyList<FeatureExtraPage> ExtraPages =>
         [new FeatureExtraPage("memories", "Memories", typeof(MemoryAdmin))];
 
-    // "Configured" means the guild has actually supplied its Gemini API key — without it the
-    // feature stays silent even when enabled. The key is guild-wide (None/null scope), so it's the
-    // same check on every audience tab.
+    // The AI provider/key/model now live in the guild-wide AiBackend feature (declared as a
+    // dependency, so its "not configured" state surfaces via the dependency badge). AiChat's own
+    // "configured" signal is therefore about having at least one listen channel to answer in for
+    // this audience — enabled but with no listen channel does nothing.
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
-        var apiKey = await context.Settings.GetTextAsync(guildId, GuildFeature.AiChat, GuildAudience.None, null, AiChatSettingKeys.ApiKey);
-        return !string.IsNullOrWhiteSpace(apiKey);
+        await using var db = await context.DbFactory.CreateDbContextAsync();
+        return await db.GuildFeatureChannels.AnyAsync(
+            c => c.GuildId == guildId && c.Feature == GuildFeature.AiChat && c.Audience == audience);
     }
 }

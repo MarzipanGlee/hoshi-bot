@@ -1,7 +1,7 @@
 namespace HoshiBot.Discord.AiChat;
 
 // The LLM backends the AI-chat feature can answer with. A guild picks one via the per-guild
-// AiChatSettingKeys.Provider setting; AiChatService resolves the matching IAiChatProvider.
+// AiBackendSettingKeys.Provider setting; AiChatService resolves the matching IAiChatProvider.
 public enum AiProvider
 {
     Gemini,
@@ -54,7 +54,7 @@ public interface IAiChatProvider
     // The small/fast model used for the passive-listening gate pass (a cheap yes/no "is this an
     // answerable question?" classifier that runs before the expensive retrieval + main generation).
     // Null means no default gate for this provider — the gate stays off unless a guild configures
-    // AiChatSettingKeys.GateModel. See AiChatService's gate logic. Only ever suppresses on a
+    // AiBackendSettingKeys.GateModel. See AiChatService's gate logic. Only ever suppresses on a
     // confident NO; any failure/ambiguity falls through to the main model, so a wrong/absent gate
     // model is safe (it just no-ops).
     string? DefaultGateModel { get; }

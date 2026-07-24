@@ -36,6 +36,7 @@ public partial class AiChatService(
     MemberNoteService memberNoteService,
     MemoryService memoryService,
     AiChatEmbeddingService embeddingService,
+    GuildAllianceService allianceService,
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
@@ -70,11 +71,28 @@ public partial class AiChatService(
     // message edits, so coalesce the token stream to at most one edit per this interval.
     private const int StreamEditIntervalMs = 1250;
 
-    // The three scalar settings (API key, system prompt, model) plus the search language are
-    // guild-wide — one Gemini account per guild — so they live at the None/null scope regardless of
-    // which audiences the feature is enabled for (same pattern as ClientRelease's guild-wide
-    // platform roles). The channel lists, by contrast, are per-audience.
-    private const GuildAudience SettingsScope = GuildAudience.None;
+    // The AI backend settings (provider, API key, models, embeddings) are guild-wide — one account
+    // per guild — so they live under the separate AiBackend feature at the Guild scope, read the
+    // same way regardless of which audience a message belongs to.
+    private const GuildFeature BackendFeature = GuildFeature.AiBackend;
+    private const GuildAudience BackendScope = GuildAudience.Guild;
+
+    // The per-audience behavioral settings (system prompt, search language, memory toggle,
+    // streaming) live under GuildFeature.AiChat at the audience the current message belongs to.
+    // AiChat's channels are keyed per audience only (no alliance dimension), so we resolve the
+    // audience from which enabled audience's listen/knowledge channels contain the message's
+    // channel; for the Alliance audience the specific alliance can't be derived from the channel, so
+    // we fall back to the guild's primary linked alliance (the house pattern — see
+    // GuildAllianceService.GetPrimaryIdAsync; exact for single-alliance guilds, primary-wins for a
+    // coalition guild). Resolved once per message in TryBuildReplyAsync. Safe as an instance field:
+    // AiChatService is instantiated per message (see AiChatMessageHandler's per-message scope).
+    private readonly record struct SettingsScope(GuildAudience Audience, int? AllianceId);
+    private SettingsScope _settingsScope;
+
+    // Audience precedence when a channel could match more than one, and for the addressed-in-an-
+    // unconfigured-channel fallback.
+    private static readonly GuildAudience[] AudiencePrecedence =
+        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 
     // Serializes AI answers per channel: only one generation runs at a time (a burst can't fire
     // overlapping, billable / CPU-thrashing generations), but a message that arrives while the
@@ -135,8 +153,13 @@ public partial class AiChatService(
         if (!addressed && mentionsOthers)
             return null;
 
+        // Resolve which audience's tab the per-audience behavioral settings (system prompt, search
+        // language, memory, streaming) come from for this message. Backend settings are guild-wide
+        // and don't use this. Set once here, before any behavioral-setting read below.
+        _settingsScope = await ResolveSettingsScopeAsync(guildId, message.ChannelId);
+
         var provider = await ResolveProviderAsync(guildId);
-        var apiKey = await settingsService.GetSecretAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.ApiKey);
+        var apiKey = await settingsService.GetSecretAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.ApiKey);
 
         // Only Gemini authenticates per guild — the shared local Ollama needs no key.
         if (provider.Kind == AiProvider.Gemini && string.IsNullOrWhiteSpace(apiKey))
@@ -213,7 +236,7 @@ public partial class AiChatService(
                     }
                 }
 
-                var model = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Model);
+                var model = await settingsService.GetTextAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.Model);
                 model = string.IsNullOrWhiteSpace(model) ? provider.DefaultModel : model.Trim();
 
                 // Complexity routing (opt-in): a cheap classifier picks the answer model — simple
@@ -230,7 +253,7 @@ public partial class AiChatService(
                         model = routerModel;
                 }
 
-                var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SystemPrompt);
+                var systemExtra = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, _settingsScope.Audience, _settingsScope.AllianceId, AiChatSettingKeys.SystemPrompt);
 
                 // The users the bot may ping: the conversation's participants. The model is given
                 // "name: <@id>" for these and told to only ping from this list; the handler restricts
@@ -744,7 +767,7 @@ public partial class AiChatService(
 
     private async Task<string> BuildMemoryBlockAsync(ulong guildId, string questionText, CancellationToken cancellationToken)
     {
-        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemoryEnabled);
+        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, _settingsScope.Audience, _settingsScope.AllianceId, AiChatSettingKeys.MemoryEnabled);
         if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
             return "";
 
@@ -787,7 +810,7 @@ public partial class AiChatService(
 
     private async Task<string> BuildConversationMemoryBlockAsync(ulong guildId, ulong channelId, CancellationToken cancellationToken)
     {
-        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemoryEnabled);
+        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, _settingsScope.Audience, _settingsScope.AllianceId, AiChatSettingKeys.MemoryEnabled);
         if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
             return "";
 
@@ -813,7 +836,7 @@ public partial class AiChatService(
 
     private async Task<string> BuildMemberMemoryBlockAsync(ulong guildId, IReadOnlyDictionary<ulong, string> mentionable, CancellationToken cancellationToken)
     {
-        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.MemoryEnabled);
+        var enabled = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, _settingsScope.Audience, _settingsScope.AllianceId, AiChatSettingKeys.MemoryEnabled);
         if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase) || mentionable.Count == 0)
             return "";
 
@@ -878,9 +901,44 @@ public partial class AiChatService(
     // (default Gemini on unset/unknown), matched against the registered providers.
     private async Task<IAiChatProvider> ResolveProviderAsync(ulong guildId)
     {
-        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.Provider);
+        var configured = await settingsService.GetTextAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.Provider);
         var kind = Enum.TryParse<AiProvider>(configured, ignoreCase: true, out var parsed) ? parsed : AiProvider.Gemini;
         return providers.First(p => p.Kind == kind);
+    }
+
+    // Resolves which audience (and, for the Alliance audience, which alliance) the per-audience
+    // behavioral settings should be read from for a message in this channel. AiChat's channels are
+    // keyed per audience only, so the audience is the one whose listen/knowledge channels contain
+    // the channel; the Alliance audience's specific alliance can't be derived from the channel, so
+    // it falls back to the guild's primary linked alliance (exact for single-alliance guilds). A
+    // directly-addressed message in a channel that isn't a configured source falls back to the first
+    // enabled audience in precedence order.
+    private async Task<SettingsScope> ResolveSettingsScopeAsync(ulong guildId, ulong channelId)
+    {
+        var enabled = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.AiChat);
+
+        GuildAudience? match = null;
+        foreach (var audience in AudiencePrecedence)
+        {
+            if (!enabled.Contains(audience))
+                continue;
+
+            var inAudience =
+                (await channelService.GetChannelsAsync(guildId, GuildFeature.AiChat, audience)).Contains(channelId)
+                || (await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledge, audience)).Contains(channelId)
+                || (await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledgePreferred, audience)).Contains(channelId)
+                || (await channelService.GetChannelsAsync(guildId, GuildFeature.AiChatKnowledgeLastResort, audience)).Contains(channelId);
+            if (inAudience)
+            {
+                match = audience;
+                break;
+            }
+        }
+
+        // Fallback for an addressed message in a non-source channel: the first enabled audience.
+        var resolved = match ?? AudiencePrecedence.FirstOrDefault(enabled.Contains);
+        var allianceId = resolved == GuildAudience.Alliance ? await allianceService.GetPrimaryIdAsync(guildId) : null;
+        return new SettingsScope(resolved, allianceId);
     }
 
     // Outcome of the passive-listening gate. Only No suppresses; the rest fall through to the main
@@ -892,7 +950,7 @@ public partial class AiChatService(
     // with no Ollama:GateModel configured). Null ⇒ no gate, current behaviour.
     private async Task<string?> ResolveGateModelAsync(ulong guildId, IAiChatProvider provider)
     {
-        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.GateModel);
+        var configured = await settingsService.GetTextAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.GateModel);
         if (!string.IsNullOrWhiteSpace(configured))
         {
             var trimmed = configured.Trim();
@@ -936,7 +994,7 @@ public partial class AiChatService(
     // "true". Unset (default) → classic post-once.
     private async Task<bool> IsStreamingEnabledAsync(ulong guildId)
     {
-        var value = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.StreamResponses);
+        var value = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, _settingsScope.Audience, _settingsScope.AllianceId, AiChatSettingKeys.StreamResponses);
         return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -946,7 +1004,7 @@ public partial class AiChatService(
     // "off"). Opt-in: no provider fallback, so an existing guild's behaviour is unchanged until set.
     private async Task<string?> ResolveRouterModelAsync(ulong guildId)
     {
-        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.RouterModel);
+        var configured = await settingsService.GetTextAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.RouterModel);
         if (string.IsNullOrWhiteSpace(configured))
             return null;
 
@@ -981,7 +1039,7 @@ public partial class AiChatService(
     // else "simple". Always normalized against the supported whitelist before use.
     private async Task<string> ResolveSearchLanguageAsync(ulong guildId)
     {
-        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, SettingsScope, null, AiChatSettingKeys.SearchLanguage);
+        var configured = await settingsService.GetTextAsync(guildId, GuildFeature.AiChat, _settingsScope.Audience, _settingsScope.AllianceId, AiChatSettingKeys.SearchLanguage);
         if (!string.IsNullOrWhiteSpace(configured))
             return FtsLanguage.Normalize(configured);
 
