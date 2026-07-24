@@ -16,10 +16,7 @@
 else if (NeedsAllianceLink)
 {
     <h1>Alliance Settings</h1>
-    <p class="text-muted">
-        This guild has no alliance linked yet. Link one on the
-        <a href="manage/guild/@GuildId/audience">Audience</a> page first, then come back to configure it.
-    </p>
+    <AllianceLinkRequiredHint GuildId="@GuildId" />
 }
 else
 {

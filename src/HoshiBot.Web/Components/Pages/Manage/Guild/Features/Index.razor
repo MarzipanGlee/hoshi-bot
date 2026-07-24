@@ -18,10 +18,7 @@
 else if (audience == GuildAudience.Alliance && scopeAllianceId is null)
 {
     <h1>Alliance Features</h1>
-    <p class="text-muted">
-        This guild has no alliance linked yet. Link one on the
-        <a href="manage/guild/@GuildId/audience">Audience</a> page first, then come back to configure its features.
-    </p>
+    <AllianceLinkRequiredHint GuildId="@GuildId" />
 }
 else
 {

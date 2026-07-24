@@ -1,0 +1,12 @@
+@* The "this guild has no alliance linked yet" hint shown by the alliance-scoped pages
+   (Alliance Overview/Settings, the alliance Features catalog + a single feature editor) when the
+   guild has no linked alliance. Extracted so the sentence isn't copy-pasted across those four
+   pages. The page keeps its own <h1>; this is just the lead paragraph. *@
+<p class="text-muted">
+    This guild has no alliance linked yet. Link one on the
+    <a href="manage/guild/@GuildId/audience">Audience</a> page first, then come back to configure it.
+</p>
+
+@code {
+    [Parameter, EditorRequired] public string GuildId { get; set; } = "";
+}

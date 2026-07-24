@@ -21,10 +21,7 @@ else if (descriptor is null)
 else if (needsAllianceLink)
 {
     <h1>@descriptor.Title</h1>
-    <p class="text-muted">
-        This is an alliance feature, but this guild has no alliance linked yet. Link one on the
-        <a href="manage/guild/@GuildId/audience">Audience</a> page first, then come back to configure it.
-    </p>
+    <AllianceLinkRequiredHint GuildId="@GuildId" />
 }
 else if (editorParameters is null)
 {
