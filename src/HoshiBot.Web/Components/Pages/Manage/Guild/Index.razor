@@ -44,9 +44,6 @@ else
 }
 
 @code {
-    private static readonly GuildAudience[] AudienceSections =
-        [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
-
     private string? guildName;
     private string audienceSummary = "Not configured yet";
     private string botStatusSummary = "…";
@@ -60,9 +57,18 @@ else
     protected override async Task OnAuthorizedParametersSetAsync()
     {
         links = await AllianceService.GetLinksAsync(ParsedGuildId);
-        allianceFeatureTotal = FeatureCatalog.All.Count(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance));
+
+        // Only the real, toggleable Alliance-audience features count toward the card — the storage-
+        // only AiChatKnowledge* pseudo-features have no FeatureCatalog entry, so they're not in the
+        // denominator; filter them out of the enabled numerator too, or a fully-configured alliance
+        // reads as "21/18" (18 real features + 3 knowledge-tier rows).
+        var allianceRelevantFeatures = FeatureCatalog.All
+            .Where(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance))
+            .Select(f => f.Feature)
+            .ToHashSet();
+        allianceFeatureTotal = allianceRelevantFeatures.Count;
         allianceEnabledCounts = (await FeatureService.GetEnabledAsync(ParsedGuildId))
-            .Where(s => s.Audience == GuildAudience.Alliance && s.GuildAllianceId is not null)
+            .Where(s => s.Audience == GuildAudience.Alliance && s.GuildAllianceId is not null && allianceRelevantFeatures.Contains(s.Feature))
             .GroupBy(s => s.GuildAllianceId!.Value)
             .ToDictionary(g => g.Key, g => g.Count());
 
@@ -79,30 +85,19 @@ else
             ? "Not configured yet"
             : string.Join(", ", AudienceDisplay.Labels(guildAudiences));
 
-        var enabledFeatures = new HashSet<(GuildFeature Feature, GuildAudience Audience)>();
-        foreach (var feature in FeatureCatalog.All)
-        {
-            var audiences = await FeatureService.GetEnabledAudiencesAsync(ParsedGuildId, feature.Feature);
-            foreach (var audience in audiences)
-                enabledFeatures.Add((feature.Feature, audience));
-        }
-
+        // The top "Features" card links to the guild-wide features page (the bare .../features route,
+        // GuildAudience.Guild), which lists exactly the Guild-audience features — so the card counts
+        // those, not the per-alliance/audience features summarized by the Alliance cards below.
         enabledCount = 0;
         totalCount = 0;
-        foreach (var audience in AudienceSections)
+        foreach (var feature in FeatureCatalog.All)
         {
-            if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
+            if (!feature.RelevantAudiences().HasFlag(GuildAudience.Guild))
                 continue;
 
-            foreach (var feature in FeatureCatalog.All)
-            {
-                if (!feature.RelevantAudiences().HasFlag(audience))
-                    continue;
-
-                totalCount++;
-                if (enabledFeatures.Contains((feature.Feature, audience)))
-                    enabledCount++;
-            }
+            totalCount++;
+            if (await FeatureService.IsEnabledAsync(ParsedGuildId, feature.Feature, GuildAudience.Guild, null))
+                enabledCount++;
         }
 
         await LoadBotStatusSummaryAsync();
