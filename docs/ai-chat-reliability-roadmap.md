@@ -1,7 +1,8 @@
 # AI chat — reliability & retrieval roadmap
 
-*Status: phased plan, not yet built. Captured 2026-07-24 after a two-day live debugging session
-(the testing guild), not a hypothetical — every incident below actually happened.*
+*Status: phased plan. Captured 2026-07-24 after a two-day live debugging session (the testing
+guild), not a hypothetical — every incident below actually happened. Phase 0 is done; Phases 1–5
+are not built yet.*
 
 ## Why this roadmap
 
@@ -25,6 +26,20 @@ system surfaces AiChat's retrieval health to an operator, and the ranking algori
 built-in defense against "stale content that reads similarly to a fresh fact." This roadmap closes
 those systemic gaps — reliability of the existing pipeline, not new user-facing features — so the
 next incident like this is visible and diagnosable in the Web admin, not a repeat SSH session.
+
+## Phase 0 — Split guild-wide AI backend config out of AiChat — DONE
+
+Prerequisite cleanup that landed before the phases below (commit `37fa31e`, deployed + verified on
+the testing guild 2026-07-24). Every scalar AiChat setting was stored guild-wide
+(`GuildAudience.None`) yet surfaced through the *per-audience* AiChat feature editor — credentials
+written guild-wide from a tab that pretended to be per-audience. Extracted the backend bucket
+(provider, API key, model, gate/router/member-lore models, embeddings) into a new guild-wide
+`AiBackend` feature (Guild audience) that AiChat, MemberLore and AnnouncementForwarder all depend
+on; the remaining behavioral settings (system prompt, search language, memory toggle, streaming)
+became genuinely per-audience, with `AiChatService` resolving the incoming message's audience from
+its channel (primary-alliance fallback for the Alliance audience). Data migration
+`SplitAiBackendSettings` moved existing rows and auto-enabled `AiBackend` for AI-using guilds.
+Doing this first means Phase 1's health page reads clean, separated feature boundaries.
 
 ## Phase 1 — AiChat health & observability (Web admin)
 
