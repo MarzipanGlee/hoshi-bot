@@ -1,8 +1,8 @@
 # AI chat — reliability & retrieval roadmap
 
 *Status: phased plan. Captured 2026-07-24 after a two-day live debugging session (the testing
-guild), not a hypothetical — every incident below actually happened. Phase 0 is done; Phases 1–5
-are not built yet.*
+guild), not a hypothetical — every incident below actually happened. Phases 0 and 1 are done;
+Phases 2–5 are not built yet.*
 
 ## Why this roadmap
 
@@ -41,7 +41,20 @@ its channel (primary-alliance fallback for the Alliance audience). Data migratio
 `SplitAiBackendSettings` moved existing rows and auto-enabled `AiBackend` for AI-using guilds.
 Doing this first means Phase 1's health page reads clean, separated feature boundaries.
 
-## Phase 1 — AiChat health & observability (Web admin)
+## Phase 1 — AiChat health & observability (Web admin) — DONE
+
+Shipped (commits `a9d003f` + `4cef712`, deployed + verified on the testing guild 2026-07-24). New
+read-only "AI Chat health" page (ExtraPage on the AiChat feature) with three sections: embedding
+coverage (indexed vs embedded + progress bar), provider health (last chat/embed success + error
+time/message/model per guild, degraded/healthy badge), and the configured knowledge/listen channel
+tiers. Backed by a new `AiChatProviderHealth` entity + `AiChatHealthService` (in `HoshiBot.Data`);
+the bot records outcomes at the caller level (`AiChatService` for chat,
+`AiChatIndexService.EmbedPendingAsync` for embeddings), with the embedding return enriched to
+`EmbeddingBatchResult(vectors, error)` so the provider's own message (e.g. the quota/billing text)
+surfaces. Verified live: an Embed success row and a Chat success row both wrote automatically.
+Deferred from the original plan: the self-citation tripwire (needs the bot's guild display name,
+which lives behind Discord-only helpers the Web project can't reference; the actual regression
+guard already exists in code, `1628feb`).
 
 **Why first:** every other phase either depends on being able to *see* the problem it fixes, or
 is itself hard to justify without data (e.g., "do we need an ANN index yet?"). Also the cheapest
