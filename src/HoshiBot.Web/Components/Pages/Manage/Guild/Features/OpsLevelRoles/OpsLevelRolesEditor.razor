@@ -2,11 +2,11 @@
 @using NetCord
 @using NetCord.Rest
 
+@inherits FeatureEditorBase
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
-@inject GuildFeatureService FeatureService
 
-<FeatureEnableSwitch Enabled="enabled" OnToggle="ToggleAsync" />
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 @if (createRoleError is not null)
 {
@@ -32,9 +32,7 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public ulong GuildId { get; set; }
-    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
-    [Parameter] public int? GuildAllianceId { get; set; }
+    protected override GuildFeature Feature => GuildFeature.OpsLevelRoles;
 
     // Groups an Ops tier's identity (name/setting key) with its 3 pieces of live state
     // (role, color, mentionable) — same state-bag pattern as RankRolesEditor's RankRoleState,
@@ -63,13 +61,11 @@
     ];
 
     private List<Role> roles = [];
-    private bool enabled;
     private string? createRoleError;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnSettingsLoadedAsync()
     {
         roles = await DiscordData.GetRolesAsync(GuildId);
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, GuildAllianceId);
 
         foreach (var state in groupStates)
             await LoadGroupRoleAsync(state);
@@ -81,7 +77,7 @@
     // (and failed) to create a role Discord already had.
     private async Task LoadGroupRoleAsync(OpsGroupState state)
     {
-        var saved = await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, GuildAllianceId, state.SettingKey);
+        var saved = await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, state.SettingKey);
         if (saved is { } savedId)
         {
             state.RoleId = savedId.ToString();
@@ -92,7 +88,7 @@
             // selection, so re-picking the same role fires no change event and it would
             // otherwise never be saved (nor picked up by the role-sync job).
             state.RoleId = role.Id.ToString();
-            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, GuildAllianceId, state.SettingKey, role.Id);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, state.SettingKey, role.Id);
         }
 
         ApplyRoleDisplayState(state);
@@ -113,12 +109,6 @@
             state.Color = null;
             state.Mentionable = false;
         }
-    }
-
-    private async Task ToggleAsync(bool value)
-    {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, GuildAllianceId, value);
-        enabled = value;
     }
 
     private Task OnRoleChangedAsync(OpsGroupState state)
@@ -144,7 +134,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, state.RoleId, state.DefaultName, state.Color, state.Mentionable, roles);
             state.RoleId = roleId?.ToString();
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.OpsLevelRoles, Audience, GuildAllianceId, state.SettingKey, roleId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, state.SettingKey, roleId);
         }
         catch (RestException)
         {

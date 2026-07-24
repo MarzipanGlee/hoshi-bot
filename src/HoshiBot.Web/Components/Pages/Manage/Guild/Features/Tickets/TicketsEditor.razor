@@ -1,10 +1,10 @@
 @using HoshiBot.Web.Services
 @using NetCord
+@inherits FeatureEditorBase
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
-@inject GuildFeatureService FeatureService
 
-<FeatureEnableSwitch Enabled="enabled" OnToggle="ToggleAsync" />
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
     <SettingsCard Title="Tickets">
@@ -14,29 +14,17 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public ulong GuildId { get; set; }
-    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
-    [Parameter] public int? GuildAllianceId { get; set; }
+    protected override GuildFeature Feature => GuildFeature.Tickets;
 
     private List<IGuildChannel> channels = [];
-    private bool enabled;
     private string? channelInput;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.Tickets, Audience, GuildAllianceId);
-        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Tickets, Audience, GuildAllianceId, TicketsSettingKeys.Channel))?.ToString();
-    }
-
-    private async Task ToggleAsync(bool value)
-    {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.Tickets, Audience, GuildAllianceId, value);
-        enabled = value;
+        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TicketsSettingKeys.Channel))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Tickets, Audience, GuildAllianceId, TicketsSettingKeys.Channel, ParseId(channelInput));
-
-    private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TicketsSettingKeys.Channel, ParseId(channelInput));
 }

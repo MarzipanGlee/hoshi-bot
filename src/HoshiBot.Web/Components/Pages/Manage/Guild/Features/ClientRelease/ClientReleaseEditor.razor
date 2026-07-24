@@ -2,7 +2,7 @@
 @using HoshiBot.Web.Services
 @using NetCord
 @using NetCord.Rest
-@inject GuildFeatureService FeatureService
+@inherits FeatureEditorBase
 @inject GuildFeatureSettingsService SettingsService
 @inject DiscordGuildDataService DiscordData
 
@@ -13,7 +13,7 @@
     hub's "manage alerts" button.
 </p>
 
-<FeatureEnableSwitch Enabled="enabled" OnToggle="ToggleAsync" />
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 @if (createRoleError is not null)
 {
@@ -21,7 +21,7 @@
 }
 
 <div class="card-grid mt-1">
-    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.ClientRelease" Audience="Audience"
+    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.ClientRelease" Audience="ResolvedAudience"
         Title="Announcement Channels" Usage="Every configured platform release is posted to each of these channels." />
 
     <SettingsCard Title="Platform Roles (guild-wide)">
@@ -37,11 +37,8 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public ulong GuildId { get; set; }
-    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
-    [Parameter] public int? GuildAllianceId { get; set; }
+    protected override GuildFeature Feature => GuildFeature.ClientRelease;
 
-    private bool enabled;
     private List<Role> roles = [];
     private string? windowsRoleInput;
     private string? macOsRoleInput;
@@ -49,21 +46,14 @@
     private string? iosRoleInput;
     private string? createRoleError;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnSettingsLoadedAsync()
     {
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.ClientRelease, Audience, GuildAllianceId);
         roles = await DiscordData.GetRolesAsync(GuildId);
 
         windowsRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.WindowsRole))?.ToString();
         macOsRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.MacOSRole))?.ToString();
         androidRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.AndroidRole))?.ToString();
         iosRoleInput = (await GetRoleAsync(ClientReleaseSettingKeys.IOSRole))?.ToString();
-    }
-
-    private async Task ToggleAsync(bool value)
-    {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.ClientRelease, Audience, GuildAllianceId, value);
-        enabled = value;
     }
 
     // Platform roles are guild-wide (audience-agnostic, no alliance): the None/null scope.

@@ -1,5 +1,5 @@
 @using HoshiBot.Web.Components.Pages.Manage.Guild
-@inject GuildFeatureService FeatureService
+@inherits FeatureEditorBase
 
 <p class="form-text">
     Advance-warning announcement when a new Alliance Tournament event is scheduled. Not scoped
@@ -8,25 +8,10 @@
     one-time seed, not a live sync — see StfcEventStatus for why.
 </p>
 
-<FeatureEnableSwitch Enabled="enabled" OnToggle="ToggleAsync" />
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.AllianceTournament" Audience="Audience" />
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.AllianceTournament" Audience="ResolvedAudience" />
 
 @code {
-    [Parameter, EditorRequired] public ulong GuildId { get; set; }
-    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
-    [Parameter] public int? GuildAllianceId { get; set; }
-
-    private bool enabled;
-
-    protected override async Task OnInitializedAsync()
-    {
-        enabled = await FeatureService.IsEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience, GuildAllianceId);
-    }
-
-    private async Task ToggleAsync(bool value)
-    {
-        await FeatureService.SetEnabledAsync(GuildId, GuildFeature.AllianceTournament, Audience, GuildAllianceId, value);
-        enabled = value;
-    }
+    protected override GuildFeature Feature => GuildFeature.AllianceTournament;
 }
