@@ -7,10 +7,8 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Anonymous Messages">
-        <ChannelPicker Label="Anonymous Messages" ShowLabel="false" Usage="Where anonymous messages submitted via the hub button are posted."
+    <ChannelPicker CardTitle="Anonymous Messages" Usage="Where anonymous messages submitted via the hub button are posted."
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
-    </SettingsCard>
 </div>
 
 @code {

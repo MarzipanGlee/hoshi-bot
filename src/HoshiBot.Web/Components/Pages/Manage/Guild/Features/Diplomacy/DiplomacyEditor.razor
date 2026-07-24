@@ -13,15 +13,11 @@
 }
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Diplomacy">
-        <ChannelPicker Label="Diplomacy" ShowLabel="false" Usage="Where diplomacy status changes (/set-diplomacy) are announced."
+    <ChannelPicker CardTitle="Diplomacy" Usage="Where diplomacy status changes (/set-diplomacy) are announced."
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
-    </SettingsCard>
 
-    <SettingsCard Title="Diplomat">
-        <RolePicker Label="Diplomat" ShowLabel="false" Usage="Role for members who can run /set-diplomacy for this guild's alliance." CreateRoleName="Diplomat"
+    <RolePicker CardTitle="Diplomat" Usage="Role for members who can run /set-diplomacy for this guild's alliance." CreateRoleName="Diplomat"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
-    </SettingsCard>
 </div>
 
 @code {

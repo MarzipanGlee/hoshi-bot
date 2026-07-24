@@ -6,15 +6,9 @@
 
 <h2>Channels</h2>
 <div class="card-grid mt-1">
-    <SettingsCard Title="Log">
-        <ChannelPicker Label="Log" ShowLabel="false" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="Admin">
-        <ChannelPicker Label="Admin" ShowLabel="false" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
-    </SettingsCard>
-    <SettingsCard Title="User Log">
-        <ChannelPicker Label="User Log" ShowLabel="false" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
-    </SettingsCard>
+    <ChannelPicker CardTitle="Log" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="Admin" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="User Log" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
 </div>
 
 <h2>Roles</h2>
@@ -23,15 +17,9 @@
     <p class="text-danger">@createError</p>
 }
 <div class="card-grid mt-1">
-    <SettingsCard Title="Crews">
-        <RolePicker Label="Crews" ShowLabel="false" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
-    </SettingsCard>
-    <SettingsCard Title="Beta Tester">
-        <RolePicker Label="Beta Tester" ShowLabel="false" CreateRoleName="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
-    </SettingsCard>
-    <SettingsCard Title="Hoshi Tester">
-        <RolePicker Label="Hoshi Tester" ShowLabel="false" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
-    </SettingsCard>
+    <RolePicker CardTitle="Crews" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
+    <RolePicker CardTitle="Beta Tester" CreateRoleName="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
+    <RolePicker CardTitle="Hoshi Tester" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
 </div>
 
 @code {

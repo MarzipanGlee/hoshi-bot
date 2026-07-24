@@ -10,17 +10,11 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Member role">
-        <RolePicker Label="Member role" ShowLabel="false"
-            Usage="Only members holding this role are interviewed. Leave empty to fall back to the alliance's configured member role."
+    <RolePicker CardTitle="Member role" Usage="Only members holding this role are interviewed. Leave empty to fall back to the alliance's configured member role."
             @bind-Value="memberRoleInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
-    </SettingsCard>
 
-    <SettingsCard Title="Completed role">
-        <RolePicker Label="Completed role" ShowLabel="false"
-            Usage="Granted to a member once they finish their interview, e.g. an introduced/known role. Leave empty for none."
+    <RolePicker CardTitle="Completed role" Usage="Granted to a member once they finish their interview, e.g. an introduced/known role. Leave empty for none."
             @bind-Value="completedRoleInput" @bind-Value:after="SaveCompletedRoleAsync" Roles="roles" />
-    </SettingsCard>
 
     <SettingsCard Title="Interviews per day">
         <label for="mlMaxPerDay" class="form-label">

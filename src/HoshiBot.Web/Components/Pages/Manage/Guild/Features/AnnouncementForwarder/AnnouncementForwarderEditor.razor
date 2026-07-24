@@ -12,10 +12,8 @@
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AnnouncementForwarder" Audience="ResolvedAudience"
         Title="Source channels" Usage="Channels to watch for official announcements (e.g. the crossposted Scopely news channel)." />
 
-    <SettingsCard Title="Destination channel">
-        <ChannelPicker Label="Destination channel" ShowLabel="false" Usage="Where the translated announcement is posted."
+    <ChannelPicker CardTitle="Destination channel" Usage="Where the translated announcement is posted."
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
-    </SettingsCard>
 
     <SettingsCard Title="Target language (optional)">
         <label for="forwarderLanguage" class="form-label">

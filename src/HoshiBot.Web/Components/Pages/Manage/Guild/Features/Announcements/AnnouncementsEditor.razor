@@ -8,34 +8,23 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Announcements">
-        <ChannelPicker Label="Announcements" ShowLabel="false" Usage="Where published announcements are posted."
+    <ChannelPicker CardTitle="Announcements" Usage="Where published announcements are posted."
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
-    </SettingsCard>
 
-    <SettingsCard Title="Announcements Reminders">
-        <ChannelPicker Label="Announcements Reminders" ShowLabel="false" Usage="A second channel that gets reminder pings for unread announcements."
+    <ChannelPicker CardTitle="Announcements Reminders" Usage="A second channel that gets reminder pings for unread announcements."
             @bind-Value="remindersChannelInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
-    </SettingsCard>
 
-    <SettingsCard Title="Announcements Draft">
-        <ChannelPicker Label="Announcements Draft" ShowLabel="false" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
+    <ChannelPicker CardTitle="Announcements Draft" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
             @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
-    </SettingsCard>
 
     @if (ResolvedAudience == GuildAudience.Alliance)
     {
-        <SettingsCard Title="Notification Role">
-            <RolePicker Label="Notification Role" ShowLabel="false"
-                Usage="Pinged when an Elevated-severity announcement is published — the default members ping (High severity pings the Warnings Role instead). This is the alliance's absence-clean notification role, shared with the Absences and Territory Capture pages."
+        <RolePicker CardTitle="Notification Role" Usage="Pinged when an Elevated-severity announcement is published — the default members ping (High severity pings the Warnings Role instead). This is the alliance's absence-clean notification role, shared with the Absences and Territory Capture pages."
                 @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
-        </SettingsCard>
     }
 
-    <SettingsCard Title="Warnings Role">
-        <RolePicker Label="Warnings Role" ShowLabel="false" Usage="Pinged when a High-severity announcement is published."
+    <RolePicker CardTitle="Warnings Role" Usage="Pinged when a High-severity announcement is published."
             @bind-Value="warningsRoleInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
-    </SettingsCard>
 
     <CommandStaffRoleCard GuildId="GuildId" />
 </div>

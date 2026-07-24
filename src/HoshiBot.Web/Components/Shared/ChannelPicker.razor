@@ -2,62 +2,25 @@
 @using NetCord
 @using NetCord.Rest
 
-<div class="mb-2">
-    @if (ShowLabel)
-    {
-        <label>@Label</label>
-    }
-    <select class="form-select" value="@Value" @onchange="OnChangeAsync">
-        <option value="">@PlaceholderText</option>
-        @* Create action — a distinct sentinel value (not the blank option, which stays a valid
-           "none"/"server root" choice), hidden once a channel/category by this exact name exists. *@
-        @if (CreateChannelName is not null && !ChannelWithCreateNameExists)
-        {
-            <option value="@CreateSentinel">— create "@CreateChannelName" —</option>
-        }
-        @if (IsUnknown)
-        {
-            <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
-        }
-        @if (CategorySelect)
-        {
-            @* Categories are the selectable options themselves here (not <optgroup> headers). *@
-            @foreach (var category in Channels.OfType<CategoryGuildChannel>())
-            {
-                <option value="@category.Id">@category.Name</option>
-            }
-        }
-        else
-        {
-            @foreach (var group in FilteredGroups)
-            {
-                @if (group.Category is not null)
-                {
-                    <optgroup label="@group.Category.Name">
-                        @foreach (var channel in group.Channels)
-                        {
-                            <option value="@channel.Id">@ChannelLabel(channel)</option>
-                        }
-                    </optgroup>
-                }
-                else
-                {
-                    @foreach (var channel in group.Channels)
-                    {
-                        <option value="@channel.Id">@ChannelLabel(channel)</option>
-                    }
-                }
-            }
-        }
-    </select>
-    @if (!string.IsNullOrWhiteSpace(Usage))
-    {
-        <div class="form-text">@Usage</div>
-    }
-</div>
+@if (CardTitle is not null)
+{
+    <SettingsCard Title="@CardTitle">
+        @Body
+    </SettingsCard>
+}
+else
+{
+    @Body
+}
 
 @code {
-    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public string Label { get; set; } = "";
+
+    // When set, the picker renders itself inside a SettingsCard with this as the card title (the card
+    // header is the label, so the inline label is hidden). Collapses the single-picker-per-card idiom
+    // `<SettingsCard Title="X"><ChannelPicker Label="X" ShowLabel="false" …/></SettingsCard>` to
+    // `<ChannelPicker CardTitle="X" …/>`.
+    [Parameter] public string? CardTitle { get; set; }
 
     // Off when a caller renders its own header for Label instead (e.g. a card header).
     [Parameter] public bool ShowLabel { get; set; } = true;
@@ -116,4 +79,58 @@
         ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
         _ => $"# {channel.Name}",
     };
+
+    private RenderFragment Body => @<div class="mb-2">
+        @if (ShowLabel && CardTitle is null)
+        {
+            <label>@Label</label>
+        }
+        <select class="form-select" value="@Value" @onchange="OnChangeAsync">
+            <option value="">@PlaceholderText</option>
+            @* Create action — a distinct sentinel value (not the blank option, which stays a valid
+               "none"/"server root" choice), hidden once a channel/category by this exact name exists. *@
+            @if (CreateChannelName is not null && !ChannelWithCreateNameExists)
+            {
+                <option value="@CreateSentinel">— create "@CreateChannelName" —</option>
+            }
+            @if (IsUnknown)
+            {
+                <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
+            }
+            @if (CategorySelect)
+            {
+                @* Categories are the selectable options themselves here (not <optgroup> headers). *@
+                @foreach (var category in Channels.OfType<CategoryGuildChannel>())
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            }
+            else
+            {
+                @foreach (var group in FilteredGroups)
+                {
+                    @if (group.Category is not null)
+                    {
+                        <optgroup label="@group.Category.Name">
+                            @foreach (var channel in group.Channels)
+                            {
+                                <option value="@channel.Id">@ChannelLabel(channel)</option>
+                            }
+                        </optgroup>
+                    }
+                    else
+                    {
+                        @foreach (var channel in group.Channels)
+                        {
+                            <option value="@channel.Id">@ChannelLabel(channel)</option>
+                        }
+                    }
+                }
+            }
+        </select>
+        @if (!string.IsNullOrWhiteSpace(Usage))
+        {
+            <div class="form-text">@Usage</div>
+        }
+    </div>;
 }

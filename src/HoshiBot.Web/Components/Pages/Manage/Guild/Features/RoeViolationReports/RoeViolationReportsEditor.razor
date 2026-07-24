@@ -13,15 +13,11 @@
 }
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="RoE Violations">
-        <ChannelPicker Label="RoE Violations" ShowLabel="false" Usage="Where /report-roe-violation reports are posted — must be a Forum channel." Kind="ChannelKind.Forum"
+    <ChannelPicker CardTitle="RoE Violations" Usage="Where /report-roe-violation reports are posted — must be a Forum channel." Kind="ChannelKind.Forum"
             CreateChannelName="roe-verstösse" @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
-    </SettingsCard>
 
-    <SettingsCard Title="Diplomat">
-        <RolePicker Label="Diplomat" ShowLabel="false" Usage="Per-alliance role pinged in the report thread once the reporter marks a case ready. This is the same Diplomat role as the Diplomacy feature." CreateRoleName="Diplomat"
+    <RolePicker CardTitle="Diplomat" Usage="Per-alliance role pinged in the report thread once the reporter marks a case ready. This is the same Diplomat role as the Diplomacy feature." CreateRoleName="Diplomat"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
-    </SettingsCard>
 
     <CommandStaffRoleCard GuildId="GuildId" />
 </div>

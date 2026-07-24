@@ -229,9 +229,12 @@ locally by re-running `HoshiBot.Migrator` against the local connection string (s
   - **Guild/alliance admin pages** — `GuildAdminPages` / `AllianceAdminPages` (`Components/Shared`)
     are the single source for the admin-page list; the sidebar nav group *and* the overview card grid
     both iterate them, so add a page there, never hand-roll it in two spots. The "this guild has no
-    alliance linked" hint is `AllianceLinkRequiredHint`. Shortcut/overview cards use `SettingsCard`
-    with `HeaderContent` (icon + title) + `ChildContent` (the subtitle in the body) — footers are for
-    actions/buttons only.
+    alliance linked" hint is `AllianceLinkRequiredHint`. A guild-admin page's body is wrapped in
+    `<AuthorizedGuildView Authorized="Authorized">` (the "Checking access…" guard). Shortcut/overview
+    cards use `SettingsCard` with `HeaderContent` (icon + title) + `ChildContent` (the subtitle in the
+    body) — footers are for actions/buttons only. A settings card that's just one picker whose title
+    equals its label uses `<ChannelPicker/RolePicker CardTitle="X" …/>` (the picker self-wraps the
+    `SettingsCard`), not a hand-rolled `<SettingsCard Title="X"><Picker Label="X" ShowLabel="false" …/></SettingsCard>`.
   - **Stfc CRUD pages** — read-only QuickGrid list pages (`Stfc/**/Index`, `Manage/Database/*`)
     `@inherits DbContextPageBase` and bind `Context.<DbSet>` (don't hand-roll the long-lived
     DbContext + `IAsyncDisposable`). Create/Edit form fields use `<FormField>`; Delete pages use

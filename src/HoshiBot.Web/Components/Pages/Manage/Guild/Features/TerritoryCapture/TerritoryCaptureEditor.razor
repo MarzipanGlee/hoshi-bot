@@ -13,10 +13,8 @@
 }
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Digest Channel">
-        <ChannelPicker Label="Digest Channel" ShowLabel="false" Usage="Where this alliance's weekly/daily capture digests are posted."
+    <ChannelPicker CardTitle="Digest Channel" Usage="Where this alliance's weekly/daily capture digests are posted."
             @bind-Value="digestChannelInput" @bind-Value:after="SaveDigestChannelAsync" Channels="channels" />
-    </SettingsCard>
 
     <SettingsCard Title="Zone Slot Roles">
         <p class="form-text mb-0">

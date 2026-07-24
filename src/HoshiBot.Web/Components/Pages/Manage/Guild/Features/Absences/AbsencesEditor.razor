@@ -7,21 +7,14 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Absences Report">
-        <ChannelPicker Label="Absences Report" ShowLabel="false" Usage="Where the public, kept-updated absence report is posted. Each entry respects the member's chosen privacy setting."
+    <ChannelPicker CardTitle="Absences Report" Usage="Where the public, kept-updated absence report is posted. Each entry respects the member's chosen privacy setting."
             @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
-    </SettingsCard>
 
-    <SettingsCard Title="Absences Report (Staff)">
-        <ChannelPicker Label="Absences Report (Staff)" ShowLabel="false" Usage="A staff-only copy of the report that always shows every absence in full, ignoring members' privacy settings."
+    <ChannelPicker CardTitle="Absences Report (Staff)" Usage="A staff-only copy of the report that always shows every absence in full, ignoring members' privacy settings."
             @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
-    </SettingsCard>
 
-    <SettingsCard Title="Notification Role">
-        <RolePicker Label="Notification Role" ShowLabel="false"
-            Usage="The role members opt into to be pinged for alliance activity (the Territory Capture weekly digest and Elevated announcements). Kept absence-clean automatically: a member with an active absence that suppresses notifications is removed from it until the absence ends. Also editable on the Territory Capture page — it's the same setting."
+    <RolePicker CardTitle="Notification Role" Usage="The role members opt into to be pinged for alliance activity (the Territory Capture weekly digest and Elevated announcements). Kept absence-clean automatically: a member with an active absence that suppresses notifications is removed from it until the absence ends. Also editable on the Territory Capture page — it's the same setting."
             @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
-    </SettingsCard>
 </div>
 
 @code {

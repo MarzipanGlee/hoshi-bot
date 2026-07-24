@@ -1,46 +1,24 @@
 @using NetCord
 
-<div class="mb-2">
-    @if (ShowLabel)
-    {
-        <label>
-            @Label
-            @if (IconSrc is not null)
-            {
-                <img src="@IconSrc" alt="" class="role-picker-icon" />
-            }
-        </label>
-    }
-    <select class="form-select" value="@Value" @onchange="OnChangeAsync">
-        @if (CreateRoleName is not null)
-        {
-            <option value="">— choose a role —</option>
-            @if (!RoleWithCreateNameExists)
-            {
-                <option value="@CreateSentinel">— create "@CreateRoleName" role —</option>
-            }
-        }
-        else
-        {
-            <option value="">@PlaceholderText</option>
-        }
-        @if (IsUnknown)
-        {
-            <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
-        }
-        @foreach (var role in Roles)
-        {
-            <option value="@role.Id">@role.Name</option>
-        }
-    </select>
-    @if (!string.IsNullOrWhiteSpace(Usage))
-    {
-        <div class="form-text">@Usage</div>
-    }
-</div>
+@if (CardTitle is not null)
+{
+    <SettingsCard Title="@CardTitle">
+        @Body
+    </SettingsCard>
+}
+else
+{
+    @Body
+}
 
 @code {
-    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public string Label { get; set; } = "";
+
+    // When set, the picker renders itself inside a SettingsCard with this as the card title (the card
+    // header is the label, so the inline label is hidden). Collapses the single-picker-per-card idiom
+    // `<SettingsCard Title="X"><RolePicker Label="X" ShowLabel="false" …/></SettingsCard>` to
+    // `<RolePicker CardTitle="X" …/>`.
+    [Parameter] public string? CardTitle { get; set; }
 
     // Off when a caller renders its own header for Label/IconSrc instead (e.g. a card header).
     [Parameter] public bool ShowLabel { get; set; } = true;
@@ -82,4 +60,43 @@
         Value = e.Value?.ToString();
         await ValueChanged.InvokeAsync(Value);
     }
+
+    private RenderFragment Body => @<div class="mb-2">
+        @if (ShowLabel && CardTitle is null)
+        {
+            <label>
+                @Label
+                @if (IconSrc is not null)
+                {
+                    <img src="@IconSrc" alt="" class="role-picker-icon" />
+                }
+            </label>
+        }
+        <select class="form-select" value="@Value" @onchange="OnChangeAsync">
+            @if (CreateRoleName is not null)
+            {
+                <option value="">— choose a role —</option>
+                @if (!RoleWithCreateNameExists)
+                {
+                    <option value="@CreateSentinel">— create "@CreateRoleName" role —</option>
+                }
+            }
+            else
+            {
+                <option value="">@PlaceholderText</option>
+            }
+            @if (IsUnknown)
+            {
+                <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
+            }
+            @foreach (var role in Roles)
+            {
+                <option value="@role.Id">@role.Name</option>
+            }
+        </select>
+        @if (!string.IsNullOrWhiteSpace(Usage))
+        {
+            <div class="form-text">@Usage</div>
+        }
+    </div>;
 }
