@@ -35,6 +35,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<StfcTerritoryNeighbour> StfcTerritoryNeighbours => Set<StfcTerritoryNeighbour>();
 
+    public DbSet<TerritoryCaptureSentMessage> TerritoryCaptureSentMessages => Set<TerritoryCaptureSentMessage>();
+
     public DbSet<StfcAllianceDiplomacy> StfcAllianceDiplomacies => Set<StfcAllianceDiplomacy>();
 
     public DbSet<DiscordUser> DiscordUsers => Set<DiscordUser>();

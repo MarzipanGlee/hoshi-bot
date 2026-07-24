@@ -392,32 +392,30 @@ risky or fragile for what are low-traffic admin pages:
   behind an explicit "Run Import" button. Bespoke enough that a shared component would need to model
   those flows — left as their own pages.
 
-## Bug: Territory Capture — 30-minutes-before reminder missing
+## Bug: Territory Capture reminders + weekly digest — ✅ done (2026-07-24)
 
-Seen 2026-07 in the test guild: the Territory Capture reminder fires a **15-minutes-before** warning
-("Gebietsübernahme {Zone} **in 15 minutes**"), but the expected **30-minutes-before** reminder never
-arrives — only the 15-min one shows. Expected: both a 30-min and a 15-min advance reminder before
-each capture. Check the reminder scheduling in the Territory Capture reminder path (the
-`TerritoryCapture*` job/service in `HoshiBot.Discord` that emits the "in N minutes" warning) — likely
-only the 15-min offset is scheduled/checked, or the 30-min window is computed wrong. Confirm the
-intended offsets, then ensure both fire (and don't double-fire).
+The screenshot "Gebietsübernahme {Zone} **in 15 minutes**" turned out to be the **legacy YAGPDB
+bot** — the new bot had **no** per-capture reminder at all, and none of its TC messages were ever
+removed. Ported/fixed the whole lifecycle:
 
-Related: **TC reminder messages are never deleted** — the "in N minutes" capture reminders pile up in
-the channel instead of being cleaned up after the capture passes. Check how the **legacy bot**
-(the YAGPDB/PHP/Symfony sources under MarzipanGlee/, see the legacy-bot-sources memory) handled the
-reminder lifecycle — it presumably deleted/expired old reminders — and port that so stale reminders
-are removed once their capture is over.
+- **Per-capture reminder**: new `TerritoryCaptureReminderJob` (5-min) posts one ~30-min-before
+  "capture soon" ping per zone (relative `<t:…:R>` time + "Abmelden" unsubscribe button), matching
+  legacy's single reminder (not a 30+15 cascade).
+- **Cleanup**: a unified `TerritoryCaptureSentMessage` table (Kind + ExpiresAt + dedup key) tracks
+  every TC message, and the reminder job's sweep deletes each on the legacy schedule — **Single at
+  capture End**, **Daily +1d**, **Weekly +7d** (deleting the weekly also drops its pin). The unique
+  `(GuildAllianceId, DedupKey)` index makes every post idempotent.
+- **Week window**: TC week anchor changed **Wednesday → Tuesday** (Scopely's current cadence, no
+  capture-free day anymore); the weekly digest now posts **Monday** previewing the **upcoming**
+  Tue→Mon week (`GetUpcomingWeekStart`), and the daily digest bases its "tomorrow" on next week so
+  the new week's opening day isn't skipped.
 
-## Bug: Territory Capture weekly digest — wrong week window + missing pin
+## Missing: Territory Capture "Services" (Dienste) reminder for officers
 
-Seen 2026-07 (Lost Falcons): the weekly TC digest posts a **past** week rather than the coming one —
-e.g. on 2026-07-20 it posted "Gebietsübernahmen vom July 15 bis July 21" (a window that's almost
-entirely in the past), and on 07-21 "vom July 22 bis July 29". The **week boundary is off**: the TC
-week was assumed to start **Wednesday**, but Scopely has changed the schedule a lot, so the
-week-start day (and thus the digest's date window) needs re-deriving from current data — verify the
-real current TC week start and compute the window so the digest covers the **upcoming** week, not a
-mostly-elapsed one. Separately, **pinning is missing/inconsistent** — the weekly digest should be
-pinned in its channel (and the previous week's unpinned) so the current schedule is always the pinned
-message; the screenshots show a pin happened once but it isn't reliably applied. Check
-`TerritoryCaptureWeeklyDigestJob` / `TerritoryCaptureDigestService` for both the week-window
-computation and a pin/unpin step after posting.
+The legacy YAGPDB bot had a fourth TC reminder type — **"Services" / "Dienste aktivieren"** — a
+post-capture reminder for officers fired ~**5 min after each capture ends**, posted to a **separate
+services channel** (`$remindersServicesChannel`). Not yet ported (the 2026-07-24 pass did Single +
+Daily + Weekly only). To port: add a `Services` `TerritoryCaptureMessageKind`, a services-channel
+setting, and fire it from `SendCaptureRemindersAsync` in the window just after `CaptureEnd`. See
+legacy `Commands/tasks/prepare-territory-capture-reminder.yag` (the `$rtServices` branch) and
+`Commands/notifications/send-territory-capture-reminder.yag`.

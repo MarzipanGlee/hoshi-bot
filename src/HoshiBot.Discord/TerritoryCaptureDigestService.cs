@@ -26,13 +26,21 @@ public class TerritoryCaptureDigestService(
     // blew past this and every digest silently failed, see GetNeighbourOwnerTagsAsync).
     private const int MaxEmbedFieldLength = 1024;
 
+    // How far before a capture the single "capture soon" reminder fires (legacy's 35-minute window).
+    // With the job running every few minutes, the first tick inside the window sends it ~30 min out;
+    // the relative <t:…:R> timestamp shows the true remaining time regardless.
+    private static readonly TimeSpan ReminderLeadTime = TimeSpan.FromMinutes(35);
+
     public Task SendWeeklyDigestsAsync() => SendWeeklyDigestsAsync(DateTimeOffset.UtcNow, onlyGuildId: null);
 
     // Test/replay seam: run the weekly digest as of an explicit instant and optionally for a single
     // guild only. The Quartz job uses the parameterless overload ("now", all guilds).
     public async Task SendWeeklyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId)
     {
-        var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
+        // The weekly digest fires the day before the week begins (Monday, for a Tuesday anchor) and
+        // previews the *upcoming* week — GetUpcomingWeekStart, not GetWeekStart (which would snap back
+        // to the current, mostly-elapsed week).
+        var weekStart = TerritoryCaptureScheduler.GetUpcomingWeekStart(now);
 
         foreach (var guildId in await GetEligibleGuildIdsAsync())
         {
@@ -50,6 +58,12 @@ public class TerritoryCaptureDigestService(
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
                 if (channelId is not { } channelIdValue)
+                    continue;
+
+                // One weekly digest per alliance per week — skip if we already posted this week's
+                // (idempotent against a Quartz misfire-replay firing the Monday cron twice).
+                var dedupKey = $"weekly-{link.Id}-{weekStart:yyyyMMdd}";
+                if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
                     continue;
 
                 var (known, unknown) = await GetOwnedZonesAsync(link.StfcAllianceId, weekStart);
@@ -72,7 +86,13 @@ public class TerritoryCaptureDigestService(
                     : new List<ulong>();
 
                 var title = links.Count > 1 ? $"{baseTitle} — [{link.StfcAlliance.Tag}]" : baseTitle;
-                await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true);
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true);
+
+                // Retention +7 days: no capture-free day anymore, so the pinned digest must live the
+                // whole week until the next Monday's digest replaces it. The sweep's delete also drops
+                // the stale pin.
+                if (messageId is { } weeklyMessageId)
+                    await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Weekly, dedupKey, channelIdValue, weeklyMessageId, now, now.AddDays(7));
             }
         }
     }
@@ -85,7 +105,10 @@ public class TerritoryCaptureDigestService(
     public async Task SendDailyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId)
     {
         var tomorrow = DateOnly.FromDateTime(now.UtcDateTime).AddDays(1);
-        var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
+        // Base the week on tomorrow, not now: the Monday-night daily is about the new week's first
+        // day (Tuesday), which belongs to next week — GetWeekStart(now) would compute the ending
+        // week's slots and find nothing for tomorrow, silently skipping the new week's opening day.
+        var weekStart = TerritoryCaptureScheduler.GetWeekStart(now.AddDays(1));
 
         foreach (var guildId in await GetEligibleGuildIdsAsync())
         {
@@ -98,6 +121,11 @@ public class TerritoryCaptureDigestService(
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
                 if (channelId is not { } channelIdValue)
+                    continue;
+
+                // One daily digest per alliance per day (idempotent against a misfire-replay).
+                var dedupKey = $"daily-{link.Id}-{tomorrow:yyyyMMdd}";
+                if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
                     continue;
 
                 var slots = await GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart);
@@ -120,9 +148,121 @@ public class TerritoryCaptureDigestService(
 
                 var title = links.Count > 1 ? $"Morgige Gebietsübernahmen — [{link.StfcAlliance.Tag}]" : "Morgige Gebietsübernahmen";
                 var known = tomorrowSlots.Select(s => (s.SlotIndex, s.Territory, s.Start, s.End)).ToList();
-                await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false);
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false);
+
+                // Retention +1 day: yesterday's "tomorrow's zones" preview is stale once its day arrives.
+                if (messageId is { } dailyMessageId)
+                    await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Daily, dedupKey, channelIdValue, dailyMessageId, now, now.AddDays(1));
             }
         }
+    }
+
+    public Task SendCaptureRemindersAsync() => SendCaptureRemindersAsync(DateTimeOffset.UtcNow);
+
+    // Posts a single "capture soon" reminder for each owned zone whose window is about to open, then
+    // sweeps away any TC message (single/daily/weekly) whose retention has elapsed. Runs every few
+    // minutes; the per-capture dedup key + the unique index keep a zone reminded at most once.
+    public async Task SendCaptureRemindersAsync(DateTimeOffset now)
+    {
+        foreach (var guildId in await GetEligibleGuildIdsAsync())
+        {
+            var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
+            foreach (var link in await GetTcEnabledLinksAsync(guildId))
+            {
+                var channelId = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
+                if (channelId is not { } channelIdValue)
+                    continue;
+
+                foreach (var slot in await GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart))
+                {
+                    // Fire once in the window [Start - lead, Start); a capture already under way
+                    // (now >= Start) is skipped — the button is only useful before it begins.
+                    var untilStart = slot.Start - now;
+                    if (untilStart <= TimeSpan.Zero || untilStart > ReminderLeadTime)
+                        continue;
+
+                    var dedupKey = $"single-{link.Id}-{slot.Territory.Id}-{slot.Start.ToUnixTimeSeconds()}";
+                    if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
+                        continue;
+
+                    var messageId = await SendCaptureReminderAsync(guildId, channelIdValue, link, slot);
+                    if (messageId is { } mid)
+                        await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Single, dedupKey, channelIdValue, mid, now, slot.End);
+                }
+            }
+        }
+
+        await SweepExpiredMessagesAsync(now);
+    }
+
+    private async Task<ulong?> SendCaptureReminderAsync(ulong guildId, ulong channelId, GuildAlliance link,
+        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot)
+    {
+        var startUnix = slot.Start.ToUnixTimeSeconds();
+        var endUnix = slot.End.ToUnixTimeSeconds();
+
+        var roleId = await settingsService.GetSnowflakeAsync(
+            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slot.SlotIndex));
+
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            $"Beginnt <t:{startUnix}:R> (<t:{startUnix}:t>–<t:{endUnix}:t>). Meldet Euch ab, falls Ihr diesen Termin nicht wahrnehmen könnt.",
+            title: $"Gebietsübernahme {slot.Territory.Name} steht bevor");
+
+        var button = new ButtonProperties(
+            $"territory-capture-unsubscribe:{slot.Territory.Id}:{startUnix}:{endUnix}",
+            $"Abmelden für {slot.Territory.Name}", EmojiProperties.Standard(DigitEmoji(slot.SlotIndex)), ButtonStyle.Primary);
+
+        try
+        {
+            var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
+            {
+                Content = roleId is { } rid ? $"<@&{rid}>" : null,
+                Embeds = [embed],
+                Components = [new ActionRowProperties([button])],
+                AllowedMentions = roleId is { } r
+                    ? new AllowedMentionsProperties { Everyone = false, AllowedRoles = new[] { r } }
+                    : AllowedMentionsProperties.None,
+            });
+            return message.Id;
+        }
+        catch (RestException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to send Territory Capture reminder to channel {ChannelId} for guild {GuildId} (alliance {AllianceTag}, zone {Zone})",
+                channelId, guildId, link.StfcAlliance.Tag, slot.Territory.Name);
+            return null;
+        }
+    }
+
+    // Deletes any tracked TC message past its retention (Single at capture End, Daily +1d, Weekly
+    // +7d) and drops its row. Deleting a pinned weekly also removes its pin. Not feature-gated:
+    // cleanup must run even if Territory Capture was disabled after the message was posted.
+    private async Task SweepExpiredMessagesAsync(DateTimeOffset now)
+    {
+        var expired = await db.TerritoryCaptureSentMessages
+            .Where(m => m.ExpiresAt < now)
+            .ToListAsync();
+
+        foreach (var sent in expired)
+        {
+            try
+            {
+                await gatewayClient.Rest.DeleteMessageAsync(sent.ChannelId, sent.MessageId);
+            }
+            catch (RestException ex)
+            {
+                // Already gone / channel unreachable — drop the row anyway so we don't retry forever.
+                logger.LogDebug(ex,
+                    "Failed to delete expired Territory Capture message {MessageId} in channel {ChannelId}",
+                    sent.MessageId, sent.ChannelId);
+            }
+
+            db.TerritoryCaptureSentMessages.Remove(sent);
+        }
+
+        if (expired.Count > 0)
+            await db.SaveChangesAsync();
     }
 
     // The guild's linked alliances that have Territory Capture enabled, ordered by link id
@@ -193,7 +333,9 @@ public class TerritoryCaptureDigestService(
         return (known.OrderBy(z => z.Item2).ToList(), unknown);
     }
 
-    private async Task SendDigestAsync(ulong guildId, ulong channelId, GuildAlliance link, string title,
+    // Returns the posted message id, or null if the send failed (caught RestException). Callers use
+    // the id to record a TerritoryCaptureSentMessage so the sweep can clean the message up later.
+    private async Task<ulong?> SendDigestAsync(ulong guildId, ulong channelId, GuildAlliance link, string title,
         List<(int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
         IReadOnlyList<ulong> mentionRoleIds, bool pin)
     {
@@ -270,6 +412,8 @@ public class TerritoryCaptureDigestService(
 
             if (pin)
                 await gatewayClient.Rest.PinMessageAsync(channelId, message.Id);
+
+            return message.Id;
         }
         catch (RestException ex)
         {
@@ -281,7 +425,25 @@ public class TerritoryCaptureDigestService(
             logger.LogWarning(ex,
                 "Failed to send Territory Capture digest to channel {ChannelId} for guild {GuildId} (alliance {AllianceTag})",
                 channelId, guildId, link.StfcAlliance.Tag);
+            return null;
         }
+    }
+
+    private async Task RecordSentMessageAsync(ulong guildId, int guildAllianceId, TerritoryCaptureMessageKind kind,
+        string dedupKey, ulong channelId, ulong messageId, DateTimeOffset sentAt, DateTimeOffset expiresAt)
+    {
+        db.TerritoryCaptureSentMessages.Add(new TerritoryCaptureSentMessage
+        {
+            GuildId = guildId,
+            GuildAllianceId = guildAllianceId,
+            Kind = kind,
+            DedupKey = dedupKey,
+            ChannelId = channelId,
+            MessageId = messageId,
+            SentAt = sentAt,
+            ExpiresAt = expiresAt,
+        });
+        await db.SaveChangesAsync();
     }
 
     // Clamps a value to Discord's embed-field length limit so an unexpectedly long value degrades

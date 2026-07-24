@@ -7,7 +7,10 @@ namespace HoshiBot.Domain;
 // Weekday/CaptureTimeUtc are per-zone and nullable (unknown until observed/entered).
 public static class TerritoryCaptureScheduler
 {
-    public const DayOfWeek TcWeekStartWeekday = DayOfWeek.Wednesday;
+    // The TC week starts Tuesday (Scopely's current cadence — there is no longer a capture-free
+    // day). Every consumer derives its week boundary from this one constant, so the weekly digest,
+    // daily digest, role-sync and capture reminders all agree on which week a zone falls in.
+    public const DayOfWeek TcWeekStartWeekday = DayOfWeek.Tuesday;
 
     // 1->30, 2->45, 3->60 ported from territories-common.yag's $tierDuration. 4->90 is an
     // unconfirmed placeholder — Qoda is the first Tier 4 zone seen and its real duration
@@ -27,6 +30,18 @@ public static class TerritoryCaptureScheduler
         var today = DateOnly.FromDateTime(now.UtcDateTime);
         var offset = ((int)today.DayOfWeek - (int)TcWeekStartWeekday + 7) % 7;
         return today.AddDays(-offset);
+    }
+
+    // The start of the *upcoming* TC week: the anchor weekday on or after today. The weekly digest
+    // posts the day before the week begins (Monday, for a Tuesday anchor) and previews the week that
+    // is about to start — so on a Monday this returns tomorrow (Tue), and a same-day Tuesday
+    // misfire-replay returns today (Tue), never skipping or repeating a week. Contrast GetWeekStart,
+    // which snaps *back* to the current week's anchor.
+    public static DateOnly GetUpcomingWeekStart(DateTimeOffset now)
+    {
+        var today = DateOnly.FromDateTime(now.UtcDateTime);
+        var offset = ((int)TcWeekStartWeekday - (int)today.DayOfWeek + 7) % 7;
+        return today.AddDays(offset);
     }
 
     public static (DateTimeOffset Start, DateTimeOffset End)? GetCaptureWindow(StfcTerritory territory, DateOnly weekStart)

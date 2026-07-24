@@ -202,6 +202,8 @@ builder.Services.AddQuartz(quartz =>
 
     AddSimpleJob<TerritoryCaptureRoleSyncJob>(TimeSpan.FromMinutes(10));
 
+    AddSimpleJob<TerritoryCaptureReminderJob>(TimeSpan.FromMinutes(5));
+
     AddSimpleJob<MemberInterviewInviteJob>(TimeSpan.FromMinutes(20));
 
     AddSimpleJob<MemberInterviewExtractionJob>(TimeSpan.FromMinutes(10));
