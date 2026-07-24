@@ -224,6 +224,35 @@ locally by re-running `HoshiBot.Migrator` against the local connection string (s
   glue and infra calls in a service layer, not about deduplication. Still use judgment on
   behavior-preserving extraction (a method's semantics may need a new parameter/overload
   rather than reusing an existing one with different behavior for its other callers).
+- **Reach for these shared components/helpers before hand-rolling their pattern** (all extracted
+  during housekeeping passes — re-inlining any of them is a regression):
+  - **Guild/alliance admin pages** — `GuildAdminPages` / `AllianceAdminPages` (`Components/Shared`)
+    are the single source for the admin-page list; the sidebar nav group *and* the overview card grid
+    both iterate them, so add a page there, never hand-roll it in two spots. The "this guild has no
+    alliance linked" hint is `AllianceLinkRequiredHint`. Shortcut/overview cards use `SettingsCard`
+    with `HeaderContent` (icon + title) + `ChildContent` (the subtitle in the body) — footers are for
+    actions/buttons only.
+  - **Stfc CRUD pages** — read-only QuickGrid list pages (`Stfc/**/Index`, `Manage/Database/*`)
+    `@inherits DbContextPageBase` and bind `Context.<DbSet>` (don't hand-roll the long-lived
+    DbContext + `IAsyncDisposable`). Create/Edit form fields use `<FormField>`; Delete pages use
+    `<DeleteConfirmation>`; single-file JSON imports use `<ImportForm TResult=…>`.
+  - **Feature editors** — every editor `@inherits FeatureEditorBase` (gives `GuildId`/`ResolvedAudience`/
+    `GuildAllianceId` params + `Enabled`/`ToggleEnabledAsync` + the `OnSettingsLoadedAsync` hook); the
+    enable toggle is `<FeatureEnableSwitch>`; a set of tier roles (Rank/Ops-level) uses `<RoleTierEditor>`
+    + `RoleTierSpec`. A module's `IsConfiguredAsync` must read via the `FeatureModuleContext` helpers
+    (`context.GetSnowflakeAsync`/`GetTextAsync`/`HasAlertChannelAsync`/`HasFeatureChannelAsync`/
+    `IsEnabledAsync`), **not** `context.Settings`/`context.DbFactory` directly — that's what lets the
+    Features page serve them all from one `FeatureSettingsSnapshot` instead of ~100 queries.
+  - **Page spacing/colours are CSS, not per-page utilities** — title/subtitle/section spacing lives in
+    `wwwroot/css/site.css` (`article h1`, `article h1 + p`, `article h2`, `.card h2`); don't add
+    per-page `mt-*`/`mb-*` on headings. Card icon/subtitle colours are `.card-icon`/`.card-subtext`
+    classes (not inline `style="color:…"`); sidebar item padding lives on `.nav-item`.
+  - **Discord/Host/Data** — build every branded embed via
+    `EmbedBranding.BuildBrandedAsync(guildId, description, color?, title?)` (set `Fields`/etc. on the
+    returned embed), never a hand-assembled `EmbedProperties` with Author/Footer. Feature-gate an
+    interaction with `GuildFeatureService.EnsureEnabledAsync(guildId, feature)` (returns the disabled
+    message or null). Register Quartz jobs with the `AddSimpleJob<T>(interval)` / `AddCronJob<T>(cron)`
+    local helpers in `Program.cs`. Seeders in `ServiceCollectionExtensions` open with `WithDbAsync`.
 
 ## Collaboration notes
 
