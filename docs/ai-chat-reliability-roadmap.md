@@ -1,8 +1,8 @@
 # AI chat — reliability & retrieval roadmap
 
 *Status: phased plan. Captured 2026-07-24 after a two-day live debugging session (the testing
-guild), not a hypothetical — every incident below actually happened. Phases 0–3 are done; Phases
-4–6 are not built yet.*
+guild), not a hypothetical — every incident below actually happened. Phases 0–4 are done; Phases
+5–6 are not built yet.*
 
 ## Why this roadmap
 
@@ -210,7 +210,16 @@ cleanup for any already-formed confabulated memories (the test guild's were hand
 factual memory forms; confirm that when a memory conflicts with a retrieved authoritative post, the
 post wins in the answer (re-run the immortality-crew question → cites Old Mudd / Ro Mudd / Eurydice).
 
-## Phase 4 — Embedding-provider degradation signaling
+## Phase 4 — Embedding-provider degradation signaling — DONE
+
+Shipped (commit `886920a`), deployed + verified on the testing guild 2026-07-24 (seeded a degraded
+Embed health row → banner showed on the AI Provider + AI Chat editors; restoring a fresh success
+cleared it). New reusable `AiHealthBanner.razor` reads the Phase-1 `AiChatProviderHealth` rows and
+renders a warning on the two AI editor pages when a call kind has had no success for over an hour
+and its last outcome was an error — targeting the silent embedding-degradation case (retrieval
+quietly falls back to keyword-only), and also flagging chat failure. No new persistence; renders
+nothing when healthy. Auto-fallback to Ollama on repeated Gemini failure was left out of scope on
+purpose (favor visible over silent-automatic).
 
 **Why:** incident #3 wasn't just invisible to the operator — it was invisible to the *bot's own
 behavior*, too: FTS-only degradation is silent and "graceful" by design (per
