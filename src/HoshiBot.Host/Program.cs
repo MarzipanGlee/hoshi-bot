@@ -152,217 +152,89 @@ builder.Services.AddQuartz(quartz =>
         // Clustering intentionally left off — single scheduler instance.
     });
 
-    // Every trigger below carries an explicit, stable .WithIdentity("<job>-trigger"). This is
-    // required with the persistent store: an un-named trigger gets a fresh random GUID name each
-    // startup, so IgnoreDuplicates can't recognise it and every restart would pile up another
-    // duplicate trigger per job (each firing the job again) instead of reusing the persisted one.
-    var heartbeatJobKey = new JobKey(nameof(HeartbeatJob));
-    quartz.AddJob<HeartbeatJob>(heartbeatJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(heartbeatJobKey)
-            .WithIdentity($"{heartbeatJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
+    // Every trigger carries an explicit, stable .WithIdentity("<job>-trigger"): with the persistent
+    // store an un-named trigger gets a fresh random GUID name each startup, so IgnoreDuplicates can't
+    // recognise it and every restart would pile up another duplicate trigger per job. These helpers
+    // derive the JobKey and that identity from typeof(TJob).Name so it can't be mistyped.
+    void AddSimpleJob<TJob>(TimeSpan interval) where TJob : IJob
+    {
+        var key = new JobKey(typeof(TJob).Name);
+        quartz.AddJob<TJob>(key).AddTrigger(t => t
+            .ForJob(key)
+            .WithIdentity($"{key.Name}-trigger")
+            .WithSimpleSchedule(s => s.WithInterval(interval).RepeatForever()));
+    }
+
+    // FireAndProceed: replay a single missed fire once on startup (host was down), then resume the
+    // normal schedule — don't skip the period or replay every missed one. Runs in digestTimeZone.
+    void AddCronJob<TJob>(string cron) where TJob : IJob
+    {
+        var key = new JobKey(typeof(TJob).Name);
+        quartz.AddJob<TJob>(key).AddTrigger(t => t
+            .ForJob(key)
+            .WithIdentity($"{key.Name}-trigger")
+            .WithCronSchedule(cron, x => x.InTimeZone(digestTimeZone).WithMisfireHandlingInstructionFireAndProceed()));
+    }
+    AddSimpleJob<HeartbeatJob>(TimeSpan.FromMinutes(1));
 
     // Rebuilds the AI-chat knowledge search index: progressive history backfill (a bounded step
     // backward per run), edit catch-up, and the embedding pass (also per-run capped). Live indexing
     // keeps brand-new messages fresh between runs. 20 min so history + embeddings catch up quickly;
     // cheap at steady state (recent page only, completed channels skip history, embed pass no-ops).
-    var aiChatIndexJobKey = new JobKey(nameof(AiChatIndexJob));
-    quartz.AddJob<AiChatIndexJob>(aiChatIndexJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(aiChatIndexJobKey)
-            .WithIdentity($"{aiChatIndexJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(20).RepeatForever()));
+    AddSimpleJob<AiChatIndexJob>(TimeSpan.FromMinutes(20));
 
-    var nicknameSyncJobKey = new JobKey(nameof(NicknameSyncJob));
-    quartz.AddJob<NicknameSyncJob>(nicknameSyncJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(nicknameSyncJobKey)
-            .WithIdentity($"{nicknameSyncJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<NicknameSyncJob>(TimeSpan.FromMinutes(10));
 
-    var notificationRoleSyncJobKey = new JobKey(nameof(NotificationRoleSyncJob));
-    quartz.AddJob<NotificationRoleSyncJob>(notificationRoleSyncJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(notificationRoleSyncJobKey)
-            .WithIdentity($"{notificationRoleSyncJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<NotificationRoleSyncJob>(TimeSpan.FromMinutes(10));
 
-    var threadCleanupJobKey = new JobKey(nameof(ThreadCleanupJob));
-    quartz.AddJob<ThreadCleanupJob>(threadCleanupJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(threadCleanupJobKey)
-            .WithIdentity($"{threadCleanupJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
+    AddSimpleJob<ThreadCleanupJob>(TimeSpan.FromMinutes(15));
 
-    var commandBridgeRepublishJobKey = new JobKey(nameof(CommandBridgeRepublishJob));
-    quartz.AddJob<CommandBridgeRepublishJob>(commandBridgeRepublishJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(commandBridgeRepublishJobKey)
-            .WithIdentity($"{commandBridgeRepublishJobKey.Name}-trigger")
-            // Short interval: this backs the Web "Publish" button, which polls for completion.
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInSeconds(5).RepeatForever()));
+    // Short interval: this backs the Web "Publish" button, which polls for completion.
+    AddSimpleJob<CommandBridgeRepublishJob>(TimeSpan.FromSeconds(5));
 
-    var raidWarningJobKey = new JobKey(nameof(RaidWarningJob));
-    quartz.AddJob<RaidWarningJob>(raidWarningJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(raidWarningJobKey)
-            .WithIdentity($"{raidWarningJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(5).RepeatForever()));
+    AddSimpleJob<RaidWarningJob>(TimeSpan.FromMinutes(5));
 
-    var shieldWarningJobKey = new JobKey(nameof(ShieldWarningJob));
-    quartz.AddJob<ShieldWarningJob>(shieldWarningJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(shieldWarningJobKey)
-            .WithIdentity($"{shieldWarningJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(5).RepeatForever()));
+    AddSimpleJob<ShieldWarningJob>(TimeSpan.FromMinutes(5));
 
-    var territoryCaptureWeeklyDigestJobKey = new JobKey(nameof(TerritoryCaptureWeeklyDigestJob));
-    quartz.AddJob<TerritoryCaptureWeeklyDigestJob>(territoryCaptureWeeklyDigestJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(territoryCaptureWeeklyDigestJobKey)
-            .WithIdentity($"{territoryCaptureWeeklyDigestJobKey.Name}-trigger")
-            // FireAndProceed: if the weekly fire was missed (host down), run it once on startup,
-            // then resume the normal schedule — don't skip the week or replay every missed week.
-            .WithCronSchedule("0 0 9 ? * MON", x => x
-                .InTimeZone(digestTimeZone)
-                .WithMisfireHandlingInstructionFireAndProceed()));
+    AddCronJob<TerritoryCaptureWeeklyDigestJob>("0 0 9 ? * MON");
 
-    var territoryCaptureDailyDigestJobKey = new JobKey(nameof(TerritoryCaptureDailyDigestJob));
-    quartz.AddJob<TerritoryCaptureDailyDigestJob>(territoryCaptureDailyDigestJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(territoryCaptureDailyDigestJobKey)
-            .WithIdentity($"{territoryCaptureDailyDigestJobKey.Name}-trigger")
-            // FireAndProceed: replay a missed daily fire once on startup, then carry on.
-            .WithCronSchedule("0 0 19 * * ?", x => x
-                .InTimeZone(digestTimeZone)
-                .WithMisfireHandlingInstructionFireAndProceed()));
+    AddCronJob<TerritoryCaptureDailyDigestJob>("0 0 19 * * ?");
 
-    var territoryCaptureRoleSyncJobKey = new JobKey(nameof(TerritoryCaptureRoleSyncJob));
-    quartz.AddJob<TerritoryCaptureRoleSyncJob>(territoryCaptureRoleSyncJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(territoryCaptureRoleSyncJobKey)
-            .WithIdentity($"{territoryCaptureRoleSyncJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<TerritoryCaptureRoleSyncJob>(TimeSpan.FromMinutes(10));
 
-    var memberInterviewInviteJobKey = new JobKey(nameof(MemberInterviewInviteJob));
-    quartz.AddJob<MemberInterviewInviteJob>(memberInterviewInviteJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(memberInterviewInviteJobKey)
-            .WithIdentity($"{memberInterviewInviteJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(20).RepeatForever()));
+    AddSimpleJob<MemberInterviewInviteJob>(TimeSpan.FromMinutes(20));
 
-    var memberInterviewExtractionJobKey = new JobKey(nameof(MemberInterviewExtractionJob));
-    quartz.AddJob<MemberInterviewExtractionJob>(memberInterviewExtractionJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(memberInterviewExtractionJobKey)
-            .WithIdentity($"{memberInterviewExtractionJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<MemberInterviewExtractionJob>(TimeSpan.FromMinutes(10));
 
-    var memoryConsolidationJobKey = new JobKey(nameof(MemoryConsolidationJob));
-    quartz.AddJob<MemoryConsolidationJob>(memoryConsolidationJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(memoryConsolidationJobKey)
-            .WithIdentity($"{memoryConsolidationJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
+    AddSimpleJob<MemoryConsolidationJob>(TimeSpan.FromMinutes(15));
 
-    var announcementForwarderCatchUpJobKey = new JobKey(nameof(AnnouncementForwarderCatchUpJob));
-    quartz.AddJob<AnnouncementForwarderCatchUpJob>(announcementForwarderCatchUpJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(announcementForwarderCatchUpJobKey)
-            .WithIdentity($"{announcementForwarderCatchUpJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<AnnouncementForwarderCatchUpJob>(TimeSpan.FromMinutes(10));
 
-    var playerLinkSyncJobKey = new JobKey(nameof(PlayerLinkSyncJob));
-    quartz.AddJob<PlayerLinkSyncJob>(playerLinkSyncJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(playerLinkSyncJobKey)
-            .WithIdentity($"{playerLinkSyncJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<PlayerLinkSyncJob>(TimeSpan.FromMinutes(10));
 
-    var memberOnboardingSyncJobKey = new JobKey(nameof(MemberOnboardingSyncJob));
-    quartz.AddJob<MemberOnboardingSyncJob>(memberOnboardingSyncJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(memberOnboardingSyncJobKey)
-            .WithIdentity($"{memberOnboardingSyncJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(20).RepeatForever()));
+    AddSimpleJob<MemberOnboardingSyncJob>(TimeSpan.FromMinutes(20));
 
-    var rankRoleSyncJobKey = new JobKey(nameof(RankRoleSyncJob));
-    quartz.AddJob<RankRoleSyncJob>(rankRoleSyncJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(rankRoleSyncJobKey)
-            .WithIdentity($"{rankRoleSyncJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<RankRoleSyncJob>(TimeSpan.FromMinutes(10));
 
-    var opsLevelRoleSyncJobKey = new JobKey(nameof(OpsLevelRoleSyncJob));
-    quartz.AddJob<OpsLevelRoleSyncJob>(opsLevelRoleSyncJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(opsLevelRoleSyncJobKey)
-            .WithIdentity($"{opsLevelRoleSyncJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(10).RepeatForever()));
+    AddSimpleJob<OpsLevelRoleSyncJob>(TimeSpan.FromMinutes(10));
 
-    var announcementCounterRefreshJobKey = new JobKey(nameof(AnnouncementCounterRefreshJob));
-    quartz.AddJob<AnnouncementCounterRefreshJob>(announcementCounterRefreshJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(announcementCounterRefreshJobKey)
-            .WithIdentity($"{announcementCounterRefreshJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
+    AddSimpleJob<AnnouncementCounterRefreshJob>(TimeSpan.FromMinutes(15));
 
-    var absenceReportRefreshJobKey = new JobKey(nameof(AbsenceReportRefreshJob));
-    quartz.AddJob<AbsenceReportRefreshJob>(absenceReportRefreshJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(absenceReportRefreshJobKey)
-            .WithIdentity($"{absenceReportRefreshJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
+    AddSimpleJob<AbsenceReportRefreshJob>(TimeSpan.FromMinutes(15));
 
-    var pendingModalInputSweepJobKey = new JobKey(nameof(PendingModalInputSweepJob));
-    quartz.AddJob<PendingModalInputSweepJob>(pendingModalInputSweepJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(pendingModalInputSweepJobKey)
-            .WithIdentity($"{pendingModalInputSweepJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
+    AddSimpleJob<PendingModalInputSweepJob>(TimeSpan.FromMinutes(15));
 
-    var serverStatusNotifyJobKey = new JobKey(nameof(ServerStatusNotifyJob));
-    quartz.AddJob<ServerStatusNotifyJob>(serverStatusNotifyJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(serverStatusNotifyJobKey)
-            .WithIdentity($"{serverStatusNotifyJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInSeconds(15).RepeatForever()));
+    AddSimpleJob<ServerStatusNotifyJob>(TimeSpan.FromSeconds(15));
 
-    var infiniteIncursionsNotifyJobKey = new JobKey(nameof(InfiniteIncursionsNotifyJob));
-    quartz.AddJob<InfiniteIncursionsNotifyJob>(infiniteIncursionsNotifyJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(infiniteIncursionsNotifyJobKey)
-            .WithIdentity($"{infiniteIncursionsNotifyJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
+    AddSimpleJob<InfiniteIncursionsNotifyJob>(TimeSpan.FromMinutes(1));
 
-    var allianceTournamentNotifyJobKey = new JobKey(nameof(AllianceTournamentNotifyJob));
-    quartz.AddJob<AllianceTournamentNotifyJob>(allianceTournamentNotifyJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(allianceTournamentNotifyJobKey)
-            .WithIdentity($"{allianceTournamentNotifyJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(1).RepeatForever()));
+    AddSimpleJob<AllianceTournamentNotifyJob>(TimeSpan.FromMinutes(1));
 
-    var stfcNewsNotifyJobKey = new JobKey(nameof(StfcNewsNotifyJob));
-    quartz.AddJob<StfcNewsNotifyJob>(stfcNewsNotifyJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(stfcNewsNotifyJobKey)
-            .WithIdentity($"{stfcNewsNotifyJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(30).RepeatForever()));
+    AddSimpleJob<StfcNewsNotifyJob>(TimeSpan.FromMinutes(30));
 
-    var stfcNewsStatsRefreshJobKey = new JobKey(nameof(StfcNewsStatsRefreshJob));
-    quartz.AddJob<StfcNewsStatsRefreshJob>(stfcNewsStatsRefreshJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(stfcNewsStatsRefreshJobKey)
-            .WithIdentity($"{stfcNewsStatsRefreshJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(5).RepeatForever()));
+    AddSimpleJob<StfcNewsStatsRefreshJob>(TimeSpan.FromMinutes(5));
 
-    var stfcClientReleaseNotifyJobKey = new JobKey(nameof(StfcClientReleaseNotifyJob));
-    quartz.AddJob<StfcClientReleaseNotifyJob>(stfcClientReleaseNotifyJobKey)
-        .AddTrigger(trigger => trigger
-            .ForJob(stfcClientReleaseNotifyJobKey)
-            .WithIdentity($"{stfcClientReleaseNotifyJobKey.Name}-trigger")
-            .WithSimpleSchedule(schedule => schedule.WithIntervalInMinutes(15).RepeatForever()));
+    AddSimpleJob<StfcClientReleaseNotifyJob>(TimeSpan.FromMinutes(15));
 });
 // Seed each job/trigger into the persistent store only once. On every later restart the stored
 // definitions stay authoritative, so a trigger's persisted next-fire-time — and therefore any
