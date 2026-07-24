@@ -4,12 +4,7 @@
 
 <PageTitle>Audience</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else
-{
+<AuthorizedGuildView Authorized="Authorized">
     <h1>Audience</h1>
     <p>Which audience(s) this guild serves — drives the Setup Wizard's relevant steps and how the Features page groups its cards. Doesn't restrict which features can be enabled.</p>
 
@@ -19,7 +14,7 @@ else
         <h2>Configuration</h2>
         <ScopeAccordion @ref="scopeAccordion" GuildId="ParsedGuildId" Audiences="audiences" />
     </div>
-}
+</AuthorizedGuildView>
 
 @code {
     private GuildAudience audiences;

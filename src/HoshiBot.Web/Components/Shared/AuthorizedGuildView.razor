@@ -1,0 +1,18 @@
+@* Wraps a guild-admin page's body, showing the "Checking access…" placeholder until the
+   resource-scoped auth check completes. Replaces the per-page
+   `@if (!Authorized) { <p>Checking access...</p> } else { … }` guard — GuildAdminPageBase is a
+   pure-C# base with no markup, so each page hand-rolled the guard; this is the one shared home. *@
+@if (Authorized)
+{
+    @ChildContent
+}
+else
+{
+    <p>Checking access...</p>
+}
+
+@code {
+    [Parameter] public bool Authorized { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -7,66 +7,64 @@
 
 <PageTitle>Memories</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else if (loading)
-{
-    <p>Loading…</p>
-}
-else
-{
-    <h1>Hoshi's Memories</h1>
-    <p class="text-muted">
-        What Hoshi remembers about the community — formed automatically from chat. Edit the wording,
-        re-weight importance (salience 1–5, higher = recalled more readily and resists fading), or
-        forget any memory. Low-salience, long-unused ones fade on their own over time.
-    </p>
-
-    @if (memories.Count == 0)
+<AuthorizedGuildView Authorized="Authorized">
+    @if (loading)
     {
-        <p class="text-muted">No memories yet — Hoshi forms them as the community chats (needs the Memory toggle on).</p>
+        <p>Loading…</p>
     }
     else
     {
-        @foreach (var m in memories)
+        <h1>Hoshi's Memories</h1>
+        <p class="text-muted">
+            What Hoshi remembers about the community — formed automatically from chat. Edit the wording,
+            re-weight importance (salience 1–5, higher = recalled more readily and resists fading), or
+            forget any memory. Low-salience, long-unused ones fade on their own over time.
+        </p>
+
+        @if (memories.Count == 0)
         {
-            <div class="card mb-2">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>
-                            <span class="badge bg-secondary">@m.Scope</span>
-                            @if (m.Scope == MemoryScope.Member && m.SubjectDiscordUserId is { } subjectId)
+            <p class="text-muted">No memories yet — Hoshi forms them as the community chats (needs the Memory toggle on).</p>
+        }
+        else
+        {
+            @foreach (var m in memories)
+            {
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>
+                                <span class="badge bg-secondary">@m.Scope</span>
+                                @if (m.Scope == MemoryScope.Member && m.SubjectDiscordUserId is { } subjectId)
+                                {
+                                    <span class="badge bg-info text-dark ms-1">@MemberName(subjectId)</span>
+                                }
+                            </span>
+                            <small class="text-muted">
+                                created @m.CreatedAt.ToString("yyyy-MM-dd")@(m.LastRecalledAt is { } r ? $" · last recalled {r:yyyy-MM-dd}" : " · never recalled")
+                            </small>
+                        </div>
+                        <textarea class="form-control form-control-sm mb-2" rows="2" @bind="m.Content"></textarea>
+                        <div class="d-flex gap-2 align-items-center">
+                            <label class="small mb-0">Salience</label>
+                            <select class="form-select form-select-sm" style="width:auto" @bind="m.Salience">
+                                @for (var s = 1; s <= 5; s++)
+                                {
+                                    <option value="@s">@s</option>
+                                }
+                            </select>
+                            <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(m)">Save</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ForgetAsync(m)">Forget</button>
+                            @if (savedId == m.Id)
                             {
-                                <span class="badge bg-info text-dark ms-1">@MemberName(subjectId)</span>
+                                <span class="text-success small">Saved ✓</span>
                             }
-                        </span>
-                        <small class="text-muted">
-                            created @m.CreatedAt.ToString("yyyy-MM-dd")@(m.LastRecalledAt is { } r ? $" · last recalled {r:yyyy-MM-dd}" : " · never recalled")
-                        </small>
-                    </div>
-                    <textarea class="form-control form-control-sm mb-2" rows="2" @bind="m.Content"></textarea>
-                    <div class="d-flex gap-2 align-items-center">
-                        <label class="small mb-0">Salience</label>
-                        <select class="form-select form-select-sm" style="width:auto" @bind="m.Salience">
-                            @for (var s = 1; s <= 5; s++)
-                            {
-                                <option value="@s">@s</option>
-                            }
-                        </select>
-                        <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(m)">Save</button>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ForgetAsync(m)">Forget</button>
-                        @if (savedId == m.Id)
-                        {
-                            <span class="text-success small">Saved ✓</span>
-                        }
+                        </div>
                     </div>
                 </div>
-            </div>
+            }
         }
     }
-}
+</AuthorizedGuildView>
 
 @code {
     private bool loading = true;

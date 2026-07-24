@@ -11,104 +11,102 @@
 
 <PageTitle>AI Chat health</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else if (loading)
-{
-    <p>Loading…</p>
-}
-else
-{
-    <h1>AI Chat health</h1>
-    <p class="text-muted">
-        Read-only diagnostics for this guild's AI retrieval — so a provider outage or a coverage gap
-        is visible here instead of needing server logs. Written automatically by the bot.
-    </p>
+<AuthorizedGuildView Authorized="Authorized">
+    @if (loading)
+    {
+        <p>Loading…</p>
+    }
+    else
+    {
+        <h1>AI Chat health</h1>
+        <p class="text-muted">
+            Read-only diagnostics for this guild's AI retrieval — so a provider outage or a coverage gap
+            is visible here instead of needing server logs. Written automatically by the bot.
+        </p>
 
-    <div class="card-grid mt-1">
-        <SettingsCard Title="Embedding coverage">
-            <p class="mb-1">
-                <strong>@embeddedCount</strong> of <strong>@totalCount</strong> indexed messages embedded
-                (@coveragePercent%).
-            </p>
-            @if (totalCount > 0 && embeddedCount < totalCount)
-            {
-                <p class="form-text mb-1">
-                    @(totalCount - embeddedCount) awaiting embedding — normal right after new messages or a
-                    model switch; a persistent gap usually means the embedding backend is failing (see
-                    Provider health).
+        <div class="card-grid mt-1">
+            <SettingsCard Title="Embedding coverage">
+                <p class="mb-1">
+                    <strong>@embeddedCount</strong> of <strong>@totalCount</strong> indexed messages embedded
+                    (@coveragePercent%).
                 </p>
-            }
-            <div class="progress" role="progressbar" style="height:1.25rem">
-                <div class="progress-bar @(embeddedCount == totalCount ? "bg-success" : "bg-warning")"
-                     style="width:@coveragePercent%">@coveragePercent%</div>
-            </div>
-            <p class="form-text mt-2 mb-0">Embedding backend: <strong>@embeddingProviderLabel</strong></p>
-        </SettingsCard>
-
-        <SettingsCard Title="Provider health">
-            @if (healthRows.Count == 0)
-            {
-                <p class="text-muted mb-0">No calls recorded yet — the bot writes a row the first time it runs a chat or embedding call for this guild.</p>
-            }
-            else
-            {
-                @foreach (var kind in new[] { AiChatProviderCallKind.Chat, AiChatProviderCallKind.Embed })
+                @if (totalCount > 0 && embeddedCount < totalCount)
                 {
-                    var row = healthRows.FirstOrDefault(h => h.Kind == kind);
-                    <div class="mb-3">
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <strong>@(kind == AiChatProviderCallKind.Chat ? "Chat" : "Embeddings")</strong>
-                            @if (row is null)
+                    <p class="form-text mb-1">
+                        @(totalCount - embeddedCount) awaiting embedding — normal right after new messages or a
+                        model switch; a persistent gap usually means the embedding backend is failing (see
+                        Provider health).
+                    </p>
+                }
+                <div class="progress" role="progressbar" style="height:1.25rem">
+                    <div class="progress-bar @(embeddedCount == totalCount ? "bg-success" : "bg-warning")"
+                         style="width:@coveragePercent%">@coveragePercent%</div>
+                </div>
+                <p class="form-text mt-2 mb-0">Embedding backend: <strong>@embeddingProviderLabel</strong></p>
+            </SettingsCard>
+
+            <SettingsCard Title="Provider health">
+                @if (healthRows.Count == 0)
+                {
+                    <p class="text-muted mb-0">No calls recorded yet — the bot writes a row the first time it runs a chat or embedding call for this guild.</p>
+                }
+                else
+                {
+                    @foreach (var kind in new[] { AiChatProviderCallKind.Chat, AiChatProviderCallKind.Embed })
+                    {
+                        var row = healthRows.FirstOrDefault(h => h.Kind == kind);
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <strong>@(kind == AiChatProviderCallKind.Chat ? "Chat" : "Embeddings")</strong>
+                                @if (row is null)
+                                {
+                                    <span class="badge bg-secondary">no data</span>
+                                }
+                                else if (IsDegraded(row))
+                                {
+                                    <span class="badge bg-danger">degraded</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">healthy</span>
+                                }
+                            </div>
+                            @if (row is not null)
                             {
-                                <span class="badge bg-secondary">no data</span>
-                            }
-                            else if (IsDegraded(row))
-                            {
-                                <span class="badge bg-danger">degraded</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-success">healthy</span>
+                                <ul class="list-unstyled small mb-0">
+                                    <li>Model: <code>@(row.Model ?? "—")</code></li>
+                                    <li>Last success: @Ago(row.LastSuccessAt)</li>
+                                    <li>
+                                        Last error: @Ago(row.LastErrorAt)
+                                        @if (!string.IsNullOrWhiteSpace(row.LastErrorMessage))
+                                        {
+                                            <div class="text-danger"><code>@row.LastErrorMessage</code></div>
+                                        }
+                                    </li>
+                                </ul>
                             }
                         </div>
-                        @if (row is not null)
-                        {
-                            <ul class="list-unstyled small mb-0">
-                                <li>Model: <code>@(row.Model ?? "—")</code></li>
-                                <li>Last success: @Ago(row.LastSuccessAt)</li>
-                                <li>
-                                    Last error: @Ago(row.LastErrorAt)
-                                    @if (!string.IsNullOrWhiteSpace(row.LastErrorMessage))
-                                    {
-                                        <div class="text-danger"><code>@row.LastErrorMessage</code></div>
-                                    }
-                                </li>
-                            </ul>
-                        }
-                    </div>
+                    }
                 }
-            }
-        </SettingsCard>
+            </SettingsCard>
 
-        <SettingsCard Title="Knowledge & listen channels" Class="card-span-full">
-            @if (tierRows.Count == 0)
-            {
-                <p class="text-muted mb-0">No channels configured yet.</p>
-            }
-            else
-            {
-                <QuickGrid Class="table" Items="tierRows.AsQueryable()">
-                    <PropertyColumn Property="r => r.Tier" Title="Tier" Sortable="true" />
-                    <PropertyColumn Property="r => r.Channel" Title="Channel" Sortable="true" />
-                    <PropertyColumn Property="r => r.Audience" Title="Audience" Sortable="true" />
-                </QuickGrid>
-            }
-        </SettingsCard>
-    </div>
-}
+            <SettingsCard Title="Knowledge & listen channels" Class="card-span-full">
+                @if (tierRows.Count == 0)
+                {
+                    <p class="text-muted mb-0">No channels configured yet.</p>
+                }
+                else
+                {
+                    <QuickGrid Class="table" Items="tierRows.AsQueryable()">
+                        <PropertyColumn Property="r => r.Tier" Title="Tier" Sortable="true" />
+                        <PropertyColumn Property="r => r.Channel" Title="Channel" Sortable="true" />
+                        <PropertyColumn Property="r => r.Audience" Title="Audience" Sortable="true" />
+                    </QuickGrid>
+                }
+            </SettingsCard>
+        </div>
+    }
+</AuthorizedGuildView>
 
 @code {
     private bool loading = true;

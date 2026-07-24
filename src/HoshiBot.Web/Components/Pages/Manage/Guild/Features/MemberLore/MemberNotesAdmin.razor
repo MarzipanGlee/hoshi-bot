@@ -8,120 +8,118 @@
 
 <PageTitle>Member Notes</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else if (loading)
-{
-    <p>Lade Notizen…</p>
-}
-else
-{
-    <h1>Member Lore — Notizen & Review</h1>
-    <p class="text-muted">
-        Aus den Interviews extrahierte Community-Notizen. Eigene Angaben der Mitglieder werden direkt
-        übernommen; Geschichten über <em>andere</em> landen hier zur Freigabe, bevor Hoshi sie nutzt.
-    </p>
-
-    <h2 class="h4">Zu prüfen (@suggestions.Count)</h2>
-    @if (suggestions.Count == 0)
+<AuthorizedGuildView Authorized="Authorized">
+    @if (loading)
     {
-        <p class="text-muted">Keine offenen Vorschläge.</p>
+        <p>Lade Notizen…</p>
     }
     else
     {
-        @foreach (var s in suggestions)
+        <h1>Member Lore — Notizen & Review</h1>
+        <p class="text-muted">
+            Aus den Interviews extrahierte Community-Notizen. Eigene Angaben der Mitglieder werden direkt
+            übernommen; Geschichten über <em>andere</em> landen hier zur Freigabe, bevor Hoshi sie nutzt.
+        </p>
+
+        <h2 class="h4">Zu prüfen (@suggestions.Count)</h2>
+        @if (suggestions.Count == 0)
         {
-            <div class="card mb-2">
-                <div class="card-body">
-                    <p class="mb-2">
-                        <span class="badge bg-secondary">@FieldLabel(s.Field)</span>
-                        von <strong>@s.SourceName</strong> über <strong>@s.TargetNameRaw</strong>
-                    </p>
-                    <div class="row g-2 align-items-start">
-                        <div class="col-md-4">
-                            <label class="form-label small mb-1">Für Mitglied</label>
-                            <select class="form-select form-select-sm" @bind="s.TargetUserId">
-                                <option value="">— wählen —</option>
-                                @foreach (var m in memberOptions)
-                                {
-                                    <option value="@m.Id">@m.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label small mb-1">Text</label>
-                            <textarea class="form-control form-control-sm" rows="2" @bind="s.Text"></textarea>
-                        </div>
-                        <div class="col-md-3 d-flex gap-2 align-items-end" style="height:100%">
-                            <button class="btn btn-sm btn-success" disabled="@(s.TargetUserId is null || string.IsNullOrWhiteSpace(s.Text))"
-                                    @onclick="() => ApproveAsync(s)">Freigeben</button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RejectAsync(s)">Ablehnen</button>
+            <p class="text-muted">Keine offenen Vorschläge.</p>
+        }
+        else
+        {
+            @foreach (var s in suggestions)
+            {
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <span class="badge bg-secondary">@FieldLabel(s.Field)</span>
+                            von <strong>@s.SourceName</strong> über <strong>@s.TargetNameRaw</strong>
+                        </p>
+                        <div class="row g-2 align-items-start">
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Für Mitglied</label>
+                                <select class="form-select form-select-sm" @bind="s.TargetUserId">
+                                    <option value="">— wählen —</option>
+                                    @foreach (var m in memberOptions)
+                                    {
+                                        <option value="@m.Id">@m.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small mb-1">Text</label>
+                                <textarea class="form-control form-control-sm" rows="2" @bind="s.Text"></textarea>
+                            </div>
+                            <div class="col-md-3 d-flex gap-2 align-items-end" style="height:100%">
+                                <button class="btn btn-sm btn-success" disabled="@(s.TargetUserId is null || string.IsNullOrWhiteSpace(s.Text))"
+                                        @onclick="() => ApproveAsync(s)">Freigeben</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RejectAsync(s)">Ablehnen</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            }
         }
-    }
 
-    <h2 class="h4 mt-5">Mitglieder-Notizen</h2>
-    <div class="d-flex gap-2 align-items-end mb-3" style="max-width:32rem">
-        <div class="flex-grow-1">
-            <label class="form-label small mb-1">Notiz für Mitglied anlegen</label>
-            <select class="form-select form-select-sm" @bind="addMemberId">
-                <option value="">— wählen —</option>
-                @foreach (var m in memberOptions.Where(m => notes.All(n => n.DiscordUserId != m.Id)))
-                {
-                    <option value="@m.Id">@m.Name</option>
-                }
-            </select>
+        <h2 class="h4 mt-5">Mitglieder-Notizen</h2>
+        <div class="d-flex gap-2 align-items-end mb-3" style="max-width:32rem">
+            <div class="flex-grow-1">
+                <label class="form-label small mb-1">Notiz für Mitglied anlegen</label>
+                <select class="form-select form-select-sm" @bind="addMemberId">
+                    <option value="">— wählen —</option>
+                    @foreach (var m in memberOptions.Where(m => notes.All(n => n.DiscordUserId != m.Id)))
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary" disabled="@(addMemberId is null)" @onclick="AddNoteAsync">Anlegen</button>
         </div>
-        <button class="btn btn-sm btn-primary" disabled="@(addMemberId is null)" @onclick="AddNoteAsync">Anlegen</button>
-    </div>
 
-    @if (notes.Count == 0)
-    {
-        <p class="text-muted">Noch keine Notizen.</p>
-    }
-    else
-    {
-        <Collapse IsAccordion="true" class="border-top">
-            <CollapseItems>
-                @foreach (var n in notes)
-                {
-                    <CollapseItem @key="n.Id" Text="@FullNickname(n.DiscordUserId)" IsCollapsed="true">
-                        <HeaderTemplate>
-                            <span>@FullNickname(n.DiscordUserId)</span>
-                            @if (n.PeerLoreHidden)
-                            {
-                                <span class="badge bg-warning text-dark ms-2">Peer-Lore vom Mitglied ausgeblendet</span>
-                            }
-                        </HeaderTemplate>
-                        <ChildContent>
-                            <div class="row g-2">
-                                <div class="col-md-4">@TextField("Bevorzugter Name", n, MemberNoteField.PreferredName)</div>
-                                <div class="col-md-4">@TextField("Spitznamen", n, MemberNoteField.Nicknames)</div>
-                                <div class="col-md-4">@TextField("Sprachen", n, MemberNoteField.Languages)</div>
-                                <div class="col-md-6">@AreaField("Interessen", n, MemberNoteField.Interests)</div>
-                                <div class="col-md-6">@AreaField("Hintergrund", n, MemberNoteField.Background)</div>
-                                <div class="col-md-6">@AreaField("Running Gags (Peer)", n, MemberNoteField.RunningJokes)</div>
-                                <div class="col-md-6">@AreaField("Necken ok (Peer)", n, MemberNoteField.TeaseAbout)</div>
-                            </div>
-                            <div class="mt-2 d-flex gap-2">
-                                <button class="btn btn-sm btn-primary" @onclick="() => SaveNoteAsync(n)">Speichern</button>
+        @if (notes.Count == 0)
+        {
+            <p class="text-muted">Noch keine Notizen.</p>
+        }
+        else
+        {
+            <Collapse IsAccordion="true" class="border-top">
+                <CollapseItems>
+                    @foreach (var n in notes)
+                    {
+                        <CollapseItem @key="n.Id" Text="@FullNickname(n.DiscordUserId)" IsCollapsed="true">
+                            <HeaderTemplate>
+                                <span>@FullNickname(n.DiscordUserId)</span>
                                 @if (n.PeerLoreHidden)
                                 {
-                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetHiddenAsync(n, false)">Peer-Lore wieder anzeigen</button>
+                                    <span class="badge bg-warning text-dark ms-2">Peer-Lore vom Mitglied ausgeblendet</span>
                                 }
-                            </div>
-                        </ChildContent>
-                    </CollapseItem>
-                }
-            </CollapseItems>
-        </Collapse>
+                            </HeaderTemplate>
+                            <ChildContent>
+                                <div class="row g-2">
+                                    <div class="col-md-4">@TextField("Bevorzugter Name", n, MemberNoteField.PreferredName)</div>
+                                    <div class="col-md-4">@TextField("Spitznamen", n, MemberNoteField.Nicknames)</div>
+                                    <div class="col-md-4">@TextField("Sprachen", n, MemberNoteField.Languages)</div>
+                                    <div class="col-md-6">@AreaField("Interessen", n, MemberNoteField.Interests)</div>
+                                    <div class="col-md-6">@AreaField("Hintergrund", n, MemberNoteField.Background)</div>
+                                    <div class="col-md-6">@AreaField("Running Gags (Peer)", n, MemberNoteField.RunningJokes)</div>
+                                    <div class="col-md-6">@AreaField("Necken ok (Peer)", n, MemberNoteField.TeaseAbout)</div>
+                                </div>
+                                <div class="mt-2 d-flex gap-2">
+                                    <button class="btn btn-sm btn-primary" @onclick="() => SaveNoteAsync(n)">Speichern</button>
+                                    @if (n.PeerLoreHidden)
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetHiddenAsync(n, false)">Peer-Lore wieder anzeigen</button>
+                                    }
+                                </div>
+                            </ChildContent>
+                        </CollapseItem>
+                    }
+                </CollapseItems>
+            </Collapse>
+        }
     }
-}
+</AuthorizedGuildView>
 
 @code {
     private bool loading = true;

@@ -6,103 +6,101 @@
 
 <PageTitle>Player Assignments</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else if (loading)
-{
-    <p>Loading members…</p>
-}
-else
-{
-    <h1>Player Assignment</h1>
-    <p class="text-muted">
-        Assign each member to their in-game player(s). The assignment is <strong>global to the
-        person</strong> — it applies in every server they share with Hoshi, and drives the automatic
-        role assignment (rank, ops level, nickname). A player can be linked to multiple Discord accounts
-        (e.g. alt accounts).
-    </p>
+<AuthorizedGuildView Authorized="Authorized">
+    @if (loading)
+    {
+        <p>Loading members…</p>
+    }
+    else
+    {
+        <h1>Player Assignment</h1>
+        <p class="text-muted">
+            Assign each member to their in-game player(s). The assignment is <strong>global to the
+            person</strong> — it applies in every server they share with Hoshi, and drives the automatic
+            role assignment (rank, ops level, nickname). A player can be linked to multiple Discord accounts
+            (e.g. alt accounts).
+        </p>
 
-    <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
-        <div style="max-width:22rem;flex:1 1 16rem">
-            <label class="form-label small mb-1">Search member</label>
-            <input class="form-control form-control-sm" placeholder="Name…" value="@memberFilter"
-                   @oninput="e => memberFilter = e.Value?.ToString() ?? string.Empty" />
+        <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+            <div style="max-width:22rem;flex:1 1 16rem">
+                <label class="form-label small mb-1">Search member</label>
+                <input class="form-control form-control-sm" placeholder="Name…" value="@memberFilter"
+                       @oninput="e => memberFilter = e.Value?.ToString() ?? string.Empty" />
+            </div>
+            <div class="form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="onlyUnlinked"
+                       checked="@onlyUnlinked" @onchange="e => onlyUnlinked = (bool)e.Value!" />
+                <label class="form-check-label" for="onlyUnlinked">Only unassigned</label>
+            </div>
+            <span class="text-muted small">@FilteredMembers.Count / @members.Count members</span>
         </div>
-        <div class="form-switch">
-            <input class="form-check-input" type="checkbox" role="switch" id="onlyUnlinked"
-                   checked="@onlyUnlinked" @onchange="e => onlyUnlinked = (bool)e.Value!" />
-            <label class="form-check-label" for="onlyUnlinked">Only unassigned</label>
-        </div>
-        <span class="text-muted small">@FilteredMembers.Count / @members.Count members</span>
-    </div>
 
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead>
-                <tr>
-                    <th style="min-width:12rem">Member (Nickname)</th>
-                    <th>Assigned Players</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var m in FilteredMembers)
-                {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
                     <tr>
-                        <td>@m.Name</td>
-                        <td>
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                @foreach (var link in m.Links)
-                                {
-                                    <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
-                                        @if (link.IsMain)
-                                        {
-                                            <span title="Main player">★</span>
-                                        }
-                                        <span>@PlayerLabel(link.Name, link.ServerName, link.AllianceTag)</span>
-                                        @if (!link.IsMain)
-                                        {
-                                            <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                    title="Set as main player" @onclick="() => SetMainAsync(m.Id, link.PlayerId)">☆</button>
-                                        }
-                                        <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                title="Remove" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
-                                    </span>
-                                }
-                                @if (addingForUserId == m.Id)
-                                {
-                                    <div class="d-inline-flex flex-column" style="min-width:18rem">
-                                        <input class="form-control form-control-sm" placeholder="Search player…" value="@searchTerm"
-                                               @oninput="OnSearchInputAsync" autofocus />
-                                        @if (searchResults.Count > 0)
-                                        {
-                                            <div class="list-group mt-1" style="max-height:14rem;overflow-y:auto">
-                                                @foreach (var r in searchResults)
-                                                {
-                                                    <button type="button" class="list-group-item list-group-item-action py-1"
-                                                            @onclick="() => AssignAsync(m.Id, r.Id)">
-                                                        @PlayerLabel(r.Name, r.ServerName, r.AllianceTag)
-                                                    </button>
-                                                }
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                                else
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => StartAdding(m.Id)">
-                                        + Player
-                                    </button>
-                                }
-                            </div>
-                        </td>
+                        <th style="min-width:12rem">Member (Nickname)</th>
+                        <th>Assigned Players</th>
                     </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
+                </thead>
+                <tbody>
+                    @foreach (var m in FilteredMembers)
+                    {
+                        <tr>
+                            <td>@m.Name</td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    @foreach (var link in m.Links)
+                                    {
+                                        <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
+                                            @if (link.IsMain)
+                                            {
+                                                <span title="Main player">★</span>
+                                            }
+                                            <span>@PlayerLabel(link.Name, link.ServerName, link.AllianceTag)</span>
+                                            @if (!link.IsMain)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
+                                                        title="Set as main player" @onclick="() => SetMainAsync(m.Id, link.PlayerId)">☆</button>
+                                            }
+                                            <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
+                                                    title="Remove" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
+                                        </span>
+                                    }
+                                    @if (addingForUserId == m.Id)
+                                    {
+                                        <div class="d-inline-flex flex-column" style="min-width:18rem">
+                                            <input class="form-control form-control-sm" placeholder="Search player…" value="@searchTerm"
+                                                   @oninput="OnSearchInputAsync" autofocus />
+                                            @if (searchResults.Count > 0)
+                                            {
+                                                <div class="list-group mt-1" style="max-height:14rem;overflow-y:auto">
+                                                    @foreach (var r in searchResults)
+                                                    {
+                                                        <button type="button" class="list-group-item list-group-item-action py-1"
+                                                                @onclick="() => AssignAsync(m.Id, r.Id)">
+                                                            @PlayerLabel(r.Name, r.ServerName, r.AllianceTag)
+                                                        </button>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => StartAdding(m.Id)">
+                                            + Player
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</AuthorizedGuildView>
 
 @code {
     private bool loading = true;

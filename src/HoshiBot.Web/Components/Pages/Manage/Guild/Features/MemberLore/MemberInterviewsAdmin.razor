@@ -8,55 +8,53 @@
 
 <PageTitle>Interviews</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else if (loading)
-{
-    <p>Loading…</p>
-}
-else
-{
-    <h1>Member Lore — Interviews</h1>
-    <p class="text-muted">
-        Every member the bot has invited to (or is running) a DM interview, and where they are in it.
-        Bot-managed — status/progress come from the interview job/DM conversation, not editable here.
-    </p>
-
-    @if (interviews.Count == 0)
+<AuthorizedGuildView Authorized="Authorized">
+    @if (loading)
     {
-        <p class="text-muted">No interviews yet — enable the campaign to start inviting members.</p>
+        <p>Loading…</p>
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead>
-                    <tr>
-                        <th>Member</th>
-                        <th>Status</th>
-                        <th>Invited</th>
-                        <th>Last activity</th>
-                        <th>Completed</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var i in interviews)
-                    {
+        <h1>Member Lore — Interviews</h1>
+        <p class="text-muted">
+            Every member the bot has invited to (or is running) a DM interview, and where they are in it.
+            Bot-managed — status/progress come from the interview job/DM conversation, not editable here.
+        </p>
+
+        @if (interviews.Count == 0)
+        {
+            <p class="text-muted">No interviews yet — enable the campaign to start inviting members.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
                         <tr>
-                            <td>@MemberName(i.DiscordUserId)</td>
-                            <td><span class="badge @StatusBadgeClass(i.Status)">@i.Status</span></td>
-                            <td>@i.InvitedAt.ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>@i.LastActivityAt.ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>@(i.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                            <th>Member</th>
+                            <th>Status</th>
+                            <th>Invited</th>
+                            <th>Last activity</th>
+                            <th>Completed</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var i in interviews)
+                        {
+                            <tr>
+                                <td>@MemberName(i.DiscordUserId)</td>
+                                <td><span class="badge @StatusBadgeClass(i.Status)">@i.Status</span></td>
+                                <td>@i.InvitedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@i.LastActivityAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@(i.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
-}
+</AuthorizedGuildView>
 
 @code {
     private bool loading = true;

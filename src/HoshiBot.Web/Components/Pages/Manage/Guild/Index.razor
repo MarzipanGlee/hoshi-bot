@@ -10,12 +10,7 @@
 
 <PageTitle>@(guildName ?? "Guild")</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else
-{
+<AuthorizedGuildView Authorized="Authorized">
     <h1>@guildName</h1>
 
     <div class="card-grid">
@@ -47,7 +42,7 @@ else
             }
         </div>
     }
-}
+</AuthorizedGuildView>
 
 @code {
     private string? guildName;

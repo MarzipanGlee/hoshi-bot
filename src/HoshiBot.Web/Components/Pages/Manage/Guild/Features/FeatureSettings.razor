@@ -10,64 +10,62 @@
 
 <PageTitle>@(descriptor?.Title ?? "Feature Settings")</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else if (descriptor is null)
-{
-    <p>Unknown feature "@FeatureSlug".</p>
-}
-else if (needsAllianceLink)
-{
-    <h1>@descriptor.Title</h1>
-    <AllianceLinkRequiredHint GuildId="@GuildId" />
-}
-else if (editorParameters is null)
-{
-    <p>Redirecting...</p>
-}
-else
-{
-    <h1>@descriptor.Title</h1>
-    <p>@descriptor.Description</p>
-
-    @if (dependencies.Count > 0)
+<AuthorizedGuildView Authorized="Authorized">
+    @if (descriptor is null)
     {
-        <div class="alert @(dependencies.All(d => d.Satisfied) ? "alert-secondary" : "alert-warning")">
-            <div class="fw-semibold mb-2">
-                <span class="oi oi-link-intact" aria-hidden="true"></span>
-                @(dependencies.All(d => d.Satisfied) ? "Requires other features" : "Needs other features to work")
-            </div>
-            <ul class="mb-0 ps-3">
-                @foreach (var dep in dependencies)
-                {
-                    <li>
-                        <a href="@DependencyHref(dep.Module)">@dep.Module.Title</a>
-                        @if (dep.Satisfied)
-                        {
-                            <span class="badge bg-success ms-1">enabled</span>
-                        }
-                        else if (dep.Enabled)
-                        {
-                            <span class="badge bg-warning text-dark ms-1">not configured</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-danger ms-1">not enabled</span>
-                        }
-                        @if (dep.Note is { Length: > 0 })
-                        {
-                            <span class="text-muted"> — @dep.Note</span>
-                        }
-                    </li>
-                }
-            </ul>
-        </div>
+        <p>Unknown feature "@FeatureSlug".</p>
     }
+    else if (needsAllianceLink)
+    {
+        <h1>@descriptor.Title</h1>
+        <AllianceLinkRequiredHint GuildId="@GuildId" />
+    }
+    else if (editorParameters is null)
+    {
+        <p>Redirecting...</p>
+    }
+    else
+    {
+        <h1>@descriptor.Title</h1>
+        <p>@descriptor.Description</p>
 
-    <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" @key="editorKey" />
-}
+        @if (dependencies.Count > 0)
+        {
+            <div class="alert @(dependencies.All(d => d.Satisfied) ? "alert-secondary" : "alert-warning")">
+                <div class="fw-semibold mb-2">
+                    <span class="oi oi-link-intact" aria-hidden="true"></span>
+                    @(dependencies.All(d => d.Satisfied) ? "Requires other features" : "Needs other features to work")
+                </div>
+                <ul class="mb-0 ps-3">
+                    @foreach (var dep in dependencies)
+                    {
+                        <li>
+                            <a href="@DependencyHref(dep.Module)">@dep.Module.Title</a>
+                            @if (dep.Satisfied)
+                            {
+                                <span class="badge bg-success ms-1">enabled</span>
+                            }
+                            else if (dep.Enabled)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">not configured</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger ms-1">not enabled</span>
+                            }
+                            @if (dep.Note is { Length: > 0 })
+                            {
+                                <span class="text-muted"> — @dep.Note</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" @key="editorKey" />
+    }
+</AuthorizedGuildView>
 
 @code {
     [Parameter] public string FeatureSlug { get; set; } = "";

@@ -5,18 +5,16 @@
 
 <PageTitle>@(extra?.Title ?? "Not Found")</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else if (extra is null)
-{
-    <p>Unknown page.</p>
-}
-else
-{
-    <DynamicComponent Type="extra.ComponentType" Parameters="parameters" />
-}
+<AuthorizedGuildView Authorized="Authorized">
+    @if (extra is null)
+    {
+        <p>Unknown page.</p>
+    }
+    else
+    {
+        <DynamicComponent Type="extra.ComponentType" Parameters="parameters" />
+    }
+</AuthorizedGuildView>
 
 @code {
     [Parameter] public string FeatureSlug { get; set; } = "";

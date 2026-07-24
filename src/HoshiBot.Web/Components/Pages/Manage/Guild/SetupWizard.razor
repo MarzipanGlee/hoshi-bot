@@ -11,12 +11,7 @@
 
 <PageTitle>Guild Setup Wizard</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else
-{
+<AuthorizedGuildView Authorized="Authorized">
     <h1>Setup Wizard</h1>
     <p class="text-muted">Step @DisplayStepNumber of @VisibleSteps.Count — @AllSteps[step].Title. Every step is optional; you can always adjust things later via Scope/Settings, or per-feature via Features.</p>
 
@@ -210,7 +205,7 @@ else
             <button class="btn btn-primary" disabled="@creating" @onclick="Next">@(creating ? "Saving..." : "Next")</button>
         }
     </div>
-}
+</AuthorizedGuildView>
 
 @code {
     private static readonly (int Step, string Title)[] AllSteps =

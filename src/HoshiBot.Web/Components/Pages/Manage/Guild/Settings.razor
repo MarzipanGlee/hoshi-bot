@@ -3,14 +3,9 @@
 
 <PageTitle>Settings</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else
-{
+<AuthorizedGuildView Authorized="Authorized">
     <h1>Settings</h1>
     <p>Guild-wide settings not tied to one feature — per-feature channels/roles live on that feature's own page (see Features), and alliance-scoped channels/roles live on each alliance's own Settings page.</p>
 
     <SettingsEditor GuildId="ParsedGuildId" />
-}
+</AuthorizedGuildView>

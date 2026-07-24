@@ -13,12 +13,7 @@
 
 <PageTitle>Permission Check</PageTitle>
 
-@if (!Authorized)
-{
-    <p>Checking access...</p>
-}
-else
-{
+<AuthorizedGuildView Authorized="Authorized">
     <h1>Channel Permission Check</h1>
     <p>Define the exact permission overwrite a role should have on a channel, then audit live Discord permissions against it.</p>
 
@@ -285,7 +280,7 @@ else
             </tbody>
         </table>
     }
-}
+</AuthorizedGuildView>
 
 @code {
     private enum PermissionState { Neutral, Allow, Deny }
