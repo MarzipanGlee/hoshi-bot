@@ -1,0 +1,54 @@
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@inject AiChatHealthService HealthService
+
+@* Proactive warning shown on the AI editor pages when the guild's AI backend has been failing for a
+   sustained period — most importantly the SILENT case (embedding failure degrades retrieval to
+   keyword-only with no other signal, e.g. the Gemini quota outage). Reads the AiChatProviderHealth
+   rows the bot writes; renders nothing when healthy. *@
+
+@if (lines.Count > 0)
+{
+    <div class="alert alert-warning">
+        <div class="fw-semibold mb-1">
+            <span class="oi oi-warning" aria-hidden="true"></span> AI backend degraded
+        </div>
+        <ul class="mb-1 ps-3">
+            @foreach (var line in lines)
+            {
+                <li>@line</li>
+            }
+        </ul>
+        <a href="manage/guild/@GuildId/features/ai-chat/health">View AI Chat health</a>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+
+    // Don't alarm on a single transient blip: warn only when a call kind's most recent outcome was an
+    // error AND it hasn't had a success in this long (i.e. a sustained outage, not one flaky pass).
+    private static readonly TimeSpan SustainedThreshold = TimeSpan.FromHours(1);
+
+    private readonly List<string> lines = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rows = await HealthService.GetAsync(GuildId);
+        foreach (var row in rows.Where(IsSustainedDegraded))
+        {
+            var what = row.Kind == AiChatProviderCallKind.Embed
+                ? "Embeddings are failing — semantic search is degraded (retrieval falls back to keyword-only)."
+                : "Chat generation is failing — Hoshi may be unable to answer.";
+            var lastError = row.LastErrorAt is { } e ? $"{e:yyyy-MM-dd HH:mm} UTC" : "—";
+            var lastSuccess = row.LastSuccessAt is { } s ? $"{s:yyyy-MM-dd HH:mm} UTC" : "never";
+            var detail = string.IsNullOrWhiteSpace(row.LastErrorMessage) ? "" : $" — {row.LastErrorMessage}";
+            lines.Add($"{what} Last error {lastError}{detail}. Last success {lastSuccess}.");
+        }
+    }
+
+    private static bool IsSustainedDegraded(AiChatProviderHealth row) =>
+        row.LastErrorAt is { } e
+        && (row.LastSuccessAt is null || e > row.LastSuccessAt)
+        && (row.LastSuccessAt is null || DateTimeOffset.UtcNow - row.LastSuccessAt.Value > SustainedThreshold);
+}
