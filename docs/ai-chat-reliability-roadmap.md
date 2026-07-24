@@ -1,9 +1,8 @@
 # AI chat — reliability & retrieval roadmap
 
 *Status: phased plan. Captured 2026-07-24 after a two-day live debugging session (the testing
-guild), not a hypothetical — every incident below actually happened. Phases 0–2 are done; Phases
-3–6 are not built yet (Phase 3, memory grounding, is the high-priority next one — it actively
-causes wrong answers).*
+guild), not a hypothetical — every incident below actually happened. Phases 0–3 are done; Phases
+4–6 are not built yet.*
 
 ## Why this roadmap
 
@@ -136,7 +135,37 @@ context, not action items:
   enough to change the fixed `vector(768)` column now (would need a dimension migration + full
   re-embed per this doc's "Larger / different embedding model" note, see `docs/backlog.md`).
 
-## Phase 3 — Memory grounding & confabulation guard — HIGH PRIORITY (do next)
+## Phase 3 — Memory grounding & confabulation guard — DONE
+
+Shipped (commit `112d7f8`) + a retrieval title-weighting fix that verification exposed as the final
+piece (commit `d093ca2`); deployed + verified end-to-end on the testing guild 2026-07-24 (Hoshi now
+answers "Was ist die Unsterblichkeits-Crew?" with the correct Old Mudd / Ro Mudd / Eurydice crew
+from the authoritative post — no confabulated crew or date). What it took, and the lesson: the
+memory prompt fixes (below) were necessary but **not sufficient** on their own. Chasing the last
+wrong answer surfaced three more layers stacked under the memory one:
+
+- **Memory prompt fixes (the phase proper):** `MemoryExtractor.ExtractAsync` now captures only
+  genuine *social* events, explicitly rejects speculation/questions/rumors, and refuses to store
+  game mechanics/crews/builds/stats; the conversation summarizer marks speculation as speculation.
+  `AiChatService.BuildSystemInstructionAsync` reframes episodic memory as soft recollections that
+  must yield to retrieved sources, with an explicit precedence line (sources/facts/announcements
+  outrank memory for factual questions).
+- **Leftover polluted memories** had to be hand-deleted — the extraction fix only stops *new* bad
+  memories; existing confabulated rows persisted and kept feeding the wrong answer.
+- **Conversational echo:** the bot's own recent wrong answers sit in the live 15-message context
+  window and get echoed forward within a session even after memory is clean — a fresh context (or
+  removing the wrong messages) is needed to fairly evaluate.
+- **Retrieval ranking (the actual last blocker):** even with memory clean, the authoritative post
+  wasn't retrieved — folding `ChannelName` into FTS (Phase 2) made titles *matchable* but at equal
+  weight with the body, so a specific post lost to recent/Preferred general chatter sharing a common
+  word ("crew"). Fixed by weighting the channel-name (title) `'A'` and the body `'B'` via `setweight`
+  in `FtsCandidatesAsync`, so a **title** match ranks a post above body-only matches of a common
+  term. SQL-verified: the crew post went from absent-in-top-12 to rank #1.
+
+**Deferred retrieval-quality ideas (noted, not built):** verbose/vague queries still dilute FTS with
+common terms (rare-term/IDF weighting could help); the recency (Phase 2) + Preferred-tier boosts can
+over-favor recent general announcements over a specific older post. Revisit if a real case recurs
+that title-weighting doesn't already cover.
 
 **Why (live incident, 2026-07-24):** even after retrieval was fixed (Phase 2 + the forum-title
 fix) and the complexity router disabled so the strong model answered, Hoshi still cited a *wrong*
