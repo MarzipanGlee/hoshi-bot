@@ -17,5 +17,5 @@ public class AbsencesFeature : IFeatureModule
     public Type EditorComponentType => typeof(AbsencesEditor);
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AbsencesSettingKeys.ReportChannel) is not null;
+        await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AbsencesSettingKeys.ReportChannel) is not null;
 }

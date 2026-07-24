@@ -16,5 +16,5 @@ public class AnonymousMessagingFeature : IFeatureModule
     public Type EditorComponentType => typeof(AnonymousMessagingEditor);
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AnonymousMessagingSettingKeys.Channel) is not null;
+        await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AnonymousMessagingSettingKeys.Channel) is not null;
 }

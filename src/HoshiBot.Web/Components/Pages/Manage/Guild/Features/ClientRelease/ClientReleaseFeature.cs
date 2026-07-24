@@ -16,9 +16,6 @@ public class ClientReleaseFeature : IFeatureModule
     public string Icon => "oi-cloud-download";
     public Type EditorComponentType => typeof(ClientReleaseEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
-    {
-        await using var db = await context.DbFactory.CreateDbContextAsync();
-        return await db.GuildFeatureChannels.AnyAsync(c => c.GuildId == guildId && c.Feature == GuildFeature.ClientRelease && c.Audience == audience);
-    }
+    public Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        context.HasFeatureChannelAsync(guildId, GuildFeature.ClientRelease, audience);
 }

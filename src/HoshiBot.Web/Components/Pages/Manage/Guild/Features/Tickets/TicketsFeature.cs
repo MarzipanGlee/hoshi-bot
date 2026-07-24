@@ -16,5 +16,5 @@ public class TicketsFeature : IFeatureModule
     public Type EditorComponentType => typeof(TicketsEditor);
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, TicketsSettingKeys.Channel) is not null;
+        await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, TicketsSettingKeys.Channel) is not null;
 }

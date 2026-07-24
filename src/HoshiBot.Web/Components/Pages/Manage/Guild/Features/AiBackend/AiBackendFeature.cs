@@ -26,11 +26,11 @@ public class AiBackendFeature : IFeatureModule
     // it's configured as soon as it's selected; Gemini needs this guild's API key. Guild-wide scope.
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
-        var provider = await context.Settings.GetTextAsync(guildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.Provider);
+        var provider = await context.GetTextAsync(guildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.Provider);
         if (string.Equals(provider, "ollama", StringComparison.OrdinalIgnoreCase))
             return true;
 
-        var apiKey = await context.Settings.GetTextAsync(guildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.ApiKey);
+        var apiKey = await context.GetTextAsync(guildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.ApiKey);
         return !string.IsNullOrWhiteSpace(apiKey);
     }
 }

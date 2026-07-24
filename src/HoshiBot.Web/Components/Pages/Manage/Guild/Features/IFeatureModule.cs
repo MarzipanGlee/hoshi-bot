@@ -33,7 +33,7 @@ public interface IFeatureModule
     // duplicated verbatim across all module classes. guildAllianceId scopes the Alliance
     // audience to one linked alliance (null otherwise — see FeatureScopeGuard).
     Task<bool> IsEnabledAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        context.FeatureService.IsEnabledAsync(guildId, Feature, audience, guildAllianceId);
+        context.IsEnabledAsync(guildId, Feature, audience, guildAllianceId);
 
     // Whether this feature's required settings are actually present for guildId+audience+alliance
     // — the Features page's yellow "enabled but not configured" state. Unlike IsEnabledAsync,
@@ -49,11 +49,55 @@ public record FeatureExtraPage(string Slug, string Title, Type ComponentType);
 
 // Everything a module's own checks might need, bundled so the interface members stay one
 // parameter: FeatureService for IsEnabledAsync (uniform); Settings for most
-// IsConfiguredAsync implementations; DbFactory for the 4 alert-list features' checks.
+// IsConfiguredAsync implementations; DbFactory for the alert-list/channel features' checks.
+//
+// Snapshot is an optional preloaded read of the guild's settings/enablement/channels — the Features
+// page supplies one so the ~25 per-feature checks + dependency fan-out read memory instead of firing
+// a query each. The read helpers below hit the snapshot when present, else fall through to the live
+// services/DB (single-feature callers pass no snapshot). Modules should call these, not Settings/
+// FeatureService/DbFactory directly, so they transparently get the snapshot fast-path.
 public record FeatureModuleContext(
     GuildFeatureService FeatureService,
     GuildFeatureSettingsService Settings,
-    IDbContextFactory<HoshiBotDbContext> DbFactory);
+    IDbContextFactory<HoshiBotDbContext> DbFactory,
+    FeatureSettingsSnapshot? Snapshot = null)
+{
+    public Task<ulong?> GetSnowflakeAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key) =>
+        Snapshot is { } s ? Task.FromResult(s.GetSnowflake(feature, audience, guildAllianceId, key))
+            : Settings.GetSnowflakeAsync(guildId, feature, audience, guildAllianceId, key);
+
+    public Task<string?> GetTextAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key) =>
+        Snapshot is { } s ? Task.FromResult(s.GetText(feature, audience, guildAllianceId, key))
+            : Settings.GetTextAsync(guildId, feature, audience, guildAllianceId, key);
+
+    public Task<bool> IsEnabledAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId) =>
+        Snapshot is { } s ? Task.FromResult(s.IsEnabled(feature, audience, guildAllianceId))
+            : FeatureService.IsEnabledAsync(guildId, feature, audience, guildAllianceId);
+
+    public Task<HashSet<GuildAudience>> GetEnabledAudiencesAsync(ulong guildId, GuildFeature feature) =>
+        Snapshot is { } s ? Task.FromResult(s.GetEnabledAudiences(feature))
+            : FeatureService.GetEnabledAudiencesAsync(guildId, feature);
+
+    public Task<HashSet<int>> GetEnabledAllianceIdsAsync(ulong guildId, GuildFeature feature) =>
+        Snapshot is { } s ? Task.FromResult(s.GetEnabledAllianceIds(feature))
+            : FeatureService.GetEnabledAllianceIdsAsync(guildId, feature);
+
+    public async Task<bool> HasAlertChannelAsync(ulong guildId, GuildAlertChannelKind kind, GuildAudience audience)
+    {
+        if (Snapshot is { } s)
+            return s.HasAlertChannel(kind, audience);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        return await db.GuildAlertChannels.AnyAsync(c => c.GuildId == guildId && c.Kind == kind && c.Audience == audience);
+    }
+
+    public async Task<bool> HasFeatureChannelAsync(ulong guildId, GuildFeature feature, GuildAudience audience)
+    {
+        if (Snapshot is { } s)
+            return s.HasFeatureChannel(feature, audience);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        return await db.GuildFeatureChannels.AnyAsync(c => c.GuildId == guildId && c.Feature == feature && c.Audience == audience);
+    }
+}
 
 // One resolved dependency of a feature: the required feature's module, its optional Note, and
 // whether it's currently Enabled/Configured for the guild. Satisfied is the single signal the UI
@@ -123,7 +167,7 @@ public static class FeatureModuleExtensions
             bool enabled, configured;
             if (checkAudience is { } ca)
             {
-                enabled = await context.FeatureService.IsEnabledAsync(guildId, dep.Feature, ca, checkScope);
+                enabled = await context.IsEnabledAsync(guildId, dep.Feature, ca, checkScope);
                 configured = enabled && await depModule.IsConfiguredAsync(guildId, ca, checkScope, context);
             }
             else
@@ -136,7 +180,7 @@ public static class FeatureModuleExtensions
                 // for a guild-wide-settings dependency (its check ignores the audience argument
                 // entirely, e.g. AiChatFeature's API key) and still meaningful for a genuinely
                 // per-audience one.
-                var enabledAudiences = await context.FeatureService.GetEnabledAudiencesAsync(guildId, dep.Feature);
+                var enabledAudiences = await context.GetEnabledAudiencesAsync(guildId, dep.Feature);
                 enabled = enabledAudiences.Count > 0;
                 configured = false;
                 foreach (var a in enabledAudiences)
@@ -148,7 +192,7 @@ public static class FeatureModuleExtensions
                         // unlike the precise-pin case above, we can't assume "the same alliance" because
                         // there isn't one. GetEnabledAllianceIdsAsync only ever returns non-null ids, so
                         // this never trips FeatureScopeGuard.
-                        foreach (var allianceId in await context.FeatureService.GetEnabledAllianceIdsAsync(guildId, dep.Feature))
+                        foreach (var allianceId in await context.GetEnabledAllianceIdsAsync(guildId, dep.Feature))
                         {
                             if (await depModule.IsConfiguredAsync(guildId, GuildAudience.Alliance, allianceId, context))
                             {

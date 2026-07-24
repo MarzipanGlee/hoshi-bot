@@ -17,5 +17,5 @@ public class AlertsOptInFeature : IFeatureModule
     public Type EditorComponentType => typeof(AlertsOptInEditor);
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AlertsOptInSettingKeys.Role) is not null;
+        await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AlertsOptInSettingKeys.Role) is not null;
 }

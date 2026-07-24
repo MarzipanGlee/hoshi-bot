@@ -18,10 +18,9 @@ public class ShieldRemindersFeature : IFeatureModule
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
-        if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, "Channel") is not null)
+        if (await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, "Channel") is not null)
             return true;
 
-        await using var db = await context.DbFactory.CreateDbContextAsync();
-        return await db.GuildAlertChannels.AnyAsync(c => c.GuildId == guildId && c.Kind == GuildAlertChannelKind.Shield && c.Audience == audience);
+        return await context.HasAlertChannelAsync(guildId, GuildAlertChannelKind.Shield, audience);
     }
 }

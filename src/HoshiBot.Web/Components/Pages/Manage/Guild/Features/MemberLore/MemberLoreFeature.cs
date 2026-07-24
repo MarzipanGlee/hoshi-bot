@@ -23,5 +23,5 @@ public class MemberLoreFeature : IFeatureModule
         ];
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, MemberLoreSettingKeys.MemberRole) is not null;
+        await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, MemberLoreSettingKeys.MemberRole) is not null;
 }

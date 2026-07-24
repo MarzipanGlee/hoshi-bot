@@ -25,7 +25,7 @@ public class OpsLevelRolesFeature : IFeatureModule
             OpsLevelRolesSettingKeys.G7Role,
         })
         {
-            if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, key) is not null)
+            if (await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, key) is not null)
                 return true;
         }
 

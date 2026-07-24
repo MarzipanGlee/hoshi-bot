@@ -20,7 +20,7 @@ public class TerritoryCaptureFeature : IFeatureModule
     {
         for (var slot = 1; slot <= 5; slot++)
         {
-            if (await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, TerritoryCaptureSettingKeys.ZoneSlotRole(slot)) is not null)
+            if (await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, TerritoryCaptureSettingKeys.ZoneSlotRole(slot)) is not null)
                 return true;
         }
 

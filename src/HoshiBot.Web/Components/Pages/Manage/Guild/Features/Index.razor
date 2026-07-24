@@ -211,13 +211,16 @@ else
             return;
         }
 
-        var enabledScopes = await FeatureService.GetEnabledAsync(ParsedGuildId);
-        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
+        // One bulk snapshot of the guild's settings/enablement/channels, so the per-feature
+        // IsConfiguredAsync + dependency checks below read memory instead of ~40-100 single-row
+        // queries. Passed into the context, which serves every module read from it.
+        var snapshot = await FeatureSettingsSnapshot.LoadAsync(DbFactory, ParsedGuildId);
+        var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory, snapshot);
 
         var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
         foreach (var feature in features)
         {
-            if (!enabledScopes.Contains((feature.Feature, audience, Scope)))
+            if (!snapshot.IsEnabled(feature.Feature, audience, Scope))
                 continue;
 
             enabledFeatures.Add(feature.Feature);

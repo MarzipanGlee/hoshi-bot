@@ -30,10 +30,6 @@ public class AiChatFeature : IFeatureModule
     // dependency, so its "not configured" state surfaces via the dependency badge). AiChat's own
     // "configured" signal is therefore about having at least one listen channel to answer in for
     // this audience — enabled but with no listen channel does nothing.
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
-    {
-        await using var db = await context.DbFactory.CreateDbContextAsync();
-        return await db.GuildFeatureChannels.AnyAsync(
-            c => c.GuildId == guildId && c.Feature == GuildFeature.AiChat && c.Audience == audience);
-    }
+    public Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        context.HasFeatureChannelAsync(guildId, GuildFeature.AiChat, audience);
 }

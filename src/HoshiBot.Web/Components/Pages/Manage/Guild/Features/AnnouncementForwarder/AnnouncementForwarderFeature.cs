@@ -18,5 +18,5 @@ public class AnnouncementForwarderFeature : IFeatureModule
     public Type EditorComponentType => typeof(AnnouncementForwarderEditor);
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        await context.Settings.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AnnouncementForwarderSettingKeys.Channel) is not null;
+        await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, AnnouncementForwarderSettingKeys.Channel) is not null;
 }

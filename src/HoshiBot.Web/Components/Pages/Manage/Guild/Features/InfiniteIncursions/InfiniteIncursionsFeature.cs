@@ -15,9 +15,6 @@ public class InfiniteIncursionsFeature : IFeatureModule
     public string Icon => "oi-warning";
     public Type EditorComponentType => typeof(InfiniteIncursionsEditor);
 
-    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
-    {
-        await using var db = await context.DbFactory.CreateDbContextAsync();
-        return await db.GuildAlertChannels.AnyAsync(c => c.GuildId == guildId && c.Kind == GuildAlertChannelKind.InfiniteIncursions && c.Audience == audience);
-    }
+    public Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        context.HasAlertChannelAsync(guildId, GuildAlertChannelKind.InfiniteIncursions, audience);
 }
