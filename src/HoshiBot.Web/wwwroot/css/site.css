@@ -46,6 +46,13 @@ a, .btn-link {
     gap: 1rem;
 }
 
+/* Opt-in exception: a single card that spans the whole grid width instead of one 250-350px
+   track — for a wide element (e.g. a multi-column table) the default track squeezes. Spanning
+   1 / -1 works at every track count (full width when 1 track, all tracks when several). */
+.card-grid > .card-span-full {
+    grid-column: 1 / -1;
+}
+
 /* QuickGrid intentionally renders extra empty <tr>/<td> elements on a paginated grid's
    last page to keep a stable row count/height across pages (documented behavior, see
    https://github.com/dotnet/aspnetcore/issues/59096 and /issues/57199) — it explicitly
