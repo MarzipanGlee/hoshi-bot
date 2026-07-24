@@ -12,9 +12,7 @@
         <EditForm method="post" Model="Ownership" OnValidSubmit="AddOwnership" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="territory" class="form-label">Territory:</label>
+            <FormField For="territory" Label="Territory:" Required>
                 <InputSelect id="territory" @bind-Value="Ownership.TerritoryId" class="form-control">
                     <option value="0">Select territory...</option>
                     @foreach (var territory in territories)
@@ -23,10 +21,8 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Ownership.TerritoryId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="server" class="form-label">Server:</label>
+            </FormField>
+            <FormField For="server" Label="Server:" Required>
                 <InputSelect id="server" @bind-Value="Ownership.ServerId" class="form-control">
                     <option value="0">Select server...</option>
                     @foreach (var server in servers)
@@ -35,10 +31,8 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Ownership.ServerId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="alliance" class="form-label">Alliance:</label>
+            </FormField>
+            <FormField For="alliance" Label="Alliance:" Required>
                 <InputSelect id="alliance" @bind-Value="Ownership.AllianceId" class="form-control">
                     <option value="0">Select alliance...</option>
                     @foreach (var alliance in alliances)
@@ -47,7 +41,7 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Ownership.AllianceId" class="text-danger" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

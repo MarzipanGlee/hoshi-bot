@@ -1,0 +1,23 @@
+@* One labelled field inside an EditForm — the mb-3 wrapper + optional required-star + label that
+   was hand-rolled around every input on the Stfc Create/Edit pages. The input itself and its
+   <ValidationMessage> go in ChildContent (they bind the model, so they stay per-field). Just a
+   markup wrapper — the inputs are still direct descendants of the EditForm, so form binding is
+   unaffected. *@
+<div class="mb-3">
+    @if (Required)
+    {
+        <span class="text-danger">*</span>
+    }
+    <label for="@For" class="form-label">@Label</label>
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string For { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public bool Required { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

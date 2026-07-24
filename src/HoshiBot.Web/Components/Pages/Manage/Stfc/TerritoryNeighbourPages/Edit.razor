@@ -18,9 +18,7 @@ else
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
                 <input type="hidden" name="Neighbour.Id" value="@Neighbour.Id" />
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="territory" class="form-label">Territory:</label>
+                <FormField For="territory" Label="Territory:" Required>
                     <InputSelect id="territory" @bind-Value="Neighbour.TerritoryId" class="form-control">
                         @foreach (var territory in territories)
                         {
@@ -28,10 +26,8 @@ else
                         }
                     </InputSelect>
                     <ValidationMessage For="() => Neighbour.TerritoryId" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="neighbourTerritory" class="form-label">Neighbour Territory:</label>
+                </FormField>
+                <FormField For="neighbourTerritory" Label="Neighbour Territory:" Required>
                     <InputSelect id="neighbourTerritory" @bind-Value="Neighbour.NeighbourTerritoryId" class="form-control">
                         @foreach (var territory in territories)
                         {
@@ -39,7 +35,7 @@ else
                         }
                     </InputSelect>
                     <ValidationMessage For="() => Neighbour.NeighbourTerritoryId" class="text-danger" />
-                </div>
+                </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
         </div>

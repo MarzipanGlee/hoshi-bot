@@ -18,21 +18,15 @@ else
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
                 <input type="hidden" name="Alliance.Id" value="@Alliance.Id" />
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="tag" class="form-label">Tag:</label>
+                <FormField For="tag" Label="Tag:" Required>
                     <InputText id="tag" @bind-Value="Alliance.Tag" class="form-control" aria-required="true" />
                     <ValidationMessage For="() => Alliance.Tag" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="name" class="form-label">Name:</label>
+                </FormField>
+                <FormField For="name" Label="Name:" Required>
                     <InputText id="name" @bind-Value="Alliance.Name" class="form-control" aria-required="true" />
                     <ValidationMessage For="() => Alliance.Name" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="server" class="form-label">Server:</label>
+                </FormField>
+                <FormField For="server" Label="Server:" Required>
                     <InputSelect id="server" @bind-Value="Alliance.ServerId" class="form-control">
                         @foreach (var server in servers)
                         {
@@ -40,7 +34,7 @@ else
                         }
                     </InputSelect>
                     <ValidationMessage For="() => Alliance.ServerId" class="text-danger" />
-                </div>
+                </FormField>
                 <div class="mb-3">
                     <label class="form-label">Emblem:</label>
                     <InputRadioGroup @bind-Value="Alliance.Emblem">

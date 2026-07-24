@@ -11,9 +11,7 @@
         <EditForm method="post" Model="Invite" OnValidSubmit="AddInvite" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="server" class="form-label">Server:</label>
+            <FormField For="server" Label="Server:" Required>
                 <InputSelect id="server" @bind-Value="Invite.ServerId" class="form-control">
                     <option value="0">Select server...</option>
                     @foreach (var server in servers)
@@ -22,13 +20,11 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Invite.ServerId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="url" class="form-label">Invite URL:</label>
+            </FormField>
+            <FormField For="url" Label="Invite URL:" Required>
                 <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Invite.Url" class="text-danger" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

@@ -18,15 +18,11 @@ else
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
                 <input type="hidden" name="VeilGroup.Id" value="@VeilGroup.Id" />
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="name" class="form-label">Name:</label>
+                <FormField For="name" Label="Name:" Required>
                     <InputText id="name" @bind-Value="VeilGroup.Name" class="form-control" aria-required="true" />
                     <ValidationMessage For="() => VeilGroup.Name" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="region" class="form-label">Region:</label>
+                </FormField>
+                <FormField For="region" Label="Region:" Required>
                     <InputSelect id="region" @bind-Value="VeilGroup.RegionId" class="form-control">
                         @foreach (var region in regions)
                         {
@@ -34,7 +30,7 @@ else
                         }
                     </InputSelect>
                     <ValidationMessage For="() => VeilGroup.RegionId" class="text-danger" />
-                </div>
+                </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
         </div>

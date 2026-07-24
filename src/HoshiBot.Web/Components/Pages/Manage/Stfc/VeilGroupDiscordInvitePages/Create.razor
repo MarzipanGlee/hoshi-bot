@@ -11,9 +11,7 @@
         <EditForm method="post" Model="Invite" OnValidSubmit="AddInvite" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="veilGroup" class="form-label">Veil Group:</label>
+            <FormField For="veilGroup" Label="Veil Group:" Required>
                 <InputSelect id="veilGroup" @bind-Value="Invite.VeilGroupId" class="form-control">
                     <option value="0">Select veil group...</option>
                     @foreach (var veilGroup in veilGroups)
@@ -22,13 +20,11 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Invite.VeilGroupId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="url" class="form-label">Invite URL:</label>
+            </FormField>
+            <FormField For="url" Label="Invite URL:" Required>
                 <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Invite.Url" class="text-danger" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

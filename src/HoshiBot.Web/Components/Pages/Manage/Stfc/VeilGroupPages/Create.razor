@@ -11,21 +11,15 @@
         <EditForm method="post" Model="VeilGroup" OnValidSubmit="AddVeilGroup" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="id" class="form-label">Id (matches Scopely's veil-group numbering):</label>
+            <FormField For="id" Label="Id (matches Scopely's veil-group numbering):" Required>
                 <InputNumber id="id" @bind-Value="VeilGroup.Id" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => VeilGroup.Id" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="name" class="form-label">Name:</label>
+            </FormField>
+            <FormField For="name" Label="Name:" Required>
                 <InputText id="name" @bind-Value="VeilGroup.Name" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => VeilGroup.Name" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="region" class="form-label">Region:</label>
+            </FormField>
+            <FormField For="region" Label="Region:" Required>
                 <InputSelect id="region" @bind-Value="VeilGroup.RegionId" class="form-control">
                     <option value="0">Select region...</option>
                     @foreach (var region in regions)
@@ -34,7 +28,7 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => VeilGroup.RegionId" class="text-danger" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

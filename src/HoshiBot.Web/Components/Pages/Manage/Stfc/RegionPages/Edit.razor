@@ -18,12 +18,10 @@ else
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
                 <input type="hidden" name="Region.Id" value="@Region.Id" />
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="name" class="form-label">Name:</label>
+                <FormField For="name" Label="Name:" Required>
                     <InputText id="name" @bind-Value="Region.Name" class="form-control" aria-required="true" />
                     <ValidationMessage For="() => Region.Name" class="text-danger" />
-                </div>
+                </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
         </div>

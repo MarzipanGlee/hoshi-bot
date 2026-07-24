@@ -11,26 +11,19 @@
         <EditForm method="post" Model="Territory" OnValidSubmit="AddTerritory" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="id" class="form-label">Id (real Scopely territory ID):</label>
+            <FormField For="id" Label="Id (real Scopely territory ID):" Required>
                 <InputNumber id="id" @bind-Value="Territory.Id" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Territory.Id" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="name" class="form-label">Name:</label>
+            </FormField>
+            <FormField For="name" Label="Name:" Required>
                 <InputText id="name" @bind-Value="Territory.Name" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Territory.Name" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="tier" class="form-label">Tier:</label>
+            </FormField>
+            <FormField For="tier" Label="Tier:" Required>
                 <InputNumber id="tier" @bind-Value="Territory.Tier" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Territory.Tier" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <label for="weekday" class="form-label">Weekday (UTC):</label>
+            </FormField>
+            <FormField For="weekday" Label="Weekday (UTC):">
                 <InputSelect id="weekday" @bind-Value="Territory.Weekday" class="form-control">
                     <option value="">Unknown</option>
                     @foreach (var day in Enum.GetValues<DayOfWeek>())
@@ -38,11 +31,10 @@
                         <option value="@day">@day</option>
                     }
                 </InputSelect>
-            </div>
-            <div class="mb-3">
-                <label for="captureTime" class="form-label">Capture Time (UTC):</label>
+            </FormField>
+            <FormField For="captureTime" Label="Capture Time (UTC):">
                 <InputDate id="captureTime" Type="InputDateType.Time" @bind-Value="Territory.CaptureTimeUtc" class="form-control" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

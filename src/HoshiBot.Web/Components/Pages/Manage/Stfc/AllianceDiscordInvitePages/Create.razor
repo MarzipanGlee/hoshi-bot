@@ -11,9 +11,7 @@
         <EditForm method="post" Model="Invite" OnValidSubmit="AddInvite" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="alliance" class="form-label">Alliance:</label>
+            <FormField For="alliance" Label="Alliance:" Required>
                 <InputSelect id="alliance" @bind-Value="Invite.AllianceId" class="form-control">
                     <option value="0">Select alliance...</option>
                     @foreach (var alliance in alliances)
@@ -22,13 +20,11 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Invite.AllianceId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="url" class="form-label">Invite URL:</label>
+            </FormField>
+            <FormField For="url" Label="Invite URL:" Required>
                 <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Invite.Url" class="text-danger" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

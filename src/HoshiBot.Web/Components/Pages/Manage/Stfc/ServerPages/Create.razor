@@ -11,21 +11,15 @@
         <EditForm method="post" Model="Server" OnValidSubmit="AddServer" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="number" class="form-label">Server Number (ID):</label>
+            <FormField For="number" Label="Server Number (ID):" Required>
                 <InputNumber id="number" @bind-Value="Server.Id" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Server.Id" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="name" class="form-label">Name:</label>
+            </FormField>
+            <FormField For="name" Label="Name:" Required>
                 <InputText id="name" @bind-Value="Server.Name" class="form-control" aria-required="true" />
                 <ValidationMessage For="() => Server.Name" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="region" class="form-label">Region:</label>
+            </FormField>
+            <FormField For="region" Label="Region:" Required>
                 <InputSelect id="region" @bind-Value="Server.RegionId" class="form-control">
                     <option value="0">Select region...</option>
                     @foreach (var region in regions)
@@ -34,9 +28,8 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Server.RegionId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <label for="veilGroup" class="form-label">Veil Group:</label>
+            </FormField>
+            <FormField For="veilGroup" Label="Veil Group:">
                 <InputSelect id="veilGroup" @bind-Value="Server.VeilGroupId" class="form-control">
                     <option value="">No veil group (new/unclassified)</option>
                     @foreach (var veilGroup in veilGroups)
@@ -44,7 +37,7 @@
                         <option value="@veilGroup.Id">@veilGroup.Name</option>
                     }
                 </InputSelect>
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

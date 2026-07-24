@@ -11,9 +11,7 @@
         <EditForm method="post" Model="Neighbour" OnValidSubmit="AddNeighbour" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="territory" class="form-label">Territory:</label>
+            <FormField For="territory" Label="Territory:" Required>
                 <InputSelect id="territory" @bind-Value="Neighbour.TerritoryId" class="form-control">
                     <option value="0">Select territory...</option>
                     @foreach (var territory in territories)
@@ -22,10 +20,8 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Neighbour.TerritoryId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="neighbourTerritory" class="form-label">Neighbour Territory:</label>
+            </FormField>
+            <FormField For="neighbourTerritory" Label="Neighbour Territory:" Required>
                 <InputSelect id="neighbourTerritory" @bind-Value="Neighbour.NeighbourTerritoryId" class="form-control">
                     <option value="0">Select territory...</option>
                     @foreach (var territory in territories)
@@ -34,7 +30,7 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Neighbour.NeighbourTerritoryId" class="text-danger" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

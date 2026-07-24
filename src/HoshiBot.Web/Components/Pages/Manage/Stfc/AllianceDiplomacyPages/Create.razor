@@ -11,9 +11,7 @@
         <EditForm method="post" Model="Diplomacy" OnValidSubmit="AddDiplomacy" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="source" class="form-label">Source Alliance:</label>
+            <FormField For="source" Label="Source Alliance:" Required>
                 <InputSelect id="source" @bind-Value="Diplomacy.SourceAllianceId" class="form-control">
                     <option value="0">Select alliance...</option>
                     @foreach (var alliance in alliances)
@@ -22,10 +20,8 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Diplomacy.SourceAllianceId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="target" class="form-label">Target Alliance:</label>
+            </FormField>
+            <FormField For="target" Label="Target Alliance:" Required>
                 <InputSelect id="target" @bind-Value="Diplomacy.TargetAllianceId" class="form-control">
                     <option value="0">Select alliance...</option>
                     @foreach (var alliance in alliances)
@@ -34,10 +30,8 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Diplomacy.TargetAllianceId" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <span class="text-danger">*</span>
-                <label for="status" class="form-label">Status:</label>
+            </FormField>
+            <FormField For="status" Label="Status:" Required>
                 <InputSelect id="status" @bind-Value="Diplomacy.Status" class="form-control">
                     @foreach (var status in Enum.GetValues<DiplomacyStatus>())
                     {
@@ -45,7 +39,7 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => Diplomacy.Status" class="text-danger" />
-            </div>
+            </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
     </div>

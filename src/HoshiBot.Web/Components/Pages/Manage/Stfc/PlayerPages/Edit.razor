@@ -28,14 +28,11 @@ else
                     <label class="form-label">Server:</label>
                     <p class="form-control-plaintext">@serverName</p>
                 </div>
-                <div class="mb-3">
-                    <span class="text-danger">*</span>
-                    <label for="name" class="form-label">Name:</label>
+                <FormField For="name" Label="Name:" Required>
                     <InputText id="name" @bind-Value="Player.Name" class="form-control" aria-required="true" />
                     <ValidationMessage For="() => Player.Name" class="text-danger" />
-                </div>
-                <div class="mb-3">
-                    <label for="alliance" class="form-label">Alliance:</label>
+                </FormField>
+                <FormField For="alliance" Label="Alliance:">
                     <InputSelect id="alliance" @bind-Value="Player.AllianceId" class="form-control">
                         <option value="">Unaffiliated</option>
                         @foreach (var alliance in alliances)
@@ -43,9 +40,8 @@ else
                             <option value="@alliance.Id">@alliance.Tag - @alliance.Name</option>
                         }
                     </InputSelect>
-                </div>
-                <div class="mb-3">
-                    <label for="rank" class="form-label">Rank:</label>
+                </FormField>
+                <FormField For="rank" Label="Rank:">
                     <InputSelect id="rank" @bind-Value="Player.Rank" class="form-control">
                         <option value="">— none —</option>
                         @foreach (var rank in Enum.GetValues<StfcPlayerRank>())
@@ -53,11 +49,10 @@ else
                             <option value="@rank">@rank</option>
                         }
                     </InputSelect>
-                </div>
-                <div class="mb-3">
-                    <label for="opsLevel" class="form-label">Ops Level:</label>
+                </FormField>
+                <FormField For="opsLevel" Label="Ops Level:">
                     <InputNumber id="opsLevel" @bind-Value="Player.OpsLevel" class="form-control" />
-                </div>
+                </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
         </div>
