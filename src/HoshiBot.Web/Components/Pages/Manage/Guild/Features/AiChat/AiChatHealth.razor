@@ -1,0 +1,173 @@
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject AiChatHealthService HealthService
+@inject GuildFeatureSettingsService Settings
+@inject DiscordGuildDataService DiscordData
+
+<PageTitle>AI Chat health</PageTitle>
+
+@if (!Authorized)
+{
+    <p>Checking access...</p>
+}
+else if (loading)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <h1>AI Chat health</h1>
+    <p class="text-muted">
+        Read-only diagnostics for this guild's AI retrieval — so a provider outage or a coverage gap
+        is visible here instead of needing server logs. Written automatically by the bot.
+    </p>
+
+    <div class="card-grid mt-1">
+        <SettingsCard Title="Embedding coverage">
+            <p class="mb-1">
+                <strong>@embeddedCount</strong> of <strong>@totalCount</strong> indexed messages embedded
+                (@coveragePercent%).
+            </p>
+            @if (totalCount > 0 && embeddedCount < totalCount)
+            {
+                <p class="form-text mb-1">
+                    @(totalCount - embeddedCount) awaiting embedding — normal right after new messages or a
+                    model switch; a persistent gap usually means the embedding backend is failing (see
+                    Provider health).
+                </p>
+            }
+            <div class="progress" role="progressbar" style="height:1.25rem">
+                <div class="progress-bar @(embeddedCount == totalCount ? "bg-success" : "bg-warning")"
+                     style="width:@coveragePercent%">@coveragePercent%</div>
+            </div>
+            <p class="form-text mt-2 mb-0">Embedding backend: <strong>@embeddingProviderLabel</strong></p>
+        </SettingsCard>
+
+        <SettingsCard Title="Provider health">
+            @if (healthRows.Count == 0)
+            {
+                <p class="text-muted mb-0">No calls recorded yet — the bot writes a row the first time it runs a chat or embedding call for this guild.</p>
+            }
+            else
+            {
+                @foreach (var kind in new[] { AiChatProviderCallKind.Chat, AiChatProviderCallKind.Embed })
+                {
+                    var row = healthRows.FirstOrDefault(h => h.Kind == kind);
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <strong>@(kind == AiChatProviderCallKind.Chat ? "Chat" : "Embeddings")</strong>
+                            @if (row is null)
+                            {
+                                <span class="badge bg-secondary">no data</span>
+                            }
+                            else if (IsDegraded(row))
+                            {
+                                <span class="badge bg-danger">degraded</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">healthy</span>
+                            }
+                        </div>
+                        @if (row is not null)
+                        {
+                            <ul class="list-unstyled small mb-0">
+                                <li>Model: <code>@(row.Model ?? "—")</code></li>
+                                <li>Last success: @Ago(row.LastSuccessAt)</li>
+                                <li>
+                                    Last error: @Ago(row.LastErrorAt)
+                                    @if (!string.IsNullOrWhiteSpace(row.LastErrorMessage))
+                                    {
+                                        <div class="text-danger"><code>@row.LastErrorMessage</code></div>
+                                    }
+                                </li>
+                            </ul>
+                        }
+                    </div>
+                }
+            }
+        </SettingsCard>
+
+        <SettingsCard Title="Knowledge & listen channels">
+            @if (tierRows.Count == 0)
+            {
+                <p class="text-muted mb-0">No channels configured yet.</p>
+            }
+            else
+            {
+                <QuickGrid Class="table" Items="tierRows.AsQueryable()">
+                    <PropertyColumn Property="r => r.Tier" Title="Tier" Sortable="true" />
+                    <PropertyColumn Property="r => r.Channel" Title="Channel" Sortable="true" />
+                    <PropertyColumn Property="r => r.Audience" Title="Audience" Sortable="true" />
+                </QuickGrid>
+            }
+        </SettingsCard>
+    </div>
+}
+
+@code {
+    private bool loading = true;
+
+    private int totalCount;
+    private int embeddedCount;
+    private int coveragePercent;
+    private string embeddingProviderLabel = "";
+    private IReadOnlyList<AiChatProviderHealth> healthRows = [];
+    private List<TierRow> tierRows = [];
+
+    private sealed record TierRow(string Tier, string Channel, string Audience);
+
+    // Tier feature → display label, in display order (preferred → normal → last resort → listen).
+    private static readonly (GuildFeature Feature, string Label)[] Tiers =
+    [
+        (GuildFeature.AiChatKnowledgePreferred, "Knowledge — preferred"),
+        (GuildFeature.AiChatKnowledge, "Knowledge — normal"),
+        (GuildFeature.AiChatKnowledgeLastResort, "Knowledge — last resort"),
+        (GuildFeature.AiChat, "Listen"),
+    ];
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        loading = true;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        totalCount = await db.AiChatIndexedMessages.CountAsync(m => m.GuildId == ParsedGuildId);
+        embeddedCount = await db.AiChatIndexedMessages.CountAsync(m => m.GuildId == ParsedGuildId && m.Embedding != null);
+        coveragePercent = totalCount == 0 ? 100 : (int)Math.Round(100.0 * embeddedCount / totalCount);
+
+        var tierFeatures = Tiers.Select(t => t.Feature).ToArray();
+        var channelRows = await db.GuildFeatureChannels
+            .Where(c => c.GuildId == ParsedGuildId && tierFeatures.Contains(c.Feature))
+            .ToListAsync();
+
+        var embeddingProvider = await Settings.GetTextAsync(ParsedGuildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.EmbeddingProvider);
+        embeddingProviderLabel = string.IsNullOrWhiteSpace(embeddingProvider) ? "Ollama (default)" : embeddingProvider;
+
+        healthRows = await HealthService.GetAsync(ParsedGuildId);
+
+        // Resolve channel/category ids to names for the tier table.
+        var names = new Dictionary<ulong, string>();
+        foreach (var ch in await DiscordData.GetChannelsAsync(ParsedGuildId))
+            names[ch.Id] = ch.Name ?? ch.Id.ToString();
+        foreach (var cat in await DiscordData.GetCategoriesAsync(ParsedGuildId))
+            names[cat.Id] = $"{cat.Name} (category)";
+
+        tierRows = (from tier in Tiers
+                    from c in channelRows.Where(c => c.Feature == tier.Feature)
+                    select new TierRow(tier.Label, names.GetValueOrDefault(c.ChannelId, c.ChannelId.ToString()), c.Audience.ToString()))
+                   .ToList();
+
+        loading = false;
+    }
+
+    private static bool IsDegraded(AiChatProviderHealth row) =>
+        row.LastErrorAt is { } e && (row.LastSuccessAt is null || e > row.LastSuccessAt);
+
+    private static string Ago(DateTimeOffset? when) =>
+        when is { } w ? $"{w:yyyy-MM-dd HH:mm} UTC" : "—";
+}

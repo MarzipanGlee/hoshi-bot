@@ -21,7 +21,10 @@ public class AiChatFeature : IFeatureModule
     public Type EditorComponentType => typeof(AiChatEditor);
 
     public IReadOnlyList<FeatureExtraPage> ExtraPages =>
-        [new FeatureExtraPage("memories", "Memories", typeof(MemoryAdmin))];
+    [
+        new FeatureExtraPage("memories", "Memories", typeof(MemoryAdmin)),
+        new FeatureExtraPage("health", "Health", typeof(AiChatHealth)),
+    ];
 
     // The AI provider/key/model now live in the guild-wide AiBackend feature (declared as a
     // dependency, so its "not configured" state surfaces via the dependency badge). AiChat's own

@@ -37,6 +37,7 @@ public partial class AiChatService(
     MemoryService memoryService,
     AiChatEmbeddingService embeddingService,
     GuildAllianceService allianceService,
+    AiChatHealthService healthService,
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
@@ -335,6 +336,15 @@ public partial class AiChatService(
                     if (answer is not null)
                         model = fallbackModel;
                 }
+
+                // Record chat backend health (main answer generation) so an outage/overload is
+                // visible on the Web admin health page. A non-null answer — including the [NO_ANSWER]
+                // sentinel — means the model responded (success); null means the generation failed.
+                if (answer is not null)
+                    await healthService.RecordSuccessAsync(guildId, AiChatProviderCallKind.Chat, model, cancellationToken);
+                else
+                    await healthService.RecordErrorAsync(guildId, AiChatProviderCallKind.Chat, model,
+                        overloaded ? "Model overloaded / timed out" : "Generation returned no text", cancellationToken);
 
                 // Both the main model and the flash-lite failover came up empty because of a transient
                 // overload/timeout (not a genuine "no answer") → give a friendly in-character "busy"

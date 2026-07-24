@@ -30,6 +30,7 @@ public partial class AiChatIndexService(
     GuildFeatureService featureService,
     GuildFeatureChannelService channelService,
     AiChatEmbeddingService embeddingService,
+    AiChatHealthService healthService,
     IConfiguration configuration,
     ILogger<AiChatIndexService> logger)
 {
@@ -446,15 +447,16 @@ public partial class AiChatIndexService(
             pending = pending.Take(maxPerRun).ToList();
 
         var embedded = 0;
+        string? failMessage = null;
         for (var i = 0; i < pending.Count; i += EmbedBatchSize)
         {
             var batch = pending.Skip(i).Take(EmbedBatchSize).ToList();
-            var vectors = await embeddingService.EmbedBatchAsync(guildId, batch.Select(m => m.Content).ToList(), cancellationToken);
+            var result = await embeddingService.EmbedBatchDetailedAsync(guildId, batch.Select(m => m.Content).ToList(), cancellationToken);
 
             var any = false;
             for (var j = 0; j < batch.Count; j++)
             {
-                if (vectors[j] is { } v)
+                if (result.Vectors[j] is { } v)
                 {
                     batch[j].Embedding = v;
                     batch[j].EmbeddingModel = model;
@@ -467,8 +469,19 @@ public partial class AiChatIndexService(
 
             // Whole batch failed ⇒ embedder is down; stop hammering it this run.
             if (!any)
+            {
+                failMessage = result.Error;
                 break;
+            }
         }
+
+        // Record backend health so an operator sees an embed outage (e.g. a quota/billing failure)
+        // from the Web admin instead of the logs. Both a success and a failure can be recorded in one
+        // run (some batches embedded, then a later one hit a quota) — they set different fields.
+        if (embedded > 0)
+            await healthService.RecordSuccessAsync(guildId, AiChatProviderCallKind.Embed, model, cancellationToken);
+        if (failMessage is not null)
+            await healthService.RecordErrorAsync(guildId, AiChatProviderCallKind.Embed, model, failMessage, cancellationToken);
 
         if (embedded > 0 || capped)
             logger.LogInformation(

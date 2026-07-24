@@ -78,6 +78,7 @@ builder.Services.AddScoped<GuildFeatureSettingsService>();
 builder.Services.AddScoped<MemberNoteService>();
 builder.Services.AddScoped<GuildFeatureChannelService>();
 builder.Services.AddScoped<GuildAllianceService>();
+builder.Services.AddScoped<AiChatHealthService>();
 builder.Services.AddScoped<CommandBridgeHubService>();
 builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();

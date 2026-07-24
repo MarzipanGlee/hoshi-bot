@@ -16,11 +16,11 @@ public class OllamaEmbeddingProvider(IHttpClientFactory httpClientFactory, ILogg
     // OllamaApiClient does not own/dispose an externally supplied HttpClient.
     private OllamaApiClient CreateClient() => new(httpClientFactory.CreateClient(nameof(OllamaClient)));
 
-    public async Task<IReadOnlyList<Vector?>> EmbedBatchAsync(
+    public async Task<EmbeddingBatchResult> EmbedBatchAsync(
         string model, string? apiKey, IReadOnlyList<string> texts, CancellationToken cancellationToken)
     {
         if (texts.Count == 0)
-            return [];
+            return new EmbeddingBatchResult([], null);
 
         try
         {
@@ -30,23 +30,22 @@ public class OllamaEmbeddingProvider(IHttpClientFactory httpClientFactory, ILogg
             var embeddings = response?.Embeddings;
             if (embeddings is null || embeddings.Count != texts.Count)
             {
-                logger.LogWarning(
-                    "Ollama embed returned {Got} vectors for {Expected} inputs (model {Model})",
-                    embeddings?.Count.ToString() ?? "null", texts.Count, model);
-                return new Vector?[texts.Count];
+                var message = $"Ollama embed returned {embeddings?.Count.ToString() ?? "null"} vectors for {texts.Count} inputs (model {model})";
+                logger.LogWarning("{Message}", message);
+                return new EmbeddingBatchResult(new Vector?[texts.Count], message);
             }
 
             var result = new Vector?[texts.Count];
             for (var i = 0; i < texts.Count; i++)
                 result[i] = new Vector(embeddings[i]);
-            return result;
+            return new EmbeddingBatchResult(result, null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // Model not pulled, server down, dimension mismatch, etc. — the line to check when
             // semantic search silently stays FTS-only.
             logger.LogWarning(ex, "Ollama embed failed (model {Model}, {Count} inputs): {Error}", model, texts.Count, ex.Message);
-            return new Vector?[texts.Count];
+            return new EmbeddingBatchResult(new Vector?[texts.Count], ex.Message);
         }
     }
 }

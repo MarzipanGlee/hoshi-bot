@@ -103,6 +103,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<GuildMemory> GuildMemories => Set<GuildMemory>();
 
+    public DbSet<AiChatProviderHealth> AiChatProviderHealths => Set<AiChatProviderHealth>();
+
     public DbSet<ForwardedAnnouncement> ForwardedAnnouncements => Set<ForwardedAnnouncement>();
 
     public DbSet<PlayerLinkReview> PlayerLinkReviews => Set<PlayerLinkReview>();

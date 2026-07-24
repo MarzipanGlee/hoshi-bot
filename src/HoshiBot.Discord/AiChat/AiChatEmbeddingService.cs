@@ -78,14 +78,23 @@ public class AiChatEmbeddingService(
         return results.Count > 0 ? results[0] : null;
     }
 
-    public async Task<IReadOnlyList<Vector?>> EmbedBatchAsync(ulong guildId, IReadOnlyList<string> texts, CancellationToken cancellationToken)
+    // Vectors-only — the common case for every caller that just wants embeddings (degrading to
+    // all-null on failure). EmbedPendingAsync uses EmbedBatchDetailedAsync instead to also record
+    // provider health.
+    public async Task<IReadOnlyList<Vector?>> EmbedBatchAsync(ulong guildId, IReadOnlyList<string> texts, CancellationToken cancellationToken) =>
+        (await EmbedBatchDetailedAsync(guildId, texts, cancellationToken)).Vectors;
+
+    // The full outcome including the provider's error message on failure (null on success), so the
+    // caller can record backend health. Returns a no-error all-null result when embeddings are
+    // disabled for the guild (that's an intentional off state, not a failure).
+    public async Task<EmbeddingBatchResult> EmbedBatchDetailedAsync(ulong guildId, IReadOnlyList<string> texts, CancellationToken cancellationToken)
     {
         if (texts.Count == 0)
-            return [];
+            return new EmbeddingBatchResult([], null);
 
         var resolved = await ResolveAsync(guildId);
         if (!resolved.Enabled)
-            return new Vector?[texts.Count];
+            return new EmbeddingBatchResult(new Vector?[texts.Count], null);
 
         return await resolved.Provider.EmbedBatchAsync(resolved.Model, resolved.ApiKey, texts, cancellationToken);
     }

@@ -78,6 +78,7 @@ builder.Services.AddScoped<GuildFeatureSettingsService>();
 builder.Services.AddScoped<MemoryService>();
 builder.Services.AddScoped<GuildFeatureChannelService>();
 builder.Services.AddScoped<GuildAllianceService>();
+builder.Services.AddScoped<AiChatHealthService>();
 builder.Services.AddScoped<PlayerLinkService>();
 builder.Services.AddScoped<GuildAccessService>();
 builder.Services.AddScoped<DiscordUserGuildsService>();

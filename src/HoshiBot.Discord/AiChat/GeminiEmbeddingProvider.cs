@@ -25,16 +25,17 @@ public class GeminiEmbeddingProvider(ILogger<GeminiEmbeddingProvider> logger) : 
     // degrade-to-FTS-only path rather than hang an index/query-time embed call.
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
-    public async Task<IReadOnlyList<Vector?>> EmbedBatchAsync(
+    public async Task<EmbeddingBatchResult> EmbedBatchAsync(
         string model, string? apiKey, IReadOnlyList<string> texts, CancellationToken cancellationToken)
     {
         if (texts.Count == 0)
-            return [];
+            return new EmbeddingBatchResult([], null);
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            logger.LogWarning("Gemini embedding requested without an API key; degrading to FTS-only.");
-            return new Vector?[texts.Count];
+            const string message = "Gemini embedding requested without an API key; degrading to FTS-only.";
+            logger.LogWarning(message);
+            return new EmbeddingBatchResult(new Vector?[texts.Count], message);
         }
 
         var client = ClientsByApiKey.GetOrAdd(apiKey, key => new Client(apiKey: key));
@@ -54,10 +55,9 @@ public class GeminiEmbeddingProvider(ILogger<GeminiEmbeddingProvider> logger) : 
             var embeddings = response?.Embeddings;
             if (embeddings is null || embeddings.Count != texts.Count)
             {
-                logger.LogWarning(
-                    "Gemini embed returned {Got} vectors for {Expected} inputs (model {Model})",
-                    embeddings?.Count.ToString() ?? "null", texts.Count, model);
-                return new Vector?[texts.Count];
+                var message = $"Gemini embed returned {embeddings?.Count.ToString() ?? "null"} vectors for {texts.Count} inputs (model {model})";
+                logger.LogWarning("{Message}", message);
+                return new EmbeddingBatchResult(new Vector?[texts.Count], message);
             }
 
             var result = new Vector?[texts.Count];
@@ -65,12 +65,12 @@ public class GeminiEmbeddingProvider(ILogger<GeminiEmbeddingProvider> logger) : 
                 result[i] = embeddings[i].Values is { Count: > 0 } values
                     ? new Vector(values.Select(v => (float)v).ToArray())
                     : null;
-            return result;
+            return new EmbeddingBatchResult(result, null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Gemini embed failed (model {Model}, {Count} inputs): {Error}", model, texts.Count, ex.Message);
-            return new Vector?[texts.Count];
+            return new EmbeddingBatchResult(new Vector?[texts.Count], ex.Message);
         }
     }
 }
