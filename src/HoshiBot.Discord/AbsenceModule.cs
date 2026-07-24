@@ -21,8 +21,8 @@ public class AbsenceModule(AbsenceService absenceService, GuildFeatureService fe
         AbsenceVisibility visibility = AbsenceVisibility.Public) =>
         Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Absences))
-                return GuildFeatureService.DisabledMessage(GuildFeature.Absences);
+            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.Absences) is { } msg)
+                return msg;
 
             if (hours <= 0)
                 return "Hours must be greater than 0.";

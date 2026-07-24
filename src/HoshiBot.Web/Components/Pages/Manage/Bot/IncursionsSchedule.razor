@@ -96,17 +96,14 @@ else
     {
         await using var db = await DbFactory.CreateDbContextAsync();
 
+        // Load the existing rows once (tracked) instead of a FirstOrDefaultAsync per region.
+        var existingByRegion = await db.IncursionsRegionDefaults.ToDictionaryAsync(d => d.RegionId);
         foreach (var row in regionRows)
         {
-            var existing = await db.IncursionsRegionDefaults.FirstOrDefaultAsync(d => d.RegionId == row.RegionId);
-            if (existing is null)
-            {
-                db.IncursionsRegionDefaults.Add(new IncursionsRegionDefault { RegionId = row.RegionId, DefaultStartTimeUtc = row.StartTime });
-            }
-            else
-            {
+            if (existingByRegion.TryGetValue(row.RegionId, out var existing))
                 existing.DefaultStartTimeUtc = row.StartTime;
-            }
+            else
+                db.IncursionsRegionDefaults.Add(new IncursionsRegionDefault { RegionId = row.RegionId, DefaultStartTimeUtc = row.StartTime });
         }
 
         var settings = await db.StfcNewsSettings.FirstOrDefaultAsync(s => s.Id == 1);

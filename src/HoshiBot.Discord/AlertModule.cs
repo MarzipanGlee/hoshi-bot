@@ -18,8 +18,8 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
         string? attacker = null) =>
         Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts))
-                return GuildFeatureService.DisabledMessage(GuildFeature.RaidAlerts);
+            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts) is { } msg)
+                return msg;
 
             return await alertService.ReportRaidAsync(Context.Guild!.Id, Context.User.Id, target.Id, system, server, attacker);
         });
@@ -37,8 +37,8 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
         [SlashCommandParameter(AutocompleteProviderType = typeof(StationHousingSystemAutocompleteProvider))] string system) =>
         Context.Interaction.SendDelayedResponseAsync(async () =>
         {
-            if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders))
-                return GuildFeatureService.DisabledMessage(GuildFeature.ShieldReminders);
+            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
+                return msg;
 
             return await alertService.SetShieldReminderAsync(Context.Guild!.Id, Context.User.Id, duration, system);
         });

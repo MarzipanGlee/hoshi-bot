@@ -32,6 +32,13 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         return GuildFeatureAudiences.EnumerateFlags(relevant).Any(enabled.Contains);
     }
 
+    // Gate helper for interaction handlers: null when the feature is enabled for this guild, else the
+    // localized "disabled" message to return. Collapses the repeated
+    // `if (!await IsEnabledAsync(id, X)) return DisabledMessage(X)` guard — and its duplicated feature
+    // arg — to `if (await EnsureEnabledAsync(id, X) is { } msg) return <wrap>(msg)`.
+    public async Task<string?> EnsureEnabledAsync(ulong guildId, GuildFeature feature) =>
+        await IsEnabledAsync(guildId, feature) ? null : DisabledMessage(feature);
+
     // Distinct audiences enabled for this feature (across all alliances for the Alliance
     // audience). Alliance identity is not distinguished here — use GetEnabledAllianceIdsAsync
     // for that; this answers "is the feature on for any scope of this audience?".

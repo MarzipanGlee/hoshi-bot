@@ -52,8 +52,8 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("raid-report")]
     public async Task<InteractionMessageProperties> ReportRaidPrompt()
     {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts))
-            return EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.RaidAlerts));
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts) is { } msg)
+            return EphemeralReply.Of(msg);
 
         return await EphemeralEmbedAsync(
             "Wähle den Commander, der geraidet wird.\n-# Tipp: Wähle Dich selbst, um den Ablauf unverbindlich auszuprobieren.",
@@ -81,8 +81,8 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("shield-reminder-setup")]
     public async Task<InteractionCallbackProperties> ShieldReminderSetup()
     {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders))
-            return InteractionCallback.Message(EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.ShieldReminders)));
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
+            return InteractionCallback.Message(EphemeralReply.Of(msg));
 
         return ShieldReminderModal();
     }
@@ -236,8 +236,8 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("roe-violation-report")]
     public async Task<InteractionMessageProperties> ReportRoeViolationPrompt()
     {
-        if (!await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.RoeViolationReports))
-            return EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.RoeViolationReports));
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RoeViolationReports) is { } msg)
+            return EphemeralReply.Of(msg);
 
         var buttons = new List<ButtonProperties>
         {
