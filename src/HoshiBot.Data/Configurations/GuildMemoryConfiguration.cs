@@ -16,9 +16,10 @@ public class GuildMemoryConfiguration : IEntityTypeConfiguration<GuildMemory>
         // Member-scoped recall looks memories up by the person key (Phase 3).
         builder.HasIndex(m => new { m.GuildId, m.SubjectPersonKey });
 
-        // Fixed 768-dim embedding (embeddinggemma), same as the knowledge index. No ANN index for
-        // v1 — a sequential cosine scan is fine at per-guild memory scale; revisit with HNSW if a
-        // guild's memory grows large.
+        // Fixed 768-dim embedding (embeddinggemma), same as the knowledge index. No ANN index yet —
+        // a sequential cosine scan is fine at current memory scale (a handful of rows per guild).
+        // When it grows large, copy the knowledge index's HNSW setup (see
+        // AiChatIndexedMessageConfiguration + the AddAiChatEmbeddingHnswIndex migration).
         builder.Property(m => m.Embedding).HasColumnType("vector(768)");
 
         builder.HasOne(m => m.Guild)
