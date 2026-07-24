@@ -15,56 +15,21 @@
     "just changed" announcement.
 </p>
 
-<ButtonUpload TValue="string" Accept=".json" IsDisabled="importing"
-              BrowserButtonText="Choose file..." OnAllFileUploaded="OnFileUploadedAsync" />
-
-@if (importing)
-{
-    <p class="mt-3">Importing...</p>
-}
-
-@if (error is not null)
-{
-    <p class="text-danger mt-3">@error</p>
-}
-
-@if (result is not null)
-{
-    <p class="mt-3">
-        Added @result.Added, updated @result.Updated. Skipped @result.UnknownServer (unknown server).
-    </p>
-}
+<ImportForm TResult="StfcServerStatusImportResult" Import="ImportAsync">
+    <ResultTemplate Context="r">
+        <p class="mt-3">
+            Added @r.Added, updated @r.Updated. Skipped @r.UnknownServer (unknown server).
+        </p>
+    </ResultTemplate>
+</ImportForm>
 
 @code {
-    private bool importing;
-    private string? error;
-    private StfcServerStatusImportResult? result;
-
-    private async Task OnFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
+    private async Task<StfcServerStatusImportResult> ImportAsync(IReadOnlyCollection<UploadFile> files)
     {
-        error = null;
-        result = null;
-        var file = files.FirstOrDefault()?.File;
-        if (file is null)
-            return;
-
-        importing = true;
-        StateHasChanged();
-
-        try
-        {
-            var entries = await ParseFileAsync(file);
-            result = await ImportService.ImportAsync(entries);
-        }
-        catch (Exception ex)
-        {
-            error = $"Import failed: {ex.Message}";
-        }
-        finally
-        {
-            importing = false;
-            StateHasChanged();
-        }
+        var file = files.FirstOrDefault()?.File
+            ?? throw new InvalidOperationException("No file was uploaded.");
+        var entries = await ParseFileAsync(file);
+        return await ImportService.ImportAsync(entries);
     }
 
     private static async Task<List<StfcServerStatusImportEntry>> ParseFileAsync(IBrowserFile file)

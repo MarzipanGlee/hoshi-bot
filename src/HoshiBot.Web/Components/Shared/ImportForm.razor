@@ -1,0 +1,57 @@
+@* The file-upload + import-status shell shared by the Stfc/**/Import pages: a ButtonUpload plus the
+   Importing… / error / result state machine. The page supplies the parse+import work (Import) and how
+   to render its result (ResultTemplate); the busy/error/result plumbing lives here. *@
+@using Microsoft.AspNetCore.Components.Forms
+@typeparam TResult
+
+<ButtonUpload TValue="string" Accept="@Accept" IsDisabled="importing"
+              BrowserButtonText="Choose file..." OnAllFileUploaded="RunAsync" />
+
+@if (importing)
+{
+    <p class="mt-3">Importing...</p>
+}
+@if (error is not null)
+{
+    <p class="text-danger mt-3">@error</p>
+}
+@if (result is not null)
+{
+    @ResultTemplate(result)
+}
+
+@code {
+    [Parameter] public string Accept { get; set; } = ".json";
+
+    // Parses the uploaded file(s) and performs the import, returning its result record.
+    [Parameter, EditorRequired] public Func<IReadOnlyCollection<UploadFile>, Task<TResult>> Import { get; set; } = default!;
+
+    // Renders the import result summary (the page owns the wording).
+    [Parameter, EditorRequired] public RenderFragment<TResult> ResultTemplate { get; set; } = default!;
+
+    private bool importing;
+    private string? error;
+    private TResult? result;
+
+    private async Task RunAsync(IReadOnlyCollection<UploadFile> files)
+    {
+        error = null;
+        result = default;
+        importing = true;
+        StateHasChanged();
+
+        try
+        {
+            result = await Import(files);
+        }
+        catch (Exception ex)
+        {
+            error = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            importing = false;
+            StateHasChanged();
+        }
+    }
+}
