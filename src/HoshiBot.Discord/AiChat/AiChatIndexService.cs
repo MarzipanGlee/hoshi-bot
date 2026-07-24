@@ -162,13 +162,18 @@ public partial class AiChatIndexService(
         // thread title ("parent / Die Unsterblichkeits-Crew"). A forum post's title is often its most
         // important term and frequently appears nowhere in the body, so without this a title-only
         // query (e.g. "Unsterblichkeits-Crew") can't retrieve the post at all — only point at the
-        // channel. Applies to existing rows immediately (no re-index); the vector leg gets the same
+        // channel. The channel name is weighted 'A' and the body 'B' (setweight) so a TITLE match
+        // ranks a post above rows that merely match a common query word in their body — otherwise a
+        // specific post loses to recent/Preferred general chatter that happens to share a word like
+        // "crew". Applies to existing rows immediately (no re-index); the vector leg gets the same
         // title context via EmbedPendingAsync's embed text.
         return await db.AiChatIndexedMessages
             .Where(m => m.GuildId == guildId
-                && EF.Functions.ToTsVector(language, m.Content + " " + (m.ChannelName ?? ""))
+                && EF.Functions.ToTsVector(language, m.ChannelName ?? "").SetWeight('A')
+                    .Concat(EF.Functions.ToTsVector(language, m.Content).SetWeight('B'))
                     .Matches(EF.Functions.WebSearchToTsQuery(language, search)))
-            .OrderByDescending(m => EF.Functions.ToTsVector(language, m.Content + " " + (m.ChannelName ?? ""))
+            .OrderByDescending(m => EF.Functions.ToTsVector(language, m.ChannelName ?? "").SetWeight('A')
+                .Concat(EF.Functions.ToTsVector(language, m.Content).SetWeight('B'))
                 .Rank(EF.Functions.WebSearchToTsQuery(language, search)))
             .ThenByDescending(m => m.CreatedAt)
             .Take(CandidatePoolSize)
