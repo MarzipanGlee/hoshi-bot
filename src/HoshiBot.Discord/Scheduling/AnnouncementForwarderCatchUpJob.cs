@@ -24,7 +24,6 @@ namespace HoshiBot.Discord.Scheduling;
 // forward the same missed message before either commits its tracking row.
 [DisallowConcurrentExecution]
 public class AnnouncementForwarderCatchUpJob(
-    HoshiBotDbContext db,
     GuildFeatureService featureService,
     GuildFeatureChannelService channelService,
     GuildFeatureSettingsService settingsService,

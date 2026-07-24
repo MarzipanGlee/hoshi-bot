@@ -18,7 +18,6 @@ namespace HoshiBot.Discord.Scheduling;
 // (GuildId, DiscordUserId) index (or double-insert a UserPlayer link).
 [DisallowConcurrentExecution]
 public class PlayerLinkSyncJob(
-    HoshiBotDbContext db,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     PlayerLinkService playerLinkService,

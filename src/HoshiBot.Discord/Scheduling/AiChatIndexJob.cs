@@ -17,7 +17,6 @@ namespace HoshiBot.Discord.Scheduling;
 // first-sight-insert race class as the STFC notify jobs.
 [DisallowConcurrentExecution]
 public class AiChatIndexJob(
-    HoshiBotDbContext db,
     AiChatIndexService indexService,
     GuildFeatureService featureService,
     ILogger<AiChatIndexJob> logger) : IJob
