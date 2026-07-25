@@ -64,6 +64,11 @@
                     }
                 }
 
+                @* Bot-wide admin sections (Bot settings, STFC Catalog, raw Database) are global-admin
+                   only. The pages themselves already enforce the GlobalAdmin policy server-side; this
+                   also hides the whole group from regular guild admins so it isn't just a dead link. *@
+                <AuthorizeView Policy="GlobalAdmin" Context="adminAuth">
+                    <Authorized>
                 <NavMenuGroup Title="Bot" Icon="oi-shield" Active="@IsGroupActive(BotHrefs)">
                     <div class="nav-item">
                         <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/bot/global-admins">Global Admins</NavLink>
@@ -195,6 +200,8 @@
                         <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/stfc-event-date-confirmations">STFC Event Date Confirmations</NavLink>
                     </div>
                 </NavMenuGroup>
+                    </Authorized>
+                </AuthorizeView>
             </Authorized>
         </AuthorizeView>
     </nav>

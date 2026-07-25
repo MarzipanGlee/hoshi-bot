@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Claims;
 using HoshiBot.Data;
 using HoshiBot.Web.Services;
@@ -64,8 +65,20 @@ public class GuildAdminHandler(
         var memberRoleIds = await cache.GetOrCreateAsync($"discord-member-roles:{guildId}:{userId}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-            var member = await botRestClient.GetGuildUserAsync(guildId, userId);
-            return member.RoleIds;
+            try
+            {
+                var member = await botRestClient.GetGuildUserAsync(guildId, userId);
+                return member.RoleIds;
+            }
+            catch (RestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+            {
+                // The user simply isn't a member of this guild (404 "Unknown Member"), or the bot
+                // can't see them (403) — either way they hold none of its admin roles. Return "no
+                // roles" instead of letting the exception bubble up: GuildAccessService authorizes
+                // the user against EVERY bot guild, and they aren't a member of most of them, so an
+                // unhandled 404 here broke the whole Manage/Dashboard page.
+                return [];
+            }
         });
 
         if (memberRoleIds is not null && memberRoleIds.Any(allowedRoleIds.Contains))
