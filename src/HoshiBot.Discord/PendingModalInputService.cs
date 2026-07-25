@@ -13,8 +13,10 @@ public class PendingModalInputService(HoshiBotDbContext db)
 {
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(15);
 
+    // ↩️ rather than 🔙 — the "BACK" glyph renders as small dark text that washes out on the grey
+    // secondary button; a plain return arrow reads clearly.
     public static ButtonProperties BackButton(int id) =>
-        new($"modal-retry-back:{id}", "Zurück", EmojiProperties.Standard("🔙"), ButtonStyle.Secondary);
+        new($"modal-retry-back:{id}", "Zurück", EmojiProperties.Standard("↩️"), ButtonStyle.Secondary);
 
     public static ButtonProperties CancelButton(int id) =>
         new($"modal-retry-cancel:{id}", "Abbrechen", EmojiProperties.Standard("✖️"), ButtonStyle.Danger);

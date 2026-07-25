@@ -97,7 +97,9 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
             }
 
             var result = await alertService.SetShieldReminderAsync(Context.Guild!.Id, Context.User.Id, duration, system);
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            // Present the confirmation as a branded embed like every other real bot message, not plain text.
+            var confirmation = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result);
+            return m => { m.Content = ""; m.Embeds = [confirmation]; m.Components = []; };
         }
 
         // First submit is opened from the shared hub button → post a NEW ephemeral (never touch the
