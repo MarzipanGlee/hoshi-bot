@@ -53,7 +53,10 @@
 
                     @foreach (var audience in NonAllianceAudienceSections)
                     {
-                        if (guildAudiences != GuildAudience.None && !guildAudiences.HasFlag(audience))
+                        // Only show an audience group the guild actually serves. If it serves none
+                        // (Audiences == None), none of these show — the Guild group is always present
+                        // as the baseline, so the nav is never empty.
+                        if (!guildAudiences.HasFlag(audience))
                             continue;
 
                         <NavMenuGroup Title="@AudienceDisplay.Labels(audience).First()" Icon="@AudienceDisplay.Icon(audience)" Active="@IsAudienceFeaturesActive(audience)">
