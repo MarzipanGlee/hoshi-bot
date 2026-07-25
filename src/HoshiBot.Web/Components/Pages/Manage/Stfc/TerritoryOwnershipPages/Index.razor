@@ -1,5 +1,6 @@
 @page "/manage/stfc/territory-ownership"
 @inherits DbContextPageBase
+@inject StfcTerritoryOwnershipSyncService SyncService
 
 <PageTitle>Territory Ownership</PageTitle>
 
@@ -10,7 +11,38 @@
     <a href="manage/stfc/territory-ownership/import">Import</a>
 </p>
 
-<QuickGrid Class="table" Items="Context.StfcTerritoryOwnerships.Include(o => o.Territory).Include(o => o.Server).Include(o => o.Server.Region).Include(o => o.Alliance).OrderBy(o => o.Territory.Name).ThenBy(o => o.Server.Name)" Pagination="pagination">
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <button class="btn btn-primary" @onclick="SyncNow" disabled="@syncing">
+                @if (syncing)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    <span>Syncing…</span>
+                }
+                else
+                {
+                    <span>Sync from stfc.pro</span>
+                }
+            </button>
+            <span class="text-muted">Fetches the live ownership feed and upserts it. Runs automatically every hour, too.</span>
+        </div>
+
+        @if (error is not null)
+        {
+            <p class="text-danger mt-3 mb-0">@error</p>
+        }
+        else if (result is not null)
+        {
+            <p class="mt-3 mb-0">
+                Added @result.Added, updated @result.Updated, removed @result.Removed.
+                Skipped @result.UnknownTerritory unknown territory, @result.UnresolvedTag unresolved tag.
+            </p>
+        }
+    </div>
+</div>
+
+<QuickGrid Class="table" Items="Context.StfcTerritoryOwnerships.AsNoTracking().Include(o => o.Territory).Include(o => o.Server).Include(o => o.Server.Region).Include(o => o.Alliance).OrderBy(o => o.Territory.Name).ThenBy(o => o.Server.Name)" Pagination="pagination">
     <PropertyColumn Property="ownership => ownership.Territory.Name" Title="Territory" Sortable="true" />
     @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
        (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
@@ -31,4 +63,27 @@
 
 @code {
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
+
+    private bool syncing;
+    private StfcTerritoryOwnershipImportResult? result;
+    private string? error;
+
+    private async Task SyncNow()
+    {
+        syncing = true;
+        error = null;
+        result = null;
+        try
+        {
+            result = await SyncService.SyncFromSourceAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Sync failed: {ex.Message}";
+        }
+        finally
+        {
+            syncing = false;
+        }
+    }
 }

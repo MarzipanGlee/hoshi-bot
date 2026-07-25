@@ -46,15 +46,25 @@ builder.Services.AddHttpClient("DiscordUserApi", client =>
 builder.Services.AddHttpClient(nameof(StfcSystemSyncService));
 builder.Services.AddHostedService<StfcSystemSyncService>();
 builder.Services.AddHostedService<TerritoryServiceAutoSyncService>();
+builder.Services.AddHostedService<TerritoryOwnershipAutoSyncService>();
 
-// territory.lol shares stfc.pro's WordPress bot-protection (403s a User-Agent-less client), so a
-// realistic browser UA is required — same gotcha as the Host's news/release clients.
+// territory.lol / api.stfc.pro can 403 a User-Agent-less client (bot protection), so a realistic
+// browser UA is required — same gotcha as the Host's news/release clients.
+const string browserUserAgent =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+
 var territoryLolBaseUrl = builder.Configuration["TerritoryLol:BaseUrl"] ?? "https://territory.lol/";
 builder.Services.AddHttpClient(nameof(TerritoryServiceSyncService), client =>
 {
     client.BaseAddress = new Uri(territoryLolBaseUrl);
-    client.DefaultRequestHeaders.UserAgent.ParseAdd(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(browserUserAgent);
+});
+
+var stfcProBaseUrl = builder.Configuration["StfcPro:BaseUrl"] ?? "https://api.stfc.pro/";
+builder.Services.AddHttpClient(nameof(StfcTerritoryOwnershipSyncService), client =>
+{
+    client.BaseAddress = new Uri(stfcProBaseUrl);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(browserUserAgent);
 });
 
 builder.Services.AddSingleton(new RestClient(new BotToken(builder.Configuration["Discord:Token"]!)));
@@ -99,6 +109,7 @@ builder.Services.AddScoped<StfcAllianceImportService>();
 builder.Services.AddScoped<StfcCatalogImportService>();
 builder.Services.AddScoped<StfcServerStatusImportService>();
 builder.Services.AddScoped<StfcTerritoryOwnershipImportService>();
+builder.Services.AddScoped<StfcTerritoryOwnershipSyncService>();
 builder.Services.AddScoped<TerritoryServiceSyncService>();
 builder.Services.AddScoped<CurrentGuildContext>();
 builder.Services.AddScoped<CurrentAllianceContext>();

@@ -467,6 +467,18 @@ unchanged) and fetches `service_slots` only for servers with a linked alliance.
   Ingesting it would let the TC scheduler move off the single-weekday model to real per-region
   windows — a larger change touching `TerritoryCaptureScheduler`.
 
+## Territory ownership auto-sync — ✅ done (2026-07-25)
+
+Territory ownership (`StfcTerritoryOwnership`) now refreshes automatically instead of only via the
+file-upload Import page: `StfcTerritoryOwnershipSyncService` fetches the live feed
+`https://api.stfc.pro/stfc_territories` (a flat `[{server, territory, tag, region}]` array; the same feed
+territory.lol uses) and hands it to the existing `ImportAsync` upsert. `TerritoryOwnershipAutoSyncService`
+(hosted `BackgroundService` in `HoshiBot.Web`) runs it on startup then hourly, and a "Sync from stfc.pro"
+button on `/manage/stfc/territory-ownership` triggers it manually. The file-upload Import page stays as a
+fallback. Note: the old "stfc.pro `/api/` is robots-disallowed" caveat (see `StfcServerStatus`) was about
+the main `stfc.pro` site — the **`api.stfc.pro` subdomain is open** (200, no robots restrictions), so the
+seed-only `StfcServerStatus`/`StfcEventStatus` could later move to this same live source too.
+
 ## "Powered by" attribution for external-data features — ✅ Web done (2026-07-25)
 
 Web admin surfaces backed by third-party data now show a small "Powered by {source}" credit (linked).
