@@ -31,6 +31,8 @@
 
 <Paginator State="pagination" />
 
+<PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
+
 @code {
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
 }

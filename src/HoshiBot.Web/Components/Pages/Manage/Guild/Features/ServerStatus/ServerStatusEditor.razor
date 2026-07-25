@@ -11,6 +11,8 @@
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.ServerStatus" Audience="ResolvedAudience" />
 
+<PoweredBy For="@(new[] { typeof(StfcServerStatus) })" />
+
 @code {
     protected override GuildFeature Feature => GuildFeature.ServerStatus;
 }

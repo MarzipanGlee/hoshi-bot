@@ -149,3 +149,14 @@ a, .btn-link {
     font-weight: 600;
     text-transform: uppercase;
 }
+
+/* "Powered by {source}" attribution credit (PoweredBy.razor) — a muted footer line on admin
+   pages/editors backed by third-party data. */
+.powered-by {
+    margin-top: 2rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+.powered-by a {
+    color: inherit;
+}

@@ -24,6 +24,8 @@
 
 <Paginator State="pagination" />
 
+<PoweredBy For="@(new[] { typeof(StfcPlayerNameHistory) })" />
+
 @code {
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
 }

@@ -9,9 +9,8 @@
 
 <p>
     The Territory Capture service catalog and the per-server zone→service mapping, synced from
-    <a href="https://territory.lol/" target="_blank" rel="noopener">territory.lol</a>. Drives the
-    per-zone service list in the TC "Dienste aktivieren" reminder. Read-only — data comes from the
-    sync below (only servers with a linked alliance are fetched).
+    territory.lol. Drives the per-zone service list in the TC "Dienste aktivieren" reminder.
+    Read-only — data comes from the sync below (only servers with a linked alliance are fetched).
 </p>
 
 <div class="card mb-3">
@@ -85,6 +84,8 @@
 </QuickGrid>
 
 <Paginator State="pagination" />
+
+<PoweredBy For="@(new[] { typeof(StfcTerritoryService) })" />
 
 @code {
     private readonly PaginationState pagination = new() { ItemsPerPage = 50 };

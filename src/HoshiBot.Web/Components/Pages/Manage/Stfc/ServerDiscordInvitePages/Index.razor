@@ -18,3 +18,5 @@
         <a href="@($"manage/stfc/server-invites/delete?id={invite.Id}")">Delete</a>
     </TemplateColumn>
 </QuickGrid>
+
+<PoweredBy For="@(new[] { typeof(StfcServerDiscordInvite) })" />

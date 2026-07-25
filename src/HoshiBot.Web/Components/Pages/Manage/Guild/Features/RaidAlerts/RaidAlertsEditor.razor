@@ -16,6 +16,8 @@
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="ResolvedAudience" />
 
+<PoweredBy For="@(new[] { typeof(StfcSystem) })" />
+
 @code {
     protected override GuildFeature Feature => GuildFeature.RaidAlerts;
 

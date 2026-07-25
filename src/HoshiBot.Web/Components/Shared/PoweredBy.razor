@@ -1,0 +1,27 @@
+@using HoshiBot.Domain.Attribution
+
+@* Small "Powered by {source}" credit for admin surfaces backed by third-party data. Pass the domain
+   entity type(s) the page/feature shows or depends on; the source(s) follow from PoweredByRegistry
+   (distinct, so a mix like Territory Capture's territory.lol + stfc.pro renders both). *@
+@if (sources.Count > 0)
+{
+    <p class="powered-by">
+        Powered by
+        @for (var i = 0; i < sources.Count; i++)
+        {
+            <a href="@sources[i].Url" target="_blank" rel="noopener">@sources[i].Name</a>@((MarkupString)Separator(i))
+        }
+    </p>
+}
+
+@code {
+    [Parameter, EditorRequired] public Type[] For { get; set; } = [];
+
+    private IReadOnlyList<PoweredBySource> sources = [];
+
+    protected override void OnParametersSet() => sources = PoweredByRegistry.For(For);
+
+    // "A", "A and B", "A, B and C".
+    private string Separator(int i) =>
+        i == sources.Count - 1 ? "" : i == sources.Count - 2 ? " and " : ", ";
+}

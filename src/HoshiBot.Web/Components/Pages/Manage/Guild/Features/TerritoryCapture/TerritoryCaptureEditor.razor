@@ -69,6 +69,8 @@
     </SettingsCard>
 </div>
 
+<PoweredBy For="@(new[] { typeof(StfcTerritoryService), typeof(StfcTerritoryOwnership) })" />
+
 @code {
     protected override GuildFeature Feature => GuildFeature.TerritoryCapture;
 

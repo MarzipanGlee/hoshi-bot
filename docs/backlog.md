@@ -456,21 +456,22 @@ unchanged) and fetches `service_slots` only for servers with a linked alliance. 
   Ingesting it would let the TC scheduler move off the single-weekday model to real per-region
   windows — a larger change touching `TerritoryCaptureScheduler`.
 
-## "Powered by" attribution for external-data features
+## "Powered by" attribution for external-data features — ✅ Web done (2026-07-25)
 
-Features that rely on third-party data sources should show a small "Powered by {source}" credit with
-a link to the source's site — both in the Web admin UI (e.g. a footer/hint on the relevant pages) and,
-where appropriate, on the Discord-facing output. Known sources to attribute:
+Web admin surfaces backed by third-party data now show a small "Powered by {source}" credit (linked).
+Driven by a **static registry keyed by domain entity type** (`HoshiBot.Domain/Attribution/`):
+`PoweredBySource` (Name+Url), `PoweredBySources` (territory.lol / stfc.pro / stfc.space), and
+`PoweredByRegistry.For(params Type[])` mapping the **16 external-data entities** to their source (deduped,
+so a mix like Territory Capture's territory.lol + stfc.pro renders both). The `<PoweredBy For="…" />`
+Shared component renders it; placed on the 15 Stfc catalog Index pages and the 11 external-data feature
+editors (+ the Service Selection ExtraPage). Registry unit-tested.
 
-- **territory.lol** (`https://territory.lol/`) — Territory Capture service catalog + per-server service
-  slots (the `TerritoryServiceSyncService` sync, the Services reminder's service lists).
-- **stfc.pro** (`https://stfc.pro/`) — territory ownership feed and the alliance/player/server catalog
-  data behind the STFC admin pages.
-- **gilli.site** — the `/api/events` + `/api/server-status` feeds (if/when those notify features get built).
+Deferred:
 
-Scope it as a reusable small component (e.g. `<PoweredBy Source="territory.lol" Url="…" />`) so each
-data-backed page/feature can drop it in consistently rather than hand-rolling the credit. Nice-to-have,
-not urgent — but good etiquette for the sites whose data the bot depends on.
+- **Discord-facing credit** — the shared `EmbedBranding` footer is used by 30+ message types, so a
+  per-source credit there would be global clutter; left out for now.
+- **gilli.site** (`/api/events` + `/api/server-status`) — not wired anywhere yet; add a `PoweredBySources`
+  entry + registry mapping when those notify features are built (one line each).
 
 ## Territory Capture "Services role" sync
 

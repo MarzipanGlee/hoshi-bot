@@ -5,6 +5,8 @@
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="ResolvedAudience" />
 
+<PoweredBy For="@(new[] { typeof(StfcSystem) })" />
+
 @code {
     protected override GuildFeature Feature => GuildFeature.ShieldReminders;
 }

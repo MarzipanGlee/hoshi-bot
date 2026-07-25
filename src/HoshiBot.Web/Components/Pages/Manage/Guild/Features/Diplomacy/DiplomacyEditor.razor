@@ -20,6 +20,8 @@
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
 </div>
 
+<PoweredBy For="@(new[] { typeof(StfcAlliance) })" />
+
 @code {
     protected override GuildFeature Feature => GuildFeature.Diplomacy;
 
