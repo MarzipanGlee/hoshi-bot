@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hoshi Bot — Coming Soon</title>
+    <meta name="description" content="Command your STFC community with Hoshi Bot. Launching soon." />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="favicon.png" type="image/png" />
+    <style>
+        :root {
+            --brand-start: rgb(5, 39, 103);
+            --brand-end: #3a0647;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body { height: 100%; }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #fff;
+            background: linear-gradient(135deg, var(--brand-start) 0%, var(--brand-end) 100%);
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+        }
+
+        main {
+            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1.5rem;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 40rem;
+            text-align: center;
+        }
+
+        .portrait {
+            width: 160px;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.25);
+            margin-bottom: 1.75rem;
+        }
+
+        .brand {
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            margin: 0 0 1.5rem;
+            opacity: 0.95;
+        }
+
+        h1 {
+            font-size: clamp(2.4rem, 7vw, 3.5rem);
+            font-weight: 700;
+            line-height: 1.1;
+            margin: 0 0 1rem;
+        }
+
+        .subtitle {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 34rem;
+            margin: 0 auto;
+        }
+
+        .pill {
+            display: inline-block;
+            margin-top: 2rem;
+            padding: 0.5rem 1.1rem;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        footer {
+            flex: 0 0 auto;
+            text-align: center;
+            padding: 1.5rem;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="card">
+            <img class="portrait" src="favicon.png" alt="Hoshi Bot" />
+            <p class="brand">Hoshi Bot</p>
+            <h1>Coming soon.</h1>
+            <p class="subtitle">
+                Command your STFC community with Hoshi Bot — raid and shield alerts, absences,
+                Territory Capture reminders, RoE reports, and more. We're getting the launch ready.
+            </p>
+            <span class="pill">Launching soon</span>
+        </div>
+    </main>
+    <footer>
+        &copy; 2026 Hoshi Bot by MarzipanGlee
+    </footer>
+</body>
+</html>
