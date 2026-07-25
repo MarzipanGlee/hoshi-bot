@@ -43,8 +43,10 @@ public class TerritoryCaptureDigestService(
     public Task SendWeeklyDigestsAsync() => SendWeeklyDigestsAsync(DateTimeOffset.UtcNow, onlyGuildId: null);
 
     // Test/replay seam: run the weekly digest as of an explicit instant and optionally for a single
-    // guild only. The Quartz job uses the parameterless overload ("now", all guilds).
-    public async Task SendWeeklyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId)
+    // guild / single alliance only. The Quartz sweep passes onlyGuildAllianceId so each alliance fires
+    // on its own configured time; the parameterless overload ("now", all guilds/alliances) is unused
+    // now but kept as the test/replay entry.
+    public async Task SendWeeklyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId, int? onlyGuildAllianceId = null)
     {
         // The weekly digest fires the day before the week begins (Monday, for a Tuesday anchor) and
         // previews the *upcoming* week — GetUpcomingWeekStart, not GetWeekStart (which would snap back
@@ -64,6 +66,9 @@ public class TerritoryCaptureDigestService(
             // the alliance tag is appended to the title only when the guild runs several.
             foreach (var link in links)
             {
+                if (onlyGuildAllianceId is { } onlyAlliance && link.Id != onlyAlliance)
+                    continue;
+
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
                 if (channelId is not { } channelIdValue)
@@ -109,9 +114,9 @@ public class TerritoryCaptureDigestService(
     public Task SendDailyDigestsAsync() => SendDailyDigestsAsync(DateTimeOffset.UtcNow, onlyGuildId: null);
 
     // Test/replay seam: run the "tomorrow's zones" digest as of an explicit instant (so a full week
-    // can be replayed day by day) and optionally for a single guild only. The Quartz job uses the
-    // parameterless overload ("now", all guilds).
-    public async Task SendDailyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId)
+    // can be replayed day by day) and optionally for a single guild / single alliance only. The Quartz
+    // sweep passes onlyGuildAllianceId so each alliance fires on its own configured time.
+    public async Task SendDailyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId, int? onlyGuildAllianceId = null)
     {
         var tomorrow = DateOnly.FromDateTime(now.UtcDateTime).AddDays(1);
         // Base the week on tomorrow, not now: the Monday-night daily is about the new week's first
@@ -127,6 +132,9 @@ public class TerritoryCaptureDigestService(
             var links = await GetTcEnabledLinksAsync(guildId);
             foreach (var link in links)
             {
+                if (onlyGuildAllianceId is { } onlyAlliance && link.Id != onlyAlliance)
+                    continue;
+
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
                 if (channelId is not { } channelIdValue)
@@ -163,6 +171,51 @@ public class TerritoryCaptureDigestService(
                 if (messageId is { } dailyMessageId)
                     await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Daily, dedupKey, channelIdValue, dailyMessageId, now, now.AddDays(1));
             }
+        }
+    }
+
+    // Half-hourly sweep (TerritoryCaptureDigestSweepJob) — replaces the two fixed-time crons. Fires each
+    // alliance's weekly/daily digest when its configured LOCAL time is due in the alliance's timezone
+    // (GuildAlliance.TimeZoneId, DST-aware). Passes onlyGuildAllianceId so each alliance only fires on its
+    // own time; the send methods' per-alliance dedup makes each digest post once per week/day.
+    public async Task RunDigestSweepAsync(DateTimeOffset now)
+    {
+        foreach (var guildId in await GetEligibleGuildIdsAsync())
+        {
+            foreach (var link in await GetTcEnabledLinksAsync(guildId))
+            {
+                var nowInZone = TimeZoneInfo.ConvertTime(now, ResolveTimeZone(link.TimeZoneId));
+
+                var weekly = await GetDigestTimeAsync(guildId, link.Id, TerritoryCaptureSettingKeys.WeeklyDigestTime, TerritoryCaptureSettingKeys.DefaultWeeklyTime);
+                if (TerritoryCaptureScheduler.IsWeeklyDigestDue(nowInZone, weekly))
+                    await SendWeeklyDigestsAsync(now, guildId, link.Id);
+
+                var daily = await GetDigestTimeAsync(guildId, link.Id, TerritoryCaptureSettingKeys.DailyDigestTime, TerritoryCaptureSettingKeys.DefaultDailyTime);
+                if (TerritoryCaptureScheduler.IsDailyDigestDue(nowInZone, daily))
+                    await SendDailyDigestsAsync(now, guildId, link.Id);
+            }
+        }
+    }
+
+    private async Task<TimeOnly> GetDigestTimeAsync(ulong guildId, int guildAllianceId, string key, string defaultValue)
+    {
+        var raw = await settingsService.GetTextAsync(guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, guildAllianceId, key);
+        return TimeOnly.TryParseExact(raw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed
+            : TimeOnly.ParseExact(defaultValue, "HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    // A stored id can be blank/invalid (or unknown on this OS) — always fall back to the default zone
+    // rather than throw and skip the alliance's digest entirely.
+    private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId ?? GuildAlliance.DefaultTimeZoneId);
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(GuildAlliance.DefaultTimeZoneId);
         }
     }
 

@@ -196,9 +196,11 @@ builder.Services.AddQuartz(quartz =>
 
     AddSimpleJob<ShieldWarningJob>(TimeSpan.FromMinutes(5));
 
-    AddCronJob<TerritoryCaptureWeeklyDigestJob>("0 0 9 ? * MON");
-
-    AddCronJob<TerritoryCaptureDailyDigestJob>("0 0 19 * * ?");
+    // Half-hourly sweep posting each alliance's weekly/daily digest at its own configured local time
+    // (GuildAlliance.TimeZoneId, DST-aware) — replaces the two fixed Europe/Zurich crons. The whole-hour
+    // Zurich trigger pin lands on the same instants as UTC :00/:30; the job body converts per-alliance.
+    // The obsolete crons' persisted triggers are removed on startup (see the cleanup after Build()).
+    AddCronJob<TerritoryCaptureDigestSweepJob>("0 0,30 * * * ?");
 
     AddSimpleJob<TerritoryCaptureRoleSyncJob>(TimeSpan.FromMinutes(10));
 
@@ -253,6 +255,17 @@ builder.Services.Configure<QuartzOptions>(options =>
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
 var host = builder.Build();
+
+// One-time removal of the two obsolete fixed-time digest cron jobs, now replaced by
+// TerritoryCaptureDigestSweepJob. The persistent store keeps existing jobs (IgnoreDuplicates), so
+// without this they would keep firing alongside the sweep. Runs before host.RunAsync() — i.e. before the
+// Quartz hosted service Starts and recovers triggers — and is idempotent (DeleteJob no-ops if gone).
+// Job keys are the literal type names AddJob derived from typeof(T).Name (the retained but obsolete
+// TerritoryCaptureWeeklyDigestJob/TerritoryCaptureDailyDigestJob classes) — referenced as strings so
+// the cleanup doesn't depend on those soon-to-be-deleted types.
+var digestScheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
+foreach (var obsoleteJob in new[] { "TerritoryCaptureWeeklyDigestJob", "TerritoryCaptureDailyDigestJob" })
+    await digestScheduler.DeleteJob(new JobKey(obsoleteJob));
 
 host.AddModules(typeof(PingModule).Assembly);
 

@@ -12,6 +12,19 @@ public static class TerritoryCaptureScheduler
     // daily digest, role-sync and capture reminders all agree on which week a zone falls in.
     public const DayOfWeek TcWeekStartWeekday = DayOfWeek.Tuesday;
 
+    // The weekly digest posts the day before the week begins (Monday, for a Tuesday anchor).
+    public static readonly DayOfWeek WeeklyDigestWeekday = (DayOfWeek)(((int)TcWeekStartWeekday + 6) % 7);
+
+    // Digest-due predicates for the half-hourly sweep. They take the alliance-local instant (the caller
+    // converts UtcNow into GuildAlliance.TimeZoneId, DST-aware) and the configured local fire time.
+    // "Due" is true for every tick at/after the time on the right local day; the digest's own
+    // per-day/week dedup makes it fire exactly once and gives automatic catch-up after downtime.
+    public static bool IsWeeklyDigestDue(DateTimeOffset nowInZone, TimeOnly weeklyLocalTime) =>
+        nowInZone.DayOfWeek == WeeklyDigestWeekday && TimeOnly.FromDateTime(nowInZone.DateTime) >= weeklyLocalTime;
+
+    public static bool IsDailyDigestDue(DateTimeOffset nowInZone, TimeOnly dailyLocalTime) =>
+        TimeOnly.FromDateTime(nowInZone.DateTime) >= dailyLocalTime;
+
     // 1->30, 2->45, 3->60 ported from territories-common.yag's $tierDuration. 4->90 is an
     // unconfirmed placeholder — Qoda is the first Tier 4 zone seen and its real duration
     // isn't known yet; update once confirmed.

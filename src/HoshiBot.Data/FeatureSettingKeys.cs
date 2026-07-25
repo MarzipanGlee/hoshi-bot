@@ -98,6 +98,14 @@ public static class TerritoryCaptureSettingKeys
     public const string ServicesChannel = "ServicesChannel";
     public const string ServicesRole = "ServicesRole";
 
+    // LOCAL "HH:mm" (:00/:30) digest fire times, interpreted in the alliance's GuildAlliance.TimeZoneId
+    // (DST-aware). Unset → the Default* below, which — with the default Europe/Zurich zone — reproduce
+    // the previous hard-coded weekly-Monday-09:00 / daily-19:00 Europe/Zurich cron exactly.
+    public const string WeeklyDigestTime = "WeeklyDigestTime";
+    public const string DailyDigestTime = "DailyDigestTime";
+    public const string DefaultWeeklyTime = "09:00";
+    public const string DefaultDailyTime = "19:00";
+
     public const string ZoneSlot1Role = "ZoneSlot1Role";
     public const string ZoneSlot2Role = "ZoneSlot2Role";
     public const string ZoneSlot3Role = "ZoneSlot3Role";

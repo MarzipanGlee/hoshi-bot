@@ -41,4 +41,52 @@ public class TerritoryCaptureSchedulerTests
 
         Assert.Null(window);
     }
+
+    [Fact]
+    public void WeeklyDigestWeekday_IsMondayForTuesdayAnchor()
+    {
+        Assert.Equal(DayOfWeek.Monday, TerritoryCaptureScheduler.WeeklyDigestWeekday);
+    }
+
+    [Fact]
+    public void IsWeeklyDigestDue_OnlyOnWeekdayAtOrAfterTime()
+    {
+        var time = new TimeOnly(9, 0);
+        var monday = new DateOnly(2026, 7, 6);   // Monday
+        var tuesday = new DateOnly(2026, 7, 7);
+
+        Assert.False(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(monday, 8, 30), time)); // before time
+        Assert.True(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(monday, 9, 0), time));   // exactly at time
+        Assert.True(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(monday, 12, 0), time));  // after time
+        Assert.False(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(tuesday, 9, 0), time)); // wrong day
+    }
+
+    [Fact]
+    public void IsDailyDigestDue_AtOrAfterTimeAnyDay()
+    {
+        var time = new TimeOnly(19, 0);
+        var day = new DateOnly(2026, 7, 8);
+
+        Assert.False(TerritoryCaptureScheduler.IsDailyDigestDue(AtLocal(day, 18, 30), time));
+        Assert.True(TerritoryCaptureScheduler.IsDailyDigestDue(AtLocal(day, 19, 0), time));
+        Assert.True(TerritoryCaptureScheduler.IsDailyDigestDue(AtLocal(day, 23, 30), time));
+    }
+
+    [Theory]
+    [InlineData(2026, 7, 6, 7)]  // CEST (+2): 09:00 Europe/Zurich == 07:00 UTC (Monday)
+    [InlineData(2027, 1, 4, 8)]  // CET  (+1): 09:00 Europe/Zurich == 08:00 UTC (Monday)
+    public void IsWeeklyDigestDue_ResolvesLocalTimeAcrossDst(int year, int month, int day, int expectedUtcHour)
+    {
+        var zurich = TimeZoneInfo.FindSystemTimeZoneById("Europe/Zurich");
+        var time = new TimeOnly(9, 0);
+        var dueUtc = new DateTimeOffset(year, month, day, expectedUtcHour, 0, 0, TimeSpan.Zero);
+
+        // The tick 30 min before the resolved instant is not yet due; the resolved instant is.
+        Assert.False(TerritoryCaptureScheduler.IsWeeklyDigestDue(TimeZoneInfo.ConvertTime(dueUtc.AddMinutes(-30), zurich), time));
+        Assert.True(TerritoryCaptureScheduler.IsWeeklyDigestDue(TimeZoneInfo.ConvertTime(dueUtc, zurich), time));
+    }
+
+    // The predicates read only DayOfWeek + local time-of-day, so the fixed offset here is irrelevant.
+    private static DateTimeOffset AtLocal(DateOnly date, int hour, int minute) =>
+        new(date.Year, date.Month, date.Day, hour, minute, 0, TimeSpan.FromHours(2));
 }

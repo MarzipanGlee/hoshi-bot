@@ -321,25 +321,29 @@ and a cancel-path to get right.
 Not tied to one alliance, server, or veil group. Existing generic features (announcements,
 tickets, anonymous messages) already carry over; no community-specific features are scoped yet.
 
-### Configurable Territory Capture digest times (per guild, maybe per alliance)
+### Configurable Territory Capture digest times (per alliance, DST-aware) — ✅ done (2026-07-25)
 
-The weekly/daily Territory Capture digest fire times are currently hard-coded in `Program.cs`
-(`0 0 9 ? * MON` and `0 0 19 * * ?`, pinned to `Europe/Zurich`). They should be
-guild-configurable — and possibly per-alliance, since a guild can run several alliance links
-(each already has its own `DigestChannel`/`Instructions`/zone-slot settings via
-`GuildFeatureSettingSnowflake`/`Text`). Design notes: store the time (and probably an IANA
-time-zone id) as a per-`(guild, alliance)` feature setting; the Quartz cron triggers are global
-and code-defined, so per-guild times can't be plain static cron triggers.
+The weekly/daily digest fire times are now per-alliance configurable, DST-aware. A single
+half-hourly sweep (`TerritoryCaptureDigestSweepJob`, cron `0 0,30 * * * ?`) replaced the two
+hard-coded `Europe/Zurich` crons: `TerritoryCaptureDigestService.RunDigestSweepAsync` converts
+`UtcNow` into each alliance's timezone and fires its weekly/daily digest when its configured local
+time is due (`TerritoryCaptureScheduler.IsWeeklyDigestDue`/`IsDailyDigestDue` — due for every tick
+at/after the time on the right local day, with the existing per-day/week dedup making it fire once
+and giving automatic catch-up). Split of storage:
 
-Chosen approach: a single sweep job on a cron aligned to the half hour — every 30 min starting
-from the full hour, i.e. `0 0,30 * * * ?` (fires at :00 and :30). Each run resolves "now" to each
-alliance's configured time zone and sends the digest for every `(guild, alliance)` whose
-configured digest time matches the current half-hour slot. Configurable times are therefore
-constrained to :00/:30 granularity (fine for this feature) and there's no per-guild trigger
-lifecycle to manage — the daily and weekly digests become two such sweeps (or one job that checks
-both). Keep the same misfire-replay + persistent-store behaviour the hard-coded triggers now have.
-Also expose the time (+ zone) in the Web feature-settings UI. Until then the hard-coded 09:00/19:00
-Europe/Zurich is the default for everyone.
+- **Timezone** is an alliance-level property (`GuildAlliance.TimeZoneId`, IANA, default
+  `Europe/Zurich`), edited on the **Alliance Settings** page — reusable by future schedule-driven
+  features, not TC-specific.
+- **Weekly/daily times** are TC feature settings (`TerritoryCaptureSettingKeys.WeeklyDigestTime`/
+  `DailyDigestTime`, local `HH:mm`, :00/:30 granularity), edited on the TC editor's "Digest
+  Schedule" card. Defaults 09:00/19:00 → with the default Europe/Zurich zone this reproduces the
+  old cron exactly (DST-stable), so nothing shifts for an alliance that configures nothing.
+
+The two old `TerritoryCaptureWeeklyDigestJob`/`DailyDigestJob` classes are kept (marked
+`[Obsolete]`) only so a startup `scheduler.DeleteJob` can remove their persisted triggers without
+a missing-JobClass error; delete them once every environment's Quartz store is confirmed clean.
+The digest weekday stays fixed (weekly Monday, daily every day) — only the time-of-day + timezone
+are configurable.
 
 ## Bug: `Absence.CreatedAt` never set (shows `0001-01-01`) — ✅ fixed (2026-07-25)
 

@@ -43,6 +43,17 @@
             <RolePicker CardTitle="Diplomat" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
             <RolePicker CardTitle="Boarding" CreateRoleName="@boardingRoleName" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
         </div>
+
+        <h2>Regional</h2>
+        <div class="card-grid mt-1">
+            <SettingsCard Title="Timezone">
+                <p class="form-text mb-2">
+                    The alliance's home timezone, used to interpret scheduled local times such as the
+                    Territory Capture digest (DST-aware). Reused by other schedule-driven features.
+                </p>
+                <Select TValue="string" ShowSearch="true" @bind-Value="timeZoneIdInput" @bind-Value:after="SaveTimeZoneAsync" Items="TimeZoneItems" />
+            </SettingsCard>
+        </div>
     }
 </AuthorizedGuildView>
 
@@ -71,6 +82,11 @@
     private string? officerRoleIdInput;
     private string? diplomatRoleIdInput;
     private string? boardingRoleIdInput;
+    private string? timeZoneIdInput;
+
+    // IANA ids (on Linux TimeZoneInfo.Id is the IANA id); searchable so the admin can type e.g. "Zurich".
+    private static readonly List<SelectedItem> TimeZoneItems =
+        TimeZoneInfo.GetSystemTimeZones().Select(tz => new SelectedItem(tz.Id, tz.Id)).ToList();
 
     protected override async Task OnAllianceResolvedAsync(int guildAllianceId)
     {
@@ -105,7 +121,11 @@
         officerRoleIdInput = alliance.OfficerRoleId?.ToString();
         diplomatRoleIdInput = alliance.DiplomatRoleId?.ToString();
         boardingRoleIdInput = alliance.BoardingRoleId?.ToString();
+        timeZoneIdInput = alliance.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
     }
+
+    private Task SaveTimeZoneAsync() =>
+        SaveAsync(a => a.TimeZoneId = string.IsNullOrEmpty(timeZoneIdInput) ? null : timeZoneIdInput);
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
 

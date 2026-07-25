@@ -7,6 +7,11 @@ namespace HoshiBot.Domain.Entities;
 // in GuildFeatureSettingSnowflake/Text instead (see GuildFeatureSettingsService).
 public class GuildAlliance
 {
+    // The alliance's home timezone, used to interpret local schedule times (e.g. the TC digest fire
+    // times) DST-aware. Null → DefaultTimeZoneId. A general, feature-agnostic alliance attribute:
+    // other schedule-driven features can reuse it rather than each carrying its own timezone.
+    public const string DefaultTimeZoneId = "Europe/Zurich";
+
     public int Id { get; set; }
 
     public ulong GuildId { get; set; }
@@ -16,6 +21,9 @@ public class GuildAlliance
     public int StfcAllianceId { get; set; }
 
     public StfcAlliance StfcAlliance { get; set; } = null!;
+
+    // IANA timezone id (e.g. "Europe/Zurich") — see DefaultTimeZoneId. Null → default.
+    public string? TimeZoneId { get; set; }
 
     // Roles
     public ulong? MemberRoleId { get; set; }

@@ -4,6 +4,7 @@
 @using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
+@inject GuildAllianceService AllianceService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -60,6 +61,21 @@
             @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
     </SettingsCard>
 
+    <SettingsCard Title="Digest Schedule">
+        <p class="form-text mb-2">
+            When the weekly and daily digests post, as local times in this alliance's timezone
+            (<strong>@allianceTimeZoneDisplay</strong>, DST-aware — change it on
+            <a href="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")">Alliance Settings</a>).
+            Weekly posts the day before the capture week (Monday); daily posts every day. 30-minute steps.
+        </p>
+        <label for="tcWeeklyDigestTime" class="form-label">Weekly digest time</label>
+        <input type="time" step="1800" id="tcWeeklyDigestTime" class="form-control mb-3"
+               value="@weeklyDigestTimeInput" @onchange="OnWeeklyDigestTimeChanged" />
+        <label for="tcDailyDigestTime" class="form-label">Daily digest time</label>
+        <input type="time" step="1800" id="tcDailyDigestTime" class="form-control"
+               value="@dailyDigestTimeInput" @onchange="OnDailyDigestTimeChanged" />
+    </SettingsCard>
+
     <SettingsCard Title="Digest Instructions">
         <label for="territoryCaptureInstructions" class="form-label">
             Free-text "Anweisungen von {Command Staff}" section shown on the weekly/daily digest (e.g. attendance/armada expectations).
@@ -86,6 +102,9 @@
     private string? zoneSlot5Input;
     private string? notificationRoleInput;
     private string? instructionsInput;
+    private string? weeklyDigestTimeInput;
+    private string? dailyDigestTimeInput;
+    private string allianceTimeZoneDisplay = GuildAlliance.DefaultTimeZoneId;
     private string? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -102,6 +121,11 @@
         zoneSlot5Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
         notificationRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Absences, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole))?.ToString();
         instructionsInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions);
+
+        weeklyDigestTimeInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.WeeklyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultWeeklyTime;
+        dailyDigestTimeInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DailyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultDailyTime;
+        if (GuildAllianceId is { } allianceId)
+            allianceTimeZoneDisplay = (await AllianceService.FindByIdAsync(GuildId, allianceId))?.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
     }
 
     private Task<ulong?> Get(string key) => SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
@@ -158,6 +182,20 @@
 
     private Task SaveInstructionsAsync() =>
         SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
+
+    // The <input type="time"> emits an "HH:mm" string; bind it manually (a string @bind isn't allowed
+    // on type=time). Blank clears the setting → the sweep falls back to the default (09:00 / 19:00).
+    private async Task OnWeeklyDigestTimeChanged(ChangeEventArgs e)
+    {
+        weeklyDigestTimeInput = e.Value?.ToString();
+        await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.WeeklyDigestTime, weeklyDigestTimeInput);
+    }
+
+    private async Task OnDailyDigestTimeChanged(ChangeEventArgs e)
+    {
+        dailyDigestTimeInput = e.Value?.ToString();
+        await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DailyDigestTime, dailyDigestTimeInput);
+    }
 
     // Stored under the Absences feature (its owner) so this and the Absences page edit one value.
     private Task SaveNotificationRoleAsync() =>
