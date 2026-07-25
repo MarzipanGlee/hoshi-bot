@@ -410,12 +410,33 @@ removed. Ported/fixed the whole lifecycle:
   Tue→Mon week (`GetUpcomingWeekStart`), and the daily digest bases its "tomorrow" on next week so
   the new week's opening day isn't skipped.
 
-## Missing: Territory Capture "Services" (Dienste) reminder for officers
+## Territory Capture "Services" (Dienste) reminder for officers — ✅ infra done (2026-07-25)
 
 The legacy YAGPDB bot had a fourth TC reminder type — **"Services" / "Dienste aktivieren"** — a
 post-capture reminder for officers fired ~**5 min after each capture ends**, posted to a **separate
-services channel** (`$remindersServicesChannel`). Not yet ported (the 2026-07-24 pass did Single +
-Daily + Weekly only). To port: add a `Services` `TerritoryCaptureMessageKind`, a services-channel
-setting, and fire it from `SendCaptureRemindersAsync` in the window just after `CaptureEnd`. See
-legacy `Commands/tasks/prepare-territory-capture-reminder.yag` (the `$rtServices` branch) and
-`Commands/notifications/send-territory-capture-reminder.yag`.
+services channel** (`$remindersServicesChannel`). The **infrastructure is now ported** (the
+2026-07-24 pass had done Single + Daily + Weekly only): a `Services` `TerritoryCaptureMessageKind`,
+a second pass in `SendCaptureRemindersAsync` firing in the ~5-min window after `slot.End` (dedup
+`services-…`, swept +6h), a `SendServicesReminderAsync` posting a branded "Dienste aktivieren für
+{Zone}" embed that pings a configurable **services role**. The channel setting was the existing
+`GuildAlliance.RemindersServicesChannelId`, **migrated into the TerritoryCapture feature settings**
+(`ServicesChannel`, like `DigestChannel` before it — column dropped, picker moved into the TC
+editor); a new **`ServicesRole`** feature setting was added (a dedicated role, not the RankRoles
+Commodore role).
+
+Still deferred — the **rich per-zone service list** the legacy message actually rendered (an
+ordered mandatory/optional, bilingual DE/EN list of the specific services to activate, from
+`Commands/notifications/send-territory-capture-reminder.yag`'s `$rtServices` branch). The current
+message is a generic nudge. Building the full list is blocked on modeling the services data: the
+`data/territory/*.json` files carry `service_list_ids` per zone but those ids don't resolve against
+the `territory_service_specs` map in the same files, there's no mandatory/optional split, and no
+German names — so it needs a services domain model + seeder + a resolved id→description mapping,
+not just a render tweak.
+
+## Territory Capture "Services role" sync
+
+The TC Services reminder pings a dedicated `ServicesRole` (TerritoryCapture feature setting). Today
+an admin sets/creates that role manually. Follow-up: a sync feature/job that keeps that role
+assigned to exactly the members who hold the **Commodore rank role** (RankRoles feature,
+`RankRolesSettingKeys.CommodoreRole`), so the officer ping stays in sync without manual role
+management. Model on `TerritoryCaptureRoleSyncJob`/`RankRoleSyncJob`.

@@ -7,15 +7,15 @@ namespace HoshiBot.Domain.Tests;
 public class TerritoryCaptureSchedulerTests
 {
     [Fact]
-    public void GetWeekStart_ReturnsPrecedingWednesday()
+    public void GetWeekStart_ReturnsPrecedingTuesday()
     {
         // 2026-07-06 is a Monday.
         var now = new DateTimeOffset(2026, 7, 6, 12, 0, 0, TimeSpan.Zero);
 
         var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
 
-        Assert.Equal(new DateOnly(2026, 7, 1), weekStart);
-        Assert.Equal(DayOfWeek.Wednesday, weekStart.DayOfWeek);
+        Assert.Equal(new DateOnly(2026, 6, 30), weekStart);
+        Assert.Equal(DayOfWeek.Tuesday, weekStart.DayOfWeek);
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public class TerritoryCaptureSchedulerTests
     {
         // Qoda: Tier 4, Monday 19:00 UTC.
         var qoda = new StfcTerritory { Name = "Qoda", Tier = 4, Weekday = DayOfWeek.Monday, CaptureTimeUtc = new TimeOnly(19, 0) };
-        var weekStart = new DateOnly(2026, 7, 1); // Wednesday.
+        var weekStart = new DateOnly(2026, 6, 30); // Tuesday.
 
         var window = TerritoryCaptureScheduler.GetCaptureWindow(qoda, weekStart);
 

@@ -16,6 +16,18 @@
     <ChannelPicker CardTitle="Digest Channel" Usage="Where this alliance's weekly/daily capture digests are posted."
             @bind-Value="digestChannelInput" @bind-Value:after="SaveDigestChannelAsync" Channels="channels" />
 
+    <ChannelPicker CardTitle="Services Channel" Usage="Where the post-capture 'activate services' reminder for officers is posted."
+            @bind-Value="servicesChannelInput" @bind-Value:after="SaveServicesChannelAsync" Channels="channels" />
+
+    <SettingsCard Title="Services Role">
+        <p class="form-text mb-0">
+            The officer role pinged by the post-capture "activate services" reminder. Leave blank to
+            create a dedicated role.
+        </p>
+        <RolePicker Label="Services Role" ShowLabel="false" CreateRoleName="Commodore"
+            @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
+    </SettingsCard>
+
     <SettingsCard Title="Zone Slot Roles">
         <p class="form-text mb-0">
             One role per owned-zone-slot the alliance currently holds this week (the "Zone Slots:
@@ -54,6 +66,8 @@
     private List<Role> roles = [];
     private List<IGuildChannel> channels = [];
     private string? digestChannelInput;
+    private string? servicesChannelInput;
+    private string? servicesRoleInput;
     private string? zoneSlot1Input;
     private string? zoneSlot2Input;
     private string? zoneSlot3Input;
@@ -68,6 +82,8 @@
         roles = await DiscordData.GetRolesAsync(GuildId);
         channels = await DiscordData.GetChannelsAsync(GuildId);
         digestChannelInput = (await Get(TerritoryCaptureSettingKeys.DigestChannel))?.ToString();
+        servicesChannelInput = (await Get(TerritoryCaptureSettingKeys.ServicesChannel))?.ToString();
+        servicesRoleInput = (await Get(TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
         zoneSlot1Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot1Role))?.ToString();
         zoneSlot2Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot2Role))?.ToString();
         zoneSlot3Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
@@ -81,6 +97,29 @@
 
     private Task SaveDigestChannelAsync() =>
         SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DigestChannel, ParseId(digestChannelInput));
+
+    private Task SaveServicesChannelAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesChannel, ParseId(servicesChannelInput));
+
+    // A blank selection creates a dedicated "Commodore" role instead of saving null (mirrors the
+    // zone-slot roles).
+    private async Task SaveServicesRoleAsync()
+    {
+        createRoleError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, servicesRoleInput, "Commodore");
+            servicesRoleInput = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesRole, roleId);
+        }
+        catch (RestException)
+        {
+            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (servicesRoleInput == RolePicker.CreateSentinel)
+                servicesRoleInput = null;
+        }
+    }
 
     private async Task SaveZoneSlotAsync(string key, Action<string?> setInput, string? currentInput, string slotName)
     {

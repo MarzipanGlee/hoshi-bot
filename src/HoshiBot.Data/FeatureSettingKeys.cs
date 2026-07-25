@@ -92,6 +92,12 @@ public static class TerritoryCaptureSettingKeys
     // so it lives with the feature (and each alliance can post to its own channel).
     public const string DigestChannel = "DigestChannel";
 
+    // Where the post-capture "activate services" (Dienste) reminder for officers is posted, and the
+    // role it pings — both moved off GuildAlliance.RemindersServicesChannelId / a dedicated role so
+    // they live with the feature (mirrors DigestChannel).
+    public const string ServicesChannel = "ServicesChannel";
+    public const string ServicesRole = "ServicesRole";
+
     public const string ZoneSlot1Role = "ZoneSlot1Role";
     public const string ZoneSlot2Role = "ZoneSlot2Role";
     public const string ZoneSlot3Role = "ZoneSlot3Role";

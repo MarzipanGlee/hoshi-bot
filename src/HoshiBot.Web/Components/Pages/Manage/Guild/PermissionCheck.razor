@@ -757,7 +757,8 @@
                     Add(a.StaffCommandBridgeChannelId, $"[{tag}] Staff Command Bridge", PostPermissions);
                     Add(a.FriendsCommandBridgeChannelId, $"[{tag}] Friends Command Bridge", PostPermissions);
                     Add(a.RemindersAlliesChannelId, $"[{tag}] Reminders (Allies)", PostPermissions);
-                    Add(a.RemindersServicesChannelId, $"[{tag}] Reminders (Services)", PostPermissions);
+                    // Reminders (Services) moved to the TerritoryCapture feature settings (ServicesChannel);
+                    // the generic per-feature-Channel loop above already covers it.
                     Add(a.RulesDeChannelId, $"[{tag}] Rules (DE)", PostPermissions);
                     Add(a.RulesEnChannelId, $"[{tag}] Rules (EN)", PostPermissions);
                     Add(a.UserNotificationsChannelId, $"[{tag}] User Notifications", PostPermissions);

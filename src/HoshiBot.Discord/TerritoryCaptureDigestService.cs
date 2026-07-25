@@ -31,6 +31,15 @@ public class TerritoryCaptureDigestService(
     // the relative <t:…:R> timestamp shows the true remaining time regardless.
     private static readonly TimeSpan ReminderLeadTime = TimeSpan.FromMinutes(35);
 
+    // How long after a capture ends the "activate services" (Dienste) reminder fires (legacy's
+    // ~5-min-after). With the job running every 5 min, a 10-min catch window guarantees exactly one
+    // tick lands inside [End, End + this] — the same reasoning as ReminderLeadTime, just after the end.
+    private static readonly TimeSpan ServicesLeadTime = TimeSpan.FromMinutes(10);
+
+    // How long a posted Services reminder stays before the sweep removes it — long enough for the
+    // day's officers to see it, short enough not to accumulate.
+    private static readonly TimeSpan ServicesRetention = TimeSpan.FromHours(6);
+
     public Task SendWeeklyDigestsAsync() => SendWeeklyDigestsAsync(DateTimeOffset.UtcNow, onlyGuildId: null);
 
     // Test/replay seam: run the weekly digest as of an explicit instant and optionally for a single
@@ -190,6 +199,31 @@ public class TerritoryCaptureDigestService(
                     if (messageId is { } mid)
                         await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Single, dedupKey, channelIdValue, mid, now, slot.End);
                 }
+
+                // Services (Dienste) reminder: a post-capture nudge for officers to activate the
+                // zone's services, posted to its own channel ~5 min after each capture ends. Fully
+                // independent of the DigestChannel above — a guild that only set a DigestChannel gets
+                // no services reminder.
+                var servicesChannelId = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesChannel);
+                if (servicesChannelId is not { } servicesChannelIdValue)
+                    continue;
+
+                foreach (var slot in await GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart))
+                {
+                    // Fire once in the window [End, End + lead); the capture must already have ended.
+                    var sinceEnd = now - slot.End;
+                    if (sinceEnd < TimeSpan.Zero || sinceEnd > ServicesLeadTime)
+                        continue;
+
+                    var dedupKey = $"services-{link.Id}-{slot.Territory.Id}-{slot.End.ToUnixTimeSeconds()}";
+                    if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
+                        continue;
+
+                    var messageId = await SendServicesReminderAsync(guildId, servicesChannelIdValue, link, slot);
+                    if (messageId is { } mid)
+                        await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Services, dedupKey, servicesChannelIdValue, mid, now, slot.End + ServicesRetention);
+                }
             }
         }
 
@@ -235,8 +269,42 @@ public class TerritoryCaptureDigestService(
         }
     }
 
+    // The post-capture "activate services" (Dienste) reminder for officers — a plain branded embed
+    // pinging the alliance's configured services role. No unsubscribe/ack button (unlike the
+    // pre-capture reminder); it's an after-the-fact officer nudge.
+    private async Task<ulong?> SendServicesReminderAsync(ulong guildId, ulong channelId, GuildAlliance link,
+        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot)
+    {
+        var roleId = await settingsService.GetSnowflakeAsync(
+            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesRole);
+
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            $"Die Übernahme von **{slot.Territory.Name}** ist beendet — bitte jetzt die Gebietsdienste aktivieren.",
+            title: $"Dienste aktivieren für {slot.Territory.Name}");
+
+        try
+        {
+            var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
+            {
+                Content = roleId is { } rid ? $"<@&{rid}>" : null,
+                Embeds = [embed],
+                AllowedMentions = roleId is { } r
+                    ? new AllowedMentionsProperties { Everyone = false, AllowedRoles = new[] { r } }
+                    : AllowedMentionsProperties.None,
+            });
+            return message.Id;
+        }
+        catch (RestException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to send Territory Capture services reminder to channel {ChannelId} for guild {GuildId} (alliance {AllianceTag}, zone {Zone})",
+                channelId, guildId, link.StfcAlliance.Tag, slot.Territory.Name);
+            return null;
+        }
+    }
+
     // Deletes any tracked TC message past its retention (Single at capture End, Daily +1d, Weekly
-    // +7d) and drops its row. Deleting a pinned weekly also removes its pin. Not feature-gated:
+    // +7d, Services at End +6h) and drops its row. Deleting a pinned weekly also removes its pin. Not feature-gated:
     // cleanup must run even if Territory Capture was disabled after the message was posted.
     private async Task SweepExpiredMessagesAsync(DateTimeOffset now)
     {

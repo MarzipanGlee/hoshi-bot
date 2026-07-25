@@ -27,7 +27,6 @@ public class GuildAlliance
     // can configure each linked alliance independently).
     public ulong? AllianceBoardingChannelId { get; set; }
     public ulong? RemindersAlliesChannelId { get; set; }
-    public ulong? RemindersServicesChannelId { get; set; }
     public ulong? RulesDeChannelId { get; set; }
     public ulong? RulesEnChannelId { get; set; }
     public ulong? UserNotificationsChannelId { get; set; }

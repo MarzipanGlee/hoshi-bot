@@ -53,7 +53,6 @@ public static class GuildSettingsSeedData
 
         AllianceBoardingChannelId = 955406358356852746,
         RemindersAlliesChannelId = 1273592443954003968,
-        RemindersServicesChannelId = 810175634096783411,
         RulesDeChannelId = 803965908309245962,
         RulesEnChannelId = 957288857915752468,
         UserNotificationsChannelId = 942406102325264474,
@@ -80,6 +79,9 @@ public static class GuildSettingsSeedData
         (GuildFeature.AlertsOptIn, AlertsOptInSettingKeys.Role, 1253175695354364066),
         // Moved off GuildSettings.RemindersChannelId / WarningsRoleId into their features.
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.DigestChannel, 832991289423167579),
+        // Moved off GuildAlliance.RemindersServicesChannelId into the feature (ServicesRole is a
+        // new dedicated role admins configure, so it's not seeded here).
+        (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesChannel, 810175634096783411),
         (GuildFeature.Announcements, AnnouncementsSettingKeys.WarningsRole, 793383681233518633),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot1Role, 1275018847417536554),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot2Role, 1275019040108318791),
