@@ -1,14 +1,31 @@
 @inherits FeatureEditorBase
+@using HoshiBot.Data
 @using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.HoshiSay" Audience="ResolvedAudience"
-        Title="Trigger channels"
-        Usage="Channels where the /hoshi-say command may be run. Admins can only have Hoshi post a message from one of these channels — so who can reach these channels is the permission gate." />
+    <RolePicker CardTitle="Allowed role"
+            Usage="Members with this role may run /hoshi-say. The command posts into whatever channel it's used in, so an admin just stands in the target channel and runs it — role membership is the permission gate."
+            @bind-Value="allowedRoleInput" @bind-Value:after="SaveAllowedRoleAsync" Roles="roles" />
 </div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.HoshiSay;
+
+    private List<Role> roles = [];
+    private string? allowedRoleInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        allowedRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, HoshiSaySettingKeys.AllowedRole))?.ToString();
+    }
+
+    private Task SaveAllowedRoleAsync() =>
+        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, HoshiSaySettingKeys.AllowedRole, ParseId(allowedRoleInput));
 }

@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 
 namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features.HoshiSay;
@@ -10,13 +11,13 @@ public class HoshiSayFeature : IFeatureModule
 
     public string Description =>
         "Lets an admin have Hoshi compose a message in her own voice (via the AI backend) and post it as " +
-        "a plain chat line into a chosen channel — e.g. to comfort or address a member. The /hoshi-say " +
-        "command runs only from the configured trigger channel(s), so channel access is the permission gate.";
+        "a plain chat line into the current channel — e.g. to comfort or address a member. The /hoshi-say " +
+        "command is limited to members holding the configured allowed role, which is the permission gate.";
 
     public string Icon => "oi-comment-square";
     public Type EditorComponentType => typeof(HoshiSayEditor);
 
-    // Configured once at least one trigger channel is set (the channel(s) the command may run from).
-    public Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        context.HasFeatureChannelAsync(guildId, Feature, audience);
+    // Configured once the allowed role is set (the role permitted to run the command).
+    public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
+        await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, HoshiSaySettingKeys.AllowedRole) is not null;
 }

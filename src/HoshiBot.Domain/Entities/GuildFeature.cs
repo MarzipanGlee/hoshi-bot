@@ -90,9 +90,9 @@ public enum GuildFeature
     ServicesRoleSync,
 
     // Guild-wide admin utility: the /hoshi-say slash command, which lets an admin have Hoshi compose
-    // a message in her own voice (via the AI backend) and post it as a plain chat line into a chosen
-    // channel. Runnable only from the configured trigger channel(s) (a GuildFeatureChannel list) —
-    // channel access is the permission gate. Depends on AiBackend (the model that composes the text).
-    // Keep last so existing enum ordinals/DB rows don't shift.
+    // a message in her own voice (via the AI backend) and post it as a plain chat line into the
+    // channel the command is used in. Limited to members holding the configured allowed role (a
+    // snowflake setting) — role membership is the permission gate. Depends on AiBackend (the model
+    // that composes the text). Keep last so existing enum ordinals/DB rows don't shift.
     HoshiSay,
 }

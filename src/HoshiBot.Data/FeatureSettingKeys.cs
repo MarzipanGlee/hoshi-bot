@@ -232,3 +232,11 @@ public static class AnnouncementForwarderSettingKeys
     public const string CatchUpWindowHours = "CatchUpWindowHours";
     public const int DefaultCatchUpWindowHours = 96;
 }
+
+public static class HoshiSaySettingKeys
+{
+    // The role permitted to run /hoshi-say. Membership in this role is the command's permission gate;
+    // the command posts into whatever channel it was invoked from. Unset -> the command is unusable
+    // (nobody qualifies), so the editor requires setting it.
+    public const string AllowedRole = "AllowedRole";
+}
