@@ -88,4 +88,11 @@ public enum GuildFeature
     // of its own: the sync (TerritoryCaptureRoleSyncJob) and its editor read/write the existing TC
     // ServicesRole + GuildAlliance.MemberRoleId. Keep last so existing enum ordinals/DB rows don't shift.
     ServicesRoleSync,
+
+    // Guild-wide admin utility: the /hoshi-say slash command, which lets an admin have Hoshi compose
+    // a message in her own voice (via the AI backend) and post it as a plain chat line into a chosen
+    // channel. Runnable only from the configured trigger channel(s) (a GuildFeatureChannel list) —
+    // channel access is the permission gate. Depends on AiBackend (the model that composes the text).
+    // Keep last so existing enum ordinals/DB rows don't shift.
+    HoshiSay,
 }

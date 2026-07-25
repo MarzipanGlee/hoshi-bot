@@ -200,6 +200,7 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         GuildFeature.AiChatKnowledge => "KI-Chat: Wissensquellen",
         GuildFeature.AiChatKnowledgePreferred => "KI-Chat: Wissensquellen (bevorzugt)",
         GuildFeature.AiChatKnowledgeLastResort => "KI-Chat: Wissensquellen (letzte Wahl)",
+        GuildFeature.HoshiSay => "Hoshi sag",
         _ => feature.ToString(),
     };
 }

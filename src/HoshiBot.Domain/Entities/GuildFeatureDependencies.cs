@@ -27,6 +27,10 @@ public static class GuildFeatureDependencies
         // (AiChatModelResolver) — without it configured, it has no model to translate with.
         GuildFeature.AnnouncementForwarder => [new(GuildFeature.AiBackend, "Uses the AI backend's configured model to translate.")],
 
+        // /hoshi-say composes its message with the guild-wide AI backend's model — without it
+        // configured, there's nothing to compose the text with.
+        GuildFeature.HoshiSay => [new(GuildFeature.AiBackend, "Hoshi composes the message with the AI backend's configured model.")],
+
         // Member Onboarding builds directly on Player Assignment's matcher (it DMs the members
         // Player Assignment couldn't place automatically).
         GuildFeature.MemberOnboarding => [new(GuildFeature.PlayerLink)],

@@ -10,6 +10,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AnonymousMessaging;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ClientRelease;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.CommandBridge;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Diplomacy;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.HoshiSay;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.InfiniteIncursions;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.MemberLore;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.MemberOnboarding;
@@ -50,6 +51,7 @@ public static class FeatureCatalog
         new ClientReleaseFeature(),
         new CommandBridgeFeature(),
         new DiplomacyFeature(),
+        new HoshiSayFeature(),
         new InfiniteIncursionsFeature(),
         new MemberLoreFeature(),
         new MemberOnboardingFeature(),

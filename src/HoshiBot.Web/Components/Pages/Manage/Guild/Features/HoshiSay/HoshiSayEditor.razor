@@ -1,0 +1,14 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Domain.Entities
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<div class="card-grid mt-1">
+    <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.HoshiSay" Audience="ResolvedAudience"
+        Title="Trigger channels"
+        Usage="Channels where the /hoshi-say command may be run. Admins can only have Hoshi post a message from one of these channels — so who can reach these channels is the permission gate." />
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.HoshiSay;
+}

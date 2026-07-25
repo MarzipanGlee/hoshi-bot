@@ -64,6 +64,9 @@ public static class GuildFeatureAudiences
         // Per-alliance: it assigns the alliance's Services role gated on the alliance member role, so
         // it toggles per linked alliance (like TerritoryCapture, whose Services role it mirrors).
         GuildFeature.ServicesRoleSync => GuildAudience.Alliance,
+        // Guild-wide admin utility (one /hoshi-say command + one trigger-channel list for the whole
+        // Discord), like AnnouncementForwarder/AiBackend — a single Guild-audience toggle.
+        GuildFeature.HoshiSay => GuildAudience.Guild,
         _ => GuildAudience.None,
     };
 
