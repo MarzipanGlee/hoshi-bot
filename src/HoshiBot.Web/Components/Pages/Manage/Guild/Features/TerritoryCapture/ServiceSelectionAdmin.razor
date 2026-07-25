@@ -27,7 +27,7 @@
             @if (links.Count > 1)
             {
                 <SettingsCard Title="Alliance">
-                    <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceKey" @bind-Value:after="SelectAllianceAsync" />
+                    <Select TValue="string" Items="allianceItems" PlaceHolder="Choose an alliance…" @bind-Value="selectedAllianceKey" @bind-Value:after="SelectAllianceAsync" />
                 </SettingsCard>
             }
 
@@ -38,7 +38,7 @@
                 }
                 else
                 {
-                    <Select TValue="string" Items="zoneItems" ShowSearch="true" @bind-Value="selectedZoneKey" @bind-Value:after="SelectZoneAsync" />
+                    <Select TValue="string" Items="zoneItems" ShowSearch="true" PlaceHolder="Choose a zone to configure…" @bind-Value="selectedZoneKey" @bind-Value:after="SelectZoneAsync" />
                 }
             </SettingsCard>
         </div>
@@ -57,13 +57,13 @@
                 <div class="card-grid mt-1">
                     <SettingsCard Title="Must have">
                         <p class="form-text mb-0">Obligatorische Dienste — listed first, in game order.</p>
-                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true"
+                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true" PlaceHolder="Add must-have services…"
                             @bind-Value="mustHaveKeys" @bind-Value:after="SaveMustHaveAsync" />
                     </SettingsCard>
 
                     <SettingsCard Title="Nice to have">
                         <p class="form-text mb-0">Optionale Dienste — activated on request.</p>
-                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true"
+                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true" PlaceHolder="Add nice-to-have services…"
                             @bind-Value="niceToHaveKeys" @bind-Value:after="SaveNiceToHaveAsync" />
                     </SettingsCard>
                 </div>
