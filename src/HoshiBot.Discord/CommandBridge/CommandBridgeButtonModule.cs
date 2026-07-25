@@ -184,7 +184,18 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
     [ComponentInteraction("shield-reminder-terminate")]
     public Task TerminateShieldReminder(ulong guildId) =>
-        Context.Interaction.SendDelayedResponseAsync(() => alertService.TerminateShieldReminderAsync(guildId, Context.User.Id));
+        Context.Interaction.SendDelayedResponseAsync(async () =>
+        {
+            var result = await alertService.TerminateShieldReminderAsync(guildId, Context.User.Id);
+            // The reminder is closed — remove the warning DM this "Beenden" button was on so a resolved
+            // reminder doesn't keep sitting in the user's DMs. The ephemeral confirmation still shows.
+            if (Context.Interaction.Message is { } warning)
+            {
+                try { await warning.DeleteAsync(); }
+                catch (RestException) { /* already gone / not deletable — leave it, the confirmation covers it */ }
+            }
+            return result;
+        });
 
     // Matches legacy's own loading-placeholder convention for this exact flow (the only
     // other one besides Absences) — an immediate "wird gesucht..." ack, then the real

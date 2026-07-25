@@ -207,6 +207,12 @@ public class AlertService(
         return "Raid alert ended.";
     }
 
+    // A shield lives on a station, which can only be parked in a system that supports Station Housing
+    // (StfcSystem.HasStationHousing). A system can be a perfectly valid name yet have no housing (e.g.
+    // Tezera Beta), so "the system exists" isn't enough to accept a shield reminder there.
+    public static string NoStationHousingMessage(string systemName) =>
+        $"Im System \"{systemName}\" gibt es keine Stationsunterkunft — dort kann kein Schild geparkt werden.";
+
     public async Task<string> SetShieldReminderAsync(ulong guildId, ulong userId, string duration, string system)
     {
         var parsed = DurationParser.Parse(duration);
@@ -216,6 +222,8 @@ public class AlertService(
         var stfcSystem = await FindSystemByNameAsync(system);
         if (stfcSystem is null)
             return $"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.";
+        if (!stfcSystem.HasStationHousing)
+            return NoStationHousingMessage(stfcSystem.Name);
 
         var now = DateTimeOffset.UtcNow;
         var expiration = now.Add(parsed.Value);
@@ -233,6 +241,8 @@ public class AlertService(
         var stfcSystem = await FindSystemByNameAsync(system);
         if (stfcSystem is null)
             return $"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.";
+        if (!stfcSystem.HasStationHousing)
+            return NoStationHousingMessage(stfcSystem.Name);
 
         var now = DateTimeOffset.UtcNow;
         var expiration = await ResolveShieldExpirationAsync(guildId, targetUserId, variant, now);
