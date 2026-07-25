@@ -1,0 +1,195 @@
+@using HoshiBot.Data
+@using HoshiBot.Domain.Entities
+@using Microsoft.EntityFrameworkCore
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject GuildAllianceService AllianceService
+
+<PageTitle>Service Selection</PageTitle>
+
+<AuthorizedGuildView Authorized="Authorized">
+    <h1>Service Selection</h1>
+    <p>
+        Curate which of a zone's services the Territory Capture "Dienste aktivieren" reminder tells
+        officers to activate, split into two priorities — <strong>must have</strong> (obligatorische
+        Dienste) and <strong>nice to have</strong> (optionale Dienste, auf Anfrage). A zone with no
+        selection lists all its services instead. Only zones the alliance currently owns are shown;
+        available services come from the territory.lol sync.
+    </p>
+
+    @if (links.Count == 0)
+    {
+        <AllianceLinkRequiredHint GuildId="@GuildId" />
+    }
+    else
+    {
+        <div class="card-grid mt-1">
+            @if (links.Count > 1)
+            {
+                <SettingsCard Title="Alliance">
+                    <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceKey" @bind-Value:after="SelectAllianceAsync" />
+                </SettingsCard>
+            }
+
+            <SettingsCard Title="Zone">
+                @if (zoneItems.Count == 0)
+                {
+                    <p class="form-text mb-0">This alliance owns no zones yet — nothing to configure.</p>
+                }
+                else
+                {
+                    <Select TValue="string" Items="zoneItems" ShowSearch="true" @bind-Value="selectedZoneKey" @bind-Value:after="SelectZoneAsync" />
+                }
+            </SettingsCard>
+        </div>
+
+        @if (selectedZoneKey is not null && zoneItems.Count > 0)
+        {
+            @if (serviceItems.Count == 0)
+            {
+                <p class="text-muted mt-3">
+                    No services synced for this zone on the alliance's server. Run the sync on
+                    <a href="manage/stfc/territory-services">Territory Services</a> first.
+                </p>
+            }
+            else
+            {
+                <div class="card-grid mt-1">
+                    <SettingsCard Title="Must have">
+                        <p class="form-text mb-0">Obligatorische Dienste — listed first, in game order.</p>
+                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true"
+                            @bind-Value="mustHaveKeys" @bind-Value:after="SaveMustHaveAsync" />
+                    </SettingsCard>
+
+                    <SettingsCard Title="Nice to have">
+                        <p class="form-text mb-0">Optionale Dienste — activated on request.</p>
+                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true"
+                            @bind-Value="niceToHaveKeys" @bind-Value:after="SaveNiceToHaveAsync" />
+                    </SettingsCard>
+                </div>
+                <p class="form-text mt-2">A service picked as must-have is automatically removed from nice-to-have, and vice versa.</p>
+            }
+        }
+    }
+</AuthorizedGuildView>
+
+@code {
+    private List<GuildAlliance> links = [];
+    private List<SelectedItem> allianceItems = [];
+    private string? selectedAllianceKey;
+
+    private int stfcAllianceId;
+    private int serverId;
+
+    private List<SelectedItem> zoneItems = [];
+    private string? selectedZoneKey;
+
+    private List<SelectedItem> serviceItems = [];
+    private string mustHaveKeys = "";
+    private string niceToHaveKeys = "";
+
+    private int? SelectedAllianceLinkId => int.TryParse(selectedAllianceKey, out var id) ? id : null;
+    private int? SelectedZoneId => int.TryParse(selectedZoneKey, out var id) ? id : null;
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        links = await AllianceService.GetLinksAsync(ParsedGuildId);
+        allianceItems = links.Select(l => new SelectedItem(l.Id.ToString(), $"[{l.StfcAlliance.Tag}] {l.StfcAlliance.Name}")).ToList();
+        if (links.Count > 0)
+        {
+            selectedAllianceKey = links[0].Id.ToString();
+            await SelectAllianceAsync();
+        }
+    }
+
+    private async Task SelectAllianceAsync()
+    {
+        var link = links.FirstOrDefault(l => l.Id == SelectedAllianceLinkId);
+        if (link is null)
+            return;
+
+        stfcAllianceId = link.StfcAllianceId;
+        serverId = link.StfcAlliance.ServerId;
+        selectedZoneKey = null;
+        serviceItems = [];
+        mustHaveKeys = "";
+        niceToHaveKeys = "";
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var zones = (await db.StfcTerritoryOwnerships
+                .Where(o => o.AllianceId == stfcAllianceId)
+                .Select(o => o.Territory)
+                .ToListAsync())
+            .DistinctBy(t => t.Id)
+            .OrderBy(t => t.Name)
+            .ToList();
+        zoneItems = zones.Select(z => new SelectedItem(z.Id.ToString(), z.Name)).ToList();
+    }
+
+    private async Task SelectZoneAsync()
+    {
+        if (SelectedZoneId is not { } zoneId)
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var services = await db.StfcTerritoryServiceSlots
+            .Where(s => s.ServerId == serverId && s.TerritoryId == zoneId)
+            .OrderBy(s => s.Position)
+            .Select(s => new { s.ServiceId, s.Service.Name })
+            .ToListAsync();
+        serviceItems = services.Select(s => new SelectedItem(s.ServiceId.ToString(), s.Name)).ToList();
+
+        await LoadSelectionsAsync();
+    }
+
+    private async Task LoadSelectionsAsync()
+    {
+        if (SelectedAllianceLinkId is not { } linkId || SelectedZoneId is not { } zoneId)
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var rows = await db.TerritoryServiceSelections
+            .Where(x => x.GuildAllianceId == linkId && x.TerritoryId == zoneId)
+            .Select(x => new { x.ServiceId, x.Priority })
+            .ToListAsync();
+
+        mustHaveKeys = string.Join(",", rows.Where(r => r.Priority == TerritoryServicePriority.MustHave).Select(r => r.ServiceId));
+        niceToHaveKeys = string.Join(",", rows.Where(r => r.Priority == TerritoryServicePriority.NiceToHave).Select(r => r.ServiceId));
+    }
+
+    private Task SaveMustHaveAsync() => SaveAsync(TerritoryServicePriority.MustHave, mustHaveKeys);
+    private Task SaveNiceToHaveAsync() => SaveAsync(TerritoryServicePriority.NiceToHave, niceToHaveKeys);
+
+    // Replace all rows of this priority for the zone with the picked set, and pull any picked
+    // service out of the opposite priority (a service lives in at most one bucket).
+    private async Task SaveAsync(TerritoryServicePriority priority, string keys)
+    {
+        if (SelectedAllianceLinkId is not { } linkId || SelectedZoneId is not { } zoneId)
+            return;
+
+        var ids = keys.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(k => long.TryParse(k, out var id) ? id : (long?)null)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .ToHashSet();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var rows = await db.TerritoryServiceSelections
+            .Where(x => x.GuildAllianceId == linkId && x.TerritoryId == zoneId)
+            .ToListAsync();
+
+        // Drop every row of this priority (re-added below) and any opposite-priority row now claimed.
+        db.TerritoryServiceSelections.RemoveRange(rows.Where(r => r.Priority == priority || ids.Contains(r.ServiceId)));
+        foreach (var id in ids)
+            db.TerritoryServiceSelections.Add(new TerritoryServiceSelection
+            {
+                GuildAllianceId = linkId,
+                TerritoryId = zoneId,
+                ServiceId = id,
+                Priority = priority,
+            });
+
+        await db.SaveChangesAsync();
+        await LoadSelectionsAsync();
+    }
+}

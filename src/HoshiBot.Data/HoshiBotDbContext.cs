@@ -41,6 +41,8 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<TerritoryServiceSyncState> TerritoryServiceSyncStates => Set<TerritoryServiceSyncState>();
 
+    public DbSet<TerritoryServiceSelection> TerritoryServiceSelections => Set<TerritoryServiceSelection>();
+
     public DbSet<TerritoryCaptureSentMessage> TerritoryCaptureSentMessages => Set<TerritoryCaptureSentMessage>();
 
     public DbSet<StfcAllianceDiplomacy> StfcAllianceDiplomacies => Set<StfcAllianceDiplomacy>();

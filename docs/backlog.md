@@ -431,10 +431,15 @@ earlier "blocked on data" concern is resolved — the real territory→service m
 `service_list_ids` (an unresolvable id space) but the per-server `service_slots_{server}.json`, and
 service names/rarity come from `territory_service_specs` + `translation.json` (`services_name_{loca}`).
 
-Possible follow-ups: (a) **German translation** of service names (currently English game terms; the
-framing text is German); (b) legacy's **mandatory/optional split** — the game data has no such
-distinction, so all of a zone's services are listed in order (a curated split would be a manual
-overlay, not in the source data).
+**Mandatory/optional split — ✅ done (2026-07-25)**: a per-(alliance, zone) **Service Selection**
+(`TerritoryServiceSelection`, TC feature ExtraPage `/features/territory-capture/service-selection`)
+lets leadership curate a zone's services into **must-have** (obligatorisch) / **nice-to-have**
+(optional) buckets; the reminder renders the two grouped, numbered lists (canonical slot order),
+falling back to the full list for uncurated zones. The game data has no inherent split — this is an
+admin-curated overlay.
+
+Possible follow-up: **German translation** of service names (currently English game terms; the
+framing text is German).
 
 ## Territory Capture service sync — follow-ups
 
@@ -450,6 +455,22 @@ unchanged) and fetches `service_slots` only for servers with a linked alliance. 
   current hardcoded `StfcTerritorySeedData` (single global weekday/time, tier-derived duration).
   Ingesting it would let the TC scheduler move off the single-weekday model to real per-region
   windows — a larger change touching `TerritoryCaptureScheduler`.
+
+## "Powered by" attribution for external-data features
+
+Features that rely on third-party data sources should show a small "Powered by {source}" credit with
+a link to the source's site — both in the Web admin UI (e.g. a footer/hint on the relevant pages) and,
+where appropriate, on the Discord-facing output. Known sources to attribute:
+
+- **territory.lol** (`https://territory.lol/`) — Territory Capture service catalog + per-server service
+  slots (the `TerritoryServiceSyncService` sync, the Services reminder's service lists).
+- **stfc.pro** (`https://stfc.pro/`) — territory ownership feed and the alliance/player/server catalog
+  data behind the STFC admin pages.
+- **gilli.site** — the `/api/events` + `/api/server-status` feeds (if/when those notify features get built).
+
+Scope it as a reusable small component (e.g. `<PoweredBy Source="territory.lol" Url="…" />`) so each
+data-backed page/feature can drop it in consistently rather than hand-rolling the credit. Nice-to-have,
+not urgent — but good etiquette for the sites whose data the bot depends on.
 
 ## Territory Capture "Services role" sync
 

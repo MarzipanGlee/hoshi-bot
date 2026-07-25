@@ -28,6 +28,15 @@
             @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
     </SettingsCard>
 
+    <SettingsCard Title="Service Selection">
+        <p class="form-text mb-2">
+            Curate each owned zone's services into must-have / nice-to-have for the "activate services"
+            reminder. Unconfigured zones list all their services.
+        </p>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="territory-capture" ExtraSlug="service-selection" Label="Service Selection" />
+    </SettingsCard>
+
     <SettingsCard Title="Zone Slot Roles">
         <p class="form-text mb-0">
             One role per owned-zone-slot the alliance currently holds this week (the "Zone Slots:

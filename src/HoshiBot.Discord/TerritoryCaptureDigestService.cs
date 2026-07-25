@@ -278,18 +278,7 @@ public class TerritoryCaptureDigestService(
         var roleId = await settingsService.GetSnowflakeAsync(
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesRole);
 
-        // The zone's actual services on this alliance's server (synced from territory.lol), in the
-        // in-game slot order. Service names are English game terms; the framing text is German.
-        var serviceNames = await db.StfcTerritoryServiceSlots
-            .Where(s => s.ServerId == link.StfcAlliance.ServerId && s.TerritoryId == slot.Territory.Id)
-            .OrderBy(s => s.Position)
-            .Select(s => s.Service.Name)
-            .ToListAsync();
-
-        var description = serviceNames.Count > 0
-            ? Clamp($"Die Übernahme von **{slot.Territory.Name}** ist beendet — bitte folgende Dienste in dieser Reihenfolge aktivieren:\n\n"
-                + string.Join("\n", serviceNames.Select((name, i) => $"{i + 1}. {name}")))
-            : $"Die Übernahme von **{slot.Territory.Name}** ist beendet — bitte jetzt die Gebietsdienste aktivieren.";
+        var description = await BuildServicesDescriptionAsync(link, slot.Territory);
 
         var embed = await embedBranding.BuildBrandedAsync(guildId, description,
             title: $"Dienste aktivieren für {slot.Territory.Name}");
@@ -314,6 +303,50 @@ public class TerritoryCaptureDigestService(
             return null;
         }
     }
+
+    // Builds the Services reminder body for a zone. If the alliance has curated a Service Selection
+    // for this zone, renders two ordered groups (obligatorisch / optional). Otherwise falls back to
+    // the full list of the zone's services (all in canonical slot order), or a generic nudge when
+    // even that is empty (server not synced). Service names are English game terms; framing German.
+    private async Task<string> BuildServicesDescriptionAsync(GuildAlliance link, StfcTerritory territory)
+    {
+        var slots = await db.StfcTerritoryServiceSlots
+            .Where(s => s.ServerId == link.StfcAlliance.ServerId && s.TerritoryId == territory.Id)
+            .OrderBy(s => s.Position)
+            .Select(s => new { s.ServiceId, s.Service.Name })
+            .ToListAsync();
+
+        if (slots.Count == 0)
+            return $"Die Übernahme von **{territory.Name}** ist beendet — bitte jetzt die Gebietsdienste aktivieren.";
+
+        var priorityByService = await db.TerritoryServiceSelections
+            .Where(x => x.GuildAllianceId == link.Id && x.TerritoryId == territory.Id)
+            .ToDictionaryAsync(x => x.ServiceId, x => x.Priority);
+
+        List<string> InGroup(TerritoryServicePriority priority) => slots
+            .Where(s => priorityByService.TryGetValue(s.ServiceId, out var p) && p == priority)
+            .Select(s => s.Name)
+            .ToList();
+
+        var mustHave = priorityByService.Count > 0 ? InGroup(TerritoryServicePriority.MustHave) : [];
+        var niceToHave = priorityByService.Count > 0 ? InGroup(TerritoryServicePriority.NiceToHave) : [];
+
+        // No curation (or every curated service has since dropped off the zone) → list all, game order.
+        if (mustHave.Count == 0 && niceToHave.Count == 0)
+            return Clamp($"Die Übernahme von **{territory.Name}** ist beendet — bitte folgende Dienste in dieser Reihenfolge aktivieren:\n\n"
+                + Numbered(slots.Select(s => s.Name)));
+
+        var parts = new List<string> { $"Die Übernahme von **{territory.Name}** ist beendet." };
+        if (mustHave.Count > 0)
+            parts.Add("Bitte folgende **obligatorische Dienste** in dieser Reihenfolge aktivieren:\n" + Numbered(mustHave));
+        if (niceToHave.Count > 0)
+            parts.Add("**Optionale Dienste**, können auf Anfrage aktiviert werden:\n" + Numbered(niceToHave));
+
+        return Clamp(string.Join("\n\n", parts));
+    }
+
+    private static string Numbered(IEnumerable<string> names) =>
+        string.Join("\n", names.Select((name, i) => $"{i + 1}. {name}"));
 
     // Deletes any tracked TC message past its retention (Single at capture End, Daily +1d, Weekly
     // +7d, Services at End +6h) and drops its row. Deleting a pinned weekly also removes its pin. Not feature-gated:
