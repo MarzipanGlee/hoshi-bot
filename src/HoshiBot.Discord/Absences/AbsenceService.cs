@@ -286,9 +286,19 @@ public class AbsenceService(
                 await gatewayClient.Rest.ModifyMessageAsync(channelId, messageId, m => m.Embeds = [embed]);
                 return messageId;
             }
-            catch (RestException)
+            catch (RestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
-                // Message was deleted or otherwise unreachable — fall through and re-post.
+                // The message (or its channel) is genuinely gone — fall through and re-post a fresh one.
+            }
+            catch (RestException ex)
+            {
+                // Any OTHER edit failure (rate limit 429, transient 5xx, or lost permission) must NOT
+                // re-post: a momentary hiccup would orphan the still-present message with a duplicate
+                // (seen in the wild — the report reposting instead of editing). Keep the id and let the
+                // next refresh retry the edit; surface a genuine permission problem to admins.
+                if (ex.StatusCode == HttpStatusCode.Forbidden)
+                    await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, $"{context} aktualisieren", $"fehlende Berechtigung in <#{channelId}>?");
+                return messageId;
             }
         }
 
