@@ -150,13 +150,10 @@ a, .btn-link {
     text-transform: uppercase;
 }
 
-/* "Powered by {source}" attribution credit (PoweredBy.razor) — a muted footer line on admin
-   pages/editors backed by third-party data. */
+/* "Powered by {source}" attribution credit (PoweredBy.razor) — a Bootstrap info alert on admin
+   pages/editors backed by third-party data. The alert styles colour/typography; this just adds a
+   top gap so it sits as a footer credit and keeps it compact. */
 .powered-by {
     margin-top: 2rem;
     font-size: 0.875rem;
-    color: var(--bs-secondary-color, #6c757d);
-}
-.powered-by a {
-    color: inherit;
 }

@@ -5,13 +5,14 @@
    (distinct, so a mix like Territory Capture's territory.lol + stfc.pro renders both). *@
 @if (sources.Count > 0)
 {
-    <p class="powered-by">
+    <div class="alert alert-info powered-by" role="alert">
+        <span class="oi oi-external-link me-1" aria-hidden="true"></span>
         Powered by
         @for (var i = 0; i < sources.Count; i++)
         {
-            <a href="@sources[i].Url" target="_blank" rel="noopener">@sources[i].Name</a>@((MarkupString)Separator(i))
+            <a class="alert-link" href="@sources[i].Url" target="_blank" rel="noopener">@sources[i].Name</a>@((MarkupString)Separator(i))
         }
-    </p>
+    </div>
 }
 
 @code {
