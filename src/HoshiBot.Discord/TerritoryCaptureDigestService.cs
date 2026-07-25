@@ -278,8 +278,20 @@ public class TerritoryCaptureDigestService(
         var roleId = await settingsService.GetSnowflakeAsync(
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesRole);
 
-        var embed = await embedBranding.BuildBrandedAsync(guildId,
-            $"Die Übernahme von **{slot.Territory.Name}** ist beendet — bitte jetzt die Gebietsdienste aktivieren.",
+        // The zone's actual services on this alliance's server (synced from territory.lol), in the
+        // in-game slot order. Service names are English game terms; the framing text is German.
+        var serviceNames = await db.StfcTerritoryServiceSlots
+            .Where(s => s.ServerId == link.StfcAlliance.ServerId && s.TerritoryId == slot.Territory.Id)
+            .OrderBy(s => s.Position)
+            .Select(s => s.Service.Name)
+            .ToListAsync();
+
+        var description = serviceNames.Count > 0
+            ? Clamp($"Die Übernahme von **{slot.Territory.Name}** ist beendet — bitte folgende Dienste in dieser Reihenfolge aktivieren:\n\n"
+                + string.Join("\n", serviceNames.Select((name, i) => $"{i + 1}. {name}")))
+            : $"Die Übernahme von **{slot.Territory.Name}** ist beendet — bitte jetzt die Gebietsdienste aktivieren.";
+
+        var embed = await embedBranding.BuildBrandedAsync(guildId, description,
             title: $"Dienste aktivieren für {slot.Territory.Name}");
 
         try

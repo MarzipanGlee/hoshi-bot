@@ -1,0 +1,132 @@
+@page "/manage/stfc/territory-services"
+@using HoshiBot.Web.Services
+@inherits DbContextPageBase
+@inject TerritoryServiceSyncService SyncService
+
+<PageTitle>Territory Services</PageTitle>
+
+<h1>Territory Services</h1>
+
+<p>
+    The Territory Capture service catalog and the per-server zone→service mapping, synced from
+    <a href="https://territory.lol/" target="_blank" rel="noopener">territory.lol</a>. Drives the
+    per-zone service list in the TC "Dienste aktivieren" reminder. Read-only — data comes from the
+    sync below (only servers with a linked alliance are fetched).
+</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <button class="btn btn-primary" @onclick="SyncNow" disabled="@syncing">
+                @if (syncing)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    <span>Syncing…</span>
+                }
+                else
+                {
+                    <span>Sync now</span>
+                }
+            </button>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="forceSync" @bind="force" disabled="@syncing" />
+                <label class="form-check-label" for="forceSync">Force (ignore season/timestamp)</label>
+            </div>
+            <span class="text-muted">
+                @if (lastSeason is not null)
+                {
+                    <text>Last sync: season @lastSeason, @lastSyncedAt?.ToString("u") — @serviceCount services, @slotCount slots.</text>
+                }
+                else
+                {
+                    <text>Never synced.</text>
+                }
+            </span>
+        </div>
+
+        @if (error is not null)
+        {
+            <p class="text-danger mt-3 mb-0">@error</p>
+        }
+        else if (result is not null)
+        {
+            <p class="mt-3 mb-0">
+                @if (result.Skipped)
+                {
+                    <text>Already up to date (season @result.Season) — nothing to do.</text>
+                }
+                else
+                {
+                    <text>
+                        Synced season @result.Season: @result.ServicesUpserted services, @result.ServersSynced servers,
+                        @result.SlotsInserted slots.
+                        @if (result.ServersNotFound > 0)
+                        {
+                            <text> @result.ServersNotFound server(s) had no data.</text>
+                        }
+                        @if (result.SkippedUnknownTerritory > 0 || result.SkippedUnknownService > 0)
+                        {
+                            <text> Skipped @result.SkippedUnknownTerritory unknown territory, @result.SkippedUnknownService unknown service.</text>
+                        }
+                    </text>
+                }
+            </p>
+        }
+    </div>
+</div>
+
+<h2>Service catalog</h2>
+
+<QuickGrid Class="table" Items="Context.StfcTerritoryServices.AsNoTracking().OrderBy(s => s.Name)" Pagination="pagination">
+    <PropertyColumn Property="s => s.Name" Title="Name" Sortable="true" />
+    <PropertyColumn Property="s => s.Rarity" Title="Rarity" Sortable="true" />
+    <PropertyColumn Property="s => s.InfoShort" Title="Info" />
+    <PropertyColumn Property="s => s.Id" Title="Spec Id" Sortable="true" />
+</QuickGrid>
+
+<Paginator State="pagination" />
+
+@code {
+    private readonly PaginationState pagination = new() { ItemsPerPage = 50 };
+
+    private bool syncing;
+    private bool force;
+    private TerritoryServiceSyncResult? result;
+    private string? error;
+
+    private string? lastSeason;
+    private DateTimeOffset? lastSyncedAt;
+    private int serviceCount;
+    private int slotCount;
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    private async Task SyncNow()
+    {
+        syncing = true;
+        error = null;
+        result = null;
+        try
+        {
+            result = await SyncService.SyncAsync(force);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Sync failed: {ex.Message}";
+        }
+        finally
+        {
+            syncing = false;
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        var state = await Context.TerritoryServiceSyncStates.AsNoTracking().FirstOrDefaultAsync();
+        lastSeason = state?.TcSeason;
+        lastSyncedAt = state?.SyncedAt;
+        serviceCount = await Context.StfcTerritoryServices.CountAsync();
+        slotCount = await Context.StfcTerritoryServiceSlots.CountAsync();
+    }
+}

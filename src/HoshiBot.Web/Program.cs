@@ -46,6 +46,16 @@ builder.Services.AddHttpClient("DiscordUserApi", client =>
 builder.Services.AddHttpClient(nameof(StfcSystemSyncService));
 builder.Services.AddHostedService<StfcSystemSyncService>();
 
+// territory.lol shares stfc.pro's WordPress bot-protection (403s a User-Agent-less client), so a
+// realistic browser UA is required — same gotcha as the Host's news/release clients.
+var territoryLolBaseUrl = builder.Configuration["TerritoryLol:BaseUrl"] ?? "https://territory.lol/";
+builder.Services.AddHttpClient(nameof(TerritoryServiceSyncService), client =>
+{
+    client.BaseAddress = new Uri(territoryLolBaseUrl);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+});
+
 builder.Services.AddSingleton(new RestClient(new BotToken(builder.Configuration["Discord:Token"]!)));
 
 builder.Services
@@ -88,6 +98,7 @@ builder.Services.AddScoped<StfcAllianceImportService>();
 builder.Services.AddScoped<StfcCatalogImportService>();
 builder.Services.AddScoped<StfcServerStatusImportService>();
 builder.Services.AddScoped<StfcTerritoryOwnershipImportService>();
+builder.Services.AddScoped<TerritoryServiceSyncService>();
 builder.Services.AddScoped<CurrentGuildContext>();
 builder.Services.AddScoped<CurrentAllianceContext>();
 builder.Services.AddScoped<SupportModeContext>();

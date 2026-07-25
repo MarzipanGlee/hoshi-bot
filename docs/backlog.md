@@ -424,14 +424,32 @@ a second pass in `SendCaptureRemindersAsync` firing in the ~5-min window after `
 editor); a new **`ServicesRole`** feature setting was added (a dedicated role, not the RankRoles
 Commodore role).
 
-Still deferred — the **rich per-zone service list** the legacy message actually rendered (an
-ordered mandatory/optional, bilingual DE/EN list of the specific services to activate, from
-`Commands/notifications/send-territory-capture-reminder.yag`'s `$rtServices` branch). The current
-message is a generic nudge. Building the full list is blocked on modeling the services data: the
-`data/territory/*.json` files carry `service_list_ids` per zone but those ids don't resolve against
-the `territory_service_specs` map in the same files, there's no mandatory/optional split, and no
-German names — so it needs a services domain model + seeder + a resolved id→description mapping,
-not just a render tweak.
+**Per-zone service list — ✅ done (2026-07-25)** via the territory.lol synchronizer (below): the
+Services reminder now lists each zone's actual services (ordered, English game-term names) for the
+alliance's server, falling back to the generic nudge when a zone/server has no synced services. The
+earlier "blocked on data" concern is resolved — the real territory→service mapping isn't the static
+`service_list_ids` (an unresolvable id space) but the per-server `service_slots_{server}.json`, and
+service names/rarity come from `territory_service_specs` + `translation.json` (`services_name_{loca}`).
+
+Possible follow-ups: (a) **German translation** of service names (currently English game terms; the
+framing text is German); (b) legacy's **mandatory/optional split** — the game data has no such
+distinction, so all of a zone's services are listed in order (a curated split would be a manual
+overlay, not in the source data).
+
+## Territory Capture service sync — follow-ups
+
+The territory.lol synchronizer (`TerritoryServiceSyncService`, manual "Sync now" button on
+`/manage/stfc/territory-services`) is `meta.json`-gated (skips when `tcSeason`/`generatedAt` are
+unchanged) and fetches `service_slots` only for servers with a linked alliance. Deferred:
+
+- **Scheduled auto-sync** — a Quartz job (meta.json-gated) so the catalog/mapping refresh each TC
+  season without a manual click. Model on the existing external-fetch jobs in
+  `HoshiBot.Discord/Scheduling/`.
+- **Richer territory-metadata sync** — the same `static_*.json` also carries per-region takeover
+  windows (duration/start_hour/weekday), tier, neighbours, node/system links — richer than the
+  current hardcoded `StfcTerritorySeedData` (single global weekday/time, tier-derived duration).
+  Ingesting it would let the TC scheduler move off the single-weekday model to real per-region
+  windows — a larger change touching `TerritoryCaptureScheduler`.
 
 ## Territory Capture "Services role" sync
 
