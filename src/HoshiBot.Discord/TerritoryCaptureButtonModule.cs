@@ -39,6 +39,7 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db) : ComponentInter
                 Reason = territory is null ? "Abmeldung Gebietsübernahme" : $"Abmeldung für {territory.Name}",
                 SuppressNotifications = false,
                 CreatedByDiscordUserId = userId,
+                CreatedAt = DateTimeOffset.UtcNow,
             });
 
             await db.SaveChangesAsync();
