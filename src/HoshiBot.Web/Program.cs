@@ -45,6 +45,7 @@ builder.Services.AddHttpClient("DiscordUserApi", client =>
 
 builder.Services.AddHttpClient(nameof(StfcSystemSyncService));
 builder.Services.AddHostedService<StfcSystemSyncService>();
+builder.Services.AddHostedService<TerritoryServiceAutoSyncService>();
 
 // territory.lol shares stfc.pro's WordPress bot-protection (403s a User-Agent-less client), so a
 // realistic browser UA is required — same gotcha as the Host's news/release clients.

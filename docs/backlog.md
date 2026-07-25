@@ -341,15 +341,25 @@ both). Keep the same misfire-replay + persistent-store behaviour the hard-coded 
 Also expose the time (+ zone) in the Web feature-settings UI. Until then the hard-coded 09:00/19:00
 Europe/Zurich is the default for everyone.
 
-## Bug: `Absence.CreatedAt` never set (shows `0001-01-01`)
+## Bug: `Absence.CreatedAt` never set (shows `0001-01-01`) — ✅ fixed (2026-07-25)
 
-Seen 2026-07 on the `Manage/Database/Absences` debug page: every `Absence` row shows
-**`CreatedAt = 01/01/0001 00:00:00 +00:00`** — the default `DateTimeOffset`, i.e. the field is
-never assigned when an absence is created via the Discord flow
-(`AbsenceModalModule` / the absence-creation service in `HoshiBot.Discord`). Likely the `Absence`
-entity is inserted without `CreatedAt = DateTimeOffset.UtcNow`, so EF persists the CLR default.
-Fix server-side at creation (the Database page is read-only debug output): set `CreatedAt` where
-`Absence` rows are inserted, and check whether the edit flow (`EditsAbsenceId`) needs it too.
+The `0001-01-01` rows came from the one insert path that skipped `CreatedAt`: the Territory Capture
+"Abmelden" button (`TerritoryCaptureButtonModule`), which creates an `Absence` directly instead of
+via `AbsenceService`. Set `CreatedAt = DateTimeOffset.UtcNow` there; every other path
+(`AbsenceService.InsertAsync`/`CreateEditDraftAsync`) already set it, and the edit flow keeps the
+original row's `CreatedAt` (correct). Existing bad rows are transient TC unsubscribe absences that
+expire/sweep, left as-is.
+
+## Bug: Absences report reposted instead of edited — ✅ fixed (2026-07-25)
+
+`AbsenceService.PostOrEditAsync` caught **every** `RestException` on the edit path and fell through
+to re-posting, so a transient rate-limit (429) or Discord 5xx while editing the persistent
+Abwesenheiten report was misread as "message gone" → a duplicate post that orphaned the still-present
+message. Fixed to only re-post on a genuine 404, keep the id and retry on any other error (and notify
+admins on 403). Possible follow-up (deferred — not seen often enough to warrant it): **auto-clean
+orphans** — when a repost *does* happen (real 404), there's no old message to remove, but if
+duplicate reports recur we could track and delete the previous message id defensively rather than
+relying on manual cleanup.
 
 ## STFC in-game languages — i18n reference
 
@@ -445,12 +455,13 @@ framing text is German).
 
 The territory.lol synchronizer (`TerritoryServiceSyncService`, manual "Sync now" button on
 `/manage/stfc/territory-services`) is `meta.json`-gated (skips when `tcSeason`/`generatedAt` are
-unchanged) and fetches `service_slots` only for servers with a linked alliance. Deferred:
+unchanged) and fetches `service_slots` only for servers with a linked alliance.
 
-- **Scheduled auto-sync** — a Quartz job (meta.json-gated) so the catalog/mapping refresh each TC
-  season without a manual click. Model on the existing external-fetch jobs in
-  `HoshiBot.Discord/Scheduling/`.
-- **Richer territory-metadata sync** — the same `static_*.json` also carries per-region takeover
+- **Scheduled auto-sync — ✅ done (2026-07-25)**: `TerritoryServiceAutoSyncService`, a hosted
+  `BackgroundService` in `HoshiBot.Web` that runs the sync on startup then every 12h (~twice daily),
+  meta.json-gated so between-season ticks are cheap no-ops. Runs in Web (not a Host Quartz job) because
+  the sync service lives in Web and Web can't reference Discord/Quartz — mirrors `StfcSystemSyncService`.
+- **Richer territory-metadata sync** (deferred) — the same `static_*.json` also carries per-region takeover
   windows (duration/start_hour/weekday), tier, neighbours, node/system links — richer than the
   current hardcoded `StfcTerritorySeedData` (single global weekday/time, tier-derived duration).
   Ingesting it would let the TC scheduler move off the single-weekday model to real per-region
