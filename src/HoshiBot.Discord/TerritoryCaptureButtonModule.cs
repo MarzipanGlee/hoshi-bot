@@ -6,11 +6,11 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord;
 
-public class TerritoryCaptureButtonModule(HoshiBotDbContext db) : ComponentInteractionModule<ButtonInteractionContext>
+public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding embedBranding) : ComponentInteractionModule<ButtonInteractionContext>
 {
     [ComponentInteraction("territory-capture-unsubscribe")]
     public Task Unsubscribe(int territoryId, long startUnix, long endUnix) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var guildId = Context.Guild!.Id;
             var userId = Context.User.Id;

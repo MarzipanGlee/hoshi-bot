@@ -28,7 +28,7 @@ public class CommandBridgeStaffButtonModule(
     private async Task<InteractionMessageProperties> ShieldReportPromptAsync(ShieldLossVariant variant)
     {
         if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
-            return EphemeralReply.Of(msg);
+            return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
             "Wähle den Commander, dessen Schildverlust gemeldet werden soll.",
@@ -40,7 +40,7 @@ public class CommandBridgeStaffButtonModule(
     public async Task<InteractionMessageProperties> MutePrompt()
     {
         if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
-            return EphemeralReply.Of(msg);
+            return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
             "Wähle den Commander, dessen Stummschaltung der öffentlichen Schildablaufwarnungen geändert werden soll.",

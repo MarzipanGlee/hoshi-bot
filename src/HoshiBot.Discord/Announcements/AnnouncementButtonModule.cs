@@ -7,7 +7,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.Announcements;
 
-public class AnnouncementButtonModule(AnnouncementService announcementService, GatewayClient gatewayClient, GuildFeatureService featureService, GuildAllianceService allianceService)
+public class AnnouncementButtonModule(AnnouncementService announcementService, GatewayClient gatewayClient, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
     // All four Publish buttons and Cancel live on AnnouncementMessageCommandModule.Preview's
@@ -29,8 +29,11 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         Context.Interaction.ModifyDelayedResponseAsync(() => PublishAsync(channelId, messageId, audience, AnnouncementSeverity.Direct));
 
     [ComponentInteraction("announcement-cancel")]
-    public InteractionCallbackProperties<MessageOptions> Cancel() =>
-        InteractionCallback.ModifyMessage(m => { m.Content = "Verworfen."; m.Embeds = []; m.Components = []; });
+    public async Task<InteractionCallbackProperties<MessageOptions>> Cancel()
+    {
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, "Verworfen.");
+        return InteractionCallback.ModifyMessage(m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; });
+    }
 
     [ComponentInteraction("announcement-pick-audience")]
     public InteractionCallbackProperties<MessageOptions> PickAudience(ulong channelId, ulong messageId, string audience) =>
@@ -38,7 +41,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
 
     [ComponentInteraction("announcement-read")]
     public Task MarkRead(int announcementId) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var (wasNew, count) = await announcementService.MarkReadAsync(announcementId, Context.Guild!.Id, Context.User.Id);
 
@@ -69,7 +72,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
             || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
         {
             var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements);
-            return m => { m.Content = disabledMessage; m.Embeds = []; m.Components = []; };
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, disabledMessage);
         }
 
         // Re-fetching live (rather than carrying the draft's content in the custom-id,
@@ -77,7 +80,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         // between preview and publish is naturally picked up.
         var draft = await gatewayClient.Rest.GetMessageAsync(channelId, messageId);
         var result = await announcementService.PublishAsync(Context.Guild!.Id, parsedAudience, guildAllianceId, draft, severity, Context.User.Id);
-        return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+        return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
     }
 
     // Shared with AnnouncementMessageCommandModule.Preview, which needs the same prompts

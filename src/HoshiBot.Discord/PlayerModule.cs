@@ -7,12 +7,12 @@ using NetCord.Services.ApplicationCommands;
 
 namespace HoshiBot.Discord;
 
-public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkService) : ApplicationCommandModule<ApplicationCommandContext>
+public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("link-player", "Link your Discord account to your STFC in-game player name",
         Contexts = [InteractionContextType.Guild])]
     public Task LinkPlayer(string playerName, string serverName) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var userId = Context.User.Id;
 
@@ -41,7 +41,7 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
     [SlashCommand("set-my-alliance", "Set the alliance for your main linked player",
         Contexts = [InteractionContextType.Guild])]
     public Task SetMyAlliance(string allianceTag) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var userId = Context.User.Id;
 

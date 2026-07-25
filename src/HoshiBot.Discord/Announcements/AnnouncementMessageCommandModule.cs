@@ -8,7 +8,7 @@ namespace HoshiBot.Discord.Announcements;
 // MessageCommandContext is a sibling of ApplicationCommandContext (both just implement
 // IApplicationCommandContext), not a subtype — needs its own module base, confirmed via
 // reflection against the installed NetCord package before writing this.
-public class AnnouncementMessageCommandModule(GuildFeatureService featureService, GuildFeatureSettingsService settingsService)
+public class AnnouncementMessageCommandModule(GuildFeatureService featureService, GuildFeatureSettingsService settingsService, EmbedBranding embedBranding)
     : ApplicationCommandModule<MessageCommandContext>
 {
     [MessageCommand("Vorschau erstellen")]
@@ -16,7 +16,7 @@ public class AnnouncementMessageCommandModule(GuildFeatureService featureService
     {
         var guildId = Context.Guild!.Id;
         if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Announcements))
-            return EphemeralReply.Of(GuildFeatureService.DisabledMessage(GuildFeature.Announcements));
+            return await embedBranding.EphemeralAsync(guildId, GuildFeatureService.DisabledMessage(GuildFeature.Announcements));
 
         var draft = Context.Target;
 

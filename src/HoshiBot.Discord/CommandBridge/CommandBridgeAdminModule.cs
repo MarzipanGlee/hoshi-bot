@@ -21,13 +21,13 @@ public enum CommandBridgeChoice
 // commands. Re-run after adding buttons or toggling a feature so a hub reflects the current
 // set. The actual building lives in CommandBridgeHubService (shared with the Web-triggered
 // republish job).
-public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildAllianceService allianceService)
+public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildAllianceService allianceService, EmbedBranding embedBranding)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("post-command-bridge", "Post or refresh the Command Bridge hub message(s)",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
     public Task PostCommandBridge(CommandBridgeChoice bridge = CommandBridgeChoice.All) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var guildId = Context.Guild!.Id;
 

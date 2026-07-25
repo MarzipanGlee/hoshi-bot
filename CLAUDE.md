@@ -252,10 +252,17 @@ locally by re-running `HoshiBot.Migrator` against the local connection string (s
     classes (not inline `style="color:…"`); sidebar item padding lives on `.nav-item`.
   - **Discord/Host/Data** — build every branded embed via
     `EmbedBranding.BuildBrandedAsync(guildId, description, color?, title?)` (set `Fields`/etc. on the
-    returned embed), never a hand-assembled `EmbedProperties` with Author/Footer. Feature-gate an
-    interaction with `GuildFeatureService.EnsureEnabledAsync(guildId, feature)` (returns the disabled
-    message or null). Register Quartz jobs with the `AddSimpleJob<T>(interval)` / `AddCronJob<T>(cron)`
-    local helpers in `Program.cs`. Seeders in `ServiceCollectionExtensions` open with `WithDbAsync`.
+    returned embed), never a hand-assembled `EmbedProperties` with Author/Footer. **Every user-facing
+    interaction reply is a branded embed, not plain text** — reach for the branded helpers, not
+    `EphemeralReply.Of(text)` / `m.Content = text`: `EmbedBranding.EphemeralAsync(guildId, text, …)` for a
+    fresh ephemeral reply/guard, `EmbedBranding.BrandedEditAsync(guildId, text)` for the result step of an
+    ack-then-edit handler (returns the `Action<MessageOptions>`), and
+    `Interaction.SendDelayedEmbedAsync(embedBranding, guildId, work)` for the ack-immediately-then-edit
+    confirmation flow (this replaced the removed plain-text `SendDelayedResponseAsync`). Plain text is
+    only for the transient `⏳ Processing...` ack. Feature-gate an interaction with
+    `GuildFeatureService.EnsureEnabledAsync(guildId, feature)` (returns the disabled message or null).
+    Register Quartz jobs with the `AddSimpleJob<T>(interval)` / `AddCronJob<T>(cron)` local helpers in
+    `Program.cs`. Seeders in `ServiceCollectionExtensions` open with `WithDbAsync`.
 
 ## Collaboration notes
 

@@ -2,6 +2,23 @@
 
 Deferred ideas / follow-ups, not scheduled yet.
 
+## Branded-embed conversion — remaining messages (deferred subset)
+
+A 2026-07-25 pass converted every user-facing **confirmation/result** message, the **cancel/discard**
+replies, and the **feature-disabled guards** to the branded embed template (via the new shared helpers
+`EmbedBranding.EphemeralAsync`/`BrandedEditAsync` + `Interaction.SendDelayedEmbedAsync`). A few were left
+plain on purpose — decide per-case whether they're worth converting:
+
+- **Member Onboarding DM replies** (`MemberOnboardingModalModule.cs:18`, `MemberOnboardingButtonModule.cs:17`)
+  — these run in a **DM** (no `Context.Guild`), so branding needs the review's `GuildId` threaded out of
+  `MemberOnboardingService.ConfirmAsync`/`ResolveByNameAsync` (they only return a string today). Small
+  service change; deferred so the sweep stayed mechanical.
+- **Modal input-validation errors** kept plain: `StfcNewsModalModule.cs:20` ("Could not read that date"),
+  `CommandBridgeStaffBetaModule.cs:17` (no beta role configured), `AbsenceModalModule.cs` `ErrorEdit`.
+- **Wizard/draft-state text** kept plain: `CommandBridgeButtonModule` "Entwurf nicht gefunden" / "Unbekannter
+  Entwurfstyp" (draft expired), `AnnouncementButtonModule.cs:124` ("Vorschau …" severity prompt).
+- The `⏳ Processing...` ack placeholder stays plain (transient, replaced on edit).
+
 ## Encrypt per-guild secrets stored in the DB — DONE
 
 The AI-chat feature stores each guild's Google Gemini **API key** in `GuildFeatureSettingText`

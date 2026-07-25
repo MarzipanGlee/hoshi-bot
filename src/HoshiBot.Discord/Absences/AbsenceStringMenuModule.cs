@@ -40,6 +40,6 @@ public class AbsenceStringMenuModule(AbsenceService absenceService, EmbedBrandin
         {
             var absenceId = int.Parse(Context.SelectedValues[0]);
             var result = await absenceService.DeleteAsync(absenceId, Context.User.Id);
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
         });
 }

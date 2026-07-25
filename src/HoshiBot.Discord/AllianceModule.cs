@@ -7,12 +7,12 @@ using NetCord.Services.ApplicationCommands;
 
 namespace HoshiBot.Discord;
 
-public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureService) : ApplicationCommandModule<ApplicationCommandContext>
+public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("set-diplomacy", "Set one of this guild's alliances' diplomatic status toward another alliance",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
     public Task SetDiplomacy(string ourAllianceTag, string targetAllianceTag, DiplomacyStatus status) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var guildId = Context.Guild!.Id;
 

@@ -4,7 +4,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.StfcNews;
 
-public class StfcNewsButtonModule(StfcNewsService service) : ComponentInteractionModule<ButtonInteractionContext>
+public class StfcNewsButtonModule(StfcNewsService service, EmbedBranding embedBranding) : ComponentInteractionModule<ButtonInteractionContext>
 {
     // Both Enter Date and Edit open the same modal, routed to the same submit handler
     // (StfcNewsModalModule) — a resubmission via Edit is just a later SubmitDateAsync call,
@@ -29,7 +29,7 @@ public class StfcNewsButtonModule(StfcNewsService service) : ComponentInteractio
     // fully independent of this reply so the two can never conflict.
     [ComponentInteraction("stfc-news-confirm")]
     public Task Confirm(int postId) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var (outcome, count, required) = await service.ConfirmDateAsync(postId, Context.User.Id);
             return outcome switch

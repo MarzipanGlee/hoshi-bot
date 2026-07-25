@@ -132,7 +132,7 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var result = await absenceService.ConfirmDraftAsync(draftId, Context.User.Id);
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
         });
 
     [ComponentInteraction("absence-cancel")]
@@ -140,6 +140,6 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var result = await absenceService.CancelDraftAsync(draftId, Context.User.Id);
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
         });
 }

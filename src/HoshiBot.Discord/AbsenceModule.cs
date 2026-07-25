@@ -10,7 +10,7 @@ namespace HoshiBot.Discord;
 // Kept alongside the Command Bridge button/modal flow (AbsenceButtonModule etc.) —
 // both are valid entry points to the same AbsenceService logic. Saves straight to
 // Confirmed (no draft/confirm step): the command's arguments are already the review.
-public class AbsenceModule(AbsenceService absenceService, GuildFeatureService featureService) : ApplicationCommandModule<ApplicationCommandContext>
+public class AbsenceModule(AbsenceService absenceService, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand("absence", "Report yourself as absent for a number of hours",
         Contexts = [InteractionContextType.Guild])]
@@ -19,7 +19,7 @@ public class AbsenceModule(AbsenceService absenceService, GuildFeatureService fe
         string? reason = null,
         bool suppressNotifications = true,
         AbsenceVisibility visibility = AbsenceVisibility.Public) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.Absences) is { } msg)
                 return msg;

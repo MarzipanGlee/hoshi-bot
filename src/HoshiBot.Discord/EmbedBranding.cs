@@ -37,6 +37,26 @@ public class EmbedBranding(GatewayClient gatewayClient, EmbedBrandingOptions opt
             Footer = BuildFooter(guildId),
         };
 
+    // A ready-to-send ephemeral interaction message carrying the branded embed — the standard shape for
+    // a "here's your result" / guard reply, so call sites stop hand-building EphemeralReply.Of(text).
+    public async Task<InteractionMessageProperties> EphemeralAsync(ulong guildId, string description,
+        Color? color = null, string? title = null, IReadOnlyList<IMessageComponentProperties>? components = null) =>
+        new()
+        {
+            Embeds = [await BuildBrandedAsync(guildId, description, color, title)],
+            Flags = MessageFlags.Ephemeral,
+            Components = components,
+        };
+
+    // A MessageOptions edit that replaces the placeholder/prior content with the branded embed and
+    // clears any components — the result step of an ack-then-edit handler (SendDelayed*/ModifyDelayed).
+    public async Task<Action<MessageOptions>> BrandedEditAsync(ulong guildId, string description,
+        Color? color = null, string? title = null)
+    {
+        var embed = await BuildBrandedAsync(guildId, description, color, title);
+        return m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; };
+    }
+
     public async Task<EmbedAuthorProperties> BuildAuthorAsync(ulong guildId)
     {
         return new EmbedAuthorProperties

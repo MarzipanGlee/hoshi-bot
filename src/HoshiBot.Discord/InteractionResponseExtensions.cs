@@ -19,14 +19,6 @@ public static class InteractionResponseExtensions
 {
     private const string Placeholder = "⏳ Processing...";
 
-    // New ephemeral placeholder → run work → edit the reply with the result text.
-    public static async Task SendDelayedResponseAsync(this Interaction interaction, Func<Task<string>> work)
-    {
-        await interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of(Placeholder)));
-        var content = await work();
-        await interaction.ModifyResponseAsync(m => m.Content = content);
-    }
-
     // Same new-ephemeral ack, but the final edit is an arbitrary MessageOptions mutation
     // (embeds/components) rather than plain content. Distinct name (not an overload) so the
     // returned `m => {…}` lambda target-types cleanly.
@@ -35,6 +27,15 @@ public static class InteractionResponseExtensions
         await interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of(Placeholder)));
         var edit = await work();
         await interaction.ModifyResponseAsync(edit);
+    }
+
+    // Like SendDelayedResponseAsync, but the result string is shown as a branded embed instead of plain
+    // content — the default for a user-facing "action done" confirmation.
+    public static async Task SendDelayedEmbedAsync(this Interaction interaction, EmbedBranding branding, ulong guildId, Func<Task<string>> work)
+    {
+        await interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of(Placeholder)));
+        var text = await work();
+        await interaction.ModifyResponseAsync(await branding.BrandedEditAsync(guildId, text));
     }
 
     // In-place ack (edit the originating wizard message to the placeholder, clearing its

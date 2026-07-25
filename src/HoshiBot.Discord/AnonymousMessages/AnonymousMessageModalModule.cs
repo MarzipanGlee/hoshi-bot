@@ -6,7 +6,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.AnonymousMessages;
 
-public class AnonymousMessageModalModule(AnonymousMessageService anonymousMessageService, GuildAllianceService allianceService) : ComponentInteractionModule<ModalInteractionContext>
+public class AnonymousMessageModalModule(AnonymousMessageService anonymousMessageService, GuildAllianceService allianceService, EmbedBranding embedBranding) : ComponentInteractionModule<ModalInteractionContext>
 {
     // Always opened from CommandBridgeButtonModule.ContactCommandStaffPrompt's ephemeral
     // wizard message, so ModifyMessage is safe here — never the public hub.
@@ -28,6 +28,6 @@ public class AnonymousMessageModalModule(AnonymousMessageService anonymousMessag
                 ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
                 : null;
             var result = await anonymousMessageService.SendAsync(Context.Guild!.Id, parsedAudience, guildAllianceId, subject, message);
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
         });
 }

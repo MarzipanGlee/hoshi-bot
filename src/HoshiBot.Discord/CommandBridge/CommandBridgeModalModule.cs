@@ -60,7 +60,7 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
 
             var result = await alertService.ReportRaidAsync(Context.Guild!.Id, Context.User.Id, targetUserId,
                 system, serverLocation, string.IsNullOrWhiteSpace(attacker) ? null : attacker);
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
         });
 
     [ComponentInteraction("shield-reminder-setup-modal")]

@@ -4,7 +4,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.StfcNews;
 
-public class StfcNewsModalModule(StfcNewsService service) : ComponentInteractionModule<ModalInteractionContext>
+public class StfcNewsModalModule(StfcNewsService service, EmbedBranding embedBranding) : ComponentInteractionModule<ModalInteractionContext>
 {
     // Personal ephemeral reply, not an edit to the shared message — see StfcNewsButtonModule.
     // Confirm for why (an immediate ack, then edited with the real outcome once
@@ -21,7 +21,7 @@ public class StfcNewsModalModule(StfcNewsService service) : ComponentInteraction
             return;
         }
 
-        await Context.Interaction.SendDelayedResponseAsync(async () =>
+        await Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var outcome = await service.SubmitDateAsync(postId, date, Context.User.Id);
             return outcome switch

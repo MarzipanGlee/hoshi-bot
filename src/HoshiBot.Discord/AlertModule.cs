@@ -7,7 +7,7 @@ using NetCord.Services.ApplicationCommands;
 
 namespace HoshiBot.Discord;
 
-public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildFeatureService featureService) : ApplicationCommandModule<ApplicationCommandContext>
+public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
     // Tip: targeting yourself runs a self-test — see AlertService.ReportRaidAsync.
     [SlashCommand("raid", "Report a raid on a commander's station (tip: target yourself to try it out risk-free)", Contexts = [InteractionContextType.Guild])]
@@ -16,7 +16,7 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
         [SlashCommandParameter(AutocompleteProviderType = typeof(StationHousingSystemAutocompleteProvider))] string system,
         RaidServerLocation server,
         string? attacker = null) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts) is { } msg)
                 return msg;
@@ -29,13 +29,13 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
     // "Beenden" button on the notification itself, which is likewise never gated).
     [SlashCommand("raid-terminate", "End an active raid alert", Contexts = [InteractionContextType.Guild])]
     public Task TerminateRaid(User? target = null) =>
-        Context.Interaction.SendDelayedResponseAsync(() => alertService.TerminateRaidAsync(Context.Guild!.Id, Context.User.Id, target?.Id ?? Context.User.Id));
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, () => alertService.TerminateRaidAsync(Context.Guild!.Id, Context.User.Id, target?.Id ?? Context.User.Id));
 
     [SlashCommand("shield-reminder", "Set a reminder for when your shield expires", Contexts = [InteractionContextType.Guild])]
     public Task SetShieldReminder(
         string duration,
         [SlashCommandParameter(AutocompleteProviderType = typeof(StationHousingSystemAutocompleteProvider))] string system) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
                 return msg;
@@ -47,12 +47,12 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
     // able to remove their own existing reminder, even after an admin disables the feature.
     [SlashCommand("shield-reminder-remove", "Remove your shield reminder", Contexts = [InteractionContextType.Guild])]
     public Task RemoveShieldReminder() =>
-        Context.Interaction.SendDelayedResponseAsync(() => alertService.TerminateShieldReminderAsync(Context.Guild!.Id, Context.User.Id));
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, () => alertService.TerminateShieldReminderAsync(Context.Guild!.Id, Context.User.Id));
 
     // Not feature-gated — same reasoning as TerminateRaid above.
     [SlashCommand("shield-reminder-disable", "Permanently disable shield reminders for yourself", Contexts = [InteractionContextType.Guild])]
     public Task DisableShieldReminder() =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var guildId = Context.Guild!.Id;
             var userId = Context.User.Id;

@@ -6,7 +6,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.Tickets;
 
-public class TicketModalModule(TicketService ticketService, GuildAllianceService allianceService) : ComponentInteractionModule<ModalInteractionContext>
+public class TicketModalModule(TicketService ticketService, GuildAllianceService allianceService, EmbedBranding embedBranding) : ComponentInteractionModule<ModalInteractionContext>
 {
     // Always opened from CommandBridgeButtonModule.ContactCommandStaffPrompt's ephemeral
     // wizard message, so ModifyMessage is safe here — never the public hub.
@@ -27,6 +27,6 @@ public class TicketModalModule(TicketService ticketService, GuildAllianceService
                 : null;
             var result = await ticketService.OpenTicketAsync(
                 Context.Guild!.Id, parsedAudience, guildAllianceId, Context.User.Id, CommanderName.Of(Context.User), subject);
-            return m => { m.Content = result; m.Embeds = []; m.Components = []; };
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
         });
 }
