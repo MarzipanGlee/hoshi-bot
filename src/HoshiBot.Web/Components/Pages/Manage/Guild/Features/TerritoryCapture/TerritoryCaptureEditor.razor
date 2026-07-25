@@ -1,4 +1,5 @@
 @inherits FeatureEditorBase
+@using System.Globalization
 @using HoshiBot.Web.Services
 @using NetCord
 @using NetCord.Rest
@@ -184,17 +185,29 @@
         SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
 
     // The <input type="time"> emits an "HH:mm" string; bind it manually (a string @bind isn't allowed
-    // on type=time). Blank clears the setting → the sweep falls back to the default (09:00 / 19:00).
+    // on type=time). We snap to the nearest :00/:30 before saving — the sweep only fires at half-hour
+    // ticks, so an off-grid value (typed past the step) would otherwise store one time but post at the
+    // next slot. Blank clears the setting → the sweep falls back to the default (09:00 / 19:00).
     private async Task OnWeeklyDigestTimeChanged(ChangeEventArgs e)
     {
-        weeklyDigestTimeInput = e.Value?.ToString();
+        weeklyDigestTimeInput = SnapToHalfHour(e.Value?.ToString());
         await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.WeeklyDigestTime, weeklyDigestTimeInput);
     }
 
     private async Task OnDailyDigestTimeChanged(ChangeEventArgs e)
     {
-        dailyDigestTimeInput = e.Value?.ToString();
+        dailyDigestTimeInput = SnapToHalfHour(e.Value?.ToString());
         await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DailyDigestTime, dailyDigestTimeInput);
+    }
+
+    // Round a typed "HH:mm" to the nearest 30 minutes so the stored value matches when the sweep
+    // actually fires. Blank/unparseable passes through (blank clears → default).
+    private static string? SnapToHalfHour(string? raw)
+    {
+        if (!TimeOnly.TryParseExact(raw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t))
+            return raw;
+        var snapped = (int)Math.Round((t.Hour * 60 + t.Minute) / 30.0, MidpointRounding.AwayFromZero) * 30 % 1440;
+        return new TimeOnly(snapped / 60, snapped % 60).ToString("HH:mm", CultureInfo.InvariantCulture);
     }
 
     // Stored under the Absences feature (its owner) so this and the Absences page edit one value.
