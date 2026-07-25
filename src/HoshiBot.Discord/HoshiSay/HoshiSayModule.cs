@@ -30,7 +30,9 @@ public class HoshiSayModule(HoshiBotDbContext db, AiChatService aiChat, GatewayC
         [SlashCommandParameter(Name = "kanal", Description = "Zielkanal, in den Hoshi die Nachricht schreibt")]
         TextGuildChannel channel,
         [SlashCommandParameter(Name = "auftrag", Description = "Was Hoshi vermitteln soll, z. B. tröste Speed, er hat seine Nodes verloren")]
-        string instruction)
+        string instruction,
+        [SlashCommandParameter(Name = "mitglied", Description = "Optional: Mitglied, das erwähnt/gepingt werden soll (auch wenn es keinen Admin-Zugriff hat)")]
+        User? mitglied = null)
         => Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var guildId = Context.Guild!.Id;
@@ -43,16 +45,19 @@ public class HoshiSayModule(HoshiBotDbContext db, AiChatService aiChat, GatewayC
             if (Context.Channel.Id != adminChannelId)
                 return $"⚠️ Dieser Befehl funktioniert nur im Admin-Kanal (<#{adminChannelId}>).";
 
-            var text = await aiChat.ComposeMessageAsync(guildId, instruction, CancellationToken.None);
+            var text = await aiChat.ComposeMessageAsync(
+                guildId, instruction, mitglied?.Id, mitglied is null ? null : CommanderName.Of(mitglied), CancellationToken.None);
             if (text is null)
                 return "⚠️ Ich konnte gerade keine Nachricht verfassen – ist das KI-Backend (AiBackend) für diese Gilde konfiguriert? Versuch es sonst gleich noch einmal.";
 
-            // Post as a plain chat message (no embed) so it reads like a natural Hoshi line. Never let a
-            // composed line ping @everyone, roles, or members — the persona prompt also forbids <@…>.
+            // Post as a plain chat message (no embed) so it reads like a natural Hoshi line. Only the
+            // explicitly-picked member may be pinged; @everyone/roles and any other stray <@…> stay inert.
             await gatewayClient.Rest.SendMessageAsync(channel.Id, new MessageProperties
             {
                 Content = text,
-                AllowedMentions = AllowedMentionsProperties.None,
+                AllowedMentions = mitglied is { } m
+                    ? new AllowedMentionsProperties { Everyone = false, ReplyMention = false, AllowedRoles = [], AllowedUsers = [m.Id] }
+                    : AllowedMentionsProperties.None,
             });
 
             return $"✅ In <#{channel.Id}> gepostet:\n\n{text}";

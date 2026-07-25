@@ -14,7 +14,11 @@ namespace HoshiBot.Discord.AiChat;
 // posting an empty message.
 public partial class AiChatService
 {
-    public async Task<string?> ComposeMessageAsync(ulong guildId, string instruction, CancellationToken cancellationToken)
+    // instruction: the admin's "what to convey". mentionUserId/mentionName (both optional, supplied
+    // together): a member the message should be addressed to and *ping* — Hoshi is told to open with
+    // the raw <@id> mention token, and the caller must allow that user in AllowedMentions for the ping
+    // to fire. Without them she addresses people by name only and pings no one.
+    public async Task<string?> ComposeMessageAsync(ulong guildId, string instruction, ulong? mentionUserId, string? mentionName, CancellationToken cancellationToken)
     {
         var provider = await ResolveProviderAsync(guildId);
         var apiKey = await settingsService.GetSecretAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.ApiKey);
@@ -40,13 +44,34 @@ public partial class AiChatService
             "Nachricht in deiner eigenen Stimme, direkt an die Community bzw. das genannte Mitglied gerichtet " +
             "(nicht an den Administrator). Gib ausschließlich den fertigen Nachrichtentext zurück: ohne " +
             "Anführungszeichen, ohne Vorrede, ohne Erklärung, ohne Betreffzeile. Halte dich kurz und " +
-            "natürlich, wie eine echte Chat-Nachricht (meist ein bis drei Sätze). Verwende KEINE Ping-Syntax " +
-            "wie <@123> oder <@&123>; sprich Mitglieder höchstens beim Namen an.");
+            "natürlich, wie eine echte Chat-Nachricht (meist ein bis drei Sätze).");
+
+        var mentionToken = mentionUserId is { } uid ? $"<@{uid}>" : null;
+        if (mentionToken is not null)
+        {
+            system.AppendLine(
+                $"Die Nachricht richtet sich an {mentionName}. Beginne die Nachricht mit der Erwähnung " +
+                $"{mentionToken} (verwende genau diese Zeichenfolge unverändert – sie erwähnt und pingt die " +
+                "Person) und sprich sie danach natürlich an. Verwende sonst keine weitere Ping-Syntax.");
+        }
+        else
+        {
+            system.AppendLine(
+                "Verwende KEINE Ping-Syntax wie <@123> oder <@&123>; sprich Mitglieder höchstens beim Namen an.");
+        }
 
         var turns = new[] { new AiChatTurn(AiChatRole.User, instruction) };
         var request = new AiChatCompletionRequest(model, system.ToString(), turns, apiKey);
 
         var text = await provider.GenerateAsync(request, cancellationToken);
-        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+        text = text.Trim();
+
+        // Guarantee the ping even if the model dropped or garbled the exact mention token.
+        if (mentionToken is not null && !text.Contains(mentionToken, StringComparison.Ordinal))
+            text = $"{mentionToken} {text}";
+
+        return text;
     }
 }
