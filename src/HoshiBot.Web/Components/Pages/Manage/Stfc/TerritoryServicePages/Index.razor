@@ -124,10 +124,14 @@
 
     private async Task RefreshAsync()
     {
-        var state = await Context.TerritoryServiceSyncStates.AsNoTracking().FirstOrDefaultAsync();
+        // Use a fresh short-lived context, NOT the page's long-lived `Context` — that one belongs to
+        // the QuickGrid, and a DbContext can't be used concurrently. Sharing it here raced the grid's
+        // query and threw "Cannot access a disposed context instance".
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var state = await db.TerritoryServiceSyncStates.AsNoTracking().FirstOrDefaultAsync();
         lastSeason = state?.TcSeason;
         lastSyncedAt = state?.SyncedAt;
-        serviceCount = await Context.StfcTerritoryServices.CountAsync();
-        slotCount = await Context.StfcTerritoryServiceSlots.CountAsync();
+        serviceCount = await db.StfcTerritoryServices.CountAsync();
+        slotCount = await db.StfcTerritoryServiceSlots.CountAsync();
     }
 }
