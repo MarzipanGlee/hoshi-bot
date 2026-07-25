@@ -21,18 +21,25 @@
 </nav>
 
 @code {
+    // Keep in sync with the STFC Catalog group in NavMenu.razor.
     private static readonly (string Segment, string Label)[] StfcCatalogSections =
     [
         ("regions", "Regions"),
         ("veil-groups", "Veil Groups"),
+        ("veil-group-invites", "Veil Group Invites"),
         ("servers", "Servers"),
+        ("server-invites", "Server Invites"),
         ("alliances", "Alliances"),
-        ("alliance-diplomacy", "Diplomacy"),
+        ("alliance-invites", "Alliance Invites"),
         ("alliance-name-history", "Alliance Name History"),
+        ("alliance-diplomacy", "Diplomacy"),
         ("players", "Players"),
         ("player-name-history", "Player Name History"),
         ("systems", "Systems"),
         ("territories", "Territories"),
+        ("territory-ownership", "Territory Ownership"),
+        ("territory-neighbours", "Territory Neighbours"),
+        ("territory-services", "Territory Services"),
         ("server-status", "Server Status"),
         ("event-status", "Event Status"),
     ];
