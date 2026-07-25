@@ -184,7 +184,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
     [ComponentInteraction("shield-reminder-terminate")]
     public Task TerminateShieldReminder(ulong guildId) =>
-        Context.Interaction.SendDelayedResponseAsync(async () =>
+        Context.Interaction.SendDelayedEditAsync(async () =>
         {
             var result = await alertService.TerminateShieldReminderAsync(guildId, Context.User.Id);
             // The reminder is closed — remove the warning DM this "Beenden" button was on so a resolved
@@ -194,7 +194,9 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
                 try { await warning.DeleteAsync(); }
                 catch (RestException) { /* already gone / not deletable — leave it, the confirmation covers it */ }
             }
-            return result;
+            // Branded embed like every other real bot message, not plain text.
+            var confirmation = await embedBranding.BuildBrandedAsync(guildId, result);
+            return m => { m.Content = ""; m.Embeds = [confirmation]; m.Components = []; };
         });
 
     // Matches legacy's own loading-placeholder convention for this exact flow (the only
