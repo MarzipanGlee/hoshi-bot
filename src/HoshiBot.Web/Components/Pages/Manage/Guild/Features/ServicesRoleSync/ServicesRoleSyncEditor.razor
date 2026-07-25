@@ -1,0 +1,111 @@
+@inherits FeatureEditorBase
+@using NetCord
+@using NetCord.Rest
+@inject DiscordGuildDataService DiscordData
+@inject GuildFeatureSettingsService SettingsService
+@inject GuildAllianceService AllianceService
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<p class="form-text">
+    When enabled, this alliance's Territory Capture <strong>Services role</strong> is kept in sync with the
+    rank roles that can activate services (<strong>Admiral</strong> and <strong>Commodore</strong>): every
+    alliance member holding either rank role is given the Services role, and anyone who no longer qualifies
+    has it removed. Configure the source rank roles on the <strong>Rank Roles</strong> feature. The two
+    roles below are shared with the Territory Capture and Alliance Settings pages — editing them here
+    updates them there too.
+</p>
+
+@if (createError is not null)
+{
+    <p class="text-danger">@createError</p>
+}
+
+<div class="card-grid mt-1">
+    <RolePicker CardTitle="Services Role"
+        Usage="The role assigned to Admiral/Commodore alliance members. Shared with the Territory Capture editor. Leave blank to create a dedicated role."
+        CreateRoleName="Commodore" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
+
+    <RolePicker CardTitle="Member Role"
+        Usage="This alliance's general membership role — only its holders receive the Services role. Shared with Alliance Settings."
+        CreateRoleName="@memberRoleName" @bind-Value="memberRoleInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.ServicesRoleSync;
+
+    private List<Role> roles = [];
+    private string? servicesRoleInput;
+    private string? memberRoleInput;
+    private string memberRoleName = "Member";
+    private string? createError;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+
+        // Services role is the TC feature's setting (shared, not a copy).
+        servicesRoleInput = (await SettingsService.GetSnowflakeAsync(
+            GuildId, GuildFeature.TerritoryCapture, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
+
+        // Member role is the alliance's own column (shared with Alliance Settings).
+        if (GuildAllianceId is { } allianceId)
+        {
+            var alliance = await AllianceService.FindByIdAsync(GuildId, allianceId);
+            memberRoleInput = alliance?.MemberRoleId?.ToString();
+            if (alliance is not null)
+                memberRoleName = $"{alliance.StfcAlliance.Tag}-Member";
+        }
+    }
+
+    // Writes the Territory Capture ServicesRole setting (same value the TC editor's Services Role card
+    // edits). A blank selection creates a dedicated "Commodore" role instead of saving null.
+    private async Task SaveServicesRoleAsync()
+    {
+        createError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, servicesRoleInput, "Commodore");
+            servicesRoleInput = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
+            await SettingsService.SetSnowflakeAsync(
+                GuildId, GuildFeature.TerritoryCapture, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesRole, roleId);
+        }
+        catch (RestException)
+        {
+            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (servicesRoleInput == RolePicker.CreateSentinel)
+                servicesRoleInput = null;
+        }
+    }
+
+    // Writes GuildAlliance.MemberRoleId (same value Alliance Settings' Member card edits). A blank
+    // selection creates a "{tag}-Member" role instead of saving null.
+    private async Task SaveMemberRoleAsync()
+    {
+        if (GuildAllianceId is not { } allianceId)
+            return;
+
+        createError = null;
+        try
+        {
+            var roleId = await DiscordData.EnsureRoleAsync(GuildId, memberRoleInput, memberRoleName);
+            memberRoleInput = roleId?.ToString();
+            roles = await DiscordData.GetRolesAsync(GuildId);
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var existing = await db.GuildAlliances.FirstOrDefaultAsync(a => a.Id == allianceId && a.GuildId == GuildId);
+            if (existing is not null)
+            {
+                existing.MemberRoleId = roleId;
+                await db.SaveChangesAsync();
+            }
+        }
+        catch (RestException)
+        {
+            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+            if (memberRoleInput == RolePicker.CreateSentinel)
+                memberRoleInput = null;
+        }
+    }
+}

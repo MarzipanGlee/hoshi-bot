@@ -496,10 +496,14 @@ Deferred:
 - **gilli.site** (`/api/events` + `/api/server-status`) — not wired anywhere yet; add a `PoweredBySources`
   entry + registry mapping when those notify features are built (one line each).
 
-## Territory Capture "Services role" sync
+## Territory Capture "Services role" sync — DONE
 
-The TC Services reminder pings a dedicated `ServicesRole` (TerritoryCapture feature setting). Today
-an admin sets/creates that role manually. Follow-up: a sync feature/job that keeps that role
-assigned to exactly the members who hold the **Commodore rank role** (RankRoles feature,
-`RankRolesSettingKeys.CommodoreRole`), so the officer ping stays in sync without manual role
-management. Model on `TerritoryCaptureRoleSyncJob`/`RankRoleSyncJob`.
+Shipped as the standalone **Services Role Sync** feature (`GuildFeature.ServicesRoleSync`,
+Alliance audience; depends on RankRoles + TerritoryCapture). When enabled for an alliance, it keeps
+the TC `ServicesRole` assigned to exactly the alliance members who hold a rank role that grants the
+in-game "Activate Services" permission — **Admiral or Commodore** (`RankRolesSettingKeys.AdmiralRole`
+/ `CommodoreRole`), gated on the alliance member role. Full add/remove sync folded into
+`TerritoryCaptureRoleSyncJob` (reads a fresh roster, so it always reflects the latest `RankRoleSyncJob`
+result). The editor's Services-role and Member-role pickers are live shared views of the existing TC
+`ServicesRole` setting and `GuildAlliance.MemberRoleId` (editing there or here is the same value) — the
+feature owns no settings of its own.

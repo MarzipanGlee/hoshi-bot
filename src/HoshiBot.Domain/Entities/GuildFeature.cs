@@ -80,4 +80,12 @@ public enum GuildFeature
     // scope) so the per-audience AiChat feature no longer carries guild-wide credentials. Keep last
     // so existing enum ordinals/DB rows don't shift.
     AiBackend,
+
+    // Alliance-audience: keeps the Territory Capture Services role in lock-step with the rank roles
+    // that hold the in-game "Activate Services" permission (Admiral + Commodore) — every alliance
+    // member with either rank role gets the Services role; anyone who no longer qualifies loses it.
+    // Depends on RankRoles (source) and TerritoryCapture (owns the Services role). Owns no settings
+    // of its own: the sync (TerritoryCaptureRoleSyncJob) and its editor read/write the existing TC
+    // ServicesRole + GuildAlliance.MemberRoleId. Keep last so existing enum ordinals/DB rows don't shift.
+    ServicesRoleSync,
 }

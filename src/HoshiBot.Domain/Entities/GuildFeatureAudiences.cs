@@ -61,6 +61,9 @@ public static class GuildFeatureAudiences
         // Guild-wide AI backend/credentials/models shared by every AI feature — one account per
         // guild, so a single Guild-audience toggle (like NicknameSync/AnnouncementForwarder).
         GuildFeature.AiBackend => GuildAudience.Guild,
+        // Per-alliance: it assigns the alliance's Services role gated on the alliance member role, so
+        // it toggles per linked alliance (like TerritoryCapture, whose Services role it mirrors).
+        GuildFeature.ServicesRoleSync => GuildAudience.Alliance,
         _ => GuildAudience.None,
     };
 

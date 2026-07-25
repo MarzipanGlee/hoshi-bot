@@ -49,6 +49,10 @@ public static class GuildFeatureDependencies
         GuildFeature.Tickets => [new(GuildFeature.CommandBridge, "The 'contact staff' button lives on the Command Bridge.")],
         GuildFeature.AnonymousMessaging => [new(GuildFeature.CommandBridge, "The 'contact staff' button lives on the Command Bridge.")],
 
+        // Assigns the Territory Capture Services role to the alliance's Admiral/Commodore members —
+        // it needs TC to own the Services role and Rank Roles to maintain the source rank roles.
+        GuildFeature.ServicesRoleSync => [new(GuildFeature.TerritoryCapture, "Provides the Services role to assign."), new(GuildFeature.RankRoles, "Mirrors the Admiral/Commodore rank roles.")],
+
         _ => [],
     };
 }

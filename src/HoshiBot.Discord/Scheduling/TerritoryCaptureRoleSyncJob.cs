@@ -21,6 +21,7 @@ public class TerritoryCaptureRoleSyncJob(
     HoshiBotDbContext db,
     TerritoryCaptureDigestService digestService,
     GatewayClient gatewayClient,
+    GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     ILogger<TerritoryCaptureRoleSyncJob> logger) : IJob
 {
@@ -45,6 +46,16 @@ public class TerritoryCaptureRoleSyncJob(
             // Materialize this guild's absences once, then check overlap in-memory across the
             // alliance × slot × member loop below instead of querying the DB per member.
             var absences = await db.Absences.Where(a => a.GuildId == guildId).ToListAsync();
+
+            // The guild-wide rank roles that grant the in-game "Activate Services" permission
+            // (Admiral + Commodore) — a member with EITHER qualifies for the Services role sync
+            // below. Read once per guild; skip whichever isn't configured.
+            var officerRankRoleIds = new List<ulong>();
+            foreach (var rankKey in new[] { RankRolesSettingKeys.AdmiralRole, RankRolesSettingKeys.CommodoreRole })
+            {
+                if (await settingsService.GetSnowflakeAsync(guildId, GuildFeature.RankRoles, GuildAudience.Guild, null, rankKey) is { } rankRoleId)
+                    officerRankRoleIds.Add(rankRoleId);
+            }
 
             foreach (var link in links)
             {
@@ -71,6 +82,29 @@ public class TerritoryCaptureRoleSyncJob(
                             !absences.Any(a => a.DiscordUserId == guildUser.Id && a.StartsAt < slot.End && a.EndsAt > slot.Start);
 
                         await SyncRoleAsync(guildId, guildUser, roleId, shouldHaveRole);
+                    }
+                }
+
+                // Services Role Sync (separate opt-in feature): when enabled for this alliance, mirror
+                // the Admiral/Commodore rank roles onto its TC Services role — alliance members only.
+                // Full sync: add to officers, remove from anyone holding it who is no longer an officer
+                // / no longer an alliance member. Both roles are the same values shown on the Territory
+                // Capture / Alliance Settings pages (reads a fresh roster, so it reflects the latest
+                // rank-role sync).
+                if (officerRankRoleIds.Count > 0 &&
+                    link.MemberRoleId is { } servicesMemberRoleId &&
+                    await featureService.IsEnabledAsync(guildId, GuildFeature.ServicesRoleSync, GuildAudience.Alliance, link.Id))
+                {
+                    var servicesRoleId = await settingsService.GetSnowflakeAsync(
+                        guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesRole);
+                    if (servicesRoleId is { } svcRole)
+                    {
+                        foreach (var guildUser in roster.Values)
+                        {
+                            var isOfficer = officerRankRoleIds.Any(r => guildUser.RoleIds.Contains(r));
+                            var shouldHaveRole = guildUser.RoleIds.Contains(servicesMemberRoleId) && isOfficer;
+                            await SyncRoleAsync(guildId, guildUser, svcRole, shouldHaveRole);
+                        }
                     }
                 }
             }
