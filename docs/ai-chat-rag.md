@@ -213,3 +213,46 @@ spürbar besserer inhaltlicher Qualität der Antworten.**
 - Kleinere Modelle als Ressourcen-Sparmaßnahme (siehe `gemma3:1b`-Versuch) sind bei
   deutschsprachigen Alltagsfragen unzuverlässig genug, dass sich die Wiederverwendung des
   großen, ohnehin geladenen Modells mehr lohnt als ein zweites kleines Modell im RAM.
+
+---
+
+## Troubleshooting: „Hoshi hat einen Fakt erfunden/verpasst/ausgelassen"
+
+Playbook aus einem realen Vorfall (23.–24.07.2026): Hoshi behauptete fälschlich,
+Simulacrum-Umbauten kämen aus Remote-Campus-Events (tatsächlich Shop-only), und zitierte
+am Folgetag einen veralteten Promo-Code, obwohl der aktuelle kurz zuvor in drei Kanälen
+gepostet worden war. Hinter derselben Symptomfamilie steckten **vier verschiedene
+Ursachenklassen** — bei einem neuen Vorfall dieser Art in dieser Reihenfolge prüfen und
+erst danach am Prompt schrauben:
+
+1. **Selbstzitat-Schleife (Index-Hygiene).** Prüfen, ob eine frühere (falsche) Antwort
+   des Bots selbst im RAG-Index gelandet ist und als „Quelle" zurückgeliefert wird:
+   `AiChatIndexedMessages` nach `AuthorName = 'Hoshi Sato'` abfragen — muss seit dem Fix
+   immer null Zeilen ergeben. Hintergrund: der Live-Indexpfad
+   (`AiChatIndexService.IndexMessageAsync`) überspringt Bot-eigene Nachrichten, der
+   periodische Backfill (`UpsertMessagesAsync`) tat das ursprünglich nicht — 177
+   kontaminierte Zeilen, der Bot „bestätigte" seine eigene Falschantwort bei jeder
+   Wiederholungsfrage. Wichtig: keine Ausnahme einführen, die Hoshis eigene (übersetzte)
+   Reposts als Quelle zulässt — das öffnet genau dieses Loch wieder.
+2. **Embedding-Abdeckung/Quota.** `Embedding IS NULL`-Anzahl für die Gilde prüfen und in
+   den Bot-Logs nach `Gemini embed failed`/Quota-Fehlern suchen. Das Gemini-Embedding
+   im Free-Tier hat ein Tageslimit (1000 Embed-Requests/Tag) — ist es erschöpft,
+   degradiert die Suche auf FTS-only (sauber, aber lexikalisch schwach: „Refits" in der
+   Korrektur matcht „Überholung" in der Frage nicht). Das ist die dokumentierte
+   Graceful Degradation, kein Bug — ggf. einfach den Quota-Reset abwarten.
+3. **Kanal-Tier-Konfiguration.** Speziell bei „sie hat einen gerade erst geposteten Fakt
+   verpasst": prüfen, ob der echte Quellkanal als **Bevorzugt** (Preferred) eingestuft
+   ist (`GuildFeatureChannels`, Feature 19). Der Live-Block
+   (`BuildLatestAnnouncementsBlockAsync` — „die letzten Nachrichten immer frisch holen,
+   am Ranking vorbei") zieht **nur** aus Preferred-Kanälen; Normal-Kanäle hängen
+   komplett an der gerankten FTS/Vektor-Suche und verlieren dort gegen ältere, lexikalisch
+   ähnlichere Posts. Fix ist reine Konfiguration (Web-Admin-Kanalauswahl), kein Deploy —
+   Kanallisten sind nicht gecacht, wirkt sofort.
+4. **Erst jetzt: Prompt.** Eine Grounding-Regel im System-Prompt („Wissensquellen"-Block
+   in `BuildSystemInstructionAsync`, `AiChatService.cs`: Quellzeilen als eigenständig
+   behandeln, lieber Unsicherheit zugeben als kombinieren/raten) existiert bereits —
+   sie hat den ursprünglichen Vorfall allein *nicht* behoben. Prompt-Tweaks sind der
+   letzte Schritt, nicht der erste.
+
+Merksatz aus dem Vorfall: nicht bei der ersten plausiblen Ursache stehen bleiben —
+erst der Live-Redeploy + Retest zeigte, dass Schicht 1 allein nicht reichte.

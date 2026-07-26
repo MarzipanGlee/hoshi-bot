@@ -16,11 +16,11 @@ reference alongside this repo).
 | `src/HoshiBot.Host` | The Worker Service that actually runs the bot: composition root (DI, Quartz schedules, Discord gateway) plus one gateway handler (`GuildSyncHandler`). |
 | `src/HoshiBot.Web` | Blazor Web App admin panel — Discord OAuth2 login, per-guild settings, feature toggles, STFC catalog management. |
 | `tools/HoshiBot.Migrator` | Standalone console app that applies pending EF Core migrations against the production PostgreSQL database. |
-| `tools/HoshiBot.StfcCatalogSync` | Parses STFC static-data HTML exports (regions/servers/systems/territories) into seed data. |
+| `tools/HoshiBot.StfcSeedSync` | Parses STFC static-data HTML exports (regions/servers/systems/territories) into seed data. |
 | `tests/HoshiBot.Domain.Tests` | Unit tests for `HoshiBot.Domain`. |
 
-See [CLAUDE.md](CLAUDE.md) for a deeper explanation of why the project is split this way,
-and other conventions worth knowing before making changes.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for a deeper explanation of why the project is
+split this way, and for the coding rules and conventions to follow before making changes.
 
 ## License
 

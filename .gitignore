@@ -16,7 +16,7 @@ obj/
 src/HoshiBot.Web/keys/
 keys/
 
-# Manually-provided third-party source snapshots for HoshiBot.StfcCatalogSync (not ours to commit)
+# Manually-provided third-party source snapshots for HoshiBot.StfcSeedSync (not ours to commit)
 data/
 
 # Serilog file sink output — bind-mounted from compose.yaml in production, or written
