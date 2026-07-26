@@ -100,7 +100,7 @@ Note for the future: this reset is repeatable — but only while every deployed 
 the tip of history. Once real production guilds exist on separately-managed databases,
 squashing requires coordinating the history rewrite across all of them.
 
-## Phase 2 — Structure moves (mechanical, no behavior change)
+## Phase 2 — Structure moves (mechanical, no behavior change) — DONE (2026-07-26)
 
 ### HoshiBot.Discord root cleanup
 
@@ -140,10 +140,10 @@ Optional follow-up (not required): converting the periodic syncs into Quartz job
 `Host` would stop tying ownership/services/system refresh to the *web* container being
 up — decide when touching them next.
 
-Also: `tools/HoshiBot.StfcSeedSync` re-implements parsing the importers already do
-(`AlliancePages/Import.razor` references "same issue and fix as
-tools/HoshiBot.StfcSeedSync's SyncAlliances") — after the move, point the tool at the
-relocated `Data` importers instead of keeping a second copy.
+Also considered, dropped on inspection: unifying `tools/HoshiBot.StfcSeedSync` with the
+importers. The tool turned out to be a file transformer (raw snapshots → embedded seed
+JSON), not a DB importer — the "same issue and fix" cross-reference is about shared
+parsing quirks, not duplicated code — so there is no second copy to remove.
 
 ### DI registration
 

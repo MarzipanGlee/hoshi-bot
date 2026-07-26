@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Data.Seeding;
 using HoshiBot.Discord;
 using HoshiBot.Discord.Absences;
 using HoshiBot.Discord.AiChat;

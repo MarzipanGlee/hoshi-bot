@@ -104,7 +104,7 @@ File placement rules:
 - Register Quartz jobs with the `AddSimpleJob<T>(interval)` / `AddCronJob<T>(cron)` local
   helpers in `Host/Program.cs`. Per-guild jobs use the shared per-guild runner (see
   refactoring plan) so the enabled-guild loop and per-guild error handling aren't
-  re-rolled. Seeders in `Data/ServiceCollectionExtensions` open with `WithDbAsync`.
+  re-rolled. Seeders live in `Data/Seeding/SeedExtensions.cs` and open with `WithDbAsync`.
 - A module's `IsConfiguredAsync` must read via the `FeatureModuleContext` helpers
   (`context.GetSnowflakeAsync`/`GetTextAsync`/`HasAlertChannelAsync`/
   `HasFeatureChannelAsync`/`IsEnabledAsync`), **not** `context.Settings`/
@@ -266,7 +266,7 @@ development"). Rules:
   `Domain` should come with tests.
 - Live end-to-end testing happens in the dedicated Hoshi Bot **test guild** — the bot is
   already a member and `SeedHoshiTestGuildSettingsIfEmptyAsync`
-  (`HoshiBot.Data/ServiceCollectionExtensions.cs`) provisions its `GuildSettings` row.
+  (`HoshiBot.Data/Seeding/SeedExtensions.cs`) provisions its `GuildSettings` row.
   Never test against the production guild.
 
 ## Workflow
