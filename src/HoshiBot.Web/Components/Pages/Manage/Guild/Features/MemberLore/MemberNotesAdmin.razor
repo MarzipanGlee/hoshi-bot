@@ -11,7 +11,7 @@
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <p>Lade Notizen…</p>
+        <LoadingPlaceholder Em="false" Text="Loading…" />
     }
     else
     {
@@ -97,13 +97,13 @@
                             </HeaderTemplate>
                             <ChildContent>
                                 <div class="row g-2">
-                                    <div class="col-md-4">@TextField("Bevorzugter Name", n, MemberNoteField.PreferredName)</div>
-                                    <div class="col-md-4">@TextField("Spitznamen", n, MemberNoteField.Nicknames)</div>
-                                    <div class="col-md-4">@TextField("Sprachen", n, MemberNoteField.Languages)</div>
-                                    <div class="col-md-6">@AreaField("Interessen", n, MemberNoteField.Interests)</div>
-                                    <div class="col-md-6">@AreaField("Hintergrund", n, MemberNoteField.Background)</div>
-                                    <div class="col-md-6">@AreaField("Running Gags (Peer)", n, MemberNoteField.RunningJokes)</div>
-                                    <div class="col-md-6">@AreaField("Necken ok (Peer)", n, MemberNoteField.TeaseAbout)</div>
+                                    <div class="col-md-4"><NoteField Label="Bevorzugter Name" Note="n" Field="MemberNoteField.PreferredName" /></div>
+                                    <div class="col-md-4"><NoteField Label="Spitznamen" Note="n" Field="MemberNoteField.Nicknames" /></div>
+                                    <div class="col-md-4"><NoteField Label="Sprachen" Note="n" Field="MemberNoteField.Languages" /></div>
+                                    <div class="col-md-6"><NoteField Label="Interessen" Note="n" Field="MemberNoteField.Interests" Multiline="true" /></div>
+                                    <div class="col-md-6"><NoteField Label="Hintergrund" Note="n" Field="MemberNoteField.Background" Multiline="true" /></div>
+                                    <div class="col-md-6"><NoteField Label="Running Gags (Peer)" Note="n" Field="MemberNoteField.RunningJokes" Multiline="true" /></div>
+                                    <div class="col-md-6"><NoteField Label="Necken ok (Peer)" Note="n" Field="MemberNoteField.TeaseAbout" Multiline="true" /></div>
                                 </div>
                                 <div class="mt-2 d-flex gap-2">
                                     <button class="btn btn-sm btn-primary" @onclick="() => SaveNoteAsync(n)">Speichern</button>
@@ -126,7 +126,7 @@
     private List<SuggestionVm> suggestions = [];
     private List<GuildMemberNote> notes = [];
     private List<MemberOption> memberOptions = [];
-    private IReadOnlyDictionary<ulong, string> memberNames = new Dictionary<ulong, string>();
+    private MemberDirectory members = MemberDirectory.Empty;
     private IReadOnlyDictionary<ulong, string> memberNicknames = new Dictionary<ulong, string>();
     private ulong? addMemberId;
 
@@ -135,7 +135,7 @@
     private async Task ReloadAsync()
     {
         loading = true;
-        memberNames = await DiscordData.GetMemberDisplayNamesAsync(ParsedGuildId);
+        members = await DiscordData.GetMemberDirectoryAsync(ParsedGuildId);
         // The full (untrimmed) nickname, alliance tag prefix and all — ordering the note cards by this
         // instead of the tag-stripped display name naturally groups them by alliance, then name.
         memberNicknames = await DiscordData.GetMemberNicknamesAsync(ParsedGuildId);
@@ -157,7 +157,7 @@
         suggestions = pending.Select(s => new SuggestionVm
         {
             Id = s.Id,
-            SourceName = MemberName(s.SourceDiscordUserId),
+            SourceName = members.DisplayName(s.SourceDiscordUserId),
             TargetNameRaw = s.TargetNameRaw,
             TargetUserId = s.TargetDiscordUserId,
             Field = s.Field,
@@ -219,38 +219,9 @@
         await ReloadAsync();
     }
 
-    private string MemberName(ulong id) => memberNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id.ToString();
-
-    private string FullNickname(ulong id) => memberNicknames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : MemberName(id);
+    private string FullNickname(ulong id) => memberNicknames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : members.DisplayName(id);
 
     private static string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
-
-    private RenderFragment TextField(string label, GuildMemberNote n, MemberNoteField field) => builder =>
-    {
-        builder.OpenElement(0, "label");
-        builder.AddAttribute(1, "class", "form-label small mb-1");
-        builder.AddContent(2, label);
-        builder.CloseElement();
-        builder.OpenElement(3, "input");
-        builder.AddAttribute(4, "class", "form-control form-control-sm");
-        builder.AddAttribute(5, "value", MemberNoteService.GetField(n, field));
-        builder.AddAttribute(6, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.Create<Microsoft.AspNetCore.Components.ChangeEventArgs>(this, e => MemberNoteService.ApplyField(n, field, e.Value?.ToString())));
-        builder.CloseElement();
-    };
-
-    private RenderFragment AreaField(string label, GuildMemberNote n, MemberNoteField field) => builder =>
-    {
-        builder.OpenElement(0, "label");
-        builder.AddAttribute(1, "class", "form-label small mb-1");
-        builder.AddContent(2, label);
-        builder.CloseElement();
-        builder.OpenElement(3, "textarea");
-        builder.AddAttribute(4, "class", "form-control form-control-sm");
-        builder.AddAttribute(5, "rows", "2");
-        builder.AddAttribute(6, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.Create<Microsoft.AspNetCore.Components.ChangeEventArgs>(this, e => MemberNoteService.ApplyField(n, field, e.Value?.ToString())));
-        builder.AddContent(7, MemberNoteService.GetField(n, field));
-        builder.CloseElement();
-    };
 
     private static string FieldLabel(MemberNoteField field) => field switch
     {

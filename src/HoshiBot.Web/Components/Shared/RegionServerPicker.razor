@@ -1,0 +1,76 @@
+@* The cascading Region → Server <Select> pair (pick a region, its servers load into the second
+   dropdown) shared by ScopeEditor's Alliance/Server branches and PlayerPages/Import. Renders two
+   plain <div>s so the parent's flex row lays them out exactly like the hand-rolled version did.
+   Picking a region resets ServerId to null (so a parent's @bind-ServerId:after fires and can reset
+   its own dependent state) before the server list reloads. *@
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<div>
+    <label class="form-label">Region</label>
+    <Select TValue="string" Items="regionItems" @bind-Value="RegionId" @bind-Value:after="OnRegionChangedAsync" PlaceHolder="Select region..." />
+</div>
+<div>
+    <label class="form-label">Server</label>
+    <Select TValue="string" Items="serverItems" @bind-Value="ServerId" @bind-Value:after="NotifyServerChangedAsync"
+            ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(RegionId is null)" />
+</div>
+
+@code {
+    [Parameter] public string? RegionId { get; set; }
+
+    [Parameter] public EventCallback<string?> RegionIdChanged { get; set; }
+
+    [Parameter] public string? ServerId { get; set; }
+
+    [Parameter] public EventCallback<string?> ServerIdChanged { get; set; }
+
+    // Servers to leave out of the dropdown (e.g. ones the guild already linked) — primitive ids, not
+    // entities, so the Contains translates to SQL. Read when the server list loads, i.e. on region
+    // change (or an explicit ReloadServersAsync).
+    [Parameter] public IReadOnlyCollection<int>? ExcludedServerIds { get; set; }
+
+    private List<SelectedItem> regionItems = [];
+    private List<SelectedItem> serverItems = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var regions = await db.StfcRegions.OrderBy(r => r.Id).AsNoTracking().ToListAsync();
+        regionItems = regions.Select(r => new SelectedItem(r.Id.ToString(), r.Name)).ToList();
+
+        // No-op unless the parent preset RegionId before first render.
+        await LoadServersAsync();
+    }
+
+    private async Task OnRegionChangedAsync()
+    {
+        await RegionIdChanged.InvokeAsync(RegionId);
+
+        ServerId = null;
+        await ServerIdChanged.InvokeAsync(null);
+
+        await LoadServersAsync();
+    }
+
+    private Task NotifyServerChangedAsync() => ServerIdChanged.InvokeAsync(ServerId);
+
+    // Re-runs the server query for the current region — for a parent whose ExcludedServerIds changed
+    // outside a region change (e.g. right after linking a server).
+    public Task ReloadServersAsync() => LoadServersAsync();
+
+    private async Task LoadServersAsync()
+    {
+        serverItems = [];
+
+        if (!int.TryParse(RegionId, out var regionId))
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var query = db.StfcServers.Where(s => s.RegionId == regionId);
+        if (ExcludedServerIds is { } excluded)
+            query = query.Where(s => !excluded.Contains(s.Id));
+
+        var servers = await query.OrderBy(s => s.Id).AsNoTracking().ToListAsync();
+        serverItems = servers.Select(s => new SelectedItem(s.Id.ToString(), s.DisplayName)).ToList();
+    }
+}

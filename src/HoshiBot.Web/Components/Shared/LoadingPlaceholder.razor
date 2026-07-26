@@ -1,0 +1,17 @@
+@* The shared loading placeholder. Defaults to the dominant shape (<p><em>Loading...</em></p> — the
+   Stfc/**/Edit pages and DeleteConfirmation); Em/Text only exist so the other converted sites keep
+   the exact rendering they already had, not to invite new variants. *@
+@if (Em)
+{
+    <p><em>@Text</em></p>
+}
+else
+{
+    <p>@Text</p>
+}
+
+@code {
+    [Parameter] public string Text { get; set; } = "Loading...";
+
+    [Parameter] public bool Em { get; set; } = true;
+}

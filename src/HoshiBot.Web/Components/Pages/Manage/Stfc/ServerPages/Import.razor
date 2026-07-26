@@ -15,61 +15,50 @@
     never edited or removed (a server can have more than one active invite).
 </p>
 
-<div class="d-flex gap-4 flex-wrap mb-3">
-    <div>
-        <label class="form-label d-block">Servers file (required)</label>
-        <ButtonUpload TValue="string" Accept=".json" IsDisabled="importing"
-                      BrowserButtonText="Choose file..." OnAllFileUploaded="OnServersFileUploadedAsync" />
-        @if (serverEntries is not null)
-        {
-            <p class="form-text mb-0">@serverEntries.Count server records loaded.</p>
-        }
-    </div>
-    <div>
-        <label class="form-label d-block">Invites file (optional)</label>
-        <ButtonUpload TValue="string" Accept=".json" IsDisabled="importing"
-                      BrowserButtonText="Choose file..." OnAllFileUploaded="OnInvitesFileUploadedAsync" />
-        @if (inviteEntries is not null)
-        {
-            <p class="form-text mb-0">@inviteEntries.Count invite records loaded.</p>
-        }
-    </div>
-</div>
+<ImportForm TResult="StfcCatalogImportResult" @ref="importForm" Import="_ => RunImportAsync()">
+    <UploadContent Context="form">
+        <div class="d-flex gap-4 flex-wrap mb-3">
+            <div>
+                <label class="form-label d-block">Servers file (required)</label>
+                <ButtonUpload TValue="string" Accept=".json" IsDisabled="form.Importing"
+                              BrowserButtonText="Choose file..." OnAllFileUploaded="OnServersFileUploadedAsync" />
+                @if (serverEntries is not null)
+                {
+                    <p class="form-text mb-0">@serverEntries.Count server records loaded.</p>
+                }
+            </div>
+            <div>
+                <label class="form-label d-block">Invites file (optional)</label>
+                <ButtonUpload TValue="string" Accept=".json" IsDisabled="form.Importing"
+                              BrowserButtonText="Choose file..." OnAllFileUploaded="OnInvitesFileUploadedAsync" />
+                @if (inviteEntries is not null)
+                {
+                    <p class="form-text mb-0">@inviteEntries.Count invite records loaded.</p>
+                }
+            </div>
+        </div>
 
-<button type="button" class="btn btn-primary" disabled="@(serverEntries is null || importing)" @onclick="RunImportAsync">
-    Run Import
-</button>
-
-@if (importing)
-{
-    <p class="mt-3">Importing...</p>
-}
-
-@if (error is not null)
-{
-    <p class="text-danger mt-3">@error</p>
-}
-
-@if (result is not null)
-{
-    <p class="mt-3">
-        Regions: @result.RegionsAdded added. Veil groups: @result.VeilGroupsAdded added.
-        Servers: @result.ServersAdded added, @result.ServersUpdated updated. Invites: @result.InvitesAdded added.
-        Skipped @result.UnknownRegion (unknown region), @result.UnknownVeilGroup (unknown veil group).
-    </p>
-}
+        <button type="button" class="btn btn-primary" disabled="@(serverEntries is null || form.Importing)" @onclick="() => form.RunAsync([])">
+            Run Import
+        </button>
+    </UploadContent>
+    <ResultTemplate Context="r">
+        <p class="mt-3">
+            Regions: @r.RegionsAdded added. Veil groups: @r.VeilGroupsAdded added.
+            Servers: @r.ServersAdded added, @r.ServersUpdated updated. Invites: @r.InvitesAdded added.
+            Skipped @r.UnknownRegion (unknown region), @r.UnknownVeilGroup (unknown veil group).
+        </p>
+    </ResultTemplate>
+</ImportForm>
 
 @code {
+    private ImportForm<StfcCatalogImportResult>? importForm;
     private List<StfcCatalogServerEntry>? serverEntries;
     private List<StfcCatalogInviteEntry>? inviteEntries;
-    private bool importing;
-    private string? error;
-    private StfcCatalogImportResult? result;
 
     private async Task OnServersFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
     {
-        error = null;
-        result = null;
+        importForm?.Reset();
         var file = files.FirstOrDefault()?.File;
         if (file is null)
             return;
@@ -86,7 +75,7 @@
 
     private async Task OnInvitesFileUploadedAsync(IReadOnlyCollection<UploadFile> files)
     {
-        error = null;
+        importForm?.Reset(clearResult: false);
         var file = files.FirstOrDefault()?.File;
         if (file is null)
             return;
@@ -99,30 +88,11 @@
         StateHasChanged();
     }
 
-    private async Task RunImportAsync()
-    {
-        if (serverEntries is null)
-            return;
-
-        error = null;
-        result = null;
-        importing = true;
-        StateHasChanged();
-
-        try
-        {
-            result = await ImportService.ImportAsync(serverEntries, inviteEntries ?? []);
-        }
-        catch (Exception ex)
-        {
-            error = $"Import failed: {ex.Message}";
-        }
-        finally
-        {
-            importing = false;
-            StateHasChanged();
-        }
-    }
+    // Unreachable with serverEntries null — the Run Import button stays disabled until they load.
+    private Task<StfcCatalogImportResult> RunImportAsync() =>
+        ImportService.ImportAsync(
+            serverEntries ?? throw new InvalidOperationException("Upload the servers file first."),
+            inviteEntries ?? []);
 
     private static async Task<JsonDocument> ParseAsync(IBrowserFile file)
     {

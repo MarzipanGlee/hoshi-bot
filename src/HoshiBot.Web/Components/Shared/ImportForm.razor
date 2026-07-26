@@ -1,11 +1,20 @@
 @* The file-upload + import-status shell shared by the Stfc/**/Import pages: a ButtonUpload plus the
    Importing… / error / result state machine. The page supplies the parse+import work (Import) and how
-   to render its result (ResultTemplate); the busy/error/result plumbing lives here. *@
+   to render its result (ResultTemplate); the busy/error/result plumbing lives here. A page whose
+   upload step is more than one pick-a-file-and-run button replaces it via UploadContent and keeps
+   just the state machine. *@
 @using Microsoft.AspNetCore.Components.Forms
 @typeparam TResult
 
-<ButtonUpload TValue="string" Accept="@Accept" IsDisabled="importing"
-              BrowserButtonText="Choose file..." OnAllFileUploaded="RunAsync" />
+@if (UploadContent is not null)
+{
+    @UploadContent(this)
+}
+else
+{
+    <ButtonUpload TValue="string" Accept="@Accept" IsMultiple="IsMultiple" IsDisabled="@(Disabled || importing)"
+                  BrowserButtonText="@(IsMultiple ? "Choose files..." : "Choose file...")" OnAllFileUploaded="RunAsync" />
+}
 
 @if (importing)
 {
@@ -23,17 +32,40 @@
 @code {
     [Parameter] public string Accept { get; set; } = ".json";
 
+    // Multi-file upload; the browse-button text follows ("Choose files..." instead of "Choose file...").
+    [Parameter] public bool IsMultiple { get; set; }
+
+    // Extra page-side condition blocking the upload (e.g. "no target server picked yet").
+    [Parameter] public bool Disabled { get; set; }
+
     // Parses the uploaded file(s) and performs the import, returning its result record.
     [Parameter, EditorRequired] public Func<IReadOnlyCollection<UploadFile>, Task<TResult>> Import { get; set; } = default!;
 
     // Renders the import result summary (the page owns the wording).
     [Parameter, EditorRequired] public RenderFragment<TResult> ResultTemplate { get; set; } = default!;
 
+    // Replaces the built-in ButtonUpload for pages whose upload step needs its own markup (e.g.
+    // ServerPages/Import's two files + explicit Run button). The fragment receives this form as its
+    // context, for Importing (disable inputs while busy), RunAsync (trigger the import), and Reset.
+    [Parameter] public RenderFragment<ImportForm<TResult>>? UploadContent { get; set; }
+
+    // Whether an import is currently running — for UploadContent to disable its own inputs.
+    public bool Importing => importing;
+
     private bool importing;
     private string? error;
     private TResult? result;
 
-    private async Task RunAsync(IReadOnlyCollection<UploadFile> files)
+    // Clears a previous run's error (and result) — for UploadContent pages whose pre-import upload
+    // handlers want a stale status gone when a new file is chosen.
+    public void Reset(bool clearResult = true)
+    {
+        error = null;
+        if (clearResult)
+            result = default;
+    }
+
+    public async Task RunAsync(IReadOnlyCollection<UploadFile> files)
     {
         error = null;
         result = default;

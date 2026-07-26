@@ -10,7 +10,7 @@
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <p>Loading…</p>
+        <LoadingPlaceholder Em="false" Text="Loading…" />
     }
     else
     {
@@ -36,7 +36,7 @@
                                 <span class="badge bg-secondary">@m.Scope</span>
                                 @if (m.Scope == MemoryScope.Member && m.SubjectDiscordUserId is { } subjectId)
                                 {
-                                    <span class="badge bg-info text-dark ms-1">@MemberName(subjectId)</span>
+                                    <span class="badge bg-info text-dark ms-1">@members.DisplayName(subjectId)</span>
                                 }
                             </span>
                             <small class="text-muted">
@@ -69,7 +69,7 @@
 @code {
     private bool loading = true;
     private List<GuildMemory> memories = [];
-    private IReadOnlyDictionary<ulong, string> memberNames = new Dictionary<ulong, string>();
+    private MemberDirectory members = MemberDirectory.Empty;
     private int? savedId;
 
     protected override async Task OnAuthorizedParametersSetAsync() => await ReloadAsync();
@@ -77,12 +77,10 @@
     private async Task ReloadAsync()
     {
         loading = true;
-        memberNames = await DiscordData.GetMemberDisplayNamesAsync(ParsedGuildId);
+        members = await DiscordData.GetMemberDirectoryAsync(ParsedGuildId);
         memories = await MemoryService.GetForGuildAsync(ParsedGuildId);
         loading = false;
     }
-
-    private string MemberName(ulong id) => memberNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id.ToString();
 
     private async Task SaveAsync(GuildMemory m)
     {

@@ -36,15 +36,8 @@
 
     <div class="card mt-3">
         <div class="card-body d-flex gap-2 align-items-end flex-wrap">
-            <div>
-                <label class="form-label">Region</label>
-                <Select TValue="string" Items="regionItems" @bind-Value="allianceRegionIdInput" @bind-Value:after="OnAllianceRegionChangedAsync" PlaceHolder="Select region..." />
-            </div>
-            <div>
-                <label class="form-label">Server</label>
-                <Select TValue="string" Items="allianceServerItems" @bind-Value="allianceServerIdInput" @bind-Value:after="OnAllianceServerChangedAsync"
-                        ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(allianceRegionIdInput is null)" />
-            </div>
+            <RegionServerPicker @bind-RegionId="allianceRegionIdInput"
+                                @bind-ServerId="allianceServerIdInput" @bind-ServerId:after="OnAllianceServerChangedAsync" />
             <div>
                 <label class="form-label">Alliance</label>
                 <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceIdInput"
@@ -79,15 +72,8 @@ else if (Audience == GuildAudience.Server)
 
     <div class="card mt-3">
         <div class="card-body d-flex gap-2 align-items-end flex-wrap">
-            <div>
-                <label class="form-label">Region</label>
-                <Select TValue="string" Items="regionItems" @bind-Value="serverRegionIdInput" @bind-Value:after="OnServerRegionChangedAsync" PlaceHolder="Select region..." />
-            </div>
-            <div>
-                <label class="form-label">Server</label>
-                <Select TValue="string" Items="serverScopeServerItems" @bind-Value="selectedServerIdInput"
-                        ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(serverRegionIdInput is null)" />
-            </div>
+            <RegionServerPicker @ref="serverPicker" ExcludedServerIds="LinkedServerIds"
+                                @bind-RegionId="serverRegionIdInput" @bind-ServerId="selectedServerIdInput" />
             <div>
                 <button class="btn btn-primary" @onclick="AddGuildServer">Add</button>
             </div>
@@ -132,9 +118,8 @@ else if (Audience == GuildAudience.VeilGroup)
 
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
 
-    // Shared across all three branches — regions rarely change and the list is tiny (3 rows),
-    // so it's loaded once regardless of which branch is active.
-    private List<StfcRegion> regions = [];
+    // Only the VeilGroup branch still renders its own region <Select> — the Alliance/Server
+    // branches get theirs from RegionServerPicker, which loads regions itself.
     private List<SelectedItem> regionItems = [];
 
     private List<GuildAlliance> guildAlliances = [];
@@ -151,14 +136,17 @@ else if (Audience == GuildAudience.VeilGroup)
     private string? allianceRegionIdInput;
     private string? allianceServerIdInput;
     private string? selectedAllianceIdInput;
-    private List<SelectedItem> allianceServerItems = [];
     private List<StfcAlliance> serverAlliances = [];
     private List<SelectedItem> allianceItems = [];
 
     // Server branch
     private string? serverRegionIdInput;
     private string? selectedServerIdInput;
-    private List<SelectedItem> serverScopeServerItems = [];
+    private RegionServerPicker? serverPicker;
+
+    // Already-linked servers, kept out of the picker's dropdown — they'd otherwise throw on Add
+    // (unique index on GuildId+StfcServerId). Primitive ids for the picker's EF query.
+    private HashSet<int> LinkedServerIds => guildServers.Select(gs => gs.StfcServerId).ToHashSet();
 
     // VeilGroup branch
     private string? veilGroupRegionIdInput;
@@ -169,8 +157,11 @@ else if (Audience == GuildAudience.VeilGroup)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
 
-        regions = await db.StfcRegions.OrderBy(r => r.Id).AsNoTracking().ToListAsync();
-        regionItems = regions.Select(r => new SelectedItem(r.Id.ToString(), r.Name)).ToList();
+        if (Audience == GuildAudience.VeilGroup)
+        {
+            var regions = await db.StfcRegions.OrderBy(r => r.Id).AsNoTracking().ToListAsync();
+            regionItems = regions.Select(r => new SelectedItem(r.Id.ToString(), r.Name)).ToList();
+        }
 
         switch (Audience)
         {
@@ -195,27 +186,6 @@ else if (Audience == GuildAudience.VeilGroup)
                     .ToDictionaryAsync(v => v.Id, v => v.Name);
                 break;
         }
-    }
-
-    private async Task OnAllianceRegionChangedAsync()
-    {
-        allianceServerIdInput = null;
-        selectedAllianceIdInput = null;
-        allianceItems = [];
-
-        if (!int.TryParse(allianceRegionIdInput, out var regionId))
-        {
-            allianceServerItems = [];
-            return;
-        }
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var servers = await db.StfcServers
-            .Where(s => s.RegionId == regionId)
-            .OrderBy(s => s.Id)
-            .AsNoTracking()
-            .ToListAsync();
-        allianceServerItems = servers.Select(s => new SelectedItem(s.Id.ToString(), s.DisplayName)).ToList();
     }
 
     private async Task OnAllianceServerChangedAsync()
@@ -291,30 +261,6 @@ else if (Audience == GuildAudience.VeilGroup)
         await AllianceContext.ReloadAsync();
     }
 
-    private async Task OnServerRegionChangedAsync()
-    {
-        selectedServerIdInput = null;
-
-        if (!int.TryParse(serverRegionIdInput, out var regionId))
-        {
-            serverScopeServerItems = [];
-            return;
-        }
-
-        // See OnAllianceServerChangedAsync's comment: EF Core can't translate a lambda
-        // comparing against a local collection of entities, only primitive collections.
-        var linkedServerIds = guildServers.Select(gs => gs.StfcServerId).ToHashSet();
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var servers = await db.StfcServers
-            .Where(s => s.RegionId == regionId)
-            .Where(s => !linkedServerIds.Contains(s.Id))
-            .OrderBy(s => s.Id)
-            .AsNoTracking()
-            .ToListAsync();
-        serverScopeServerItems = servers.Select(s => new SelectedItem(s.Id.ToString(), s.DisplayName)).ToList();
-    }
-
     private async Task AddGuildServer()
     {
         if (!int.TryParse(selectedServerIdInput, out var serverId))
@@ -327,7 +273,8 @@ else if (Audience == GuildAudience.VeilGroup)
         }
 
         selectedServerIdInput = null;
-        await OnServerRegionChangedAsync();
+        if (serverPicker is not null)
+            await serverPicker.ReloadServersAsync();
         await OnParametersSetAsync();
     }
 

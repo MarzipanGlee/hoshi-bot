@@ -1,0 +1,24 @@
+@* One labeled input (or textarea, with Multiline) for a single member-note field on the Member Notes
+   admin page — value and write-back go through MemberNoteService.GetField/ApplyField, so an edit
+   mutates the note in place and the page's Save button persists it. *@
+<label class="form-label small mb-1">@Label</label>
+@if (Multiline)
+{
+    <textarea class="form-control form-control-sm" rows="2"
+              @onchange="e => MemberNoteService.ApplyField(Note, Field, e.Value?.ToString())">@MemberNoteService.GetField(Note, Field)</textarea>
+}
+else
+{
+    <input class="form-control form-control-sm" value="@MemberNoteService.GetField(Note, Field)"
+           @onchange="e => MemberNoteService.ApplyField(Note, Field, e.Value?.ToString())" />
+}
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter, EditorRequired] public GuildMemberNote Note { get; set; } = default!;
+
+    [Parameter, EditorRequired] public MemberNoteField Field { get; set; }
+
+    [Parameter] public bool Multiline { get; set; }
+}

@@ -11,7 +11,7 @@
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <p>Loading…</p>
+        <LoadingPlaceholder Em="false" Text="Loading…" />
     }
     else
     {
@@ -42,7 +42,7 @@
                         @foreach (var i in interviews)
                         {
                             <tr>
-                                <td>@MemberName(i.DiscordUserId)</td>
+                                <td>@members.DisplayName(i.DiscordUserId)</td>
                                 <td><span class="badge @StatusBadgeClass(i.Status)">@i.Status</span></td>
                                 <td>@i.InvitedAt.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>@i.LastActivityAt.ToString("yyyy-MM-dd HH:mm")</td>
@@ -59,12 +59,12 @@
 @code {
     private bool loading = true;
     private List<MemberInterview> interviews = [];
-    private IReadOnlyDictionary<ulong, string> memberNames = new Dictionary<ulong, string>();
+    private MemberDirectory members = MemberDirectory.Empty;
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
         loading = true;
-        memberNames = await DiscordData.GetMemberDisplayNamesAsync(ParsedGuildId);
+        members = await DiscordData.GetMemberDirectoryAsync(ParsedGuildId);
 
         await using var db = await DbFactory.CreateDbContextAsync();
         interviews = await db.MemberInterviews
@@ -74,8 +74,6 @@
 
         loading = false;
     }
-
-    private string MemberName(ulong id) => memberNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id.ToString();
 
     private static string StatusBadgeClass(MemberInterviewStatus status) => status switch
     {

@@ -265,6 +265,11 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         return names ?? new Dictionary<ulong, string>();
     }
 
+    // GetMemberDisplayNamesAsync wrapped in a MemberDirectory, so pages labeling rows by member get
+    // the shared name-or-raw-id fallback instead of each re-implementing it.
+    public async Task<MemberDirectory> GetMemberDirectoryAsync(ulong guildId) =>
+        new(await GetMemberDisplayNamesAsync(guildId));
+
     // Like GetMemberDisplayNamesAsync but keeps the FULL nickname including any [TAG] prefix — used by
     // the Player Assignment page, where the admin wants to see each member's real Discord nickname.
     public async Task<IReadOnlyDictionary<ulong, string>> GetMemberNicknamesAsync(ulong guildId)
@@ -535,6 +540,17 @@ public sealed record ChannelGroup(CategoryGuildChannel? Category, List<IGuildCha
 // See GetUserSummariesAsync. AvatarUrl is null for an account with no custom avatar (or when the
 // lookup failed, in which case Name is the raw id) — callers render their own fallback.
 public sealed record DiscordUserSummary(string Name, string? AvatarUrl);
+
+// See GetMemberDirectoryAsync — a guild's member display names plus the shared fallback: an id with
+// no (usable) name renders as the raw id string. Empty is the pre-load stand-in, so pages can render
+// before the Discord fetch completes.
+public sealed record MemberDirectory(IReadOnlyDictionary<ulong, string> Names)
+{
+    public static readonly MemberDirectory Empty = new(new Dictionary<ulong, string>());
+
+    public string DisplayName(ulong id) =>
+        Names.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id.ToString();
+}
 
 // See IsAllowedChannel. Normal covers most settings (anything SendMessageAsync can target);
 // TextOnly is for settings that create a private thread under the configured channel (Tickets),
