@@ -10,7 +10,8 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Renames members' Discord nicknames to match their main linked StfcPlayer's name, optionally
+// Renames members' Discord nicknames to match the StfcPlayer that represents them in this guild
+// (GuildMember.PrimaryStfcPlayerId, via PlayerLinkService.GetGuildPrimaryPlayersAsync), optionally
 // prefixed with a server and/or alliance tag (NicknameSyncSettingKeys.{Server,Alliance}TagMode) so
 // foreign players can be disambiguated — see docs/backlog.md "conditional nickname tagging". Runs for
 // guilds with the (guild-wide) NicknameSync feature enabled. Members holding an excluded role are
@@ -20,6 +21,7 @@ public class NicknameSyncJob(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
+    PlayerLinkService playerLinkService,
     ILogger<NicknameSyncJob> logger) : IJob
 {
     private const int DiscordNicknameMaxLength = 32;
@@ -59,19 +61,10 @@ public class NicknameSyncJob(
             .Concat(await db.GuildServers.Where(gs => gs.GuildId == guildId).Select(gs => gs.StfcServerId).ToListAsync())
             .ToHashSet();
 
-        // Query from the main UserPlayer links of this guild's members — a flat, translatable shape
-        // (the earlier per-field correlated subqueries into a constructor couldn't be translated). The
-        // server label is built in memory below to avoid a string+int concat in SQL.
-        var members = await db.UserPlayers
-            .Where(up => up.IsMain && up.User.GuildMemberships.Any(gm => gm.GuildId == guildId))
-            .Select(up => new MainPlayer(
-                up.DiscordUserId,
-                up.StfcPlayer.Name,
-                up.StfcPlayer.AllianceId,
-                up.StfcPlayer.Alliance != null ? up.StfcPlayer.Alliance.Tag : null,
-                up.StfcPlayer.ServerId,
-                up.StfcPlayer.Server.Region.Name))
-            .ToListAsync();
+        // Whichever player represents each member *in this guild* — their own pick when they made
+        // one, else their oldest link. The server label is built in memory below to avoid a
+        // string+int concat in SQL.
+        var members = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values;
 
         var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
         foreach (var member in members)
@@ -83,7 +76,7 @@ public class NicknameSyncJob(
         }
     }
 
-    private static string BuildNickname(MainPlayer m, NicknameTagMode allianceMode, NicknameTagMode serverMode, HashSet<int> homeAlliances, HashSet<int> homeServers)
+    private static string BuildNickname(GuildPrimaryPlayer m, NicknameTagMode allianceMode, NicknameTagMode serverMode, HashSet<int> homeAlliances, HashSet<int> homeServers)
     {
         var serverLabel = $"{m.RegionName}{m.ServerId}";
         var serverTag = Include(serverMode, m.ServerId, homeServers) && !string.IsNullOrWhiteSpace(m.RegionName) ? $"[{serverLabel}]" : "";
@@ -99,7 +92,7 @@ public class NicknameSyncJob(
         var allianceTag = showAllianceTag ? $"[{(string.IsNullOrWhiteSpace(m.AllianceTag) ? "n/a" : m.AllianceTag)}]" : "";
 
         var prefix = serverTag + allianceTag;
-        var nickname = prefix.Length > 0 ? $"{prefix} {m.PlayerName}" : m.PlayerName;
+        var nickname = prefix.Length > 0 ? $"{prefix} {m.Name}" : m.Name;
         return nickname.Length > DiscordNicknameMaxLength ? nickname[..DiscordNicknameMaxLength] : nickname;
     }
 
@@ -138,6 +131,4 @@ public class NicknameSyncJob(
             // Member left the guild since we last synced.
         }
     }
-
-    private record MainPlayer(ulong DiscordUserId, string PlayerName, int? AllianceId, string? AllianceTag, int ServerId, string? RegionName);
 }

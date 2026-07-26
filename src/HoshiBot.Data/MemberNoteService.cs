@@ -16,24 +16,32 @@ public class MemberNoteService(HoshiBotDbContext db)
         db.GuildMemberNotes.Where(n => n.GuildId == guildId).ToListAsync(cancellationToken);
 
     // Maps each Discord account to a stable "person key" so lore can be consolidated across a person's
-    // multiple accounts: accounts linked to the same main STFC player (UserPlayer.IsMain — the same
-    // linkage NicknameSyncJob/RankRoleSyncJob use) share "player:{id}"; an unlinked account is its own
-    // "user:{id}". Same-person alts thus collapse to one key; genuinely different people never do.
+    // multiple accounts: every account in one PlayerLinkService account group (accounts that share a
+    // linked player, transitively) gets "player:{lowest player id in the group}"; an account with no
+    // links is its own "user:{id}". Same-person alts thus collapse to one key; genuinely different
+    // people never do. The key moves if the person later links a lower-id player — acceptable, and no
+    // worse than the main-player key this replaced.
     public async Task<Dictionary<ulong, string>> GetPersonKeysAsync(IEnumerable<ulong> userIds, CancellationToken cancellationToken = default)
     {
         var ids = userIds.Distinct().ToList();
-        var mainLinks = await db.UserPlayers
-            .Where(up => up.IsMain && ids.Contains(up.DiscordUserId))
+        var groups = await PlayerLinkService.GetAccountGroupsAsync(db, ids, cancellationToken);
+
+        var groupUserIds = groups.Values.SelectMany(g => g).Distinct().ToList();
+        var links = await db.UserPlayers
+            .Where(up => groupUserIds.Contains(up.DiscordUserId))
             .Select(up => new { up.DiscordUserId, up.StfcPlayerId })
             .ToListAsync(cancellationToken);
-
-        var mainPlayerByUser = new Dictionary<ulong, int>();
-        foreach (var link in mainLinks)
-            mainPlayerByUser[link.DiscordUserId] = link.StfcPlayerId;
+        var playersByUser = links
+            .GroupBy(l => l.DiscordUserId)
+            .ToDictionary(g => g.Key, g => g.Select(l => l.StfcPlayerId).ToList());
 
         return ids.ToDictionary(
             id => id,
-            id => mainPlayerByUser.TryGetValue(id, out var playerId) ? $"player:{playerId}" : $"user:{id}");
+            id =>
+            {
+                var playerIds = groups[id].SelectMany(u => playersByUser.GetValueOrDefault(u) ?? []).ToList();
+                return playerIds.Count > 0 ? $"player:{playerIds.Min()}" : $"user:{id}";
+            });
     }
 
     public async Task<GuildMemberNote> GetOrCreateAsync(ulong guildId, ulong userId, CancellationToken cancellationToken = default)

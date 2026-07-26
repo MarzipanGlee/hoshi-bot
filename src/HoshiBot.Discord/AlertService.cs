@@ -20,7 +20,8 @@ public class AlertService(
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
-    GuildAllianceService allianceService)
+    GuildAllianceService allianceService,
+    PlayerLinkService playerLinkService)
 {
     // Buttons can be clicked from a DM (no NetCord Guild context there), so the guild ID
     // travels in the custom_id itself rather than relying on Context.Guild.
@@ -311,7 +312,7 @@ public class AlertService(
     // Incursions Schedule / IncursionsRegionDefault).
     private async Task<DateTimeOffset> ResolveIncursionsExpirationAsync(ulong guildId, ulong targetUserId, DateTimeOffset now)
     {
-        var regionId = await ResolvePlayerRegionIdAsync(targetUserId)
+        var regionId = await ResolvePlayerRegionIdAsync(guildId, targetUserId)
             ?? await ResolvePrimaryAllianceRegionIdAsync(guildId);
         if (regionId is not { } rid)
             return now;
@@ -330,13 +331,15 @@ public class AlertService(
         return defaultTime is { } time ? TodayAtUtc(now, time) : now;
     }
 
-    // Target member's region via their (main) player's server. Null if no linked player.
-    private async Task<int?> ResolvePlayerRegionIdAsync(ulong discordUserId) =>
-        await db.UserPlayers
-            .Where(up => up.DiscordUserId == discordUserId)
-            .OrderByDescending(up => up.IsMain)
-            .Select(up => (int?)up.StfcPlayer.Server.RegionId)
-            .FirstOrDefaultAsync();
+    // Target member's region via the server of the player representing them in this guild.
+    // Null if they have no linked player.
+    private async Task<int?> ResolvePlayerRegionIdAsync(ulong guildId, ulong discordUserId)
+    {
+        var playerId = await playerLinkService.GetGuildPrimaryPlayerIdAsync(guildId, discordUserId);
+        return playerId is null
+            ? null
+            : await db.StfcPlayers.Where(p => p.Id == playerId).Select(p => (int?)p.Server.RegionId).FirstOrDefaultAsync();
+    }
 
     private async Task<int?> ResolvePrimaryAllianceRegionIdAsync(ulong guildId)
     {

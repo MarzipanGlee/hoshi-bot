@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AspNet.Security.OAuth.Discord;
 using HoshiBot.Data;
 using HoshiBot.Web.Components;
@@ -87,6 +88,33 @@ builder.Services
         options.ClientSecret = builder.Configuration["Discord:ClientSecret"]!;
         options.Scope.Add("guilds");
         options.SaveTokens = true;
+    })
+    // A second Discord handler used *only* to prove ownership of another Discord account from
+    // /me, never to sign in. Its ticket lands in the short-lived DiscordAccountLink.ExternalScheme
+    // cookie (SignInScheme below) instead of the login cookie — without that, approving the prompt
+    // would silently switch who's logged in rather than link the two accounts. Needs its own
+    // CallbackPath (a scheme owns exactly one), so /signin-discord-link must also be registered as
+    // an OAuth2 redirect URI on the Discord application.
+    .AddCookie(DiscordAccountLink.ExternalScheme, options =>
+    {
+        options.Cookie.Name = ".HoshiBot.DiscordLink";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+        options.SlidingExpiration = false;
+    })
+    .AddDiscord(DiscordAccountLink.Scheme, options =>
+    {
+        options.ClientId = builder.Configuration["Discord:ClientId"]!;
+        options.ClientSecret = builder.Configuration["Discord:ClientSecret"]!;
+        options.CallbackPath = DiscordAccountLink.CallbackPath;
+        options.SignInScheme = DiscordAccountLink.ExternalScheme;
+        // No "guilds" scope and no SaveTokens: all this flow needs is the other account's id.
+        options.Events.OnRedirectToAuthorizationEndpoint = context =>
+        {
+            // Without prompt=consent Discord silently re-approves the account already signed in
+            // there, so the user never gets the chance to switch to the one they mean to link.
+            context.Response.Redirect(context.RedirectUri + "&prompt=consent");
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddAuthorizationBuilder()
@@ -165,6 +193,39 @@ app.MapPost("/logout", async (HttpContext http) =>
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.LocalRedirect("/");
 });
+
+// "Link another Discord account" from /me: send the user to Discord as themselves-but-elsewhere,
+// and on the way back record that both accounts are the same person by giving them the union of
+// their player links (PlayerLinkService.MergeAccountsAsync — a shared player IS the link).
+app.MapGet(DiscordAccountLink.StartPath, () => Results.Challenge(
+    new AuthenticationProperties { RedirectUri = DiscordAccountLink.ReturnPath },
+    [DiscordAccountLink.Scheme]))
+    .RequireAuthorization();
+
+app.MapGet(DiscordAccountLink.ReturnPath, async (HttpContext http, PlayerLinkService playerLinkService) =>
+{
+    var result = await http.AuthenticateAsync(DiscordAccountLink.ExternalScheme);
+    // Consumed either way — this cookie exists only to carry one identity across the round-trip.
+    await http.SignOutAsync(DiscordAccountLink.ExternalScheme);
+
+    var outcome = "failed";
+    if (result.Succeeded
+        && ulong.TryParse(result.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var otherUserId)
+        && ulong.TryParse(http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+    {
+        outcome = (await playerLinkService.MergeAccountsAsync(userId, otherUserId)) switch
+        {
+            AccountMergeOutcome.Linked => "ok",
+            AccountMergeOutcome.AlreadyLinked => "already",
+            AccountMergeOutcome.SameAccount => "self",
+            AccountMergeOutcome.NoPlayers => "noplayers",
+            _ => "failed",
+        };
+    }
+
+    return Results.LocalRedirect($"/me?{DiscordAccountLink.ResultQueryKey}={outcome}");
+})
+    .RequireAuthorization();
 
 // Public bot-installation link — redirects to Discord's own consent screen with the
 // permissions the bot actually needs pre-filled, so an admin adding it to a new guild

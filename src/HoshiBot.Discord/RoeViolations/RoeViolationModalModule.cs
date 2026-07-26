@@ -25,7 +25,7 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
             {
                 case "to":
                     {
-                        var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, reporterName);
+                        var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(guildId, reporterId, reporterName);
                         embed = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                             attackerTag: otherTag, attackerName: otherName,
                             defenderTag: ownTag, defenderName: ownName,
@@ -34,7 +34,7 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
                     }
                 case "from":
                     {
-                        var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(reporterId, reporterName);
+                        var (ownTag, ownName) = await roeViolationService.ResolveIdentityAsync(guildId, reporterId, reporterName);
                         embed = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                             attackerTag: ownTag, attackerName: ownName,
                             defenderTag: otherTag, defenderName: otherName,
@@ -43,7 +43,7 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
                     }
                 case "other":
                     {
-                        var (attackerTag, attackerName) = await roeViolationService.ResolveIdentityAsync(otherUserId, $"Commander {otherUserId}");
+                        var (attackerTag, attackerName) = await roeViolationService.ResolveIdentityAsync(guildId, otherUserId, $"Commander {otherUserId}");
                         embed = await roeViolationService.CreateReportAsync(guildId, reporterId, reporterName,
                             attackerTag, attackerName,
                             defenderTag: otherTag, defenderName: otherName,

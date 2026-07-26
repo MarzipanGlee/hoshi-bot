@@ -3,6 +3,8 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
 @inject DiscordUserGuildsService DiscordUserGuilds
+@inject DiscordGuildDataService DiscordData
+@inject PlayerLinkService PlayerLink
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <PageTitle>My Area</PageTitle>
@@ -26,6 +28,14 @@
     </div>
     <p class="card-subtext">Your personal Hoshi settings. Only you can change what's here.</p>
 
+    @if (LinkResultMessage is { } linkMessage)
+    {
+        <div class="alert @(Link == "ok" ? "alert-success" : "alert-warning") alert-dismissible fade show" role="alert">
+            @linkMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <div class="card-grid">
         @foreach (var p in MePages.All)
         {
@@ -43,8 +53,69 @@
         }
     </div>
 
+    <h2 class="mt-5 mb-2">My Player Accounts</h2>
+    <p class="card-subtext">
+        Your in-game commanders. Hoshi uses them to give you the right roles and nickname in each
+        community — pick which one represents you where under My Communities below.
+    </p>
+
+    @if (loading)
+    {
+        <p class="card-subtext">Loading…</p>
+    }
+    else
+    {
+        @if (players.Count == 0)
+        {
+            <p class="card-subtext">No player accounts connected yet.</p>
+        }
+        else
+        {
+            <ul class="list-group mb-3">
+                @foreach (var player in players)
+                {
+                    <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <span>
+                            @PlayerLabel.Of(player.Name, player.ServerName, player.AllianceTag)
+                            @if (player.OwnerId != currentUserId)
+                            {
+                                <span class="card-subtext ms-2">via @OwnerName(player.OwnerId)</span>
+                            }
+                        </span>
+                        @if (player.OwnerId == currentUserId)
+                        {
+                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemovePlayerAsync(player.PlayerId)">Remove</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        <div style="max-width:26rem">
+            <label class="form-label small mb-1" for="player-search">Connect a player account</label>
+            <input id="player-search" class="form-control form-control-sm" placeholder="Search your commander name…"
+                   value="@playerSearchTerm" @oninput="OnPlayerSearchAsync" />
+            @if (playerSearchResults.Count > 0)
+            {
+                <div class="list-group mt-1" style="max-height:14rem;overflow-y:auto">
+                    @foreach (var result in playerSearchResults)
+                    {
+                        <button type="button" class="list-group-item list-group-item-action py-1"
+                                @onclick="() => ConnectPlayerAsync(result)">
+                            @PlayerLabel.Of(result.Name, result.ServerName, result.AllianceTag)
+                        </button>
+                    }
+                </div>
+            }
+            @if (playerError is { } error)
+            {
+                <p class="text-danger small mt-2 mb-0">@error</p>
+            }
+        </div>
+    }
+
     <h2 class="mt-5 mb-2">My Communities</h2>
-    @if (loadingGuilds)
+    @if (loading)
     {
         <p class="card-subtext">Loading…</p>
     }
@@ -83,9 +154,32 @@
                                 }
                             </div>
                         }
+
+                        @if (players.Count == 0)
+                        {
+                            <p class="mb-0 card-subtext">Connect a player account to get roles here.</p>
+                        }
+                        else if (players.Count == 1)
+                        {
+                            <p class="mb-0 card-subtext">Playing here as @players[0].Name</p>
+                        }
                         else
                         {
-                            <p class="mb-0 card-subtext">Hoshi is here too.</p>
+                            @* Plain <select>, not BootstrapBlazor's — MeLayout has no BootstrapBlazorRoot,
+                               and the rest of /me is plain Bootstrap too. *@
+                            <div>
+                                <label class="form-label small mb-1" for="primary-@guild.Id">Playing here as</label>
+                                <select id="primary-@guild.Id" class="form-select form-select-sm"
+                                        value="@PrimaryPlayerId(guild.Id)"
+                                        @onchange="e => SetGuildPrimaryAsync(guild.Id, e.Value?.ToString())">
+                                    @foreach (var player in players)
+                                    {
+                                        <option value="@player.PlayerId" selected="@(PrimaryPlayerId(guild.Id) == player.PlayerId)">
+                                            @PlayerLabel.Of(player.Name, player.ServerName, player.AllianceTag)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
                         }
                     </ChildContent>
                 </SettingsCard>
@@ -93,14 +187,77 @@
         </div>
     }
 
+    <h2 class="mt-5 mb-2">My Discord Accounts</h2>
+    <p class="card-subtext">
+        Play from more than one Discord account? Link them and Hoshi treats them as one person —
+        your player accounts, roles and lore follow you to all of them.
+    </p>
+
+    @if (!loading)
+    {
+        <ul class="list-group mb-3">
+            @foreach (var accountId in accountGroup.OrderByDescending(id => id == currentUserId).ThenBy(id => id))
+            {
+                <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <span class="d-flex align-items-center gap-2">
+                        @if (AccountAvatar(accountId) is { } accountAvatar)
+                        {
+                            <img src="@accountAvatar" alt="" class="rounded-circle object-fit-cover flex-shrink-0" style="width:1.75rem;height:1.75rem;" />
+                        }
+                        <span>@OwnerName(accountId)</span>
+                        @if (accountId == currentUserId)
+                        {
+                            <span class="badge bg-secondary">signed in</span>
+                        }
+                    </span>
+                    @if (accountId != currentUserId)
+                    {
+                        <button type="button" class="btn btn-sm btn-danger" @onclick="() => UnlinkAccountAsync(accountId)">Remove</button>
+                    }
+                </li>
+            }
+        </ul>
+
+        @* A real navigation, not an @@onclick: this starts an OAuth challenge on the server. *@
+        <a class="btn btn-primary" href="@DiscordAccountLink.StartPath">Link another Discord account</a>
+        <p class="card-subtext mt-2 mb-0">
+            You'll be sent to Discord — sign in there with the <em>other</em> account (use its
+            "not you?" switcher) to prove it's yours. You stay signed in here either way.
+        </p>
+    }
+
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = DiscordAccountLink.ResultQueryKey)]
+    public string? Link { get; set; }
+
+    private ulong currentUserId;
     private string? userName;
     private string? avatarUrl;
-    private bool loadingGuilds = true;
+    private bool loading = true;
+
+    private HashSet<ulong> accountGroup = [];
+    private List<PersonPlayer> players = [];
+    private IReadOnlyDictionary<ulong, DiscordUserSummary> accountSummaries = new Dictionary<ulong, DiscordUserSummary>();
+
     private List<UserManagedGuild> sharedGuilds = [];
     private Dictionary<ulong, GuildAudience> audiencesByGuildId = [];
+    private Dictionary<ulong, int> primaryByGuildId = [];
+
+    private string playerSearchTerm = "";
+    private List<PlayerSearchResult> playerSearchResults = [];
+    private string? playerError;
+
+    private string? LinkResultMessage => Link switch
+    {
+        "ok" => "Discord account linked — both accounts now share your player accounts.",
+        "already" => "Those accounts were already linked.",
+        "self" => "That's the account you're already signed in as. Sign in as the other one on Discord's page.",
+        "noplayers" => "Connect a player account first — a shared player is what links two Discord accounts.",
+        "failed" => "Linking didn't complete. Please try again.",
+        _ => null,
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,20 +266,117 @@
         userName = user.Identity?.Name;
         avatarUrl = DiscordAvatar.UrlFor(user);
 
+        if (!ulong.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out currentUserId))
+        {
+            loading = false;
+            return;
+        }
+
         // Same access-token route every other caller of DiscordUserGuildsService takes
         // (GuildSelector, Manage/Index) — the user's own OAuth token, not the bot's.
         var httpContext = HttpContextAccessor.HttpContext;
         var accessToken = httpContext is null ? null : await httpContext.GetTokenAsync("access_token");
-        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (accessToken is not null && ulong.TryParse(userIdClaim, out var userId))
-        {
-            sharedGuilds = await DiscordUserGuilds.GetUserSharedBotGuildsAsync(accessToken, userId);
+        if (accessToken is not null)
+            sharedGuilds = await DiscordUserGuilds.GetUserSharedBotGuildsAsync(accessToken, currentUserId);
 
-            await using var db = await DbFactory.CreateDbContextAsync();
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
             audiencesByGuildId = await db.GuildSettings.AsNoTracking()
                 .ToDictionaryAsync(s => s.GuildId, s => s.Audiences);
         }
 
-        loadingGuilds = false;
+        await ReloadPersonAsync();
+        loading = false;
     }
+
+    // The whole person, not just this account: every Discord account linked to it and every player
+    // any of them holds, plus each community's current pick.
+    private async Task ReloadPersonAsync()
+    {
+        accountGroup = await PlayerLink.GetAccountGroupAsync(currentUserId);
+        accountSummaries = await DiscordData.GetUserSummariesAsync(accountGroup);
+
+        var linksByUser = await PlayerLink.GetLinksForUsersAsync(accountGroup);
+        players = linksByUser
+            .SelectMany(kv => kv.Value.Select(link => new PersonPlayer(kv.Key, link.PlayerId, link.Name, link.ServerName, link.AllianceTag)))
+            // A player both accounts hold is one player to the person — show it once, owned by
+            // whichever account is signed in if that's one of them.
+            .GroupBy(p => p.PlayerId)
+            .Select(g => g.FirstOrDefault(p => p.OwnerId == currentUserId) ?? g.First())
+            .OrderBy(p => p.Name)
+            .ToList();
+
+        primaryByGuildId = [];
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var picks = await db.GuildMembers
+            .Where(gm => gm.DiscordUserId == currentUserId && gm.PrimaryStfcPlayerId != null)
+            .Select(gm => new { gm.GuildId, PlayerId = gm.PrimaryStfcPlayerId!.Value })
+            .ToListAsync();
+        foreach (var pick in picks)
+            primaryByGuildId[pick.GuildId] = pick.PlayerId;
+    }
+
+    private string OwnerName(ulong userId) =>
+        accountSummaries.TryGetValue(userId, out var summary) ? summary.Name : userId.ToString();
+
+    private string? AccountAvatar(ulong userId) =>
+        accountSummaries.TryGetValue(userId, out var summary) ? summary.AvatarUrl : null;
+
+    // The pick, or the fallback the sync jobs would use (oldest link) so the dropdown shows what's
+    // actually in effect rather than an empty selection.
+    private int? PrimaryPlayerId(ulong guildId) =>
+        primaryByGuildId.TryGetValue(guildId, out var playerId) ? playerId : players.FirstOrDefault()?.PlayerId;
+
+    private async Task OnPlayerSearchAsync(ChangeEventArgs e)
+    {
+        playerError = null;
+        playerSearchTerm = e.Value?.ToString() ?? "";
+        playerSearchResults = playerSearchTerm.Trim().Length < 2 ? [] : await PlayerLink.SearchPlayersAsync(playerSearchTerm);
+    }
+
+    private async Task ConnectPlayerAsync(PlayerSearchResult result)
+    {
+        // Someone else already plays this commander: linking anyway would silently merge two
+        // people. Deliberately doesn't say *who* — otherwise the search doubles as a lookup of
+        // which Discord account owns any given player.
+        var owners = await PlayerLink.GetPlayerOwnersAsync(result.Id);
+        if (owners.Any(owner => !accountGroup.Contains(owner)))
+        {
+            playerError = $"{result.Name} is already linked to another Discord account. If that's your " +
+                "account, link it under My Discord Accounts below and this player will show up here.";
+            return;
+        }
+
+        await PlayerLink.LinkAsync(currentUserId, result.Id);
+        await PlayerLink.MarkUserResolvedAsync(currentUserId);
+        playerSearchTerm = "";
+        playerSearchResults = [];
+        await ReloadPersonAsync();
+    }
+
+    private async Task RemovePlayerAsync(int playerId)
+    {
+        await PlayerLink.UnlinkAsync(currentUserId, playerId);
+        await ReloadPersonAsync();
+    }
+
+    // Unlinking an account means dropping its links to the players it shares with this one — the
+    // shared player IS the link, so there's nothing else to delete.
+    private async Task UnlinkAccountAsync(ulong accountId)
+    {
+        var ownPlayerIds = players.Select(p => p.PlayerId).ToList();
+        foreach (var playerId in ownPlayerIds)
+            await PlayerLink.UnlinkAsync(accountId, playerId);
+        await ReloadPersonAsync();
+    }
+
+    private async Task SetGuildPrimaryAsync(ulong guildId, string? value)
+    {
+        if (!int.TryParse(value, out var playerId))
+            return;
+        await PlayerLink.SetGuildPrimaryAsync(guildId, currentUserId, playerId);
+        primaryByGuildId[guildId] = playerId;
+    }
+
+    private record PersonPlayer(ulong OwnerId, int PlayerId, string Name, string ServerName, string? AllianceTag);
 }

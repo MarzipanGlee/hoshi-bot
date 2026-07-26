@@ -528,3 +528,46 @@ in-game "Activate Services" permission — **Admiral or Commodore** (`RankRolesS
 result). The editor's Services-role and Member-role pickers are live shared views of the existing TC
 `ServicesRole` setting and `GuildAlliance.MemberRoleId` (editing there or here is the same value) — the
 feature owns no settings of its own.
+
+## Contested player claims — admin approval queue
+
+`/me` lets a member connect a player account themselves, but **blocks** a player already linked to a
+Discord account outside their own account group (`PlayerLinkService.GetPlayerOwnersAsync`), since
+claiming it would silently merge two people. The only way out today is self-service: prove the other
+Discord account is yours via the OAuth link flow, and the player appears.
+
+That leaves the genuine "someone else claimed my commander" case with nowhere to go. Add a **request
+approval** path from the block message: file a review row (the `PlayerLinkReview` queue, or a sibling
+of it) that an admin confirms or rejects on the Player Assignments page, which then does the link.
+Deliberately not built with the first version — the block plus the account-linking escape hatch covers
+the common case, and an approval queue nobody watches is worse than none.
+
+## Web: hide "Manage" from members with no admin rights anywhere
+
+The landing header and hero show a **Manage** button to every logged-in user. A plain member (no
+Manage Server permission in any guild Hoshi is in, not a global admin) lands on `/manage` and sees an
+empty dashboard — the button promises something they can't use. Resolve the same way the dashboard
+does (`GuildAccessService.GetAccessibleGuildsAsync` + the `GlobalAdmin` policy) and hide it when the
+result is empty; `/me` is the right destination for those users.
+
+Needs care on cost: that check hits the user's OAuth guild list, so it must reuse
+`DiscordUserGuildsService`'s existing 60s cache rather than firing a fresh call per page render, and
+it renders in a layout that's on every public page.
+
+## Web dashboard: missing Database card, and card order
+
+`/manage`'s global-admin shortcut grid is missing **Database** entirely, and lists the others in a
+different order than the sidebar. Add the Database card and order all three as the nav does:
+**Bot → STFC Catalog → Database**. Worth doing at the same time: the shortcuts are hand-rolled in
+`Manage/Index.razor` while guild/alliance pages come from the `GuildAdminPages`/`AllianceAdminPages`
+registries — a small `BotAdminPages`-style registry would let the sidebar and the grid share one list
+and stop drifting.
+
+## Slash commands — prune what the web admin replaced
+
+Several slash commands predate the web admin and the Command Bridge hub and are no longer the way
+anyone does the thing (e.g. `/set-my-alliance`, which lets any member rewrite a shared catalog row —
+see the note in `PlayerModule`). Go through the modules in `HoshiBot.Discord`, decide per command
+whether it's still the best surface for that action, and delete the ones that aren't; every command
+kept costs Discord command-registration slots and a piece of UI to keep correct. Note deletions need a
+command re-registration to actually disappear from Discord.

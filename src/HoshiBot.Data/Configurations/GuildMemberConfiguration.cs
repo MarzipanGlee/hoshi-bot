@@ -19,5 +19,12 @@ public class GuildMemberConfiguration : IEntityTypeConfiguration<GuildMember>
             .WithMany(u => u.GuildMemberships)
             .HasForeignKey(gm => gm.DiscordUserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // SetNull, not Cascade: a catalog player being deleted (or re-imported away) must cost the
+        // member their per-guild pick, never their membership row.
+        builder.HasOne(gm => gm.PrimaryStfcPlayer)
+            .WithMany()
+            .HasForeignKey(gm => gm.PrimaryStfcPlayerId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

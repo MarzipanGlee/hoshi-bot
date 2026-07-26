@@ -15,10 +15,11 @@
     {
         <h1>Player Assignment</h1>
         <p class="text-muted">
-            Assign each member to their in-game player(s). The assignment is <strong>global to the
-            person</strong> — it applies in every server they share with Hoshi, and drives the automatic
-            role assignment (rank, ops level, nickname). A player can be linked to multiple Discord accounts
-            (e.g. alt accounts).
+            Assign each member to their in-game player(s). The links are <strong>global to the
+            person</strong> — they apply in every server they share with Hoshi. The ★ marks the player
+            that represents them <strong>here</strong>, which is what drives this server's automatic role
+            assignment (rank, ops level, nickname); members can also set it themselves on their own
+            profile page. A player can be linked to multiple Discord accounts (e.g. alt accounts).
         </p>
 
         <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
@@ -53,15 +54,15 @@
                                     @foreach (var link in m.Links)
                                     {
                                         <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
-                                            @if (link.IsMain)
+                                            @if (link.IsGuildPrimary)
                                             {
-                                                <span title="Main player">★</span>
+                                                <span title="Represents them in this server">★</span>
                                             }
-                                            <span>@PlayerLabel(link.Name, link.ServerName, link.AllianceTag)</span>
-                                            @if (!link.IsMain)
+                                            <span>@PlayerLabel.Of(link.Name, link.ServerName, link.AllianceTag)</span>
+                                            @if (!link.IsGuildPrimary)
                                             {
                                                 <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                        title="Set as main player" @onclick="() => SetMainAsync(m.Id, link.PlayerId)">☆</button>
+                                                        title="Use this player in this server" @onclick="() => SetGuildPrimaryAsync(m.Id, link.PlayerId)">☆</button>
                                             }
                                             <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
                                                     title="Remove" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
@@ -79,7 +80,7 @@
                                                     {
                                                         <button type="button" class="list-group-item list-group-item-action py-1"
                                                                 @onclick="() => AssignAsync(m.Id, r.Id)">
-                                                            @PlayerLabel(r.Name, r.ServerName, r.AllianceTag)
+                                                            @PlayerLabel.Of(r.Name, r.ServerName, r.AllianceTag)
                                                         </button>
                                                     }
                                                 </div>
@@ -123,7 +124,7 @@
     {
         loading = true;
         var names = await DiscordData.GetMemberNicknamesAsync(ParsedGuildId);
-        var links = await PlayerLink.GetLinksForUsersAsync(names.Keys);
+        var links = await PlayerLink.GetLinksForUsersAsync(names.Keys, ParsedGuildId);
         members = names
             .Select(kv => new MemberRow(kv.Key, string.IsNullOrWhiteSpace(kv.Value) ? kv.Key.ToString() : kv.Value,
                 links.GetValueOrDefault(kv.Key) ?? []))
@@ -135,7 +136,7 @@
     // Refresh one member's links after a change, without re-fetching the whole Discord member list.
     private async Task RefreshLinksAsync(ulong userId)
     {
-        var links = await PlayerLink.GetLinksForUsersAsync([userId]);
+        var links = await PlayerLink.GetLinksForUsersAsync([userId], ParsedGuildId);
         var idx = members.FindIndex(m => m.Id == userId);
         if (idx >= 0)
             members[idx] = members[idx] with { Links = links.GetValueOrDefault(userId) ?? [] };
@@ -167,9 +168,9 @@
         await RefreshLinksAsync(userId);
     }
 
-    private async Task SetMainAsync(ulong userId, int playerId)
+    private async Task SetGuildPrimaryAsync(ulong userId, int playerId)
     {
-        await PlayerLink.SetMainAsync(userId, playerId);
+        await PlayerLink.SetGuildPrimaryAsync(ParsedGuildId, userId, playerId);
         await RefreshLinksAsync(userId);
     }
 
@@ -179,8 +180,6 @@
         await RefreshLinksAsync(userId);
     }
 
-    private static string PlayerLabel(string name, string server, string? tag) =>
-        tag is { Length: > 0 } ? $"{name} ({server}, [{tag}])" : $"{name} ({server})";
 
     private record MemberRow(ulong Id, string Name, List<MemberPlayerLink> Links);
 }

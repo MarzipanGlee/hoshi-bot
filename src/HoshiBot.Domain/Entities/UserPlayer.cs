@@ -1,8 +1,9 @@
 namespace HoshiBot.Domain.Entities;
 
-// A user can link multiple players, one marked main. IsMain uniqueness-per-user is
-// enforced in application code (unset any prior main before setting a new one), not
-// a filtered unique index — simpler, and sufficient for a personal-scale bot.
+// A user's linked players — a flat set, with no globally "main" one: which player represents
+// the person is a per-guild fact and lives on GuildMember.PrimaryStfcPlayerId (someone can play
+// a different character in each community). Two Discord accounts sharing a player is what makes
+// them the same person; see PlayerLinkService.GetAccountGroupAsync.
 public class UserPlayer
 {
     public int Id { get; set; }
@@ -14,6 +15,4 @@ public class UserPlayer
     public int StfcPlayerId { get; set; }
 
     public StfcPlayer StfcPlayer { get; set; } = null!;
-
-    public bool IsMain { get; set; }
 }

@@ -285,6 +285,34 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         return names ?? new Dictionary<ulong, string>();
     }
 
+    // Name + avatar for arbitrary Discord accounts, with no guild involved — /me listing the other
+    // accounts that belong to the same person, who may share no server with the one signed in.
+    // GET /users/{id} works for any account with a bot token; a failure degrades to the raw id
+    // rather than breaking the page.
+    public async Task<IReadOnlyDictionary<ulong, DiscordUserSummary>> GetUserSummariesAsync(IEnumerable<ulong> userIds)
+    {
+        var result = new Dictionary<ulong, DiscordUserSummary>();
+        foreach (var userId in userIds.Distinct())
+        {
+            var summary = await cache.GetOrCreateAsync($"discord-user:{userId}", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                try
+                {
+                    var user = await botRestClient.GetUserAsync(userId);
+                    return new DiscordUserSummary(user.GlobalName ?? user.Username, user.GetAvatarUrl()?.ToString());
+                }
+                catch (RestException)
+                {
+                    return new DiscordUserSummary(userId.ToString(), null);
+                }
+            });
+
+            result[userId] = summary ?? new DiscordUserSummary(userId.ToString(), null);
+        }
+        return result;
+    }
+
     [System.Text.RegularExpressions.GeneratedRegex(@"\[.*\]\s*")]
     private static partial System.Text.RegularExpressions.Regex AllianceTagPattern();
 
@@ -442,6 +470,10 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
 
 // See GroupChannelsForDisplay — Category is null for a channel with no matching category.
 public sealed record ChannelGroup(CategoryGuildChannel? Category, List<IGuildChannel> Channels);
+
+// See GetUserSummariesAsync. AvatarUrl is null for an account with no custom avatar (or when the
+// lookup failed, in which case Name is the raw id) — callers render their own fallback.
+public sealed record DiscordUserSummary(string Name, string? AvatarUrl);
 
 // See IsAllowedChannel. Normal covers most settings (anything SendMessageAsync can target);
 // TextOnly is for settings that create a private thread under the configured channel (Tickets),

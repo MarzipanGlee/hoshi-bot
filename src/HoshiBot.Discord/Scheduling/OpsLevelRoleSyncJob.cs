@@ -22,6 +22,7 @@ public class OpsLevelRoleSyncJob(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
+    PlayerLinkService playerLinkService,
     ILogger<OpsLevelRoleSyncJob> logger) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -35,12 +36,10 @@ public class OpsLevelRoleSyncJob(
             if (!await featureService.IsEnabledAsync(guildId, GuildFeature.OpsLevelRoles, GuildAudience.Guild, null))
                 continue;
 
-            var members = await db.GuildMembers
-                .Where(gm => gm.GuildId == guildId)
-                .Select(gm => new MemberOpsLevel(
-                    gm.DiscordUserId,
-                    gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => (int?)up.StfcPlayer.OpsLevel).FirstOrDefault()))
-                .ToListAsync();
+            // Ops level comes from whichever player represents the member in *this* guild.
+            var members = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values
+                .Select(p => new MemberOpsLevel(p.DiscordUserId, p.OpsLevel))
+                .ToList();
 
             var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
             await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members, roster);

@@ -21,6 +21,7 @@ public class RankRoleSyncJob(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
+    PlayerLinkService playerLinkService,
     ILogger<RankRoleSyncJob> logger) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -34,12 +35,10 @@ public class RankRoleSyncJob(
             if (!await featureService.IsEnabledAsync(guildId, GuildFeature.RankRoles, GuildAudience.Guild, null))
                 continue;
 
-            var members = await db.GuildMembers
-                .Where(gm => gm.GuildId == guildId)
-                .Select(gm => new MemberRank(
-                    gm.DiscordUserId,
-                    gm.User.PlayerLinks.Where(up => up.IsMain).Select(up => (StfcPlayerRank?)up.StfcPlayer.Rank).FirstOrDefault()))
-                .ToListAsync();
+            // Rank comes from whichever player represents the member in *this* guild.
+            var members = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values
+                .Select(p => new MemberRank(p.DiscordUserId, p.Rank))
+                .ToList();
 
             var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
             await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members, roster);

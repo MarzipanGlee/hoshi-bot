@@ -15,7 +15,7 @@ namespace HoshiBot.Discord.Scheduling;
 // absence that suppresses notifications (starting within 15 min or already ongoing), added
 // back otherwise. The role is owned by the Absences feature but pinged by the Territory
 // Capture weekly digest and Announcements — see AbsencesSettingKeys.NotificationRole.
-public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gatewayClient, ILogger<NotificationRoleSyncJob> logger) : IJob
+public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gatewayClient, PlayerLinkService playerLinkService, ILogger<NotificationRoleSyncJob> logger) : IJob
 {
     private static readonly TimeSpan LookAhead = TimeSpan.FromMinutes(15);
 
@@ -34,12 +34,14 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
         foreach (var guildGroup in settings.GroupBy(s => s.GuildId))
         {
             var roster = await GuildRoster.FetchAsync(gatewayClient, guildGroup.Key);
+            // Resolved once per guild, not per alliance: which player represents each member here.
+            var primaries = await playerLinkService.GetGuildPrimaryPlayersAsync(guildGroup.Key);
             foreach (var setting in guildGroup)
-                await SyncAllianceAsync(setting.GuildId, setting.GuildAllianceId, setting.RoleId, roster);
+                await SyncAllianceAsync(setting.GuildId, setting.GuildAllianceId, setting.RoleId, roster, primaries);
         }
     }
 
-    private async Task SyncAllianceAsync(ulong guildId, int guildAllianceId, ulong roleId, IReadOnlyDictionary<ulong, GuildUser> roster)
+    private async Task SyncAllianceAsync(ulong guildId, int guildAllianceId, ulong roleId, IReadOnlyDictionary<ulong, GuildUser> roster, IReadOnlyDictionary<ulong, GuildPrimaryPlayer> primaries)
     {
         var stfcAllianceId = await db.GuildAlliances
             .Where(ga => ga.Id == guildAllianceId)
@@ -48,11 +50,10 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
         if (stfcAllianceId is not { } allianceId)
             return;
 
-        var memberIds = await db.GuildMembers
-            .Where(gm => gm.GuildId == guildId)
-            .Where(gm => gm.User.PlayerLinks.Any(up => up.IsMain && up.StfcPlayer.AllianceId == allianceId))
-            .Select(gm => gm.DiscordUserId)
-            .ToListAsync();
+        var memberIds = primaries.Values
+            .Where(p => p.AllianceId == allianceId)
+            .Select(p => p.DiscordUserId)
+            .ToList();
 
         if (memberIds.Count == 0)
             return;

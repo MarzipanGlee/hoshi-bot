@@ -28,9 +28,10 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
                 await db.SaveChangesAsync();
             }
 
-            // The DiscordUser + UserPlayer (IsMain-when-first) core is shared with the automated
-            // PlayerLink matcher and the Web admin table — see PlayerLinkService.LinkAsync. Also record
-            // guild membership so the role-sync jobs (which iterate GuildMembers) apply roles.
+            // The DiscordUser + UserPlayer core is shared with the automated PlayerLink matcher and
+            // the Web admin table — see PlayerLinkService.LinkAsync, which also adopts this player as
+            // the primary in any guild that has none yet. Record guild membership first so the
+            // role-sync jobs (which iterate GuildMembers) apply roles.
             if (Context.Guild is { } guild)
                 await playerLinkService.EnsureGuildMemberAsync(guild.Id, userId);
             await playerLinkService.LinkAsync(userId, player.Id);
@@ -38,25 +39,24 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
             return $"Linked your Discord account to **{playerName}** on {server.Name}.";
         });
 
-    [SlashCommand("set-my-alliance", "Set the alliance for your main linked player",
+    [SlashCommand("set-my-alliance", "Set the alliance for the player representing you in this server",
         Contexts = [InteractionContextType.Guild])]
     public Task SetMyAlliance(string allianceTag) =>
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var userId = Context.User.Id;
 
-            var mainLink = await db.UserPlayers
-                .Include(up => up.StfcPlayer)
-                .FirstOrDefaultAsync(up => up.DiscordUserId == userId && up.IsMain);
-            if (mainLink is null)
+            var playerId = await playerLinkService.GetGuildPrimaryPlayerIdAsync(Context.Guild!.Id, userId);
+            var player = playerId is null ? null : await db.StfcPlayers.FindAsync(playerId);
+            if (player is null)
                 return "You haven't linked a player yet. Use /link-player first.";
 
             var alliance = await db.StfcAlliances.FirstOrDefaultAsync(a =>
-                a.ServerId == mainLink.StfcPlayer.ServerId && a.Tag == allianceTag);
+                a.ServerId == player.ServerId && a.Tag == allianceTag);
             if (alliance is null)
                 return $"No alliance with tag \"{allianceTag}\" found on your server. Ask an admin to add it first (via the web admin).";
 
-            mainLink.StfcPlayer.AllianceId = alliance.Id;
+            player.AllianceId = alliance.Id;
             await db.SaveChangesAsync();
 
             return $"Set your alliance to {alliance.Name} ({alliance.Tag}).";

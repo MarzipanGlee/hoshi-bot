@@ -12,7 +12,7 @@ namespace HoshiBot.Data;
 // "Primary" alliance = the lowest-Id link, which is also where the AddGuildAllianceScope
 // migration backfilled the pre-multi-alliance settings — so treating the primary as the default
 // keeps single-alliance guilds behaving exactly as before.
-public class GuildAllianceService(IDbContextFactory<HoshiBotDbContext> dbFactory)
+public class GuildAllianceService(IDbContextFactory<HoshiBotDbContext> dbFactory, PlayerLinkService playerLinkService)
 {
     public async Task<List<GuildAlliance>> GetLinksAsync(ulong guildId)
     {
@@ -54,22 +54,27 @@ public class GuildAllianceService(IDbContextFactory<HoshiBotDbContext> dbFactory
             .FirstOrDefaultAsync(ga => ga.GuildId == guildId && ga.Id == guildAllianceId);
     }
 
-    // Which of the guild's linked alliances a Discord member belongs to, via their main player's
-    // in-game alliance. Null when the member has no linked main player or that player's alliance
+    // Which of the guild's linked alliances a Discord member belongs to, via the in-game alliance of
+    // the player that represents them *in this guild* (GuildMember.PrimaryStfcPlayerId, falling back
+    // to their oldest link). Null when the member has no linked player or that player's alliance
     // isn't one the guild links — callers typically fall back to the primary alliance.
     public async Task<GuildAlliance?> FindByMemberAsync(ulong guildId, ulong discordUserId)
     {
+        var playerId = await playerLinkService.GetGuildPrimaryPlayerIdAsync(guildId, discordUserId);
+        if (playerId is null)
+            return null;
+
         await using var db = await dbFactory.CreateDbContextAsync();
-        var mainAllianceId = await db.UserPlayers
-            .Where(up => up.DiscordUserId == discordUserId && up.IsMain)
-            .Select(up => up.StfcPlayer.AllianceId)
+        var allianceId = await db.StfcPlayers
+            .Where(p => p.Id == playerId)
+            .Select(p => p.AllianceId)
             .FirstOrDefaultAsync();
-        if (mainAllianceId is null)
+        if (allianceId is null)
             return null;
 
         return await db.GuildAlliances
             .Include(ga => ga.StfcAlliance)
-            .FirstOrDefaultAsync(ga => ga.GuildId == guildId && ga.StfcAllianceId == mainAllianceId);
+            .FirstOrDefaultAsync(ga => ga.GuildId == guildId && ga.StfcAllianceId == allianceId);
     }
 
     // Self-heal: assign any Alliance-audience feature rows still left with a null GuildAllianceId

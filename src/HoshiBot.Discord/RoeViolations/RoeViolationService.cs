@@ -22,7 +22,8 @@ public class RoeViolationService(
     NotificationDispatcher dispatcher,
     EmbedBranding embedBranding,
     GuildFeatureSettingsService settingsService,
-    GuildAllianceService allianceService)
+    GuildAllianceService allianceService,
+    PlayerLinkService playerLinkService)
 {
     private const string VictimSteps =
         "1. Überprüfe den entstandenen Verlust genau.\n" +
@@ -76,19 +77,21 @@ public class RoeViolationService(
     }
 
     // Resolves "this Discord user's current in-game identity" from real linked-player
-    // data instead of hardcoding a single alliance tag like legacy does — falls back to
-    // the caller-supplied display name + "-" tag if the member hasn't run /link-player.
-    public async Task<(string Tag, string Name)> ResolveIdentityAsync(ulong userId, string fallbackDisplayName)
+    // data instead of hardcoding a single alliance tag like legacy does — the player that
+    // represents them in this guild, falling back to the caller-supplied display name +
+    // "-" tag if the member has no linked player at all.
+    public async Task<(string Tag, string Name)> ResolveIdentityAsync(ulong guildId, ulong userId, string fallbackDisplayName)
     {
-        var userPlayer = await db.UserPlayers
-            .Where(up => up.DiscordUserId == userId && up.IsMain)
-            .Include(up => up.StfcPlayer).ThenInclude(p => p.Alliance)
-            .FirstOrDefaultAsync();
-
-        if (userPlayer is null)
+        var playerId = await playerLinkService.GetGuildPrimaryPlayerIdAsync(guildId, userId);
+        if (playerId is null)
             return ("-", fallbackDisplayName);
 
-        return (userPlayer.StfcPlayer.Alliance?.Tag ?? "-", userPlayer.StfcPlayer.Name);
+        var player = await db.StfcPlayers
+            .Where(p => p.Id == playerId)
+            .Select(p => new { p.Name, AllianceTag = p.Alliance != null ? p.Alliance.Tag : null })
+            .FirstOrDefaultAsync();
+
+        return player is null ? ("-", fallbackDisplayName) : (player.AllianceTag ?? "-", player.Name);
     }
 
     // Branded confirmation embed shown back to the reporter after the modal — matches the rest
