@@ -23,10 +23,7 @@ public class AnonymousMessageModalModule(AnonymousMessageService anonymousMessag
             var subject = values.GetValueOrDefault("subject") ?? "";
             var message = values.GetValueOrDefault("message") ?? "";
 
-            var parsedAudience = Enum.Parse<GuildAudience>(audience);
-            var guildAllianceId = parsedAudience == GuildAudience.Alliance
-                ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
-                : null;
+            var (parsedAudience, guildAllianceId, _) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
             var result = await anonymousMessageService.SendAsync(Context.Guild!.Id, parsedAudience, guildAllianceId, subject, message);
             return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
         });

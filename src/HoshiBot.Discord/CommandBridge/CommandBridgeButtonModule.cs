@@ -13,17 +13,6 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     PendingModalInputService pendingModalInputService, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
-    // Phase 1: the Alliance audience resolves to the guild's primary linked alliance. Other
-    // audiences are guild-scoped (null). Returns (scope, missing) — missing is true only when
-    // the Alliance audience has no linked alliance, so the caller can treat it as disabled.
-    private async Task<(int? GuildAllianceId, bool Missing)> ResolveScopeAsync(ulong guildId, GuildAudience audience)
-    {
-        if (audience != GuildAudience.Alliance)
-            return (null, false);
-        var primary = await allianceService.GetPrimaryIdAsync(guildId);
-        return (primary, primary is null);
-    }
-
     // Shared shape for every ephemeral prompt in this module — same branded style as
     // every real bot message, just also used for these interactive in-between steps.
     private async Task<InteractionMessageProperties> EphemeralEmbedAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null, Color? color = null)
@@ -138,8 +127,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task<InteractionMessageProperties> ContactCommandStaffPrompt(string audience)
     {
         var guildId = Context.Guild!.Id;
-        var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        var (guildAllianceId, scopeMissing) = await ResolveScopeAsync(guildId, parsedAudience);
+        var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(guildId, audience);
         var ticketsEnabled = !scopeMissing && await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, parsedAudience, guildAllianceId);
         var anonymousEnabled = !scopeMissing && await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId);
 
@@ -168,8 +156,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("ticket-open")]
     public async Task<InteractionCallbackProperties> OpenTicketPrompt(string audience)
     {
-        var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        var (guildAllianceId, scopeMissing) = await ResolveScopeAsync(Context.Guild!.Id, parsedAudience);
+        var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets, parsedAudience, guildAllianceId))
             return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Tickets)));
 
@@ -284,8 +271,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("anonymous-message")]
     public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)
     {
-        var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        var (guildAllianceId, scopeMissing) = await ResolveScopeAsync(Context.Guild!.Id, parsedAudience);
+        var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId))
             return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging)));
 

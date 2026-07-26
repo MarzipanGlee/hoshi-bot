@@ -54,29 +54,38 @@ public class NotificationDispatcher(
         var results = new List<(ulong, ulong?)>();
 
         foreach (var channel in channels)
-        {
-            try
-            {
-                var message = await gatewayClient.Rest.SendMessageAsync(channel.ChannelId,
-                    new MessageProperties
-                    {
-                        Content = $"<@&{channel.RoleId}> {content}",
-                        Embeds = embed is null ? null : [embed],
-                        Components = terminateButton is null ? null : [new ActionRowProperties([terminateButton])],
-                    });
-                results.Add((channel.ChannelId, message.Id));
-            }
-            catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-            {
-                logger.LogWarning("Skipped alert channel {ChannelId} for guild {GuildId}: {StatusCode}",
-                    channel.ChannelId, guildId, ex.StatusCode);
-                results.Add((channel.ChannelId, null));
-                await LogSkippedChannelAsync(guildId, channel.ChannelId, ex.StatusCode);
-                await NotifyAdminOfPermissionIssueAsync(guildId, "eine Alarm-Nachricht senden", $"fehlende Berechtigung in <#{channel.ChannelId}>?");
-            }
-        }
+            results.Add((channel.ChannelId, await TrySendToChannelAsync(guildId, channel.ChannelId,
+                $"<@&{channel.RoleId}> {content}", terminateButton, embed, "alert")));
 
         return results;
+    }
+
+    // One channel send plus the shared undeliverable handling (warn log, activity-log entry,
+    // throttled admin ping) used by both SendToChannelsAsync and SendToChannelIdsAsync — the two
+    // only differ in how they build the content prefix and what channelKind the log line names.
+    // Returns the sent message's id, or null when the channel was skipped (Forbidden/NotFound).
+    private async Task<ulong?> TrySendToChannelAsync(ulong guildId, ulong channelId, string content,
+        ButtonProperties? terminateButton, EmbedProperties? embed, string channelKind)
+    {
+        try
+        {
+            var message = await gatewayClient.Rest.SendMessageAsync(channelId,
+                new MessageProperties
+                {
+                    Content = content,
+                    Embeds = embed is null ? null : [embed],
+                    Components = terminateButton is null ? null : [new ActionRowProperties([terminateButton])],
+                });
+            return message.Id;
+        }
+        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            logger.LogWarning("Skipped {ChannelKind} channel {ChannelId} for guild {GuildId}: {StatusCode}",
+                channelKind, channelId, guildId, ex.StatusCode);
+            await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode);
+            await NotifyAdminOfPermissionIssueAsync(guildId, "eine Alarm-Nachricht senden", $"fehlende Berechtigung in <#{channelId}>?");
+            return null;
+        }
     }
 
     // Posts to an explicit set of channel ids, mentioning mentionRoleId only when set — the
@@ -90,26 +99,8 @@ public class NotificationDispatcher(
         var prefix = mentionRoleId is { } roleId ? $"<@&{roleId}> " : "";
 
         foreach (var channelId in channelIds)
-        {
-            try
-            {
-                var message = await gatewayClient.Rest.SendMessageAsync(channelId,
-                    new MessageProperties
-                    {
-                        Content = $"{prefix}{content}",
-                        Embeds = embed is null ? null : [embed],
-                    });
-                results.Add((channelId, message.Id));
-            }
-            catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-            {
-                logger.LogWarning("Skipped feature channel {ChannelId} for guild {GuildId}: {StatusCode}",
-                    channelId, guildId, ex.StatusCode);
-                results.Add((channelId, null));
-                await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode);
-                await NotifyAdminOfPermissionIssueAsync(guildId, "eine Alarm-Nachricht senden", $"fehlende Berechtigung in <#{channelId}>?");
-            }
-        }
+            results.Add((channelId, await TrySendToChannelAsync(guildId, channelId,
+                $"{prefix}{content}", terminateButton: null, embed, "feature")));
 
         return results;
     }
@@ -159,31 +150,13 @@ public class NotificationDispatcher(
         }
     }
 
-    public async Task<ulong?> SendDirectMessageAsync(ulong userId, string content, ButtonProperties? terminateButton = null, EmbedProperties? embed = null)
-    {
-        try
-        {
-            var dmChannel = await gatewayClient.Rest.GetDMChannelAsync(userId);
-            var message = await gatewayClient.Rest.SendMessageAsync(dmChannel.Id,
-                new MessageProperties
-                {
-                    Content = content,
-                    Embeds = embed is null ? null : [embed],
-                    Components = terminateButton is null ? null : [new ActionRowProperties([terminateButton])],
-                });
-            return message.Id;
-        }
-        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-        {
-            logger.LogInformation("Could not DM user {UserId}: {StatusCode}", userId, ex.StatusCode);
-            return null;
-        }
-    }
+    public Task<ulong?> SendDirectMessageAsync(ulong userId, string content, ButtonProperties? terminateButton = null, EmbedProperties? embed = null) =>
+        SendDirectMessageAsync(userId, content, terminateButton is null ? null : [new ActionRowProperties([terminateButton])], embed);
 
     // Like SendDirectMessageAsync above but for a DM carrying a full set of interactive rows (e.g. a
     // confirm/decline button pair) rather than a single terminate button — used by MemberOnboarding's
     // player-confirmation outreach. Returns null (and logs) if the member's DMs are closed.
-    public async Task<ulong?> SendDirectMessageAsync(ulong userId, string content, IReadOnlyList<ActionRowProperties> rows, EmbedProperties? embed = null)
+    public async Task<ulong?> SendDirectMessageAsync(ulong userId, string content, IReadOnlyList<ActionRowProperties>? rows, EmbedProperties? embed = null)
     {
         try
         {

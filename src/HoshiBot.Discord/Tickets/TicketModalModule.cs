@@ -21,10 +21,7 @@ public class TicketModalModule(TicketService ticketService, GuildAllianceService
                 .ToDictionary(i => i.CustomId, i => i.Value)
                 .GetValueOrDefault("subject") ?? "";
 
-            var parsedAudience = Enum.Parse<GuildAudience>(audience);
-            var guildAllianceId = parsedAudience == GuildAudience.Alliance
-                ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
-                : null;
+            var (parsedAudience, guildAllianceId, _) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
             var result = await ticketService.OpenTicketAsync(
                 Context.Guild!.Id, parsedAudience, guildAllianceId, Context.User.Id, CommanderName.Of(Context.User), subject);
             return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);

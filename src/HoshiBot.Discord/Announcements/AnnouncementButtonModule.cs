@@ -63,13 +63,8 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
 
     private async Task<Action<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity)
     {
-        var parsedAudience = Enum.Parse<GuildAudience>(audience);
-        // Phase 1: the Alliance audience maps to the guild's primary linked alliance.
-        var guildAllianceId = parsedAudience == GuildAudience.Alliance
-            ? await allianceService.GetPrimaryIdAsync(Context.Guild!.Id)
-            : null;
-        if (parsedAudience == GuildAudience.Alliance && guildAllianceId is null
-            || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
+        var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
+        if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
         {
             var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements);
             return await embedBranding.BrandedEditAsync(Context.Guild!.Id, disabledMessage);

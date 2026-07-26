@@ -44,6 +44,20 @@ public class GuildAllianceService(IDbContextFactory<HoshiBotDbContext> dbFactory
             .FirstOrDefaultAsync();
     }
 
+    // Resolves the feature scope a component custom-id's audience segment maps to: parses the
+    // GuildAudience and, for the Alliance audience, resolves the guild's primary linked alliance
+    // (Phase 1 — every other audience is guild-scoped, null). AllianceMissing is true only when
+    // the Alliance audience has no linked alliance, so callers can treat that scope as disabled.
+    public async Task<(GuildAudience Audience, int? GuildAllianceId, bool AllianceMissing)> ResolveScopeAsync(ulong guildId, string audience)
+    {
+        var parsed = Enum.Parse<GuildAudience>(audience);
+        if (parsed != GuildAudience.Alliance)
+            return (parsed, null, false);
+
+        var primary = await GetPrimaryIdAsync(guildId);
+        return (parsed, primary, primary is null);
+    }
+
     // Ownership-validated lookup: returns the link only if it actually belongs to this guild
     // (guards against a route param / custom-id carrying another guild's alliance id).
     public async Task<GuildAlliance?> FindByIdAsync(ulong guildId, int guildAllianceId)
