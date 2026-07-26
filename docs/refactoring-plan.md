@@ -67,7 +67,7 @@ These rules are enforced going forward (also recorded in
   `Components/Pages/Manage/Stfc/*Pages/Index.razor` — and restore `Sortable="true"` on
   the affected `DateTimeOffset`/`ulong` columns; Postgres translates them fine.
 
-## Phase 1 — Migration reset
+## Phase 1 — Migration reset — DONE (2026-07-26)
 
 Only one live database matters and it has the latest migration applied, so the entire
 migration history can be collapsed into a single baseline.
