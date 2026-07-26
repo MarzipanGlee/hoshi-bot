@@ -175,7 +175,7 @@ file per seeder group).
   page; the `…Editor` suffix is the convention for embedded editor components, and its
   three siblings don't carry it).
 
-## Phase 3 — Web dedup
+## Phase 3 — Web dedup — DONE (2026-07-26)
 
 ### STFC CRUD scaffold (~3,400 duplicated lines)
 
