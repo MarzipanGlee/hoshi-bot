@@ -2,8 +2,6 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using NetCord.Rest;
-using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
@@ -14,36 +12,34 @@ namespace HoshiBot.Discord.Scheduling;
 // been confirmed from a real announcement post). Same one-time-seed situation as
 // ServerStatusNotifyJob (see there for why).
 public class AllianceTournamentNotifyJob(
-    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
+    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
+    : DiffNotifyJobBase<StfcEventStatus>(db, dispatcher, embedBranding)
 {
     // The string value ("alliance_tournaments") is a real persisted lookup key
     // (StfcEventStatus.EventGroup) — do not change the value, only the constant's own name
     // is cosmetic.
     private const string AllianceTournamentEventGroup = "alliance_tournaments";
 
-    public async Task Execute(IJobExecutionContext context)
+    protected override GuildAlertChannelKind ChannelKind => GuildAlertChannelKind.AllianceTournament;
+    protected override GuildFeature Feature => GuildFeature.AllianceTournament;
+
+    protected override async Task<List<StfcEventStatus>> LoadPendingRowsAsync()
     {
         var now = DateTimeOffset.UtcNow;
 
-        var tournament = await db.StfcEventStatuses.FirstOrDefaultAsync(e => e.EventGroup == AllianceTournamentEventGroup);
-        if (tournament is null)
-            return;
+        var tournament = await Db.StfcEventStatuses.FirstOrDefaultAsync(e => e.EventGroup == AllianceTournamentEventGroup);
+        if (tournament is null || tournament.EventStart == tournament.NotifiedEventStart || tournament.EventStart <= now)
+            return [];
 
-        if (tournament.EventStart == tournament.NotifiedEventStart || tournament.EventStart <= now)
-            return;
-
-        var guildIds = await db.GuildServers.Select(g => g.GuildId).Distinct().ToListAsync();
-
-        var content = $"🏆 A new Alliance Tournament is scheduled to start <t:{tournament.EventStart.ToUnixTimeSeconds()}:R>!";
-
-        foreach (var guildId in guildIds)
-        {
-            var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.WarningColor);
-            await dispatcher.SendPublicToEnabledAudiencesAsync(
-                guildId, GuildAlertChannelKind.AllianceTournament, GuildFeature.AllianceTournament, content, embed: embed);
-        }
-
-        tournament.NotifiedEventStart = tournament.EventStart;
-        await db.SaveChangesAsync();
+        return [tournament];
     }
+
+    protected override Task<List<ulong>> ResolveGuildIdsAsync(StfcEventStatus row) =>
+        Db.GuildServers.Select(g => g.GuildId).Distinct().ToListAsync();
+
+    protected override (string Content, NetCord.Color Color) BuildAnnouncement(StfcEventStatus row) =>
+        ($"🏆 A new Alliance Tournament is scheduled to start <t:{row.EventStart.ToUnixTimeSeconds()}:R>!",
+            EmbedBranding.WarningColor);
+
+    protected override void MarkNotified(StfcEventStatus row) => row.NotifiedEventStart = row.EventStart;
 }

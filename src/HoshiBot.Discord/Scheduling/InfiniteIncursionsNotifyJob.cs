@@ -2,8 +2,6 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using NetCord.Rest;
-using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
@@ -17,45 +15,47 @@ namespace HoshiBot.Discord.Scheduling;
 // behavior change from the previous region-blind "notify every GuildServer guild
 // regardless"). Same one-time-seed situation as ServerStatusNotifyJob (see there for why).
 public class InfiniteIncursionsNotifyJob(
-    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
+    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
+    : DiffNotifyJobBase<StfcEventStatus>(db, dispatcher, embedBranding)
 {
     // The string value ("incursions") is a real persisted lookup key (StfcEventStatus.EventGroup)
     // — do not change the value, only the constant's own name is cosmetic.
     private const string InfiniteIncursionsEventGroup = "incursions";
 
-    public async Task Execute(IJobExecutionContext context)
+    protected override GuildAlertChannelKind ChannelKind => GuildAlertChannelKind.InfiniteIncursions;
+    protected override GuildFeature Feature => GuildFeature.InfiniteIncursions;
+
+    protected override async Task<List<StfcEventStatus>> LoadPendingRowsAsync()
     {
         var now = DateTimeOffset.UtcNow;
 
-        var regionRows = await db.StfcEventStatuses
+        var regionRows = await Db.StfcEventStatuses
             .Include(e => e.Region)
             .Where(e => e.EventGroup == InfiniteIncursionsEventGroup)
             .ToListAsync();
 
-        foreach (var row in regionRows)
-        {
-            if (row.RegionId is not { } regionId || row.EventStart == row.NotifiedEventStart || row.EventStart <= now)
-                continue;
-
-            var guildIds = await db.GuildServers
-                .Where(g => g.StfcServer.RegionId == regionId)
-                .Select(g => g.GuildId)
-                .Distinct()
-                .ToListAsync();
-
-            var regionName = row.Region?.Name ?? "?";
-            var content = $"⚔️ [{regionName}] A new Infinite Incursions event is scheduled to start <t:{row.EventStart.ToUnixTimeSeconds()}:R>!";
-
-            foreach (var guildId in guildIds)
-            {
-                var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.WarningColor);
-                await dispatcher.SendPublicToEnabledAudiencesAsync(
-                    guildId, GuildAlertChannelKind.InfiniteIncursions, GuildFeature.InfiniteIncursions, content, embed: embed);
-            }
-
-            row.NotifiedEventStart = row.EventStart;
-        }
-
-        await db.SaveChangesAsync();
+        return regionRows
+            .Where(row => row.RegionId is not null && row.EventStart != row.NotifiedEventStart && row.EventStart > now)
+            .ToList();
     }
+
+    protected override Task<List<ulong>> ResolveGuildIdsAsync(StfcEventStatus row)
+    {
+        var regionId = row.RegionId!.Value; // LoadPendingRowsAsync filtered out region-less rows
+
+        return Db.GuildServers
+            .Where(g => g.StfcServer.RegionId == regionId)
+            .Select(g => g.GuildId)
+            .Distinct()
+            .ToListAsync();
+    }
+
+    protected override (string Content, NetCord.Color Color) BuildAnnouncement(StfcEventStatus row)
+    {
+        var regionName = row.Region?.Name ?? "?";
+        return ($"⚔️ [{regionName}] A new Infinite Incursions event is scheduled to start <t:{row.EventStart.ToUnixTimeSeconds()}:R>!",
+            EmbedBranding.WarningColor);
+    }
+
+    protected override void MarkNotified(StfcEventStatus row) => row.NotifiedEventStart = row.EventStart;
 }

@@ -2,8 +2,6 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using NetCord.Rest;
-using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
@@ -15,46 +13,26 @@ namespace HoshiBot.Discord.Scheduling;
 // automated /api/ access, so nothing populates new observed values yet. This job is
 // still correct once that data starts flowing from api.stfc.pro.
 public class ServerStatusNotifyJob(
-    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
+    HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
+    : DiffNotifyJobBase<StfcServerStatus>(db, dispatcher, embedBranding)
 {
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var changed = await db.StfcServerStatuses
+    protected override GuildAlertChannelKind ChannelKind => GuildAlertChannelKind.ServerStatus;
+    protected override GuildFeature Feature => GuildFeature.ServerStatus;
+    protected override string? Title => "Server Status Change";
+
+    protected override Task<List<StfcServerStatus>> LoadPendingRowsAsync() =>
+        Db.StfcServerStatuses
             .Include(s => s.StfcServer)
             .Where(s => s.Status != s.NotifiedStatus || s.Maintenance != s.NotifiedMaintenance)
             .ToListAsync();
 
-        foreach (var status in changed)
-        {
-            var guildIds = await db.GuildServers
-                .Where(g => g.StfcServerId == status.StfcServerId)
-                .Select(g => g.GuildId)
-                .ToListAsync();
+    protected override Task<List<ulong>> ResolveGuildIdsAsync(StfcServerStatus status) =>
+        Db.GuildServers
+            .Where(g => g.StfcServerId == status.StfcServerId)
+            .Select(g => g.GuildId)
+            .ToListAsync();
 
-            if (guildIds.Count == 0)
-            {
-                status.NotifiedStatus = status.Status;
-                status.NotifiedMaintenance = status.Maintenance;
-                continue;
-            }
-
-            var (content, color) = BuildAnnouncement(status);
-
-            foreach (var guildId in guildIds)
-            {
-                var embed = await embedBranding.BuildBrandedAsync(guildId, content, color, "Server Status Change");
-                await dispatcher.SendPublicToEnabledAudiencesAsync(
-                    guildId, GuildAlertChannelKind.ServerStatus, GuildFeature.ServerStatus, content, embed: embed);
-            }
-
-            status.NotifiedStatus = status.Status;
-            status.NotifiedMaintenance = status.Maintenance;
-        }
-
-        await db.SaveChangesAsync();
-    }
-
-    private static (string Content, NetCord.Color Color) BuildAnnouncement(StfcServerStatus status)
+    protected override (string Content, NetCord.Color Color) BuildAnnouncement(StfcServerStatus status)
     {
         var serverName = status.StfcServer.DisplayName;
 
@@ -65,5 +43,11 @@ public class ServerStatusNotifyJob(
             return ($"🔴 **{serverName}** is down.", EmbedBranding.DangerColor);
 
         return ($"🟢 **{serverName}** is back online.", EmbedBranding.InformationColor);
+    }
+
+    protected override void MarkNotified(StfcServerStatus status)
+    {
+        status.NotifiedStatus = status.Status;
+        status.NotifiedMaintenance = status.Maintenance;
     }
 }
