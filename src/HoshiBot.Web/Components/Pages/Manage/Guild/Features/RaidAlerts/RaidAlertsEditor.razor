@@ -3,7 +3,6 @@
 @using HoshiBot.Web.Services
 @using NetCord
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -31,9 +30,9 @@
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, ChannelKey))?.ToString();
+        channelIdInput = (await GetSnowflakeAsync(ChannelKey))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, ChannelKey, ParseId(channelIdInput));
+        SetSnowflakeAsync(ChannelKey, ParseId(channelIdInput));
 }

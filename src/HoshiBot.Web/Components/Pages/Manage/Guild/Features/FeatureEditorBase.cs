@@ -31,6 +31,9 @@ public abstract class FeatureEditorBase : ComponentBase
     [Inject]
     protected GuildFeatureService FeatureService { get; set; } = null!;
 
+    [Inject]
+    protected GuildFeatureSettingsService SettingsService { get; set; } = null!;
+
     protected abstract GuildFeature Feature { get; }
 
     // The concrete audience this editor acts on: the explicit parameter for multi-audience
@@ -77,4 +80,39 @@ public abstract class FeatureEditorBase : ComponentBase
     }
 
     protected static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
+
+    // Per-setting read/write for this editor's (GuildId, Feature, ResolvedAudience, GuildAllianceId)
+    // scope — thin wrappers over GuildFeatureSettingsService so editors pass only the key. The
+    // overloads taking an explicit feature serve the few settings a page shares with another
+    // feature's editor at the same audience/alliance scope (e.g. Territory Capture editing the
+    // Absences-owned notification role); a setting stored under a *different* audience scope
+    // (ClientRelease's guild-wide platform roles, Announcements' Alliance-only role) still calls
+    // SettingsService directly with its deliberate explicit scope.
+    protected Task<ulong?> GetSnowflakeAsync(string key) => GetSnowflakeAsync(Feature, key);
+
+    protected Task<ulong?> GetSnowflakeAsync(GuildFeature feature, string key) =>
+        SettingsService.GetSnowflakeAsync(GuildId, feature, ResolvedAudience, GuildAllianceId, key);
+
+    protected Task SetSnowflakeAsync(string key, ulong? value) => SetSnowflakeAsync(Feature, key, value);
+
+    protected Task SetSnowflakeAsync(GuildFeature feature, string key, ulong? value) =>
+        SettingsService.SetSnowflakeAsync(GuildId, feature, ResolvedAudience, GuildAllianceId, key, value);
+
+    protected Task<List<ulong>> GetSnowflakeListAsync(string key) =>
+        SettingsService.GetSnowflakeListAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
+
+    protected Task AddSnowflakeListValueAsync(string key, ulong value) =>
+        SettingsService.AddSnowflakeListValueAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
+
+    protected Task RemoveSnowflakeListValueAsync(string key, ulong value) =>
+        SettingsService.RemoveSnowflakeListValueAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
+
+    protected Task<string?> GetTextAsync(string key) =>
+        SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
+
+    protected Task SetTextAsync(string key, string? value) =>
+        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
+
+    protected Task SetSecretAsync(string key, string? value) =>
+        SettingsService.SetSecretAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
 }

@@ -4,7 +4,6 @@
 @using NetCord
 @using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 @inject GuildAllianceService AllianceService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
@@ -112,30 +111,28 @@
     {
         roles = await DiscordData.GetRolesAsync(GuildId);
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        digestChannelInput = (await Get(TerritoryCaptureSettingKeys.DigestChannel))?.ToString();
-        servicesChannelInput = (await Get(TerritoryCaptureSettingKeys.ServicesChannel))?.ToString();
-        servicesRoleInput = (await Get(TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
-        zoneSlot1Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot1Role))?.ToString();
-        zoneSlot2Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot2Role))?.ToString();
-        zoneSlot3Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
-        zoneSlot4Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot4Role))?.ToString();
-        zoneSlot5Input = (await Get(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
-        notificationRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, GuildFeature.Absences, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole))?.ToString();
-        instructionsInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions);
+        digestChannelInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.DigestChannel))?.ToString();
+        servicesChannelInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesChannel))?.ToString();
+        servicesRoleInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
+        zoneSlot1Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot1Role))?.ToString();
+        zoneSlot2Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot2Role))?.ToString();
+        zoneSlot3Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
+        zoneSlot4Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot4Role))?.ToString();
+        zoneSlot5Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
+        notificationRoleInput = (await GetSnowflakeAsync(GuildFeature.Absences, AbsencesSettingKeys.NotificationRole))?.ToString();
+        instructionsInput = await GetTextAsync(TerritoryCaptureSettingKeys.Instructions);
 
-        weeklyDigestTimeInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.WeeklyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultWeeklyTime;
-        dailyDigestTimeInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DailyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultDailyTime;
+        weeklyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.WeeklyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultWeeklyTime;
+        dailyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.DailyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultDailyTime;
         if (GuildAllianceId is { } allianceId)
             allianceTimeZoneDisplay = (await AllianceService.FindByIdAsync(GuildId, allianceId))?.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
     }
 
-    private Task<ulong?> Get(string key) => SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
-
     private Task SaveDigestChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DigestChannel, ParseId(digestChannelInput));
+        SetSnowflakeAsync(TerritoryCaptureSettingKeys.DigestChannel, ParseId(digestChannelInput));
 
     private Task SaveServicesChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesChannel, ParseId(servicesChannelInput));
+        SetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesChannel, ParseId(servicesChannelInput));
 
     // A blank selection creates a dedicated "Commodore" role instead of saving null (mirrors the
     // zone-slot roles).
@@ -147,7 +144,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, servicesRoleInput, "Commodore");
             servicesRoleInput = roleId?.ToString();
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesRole, roleId);
+            await SetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesRole, roleId);
         }
         catch (RestException)
         {
@@ -165,7 +162,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, slotName);
             setInput(roleId?.ToString());
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, roleId);
+            await SetSnowflakeAsync(key, roleId);
         }
         catch (RestException)
         {
@@ -182,7 +179,7 @@
     private Task SaveZoneSlot5Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role, v => zoneSlot5Input = v, zoneSlot5Input, "Slot 5");
 
     private Task SaveInstructionsAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.Instructions, instructionsInput);
+        SetTextAsync(TerritoryCaptureSettingKeys.Instructions, instructionsInput);
 
     // The <input type="time"> emits an "HH:mm" string; bind it manually (a string @bind isn't allowed
     // on type=time). We snap to the nearest :00/:30 before saving — the sweep only fires at half-hour
@@ -191,13 +188,13 @@
     private async Task OnWeeklyDigestTimeChanged(ChangeEventArgs e)
     {
         weeklyDigestTimeInput = SnapToHalfHour(e.Value?.ToString());
-        await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.WeeklyDigestTime, weeklyDigestTimeInput);
+        await SetTextAsync(TerritoryCaptureSettingKeys.WeeklyDigestTime, weeklyDigestTimeInput);
     }
 
     private async Task OnDailyDigestTimeChanged(ChangeEventArgs e)
     {
         dailyDigestTimeInput = SnapToHalfHour(e.Value?.ToString());
-        await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.DailyDigestTime, dailyDigestTimeInput);
+        await SetTextAsync(TerritoryCaptureSettingKeys.DailyDigestTime, dailyDigestTimeInput);
     }
 
     // Round a typed "HH:mm" to the nearest 30 minutes so the stored value matches when the sweep
@@ -212,5 +209,5 @@
 
     // Stored under the Absences feature (its owner) so this and the Absences page edit one value.
     private Task SaveNotificationRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, GuildFeature.Absences, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole, ParseId(notificationRoleInput));
+        SetSnowflakeAsync(GuildFeature.Absences, AbsencesSettingKeys.NotificationRole, ParseId(notificationRoleInput));
 }

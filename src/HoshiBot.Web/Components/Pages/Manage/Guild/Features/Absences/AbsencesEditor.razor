@@ -2,7 +2,6 @@
 @using HoshiBot.Web.Services
 @using NetCord
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -30,17 +29,17 @@
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
-        reportChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportChannel))?.ToString();
-        staffChannelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportStaffChannel))?.ToString();
-        notificationRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole))?.ToString();
+        reportChannelIdInput = (await GetSnowflakeAsync(AbsencesSettingKeys.ReportChannel))?.ToString();
+        staffChannelIdInput = (await GetSnowflakeAsync(AbsencesSettingKeys.ReportStaffChannel))?.ToString();
+        notificationRoleInput = (await GetSnowflakeAsync(AbsencesSettingKeys.NotificationRole))?.ToString();
     }
 
     private Task SaveReportChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportChannel, ParseId(reportChannelIdInput));
+        SetSnowflakeAsync(AbsencesSettingKeys.ReportChannel, ParseId(reportChannelIdInput));
 
     private Task SaveStaffChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.ReportStaffChannel, ParseId(staffChannelIdInput));
+        SetSnowflakeAsync(AbsencesSettingKeys.ReportStaffChannel, ParseId(staffChannelIdInput));
 
     private Task SaveNotificationRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AbsencesSettingKeys.NotificationRole, ParseId(notificationRoleInput));
+        SetSnowflakeAsync(AbsencesSettingKeys.NotificationRole, ParseId(notificationRoleInput));
 }

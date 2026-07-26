@@ -2,7 +2,6 @@
 @using NetCord
 @inherits FeatureEditorBase
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -20,9 +19,9 @@
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnonymousMessagingSettingKeys.Channel))?.ToString();
+        channelInput = (await GetSnowflakeAsync(AnonymousMessagingSettingKeys.Channel))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnonymousMessagingSettingKeys.Channel, ParseId(channelInput));
+        SetSnowflakeAsync(AnonymousMessagingSettingKeys.Channel, ParseId(channelInput));
 }

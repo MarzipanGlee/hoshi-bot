@@ -1,6 +1,5 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
-@inject GuildFeatureSettingsService SettingsService
 
 <p class="form-text">
     The guild-wide AI backend. These settings — provider, API key, and model choices — are shared by
@@ -148,26 +147,18 @@
     protected override async Task OnSettingsLoadedAsync()
     {
         // The stored API key is never echoed back into the field — we only track whether one exists.
-        hasKey = !string.IsNullOrWhiteSpace(await GetText(AiBackendSettingKeys.ApiKey));
+        hasKey = !string.IsNullOrWhiteSpace(await GetTextAsync(AiBackendSettingKeys.ApiKey));
         // Unset/unknown provider means Gemini (matches AiChatService's default).
-        var storedProvider = await GetText(AiBackendSettingKeys.Provider);
+        var storedProvider = await GetTextAsync(AiBackendSettingKeys.Provider);
         providerInput = string.Equals(storedProvider, "ollama", StringComparison.OrdinalIgnoreCase) ? "ollama" : "gemini";
-        modelInput = await GetText(AiBackendSettingKeys.Model);
-        var storedEmbeddingProvider = await GetText(AiBackendSettingKeys.EmbeddingProvider);
+        modelInput = await GetTextAsync(AiBackendSettingKeys.Model);
+        var storedEmbeddingProvider = await GetTextAsync(AiBackendSettingKeys.EmbeddingProvider);
         embeddingProviderInput = storedEmbeddingProvider is "gemini-embedding-001" or "gemini-embedding-2"
             ? storedEmbeddingProvider
             : "ollama";
-        gateModelInput = await GetText(AiBackendSettingKeys.GateModel);
-        routerModelInput = await GetText(AiBackendSettingKeys.RouterModel);
+        gateModelInput = await GetTextAsync(AiBackendSettingKeys.GateModel);
+        routerModelInput = await GetTextAsync(AiBackendSettingKeys.RouterModel);
     }
-
-    // Guild-wide backend settings: ResolvedAudience is Guild and GuildAllianceId is null for this
-    // single-audience feature, so the same helper serves every read/write.
-    private Task<string?> GetText(string key) =>
-        SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
-
-    private Task SetText(string key, string? value) =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
 
     private async Task SaveApiKeyAsync()
     {
@@ -175,26 +166,26 @@
         if (string.IsNullOrWhiteSpace(apiKeyInput))
             return;
 
-        // Encrypted at rest — write via the secret path, not the plain SetText helper.
-        await SettingsService.SetSecretAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AiBackendSettingKeys.ApiKey, apiKeyInput.Trim());
+        // Encrypted at rest — write via the secret path, not the plain SetTextAsync helper.
+        await SetSecretAsync(AiBackendSettingKeys.ApiKey, apiKeyInput.Trim());
         apiKeyInput = null;
         hasKey = true;
     }
 
     private async Task ClearApiKeyAsync()
     {
-        await SetText(AiBackendSettingKeys.ApiKey, null);
+        await SetTextAsync(AiBackendSettingKeys.ApiKey, null);
         apiKeyInput = null;
         hasKey = false;
     }
 
-    private Task SaveProviderAsync() => SetText(AiBackendSettingKeys.Provider, providerInput);
+    private Task SaveProviderAsync() => SetTextAsync(AiBackendSettingKeys.Provider, providerInput);
 
-    private Task SaveModelAsync() => SetText(AiBackendSettingKeys.Model, modelInput);
+    private Task SaveModelAsync() => SetTextAsync(AiBackendSettingKeys.Model, modelInput);
 
-    private Task SaveEmbeddingProviderAsync() => SetText(AiBackendSettingKeys.EmbeddingProvider, embeddingProviderInput);
+    private Task SaveEmbeddingProviderAsync() => SetTextAsync(AiBackendSettingKeys.EmbeddingProvider, embeddingProviderInput);
 
-    private Task SaveGateModelAsync() => SetText(AiBackendSettingKeys.GateModel, gateModelInput);
+    private Task SaveGateModelAsync() => SetTextAsync(AiBackendSettingKeys.GateModel, gateModelInput);
 
-    private Task SaveRouterModelAsync() => SetText(AiBackendSettingKeys.RouterModel, routerModelInput);
+    private Task SaveRouterModelAsync() => SetTextAsync(AiBackendSettingKeys.RouterModel, routerModelInput);
 }

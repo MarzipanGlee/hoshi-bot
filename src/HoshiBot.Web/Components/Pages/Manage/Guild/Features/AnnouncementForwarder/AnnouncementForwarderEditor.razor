@@ -4,7 +4,6 @@
 @using HoshiBot.Web.Services
 @using NetCord
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -52,17 +51,17 @@
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.Channel))?.ToString();
-        targetLanguageInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.TargetLanguage);
-        catchUpWindowInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.CatchUpWindowHours);
+        channelInput = (await GetSnowflakeAsync(AnnouncementForwarderSettingKeys.Channel))?.ToString();
+        targetLanguageInput = await GetTextAsync(AnnouncementForwarderSettingKeys.TargetLanguage);
+        catchUpWindowInput = await GetTextAsync(AnnouncementForwarderSettingKeys.CatchUpWindowHours);
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.Channel, ParseId(channelInput));
+        SetSnowflakeAsync(AnnouncementForwarderSettingKeys.Channel, ParseId(channelInput));
 
     private Task SaveTargetLanguageAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.TargetLanguage, targetLanguageInput);
+        SetTextAsync(AnnouncementForwarderSettingKeys.TargetLanguage, targetLanguageInput);
 
     private Task SaveCatchUpWindowAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementForwarderSettingKeys.CatchUpWindowHours, catchUpWindowInput);
+        SetTextAsync(AnnouncementForwarderSettingKeys.CatchUpWindowHours, catchUpWindowInput);
 }

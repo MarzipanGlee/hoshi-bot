@@ -4,7 +4,6 @@
 @using HoshiBot.Web.Services
 @using NetCord
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -71,24 +70,24 @@
     protected override async Task OnSettingsLoadedAsync()
     {
         roles = await DiscordData.GetRolesAsync(GuildId);
-        allianceMode = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.AllianceTagMode)
+        allianceMode = await GetTextAsync(NicknameSyncSettingKeys.AllianceTagMode)
             ?? nameof(NicknameTagMode.ForeignOnly);
-        serverMode = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ServerTagMode)
+        serverMode = await GetTextAsync(NicknameSyncSettingKeys.ServerTagMode)
             ?? nameof(NicknameTagMode.ForeignOnly);
-        excludedRoleIds = await SettingsService.GetSnowflakeListAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ExcludedRoles);
+        excludedRoleIds = await GetSnowflakeListAsync(NicknameSyncSettingKeys.ExcludedRoles);
     }
 
     private Task SaveAllianceModeAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.AllianceTagMode, allianceMode);
+        SetTextAsync(NicknameSyncSettingKeys.AllianceTagMode, allianceMode);
 
     private Task SaveServerModeAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ServerTagMode, serverMode);
+        SetTextAsync(NicknameSyncSettingKeys.ServerTagMode, serverMode);
 
     private async Task AddRoleAsync()
     {
         if (ulong.TryParse(addRoleInput, out var roleId) && !excludedRoleIds.Contains(roleId))
         {
-            await SettingsService.AddSnowflakeListValueAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ExcludedRoles, roleId);
+            await AddSnowflakeListValueAsync(NicknameSyncSettingKeys.ExcludedRoles, roleId);
             excludedRoleIds.Add(roleId);
         }
         addRoleInput = null;
@@ -96,7 +95,7 @@
 
     private async Task RemoveRoleAsync(ulong roleId)
     {
-        await SettingsService.RemoveSnowflakeListValueAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, NicknameSyncSettingKeys.ExcludedRoles, roleId);
+        await RemoveSnowflakeListValueAsync(NicknameSyncSettingKeys.ExcludedRoles, roleId);
         excludedRoleIds.Remove(roleId);
     }
 

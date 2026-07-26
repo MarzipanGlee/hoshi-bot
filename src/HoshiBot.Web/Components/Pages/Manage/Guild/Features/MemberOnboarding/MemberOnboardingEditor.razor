@@ -2,7 +2,6 @@
 @using HoshiBot.Data
 @using HoshiBot.Domain.Entities
 @using Microsoft.EntityFrameworkCore
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -56,9 +55,9 @@
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        maxPerDayInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberOnboardingSettingKeys.MaxInvitesPerDay);
+        maxPerDayInput = await GetTextAsync(MemberOnboardingSettingKeys.MaxInvitesPerDay);
         campaignActive = string.Equals(
-            await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberOnboardingSettingKeys.CampaignActive),
+            await GetTextAsync(MemberOnboardingSettingKeys.CampaignActive),
             "true", StringComparison.OrdinalIgnoreCase);
         await LoadProgressAsync();
     }
@@ -82,12 +81,12 @@
     }
 
     private Task SaveMaxPerDayAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberOnboardingSettingKeys.MaxInvitesPerDay, maxPerDayInput);
+        SetTextAsync(MemberOnboardingSettingKeys.MaxInvitesPerDay, maxPerDayInput);
 
     private async Task SaveCampaignAsync(bool value)
     {
         campaignActive = value;
-        await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberOnboardingSettingKeys.CampaignActive, value ? "true" : null);
+        await SetTextAsync(MemberOnboardingSettingKeys.CampaignActive, value ? "true" : null);
     }
 
     private record ReviewProgress(int Unresolved, int DmSent, int Resolved, int Declined, int Undeliverable);

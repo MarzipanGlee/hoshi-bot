@@ -5,7 +5,6 @@
 @using Microsoft.EntityFrameworkCore
 @using NetCord
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -84,11 +83,11 @@
     protected override async Task OnSettingsLoadedAsync()
     {
         roles = await DiscordData.GetRolesAsync(GuildId);
-        memberRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MemberRole))?.ToString();
-        completedRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CompletedRole))?.ToString();
-        maxPerDayInput = await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MaxInterviewsPerDay);
+        memberRoleInput = (await GetSnowflakeAsync(MemberLoreSettingKeys.MemberRole))?.ToString();
+        completedRoleInput = (await GetSnowflakeAsync(MemberLoreSettingKeys.CompletedRole))?.ToString();
+        maxPerDayInput = await GetTextAsync(MemberLoreSettingKeys.MaxInterviewsPerDay);
         campaignActive = string.Equals(
-            await SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CampaignActive),
+            await GetTextAsync(MemberLoreSettingKeys.CampaignActive),
             "true", StringComparison.OrdinalIgnoreCase);
         await LoadProgressAsync();
     }
@@ -112,18 +111,18 @@
     }
 
     private Task SaveMemberRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MemberRole, ParseId(memberRoleInput));
+        SetSnowflakeAsync(MemberLoreSettingKeys.MemberRole, ParseId(memberRoleInput));
 
     private Task SaveCompletedRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CompletedRole, ParseId(completedRoleInput));
+        SetSnowflakeAsync(MemberLoreSettingKeys.CompletedRole, ParseId(completedRoleInput));
 
     private Task SaveMaxPerDayAsync() =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.MaxInterviewsPerDay, maxPerDayInput);
+        SetTextAsync(MemberLoreSettingKeys.MaxInterviewsPerDay, maxPerDayInput);
 
     private async Task SaveCampaignAsync(bool value)
     {
         campaignActive = value;
-        await SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, MemberLoreSettingKeys.CampaignActive, value ? "true" : null);
+        await SetTextAsync(MemberLoreSettingKeys.CampaignActive, value ? "true" : null);
     }
 
     private record InterviewProgress(int Invited, int InProgress, int Completed, int Declined, int Undeliverable);

@@ -1,6 +1,5 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
-@inject GuildFeatureSettingsService SettingsService
 @inject DiscordGuildDataService DiscordData
 
 <p class="form-text">
@@ -126,13 +125,13 @@
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        systemPromptInput = await GetText(AiChatSettingKeys.SystemPrompt);
-        streamResponses = string.Equals(await GetText(AiChatSettingKeys.StreamResponses), "true", StringComparison.OrdinalIgnoreCase);
-        memoryEnabled = string.Equals(await GetText(AiChatSettingKeys.MemoryEnabled), "true", StringComparison.OrdinalIgnoreCase);
+        systemPromptInput = await GetTextAsync(AiChatSettingKeys.SystemPrompt);
+        streamResponses = string.Equals(await GetTextAsync(AiChatSettingKeys.StreamResponses), "true", StringComparison.OrdinalIgnoreCase);
+        memoryEnabled = string.Equals(await GetTextAsync(AiChatSettingKeys.MemoryEnabled), "true", StringComparison.OrdinalIgnoreCase);
 
         // Show the effective search language: the stored choice, or the default derived from the
         // guild's Discord locale when unset (matches what the bot resolves at query time).
-        var storedLanguage = await GetText(AiChatSettingKeys.SearchLanguage);
+        var storedLanguage = await GetTextAsync(AiChatSettingKeys.SearchLanguage);
         searchLanguageInput = !string.IsNullOrWhiteSpace(storedLanguage)
             ? FtsLanguage.Normalize(storedLanguage)
             : FtsLanguage.FromDiscordLocale(await DiscordData.GetPreferredLocaleAsync(GuildId));
@@ -141,25 +140,19 @@
     // These behavioral settings are per-audience — each audience/alliance tab keeps its own system
     // prompt, streaming, memory toggle and search language (ResolvedAudience + GuildAllianceId from
     // FeatureEditorBase). The guild-wide backend settings live on the AI Provider page instead.
-    private Task<string?> GetText(string key) =>
-        SettingsService.GetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key);
-
-    private Task SetText(string key, string? value) =>
-        SettingsService.SetTextAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, key, value);
-
-    private Task SaveSystemPromptAsync() => SetText(AiChatSettingKeys.SystemPrompt, systemPromptInput);
+    private Task SaveSystemPromptAsync() => SetTextAsync(AiChatSettingKeys.SystemPrompt, systemPromptInput);
 
     private async Task SaveStreamResponsesAsync(bool value)
     {
         streamResponses = value;
-        await SetText(AiChatSettingKeys.StreamResponses, value ? "true" : null);
+        await SetTextAsync(AiChatSettingKeys.StreamResponses, value ? "true" : null);
     }
 
     private async Task SaveMemoryEnabledAsync(bool value)
     {
         memoryEnabled = value;
-        await SetText(AiChatSettingKeys.MemoryEnabled, value ? "true" : null);
+        await SetTextAsync(AiChatSettingKeys.MemoryEnabled, value ? "true" : null);
     }
 
-    private Task SaveSearchLanguageAsync() => SetText(AiChatSettingKeys.SearchLanguage, searchLanguageInput);
+    private Task SaveSearchLanguageAsync() => SetTextAsync(AiChatSettingKeys.SearchLanguage, searchLanguageInput);
 }

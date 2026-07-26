@@ -3,7 +3,6 @@
 @using NetCord
 @using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -35,12 +34,12 @@
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
-        channelIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.Channel))?.ToString();
-        diplomatRoleIdInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.DiplomatRole))?.ToString();
+        channelIdInput = (await GetSnowflakeAsync(DiplomacySettingKeys.Channel))?.ToString();
+        diplomatRoleIdInput = (await GetSnowflakeAsync(DiplomacySettingKeys.DiplomatRole))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.Channel, ParseId(channelIdInput));
+        SetSnowflakeAsync(DiplomacySettingKeys.Channel, ParseId(channelIdInput));
 
     private async Task SaveDiplomatRoleAsync()
     {
@@ -50,7 +49,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, "Diplomat");
             diplomatRoleIdInput = roleId?.ToString();
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, DiplomacySettingKeys.DiplomatRole, roleId);
+            await SetSnowflakeAsync(DiplomacySettingKeys.DiplomatRole, roleId);
         }
         catch (RestException)
         {

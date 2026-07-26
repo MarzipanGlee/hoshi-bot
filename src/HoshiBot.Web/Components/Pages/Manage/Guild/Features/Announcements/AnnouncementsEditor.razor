@@ -3,7 +3,6 @@
 @using NetCord.Rest
 @inherits FeatureEditorBase
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -44,10 +43,10 @@
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
-        channelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.Channel))?.ToString();
-        remindersChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.RemindersChannel))?.ToString();
-        draftChannelInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.DraftChannel))?.ToString();
-        warningsRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.WarningsRole))?.ToString();
+        channelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.Channel))?.ToString();
+        remindersChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.RemindersChannel))?.ToString();
+        draftChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.DraftChannel))?.ToString();
+        warningsRoleInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.WarningsRole))?.ToString();
 
         // Shown/stored only for the Alliance audience: it's the per-alliance Absences-owned role
         // (same value as on the Absences/TC pages), and GetSnowflakeAsync's scope guard rejects
@@ -57,16 +56,16 @@
     }
 
     private Task SaveChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.Channel, ParseId(channelInput));
+        SetSnowflakeAsync(AnnouncementsSettingKeys.Channel, ParseId(channelInput));
 
     private Task SaveRemindersChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.RemindersChannel, ParseId(remindersChannelInput));
+        SetSnowflakeAsync(AnnouncementsSettingKeys.RemindersChannel, ParseId(remindersChannelInput));
 
     private Task SaveDraftChannelAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.DraftChannel, ParseId(draftChannelInput));
+        SetSnowflakeAsync(AnnouncementsSettingKeys.DraftChannel, ParseId(draftChannelInput));
 
     private Task SaveWarningsRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, AnnouncementsSettingKeys.WarningsRole, ParseId(warningsRoleInput));
+        SetSnowflakeAsync(AnnouncementsSettingKeys.WarningsRole, ParseId(warningsRoleInput));
 
     // Stored under the Absences feature (its owner) so this and the Absences/TC pages edit one value.
     private Task SaveNotificationRoleAsync() =>

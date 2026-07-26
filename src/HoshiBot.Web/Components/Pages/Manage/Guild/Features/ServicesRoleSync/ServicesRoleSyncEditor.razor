@@ -2,7 +2,6 @@
 @using NetCord
 @using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 @inject GuildAllianceService AllianceService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
@@ -45,8 +44,7 @@
         roles = await DiscordData.GetRolesAsync(GuildId);
 
         // Services role is the TC feature's setting (shared, not a copy).
-        servicesRoleInput = (await SettingsService.GetSnowflakeAsync(
-            GuildId, GuildFeature.TerritoryCapture, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
+        servicesRoleInput = (await GetSnowflakeAsync(GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
 
         // Member role is the alliance's own column (shared with Alliance Settings).
         if (GuildAllianceId is { } allianceId)
@@ -68,8 +66,7 @@
             var roleId = await DiscordData.EnsureRoleAsync(GuildId, servicesRoleInput, "Commodore");
             servicesRoleInput = roleId?.ToString();
             roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(
-                GuildId, GuildFeature.TerritoryCapture, ResolvedAudience, GuildAllianceId, TerritoryCaptureSettingKeys.ServicesRole, roleId);
+            await SetSnowflakeAsync(GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesRole, roleId);
         }
         catch (RestException)
         {

@@ -4,7 +4,6 @@
 @using HoshiBot.Web.Services
 @using NetCord
 @inject DiscordGuildDataService DiscordData
-@inject GuildFeatureSettingsService SettingsService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -23,9 +22,9 @@
     protected override async Task OnSettingsLoadedAsync()
     {
         roles = await DiscordData.GetRolesAsync(GuildId);
-        allowedRoleInput = (await SettingsService.GetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, HoshiSaySettingKeys.AllowedRole))?.ToString();
+        allowedRoleInput = (await GetSnowflakeAsync(HoshiSaySettingKeys.AllowedRole))?.ToString();
     }
 
     private Task SaveAllowedRoleAsync() =>
-        SettingsService.SetSnowflakeAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId, HoshiSaySettingKeys.AllowedRole, ParseId(allowedRoleInput));
+        SetSnowflakeAsync(HoshiSaySettingKeys.AllowedRole, ParseId(allowedRoleInput));
 }
