@@ -1,0 +1,162 @@
+@* The "Expected Permissions" section of the Permission Check page: the saved expectations
+   table plus the add/edit form with its Neutral/Allow/Deny radio grid. The form's transient
+   state (which row is being edited, the radio selections) is purely UI and lives here; the
+   actual save/delete goes back to the page via OnSave/OnDelete.
+   Explicit @namespace: a folder-derived namespace ending in "PermissionCheck" would collide
+   with the PermissionCheck page class itself. *@
+@namespace HoshiBot.Web.Components.Pages.Manage.Guild
+@using NetCord
+
+<h2>Expected Permissions</h2>
+<table class="table">
+    <thead><tr><th>Channel</th><th>Role</th><th>Allow</th><th>Deny</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var exp in Expectations)
+        {
+            <tr>
+                <td>@Context.ChannelName(exp.ChannelId)</td>
+                <td>@Context.RoleName(exp.RoleId)</td>
+                <td>@PermissionAuditService.PermissionListLabel((Permissions)exp.Allow)</td>
+                <td>@PermissionAuditService.PermissionListLabel((Permissions)exp.Deny)</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => EditExpectation(exp)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => OnDelete.InvokeAsync(exp)">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h3>@(editingId is null ? "Add" : "Edit") Expected Permission</h3>
+<div class="mb-2">
+    <label>Channel</label>
+    <select class="form-select d-inline-block w-auto" @bind="formChannelIdInput">
+        <option value="">— select channel —</option>
+        @foreach (var group in DiscordGuildDataService.GroupChannelsForDisplay(Context.Channels))
+        {
+            @if (group.Category is not null)
+            {
+                <optgroup label="@group.Category.Name">
+                    @foreach (var channel in group.Channels)
+                    {
+                        <option value="@channel.Id">@PermissionAuditContext.ChannelLabel(channel)</option>
+                    }
+                </optgroup>
+            }
+            else
+            {
+                @foreach (var channel in group.Channels)
+                {
+                    <option value="@channel.Id">@PermissionAuditContext.ChannelLabel(channel)</option>
+                }
+            }
+        }
+    </select>
+</div>
+<div class="mb-2">
+    <label>Role</label>
+    <select class="form-select d-inline-block w-auto" @bind="formRoleIdInput">
+        <option value="">— select role —</option>
+        @foreach (var role in Context.Roles)
+        {
+            <option value="@role.Id">@role.Name</option>
+        }
+    </select>
+</div>
+
+<table class="table table-sm permission-grid">
+    <thead><tr><th>Permission</th><th class="text-center">Neutral</th><th class="text-center">Allow</th><th class="text-center">Deny</th></tr></thead>
+    <tbody>
+        @foreach (var permission in PermissionAuditService.AllPermissions)
+        {
+            var current = permission;
+            <tr>
+                <td>@current</td>
+                <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Neutral)" @onchange="() => SetState(current, PermissionState.Neutral)" /></td>
+                <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Allow)" @onchange="() => SetState(current, PermissionState.Allow)" /></td>
+                <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Deny)" @onchange="() => SetState(current, PermissionState.Deny)" /></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<button class="btn btn-primary" @onclick="SaveExpectationAsync">@(editingId is null ? "Add" : "Save")</button>
+@if (editingId is not null)
+{
+    <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+}
+
+@code {
+    private enum PermissionState { Neutral, Allow, Deny }
+
+    [Parameter, EditorRequired]
+    public PermissionAuditContext Context { get; set; } = PermissionAuditContext.Empty;
+
+    [Parameter, EditorRequired]
+    public List<ChannelPermissionExpectation> Expectations { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<ExpectationSaveRequest> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback<ChannelPermissionExpectation> OnDelete { get; set; }
+
+    private int? editingId;
+    private string? formChannelIdInput;
+    private string? formRoleIdInput;
+    private readonly Dictionary<Permissions, PermissionState> formPermissionStates = new();
+
+    private static string RadioGroupName(Permissions permission) => $"perm-{(ulong)permission}";
+
+    private PermissionState GetState(Permissions permission) =>
+        formPermissionStates.GetValueOrDefault(permission, PermissionState.Neutral);
+
+    private void SetState(Permissions permission, PermissionState state) =>
+        formPermissionStates[permission] = state;
+
+    private void EditExpectation(ChannelPermissionExpectation exp)
+    {
+        editingId = exp.Id;
+        formChannelIdInput = exp.ChannelId.ToString();
+        formRoleIdInput = exp.RoleId.ToString();
+
+        formPermissionStates.Clear();
+        var allow = (Permissions)exp.Allow;
+        var deny = (Permissions)exp.Deny;
+        foreach (var permission in PermissionAuditService.AllPermissions)
+        {
+            if (allow.HasFlag(permission))
+                formPermissionStates[permission] = PermissionState.Allow;
+            else if (deny.HasFlag(permission))
+                formPermissionStates[permission] = PermissionState.Deny;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        formChannelIdInput = null;
+        formRoleIdInput = null;
+        formPermissionStates.Clear();
+    }
+
+    private async Task SaveExpectationAsync()
+    {
+        if (!ulong.TryParse(formChannelIdInput, out var channelId) || !ulong.TryParse(formRoleIdInput, out var roleId))
+            return;
+
+        ulong allow = 0;
+        ulong deny = 0;
+        foreach (var (permission, state) in formPermissionStates)
+        {
+            if (state == PermissionState.Allow)
+                allow |= (ulong)permission;
+            else if (state == PermissionState.Deny)
+                deny |= (ulong)permission;
+        }
+
+        var request = new ExpectationSaveRequest(editingId, channelId, roleId, allow, deny);
+        CancelEdit();
+        await OnSave.InvokeAsync(request);
+    }
+}

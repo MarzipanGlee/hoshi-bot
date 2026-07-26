@@ -1,0 +1,76 @@
+@* The "Audit" section of the Permission Check page: runs the expectation audit and lists each
+   expectation's live-vs-expected diff with its per-row Fix button.
+   Explicit @namespace: a folder-derived namespace ending in "PermissionCheck" would collide
+   with the PermissionCheck page class itself. *@
+@namespace HoshiBot.Web.Components.Pages.Manage.Guild
+
+<h2>Audit</h2>
+<button class="btn btn-primary" disabled="@Auditing" @onclick="OnRunAudit">@(Auditing ? "Checking..." : "Run Audit")</button>
+
+@if (Results is not null)
+{
+    <table class="table mt-3">
+        <thead><tr><th>Channel</th><th>Role</th><th>Status</th><th>Details</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var result in Results)
+            {
+                <tr class="@(result.IsMatch ? "table-success" : "table-danger")">
+                    <td>@Context.ChannelName(result.Expectation.ChannelId)</td>
+                    <td>@Context.RoleName(result.Expectation.RoleId)</td>
+                    <td>@(result.IsMatch ? "✅ OK" : "🚫 Mismatch")</td>
+                    <td>
+                        @if (!result.IsMatch)
+                        {
+                            @if (result.MissingAllow.Count > 0)
+                            {
+                                <div>Missing Allow: @string.Join(", ", result.MissingAllow)</div>
+                            }
+                            @if (result.ExtraAllow.Count > 0)
+                            {
+                                <div>Unexpected Allow: @string.Join(", ", result.ExtraAllow)</div>
+                            }
+                            @if (result.MissingDeny.Count > 0)
+                            {
+                                <div>Missing Deny: @string.Join(", ", result.MissingDeny)</div>
+                            }
+                            @if (result.ExtraDeny.Count > 0)
+                            {
+                                <div>Unexpected Deny: @string.Join(", ", result.ExtraDeny)</div>
+                            }
+                        }
+                    </td>
+                    <td>
+                        @if (!result.IsMatch)
+                        {
+                            @if (result.CanFix)
+                            {
+                                <button class="btn btn-sm btn-warning" @onclick="() => OnFix.InvokeAsync(result)">Fix</button>
+                            }
+                            else
+                            {
+                                <span class="text-danger">⚠ @result.BlockReason</span>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public PermissionAuditContext Context { get; set; } = PermissionAuditContext.Empty;
+
+    [Parameter]
+    public List<PermissionAuditResult>? Results { get; set; }
+
+    [Parameter]
+    public bool Auditing { get; set; }
+
+    [Parameter]
+    public EventCallback OnRunAudit { get; set; }
+
+    [Parameter]
+    public EventCallback<PermissionAuditResult> OnFix { get; set; }
+}
