@@ -49,6 +49,11 @@ locally by re-running `HoshiBot.Migrator` against the local connection string (s
 
 ## Known gotchas
 
+- **`deploy.sh`'s migration step always prints `Cannot load library libgssapi_krb5.so.2` —
+  ignore it.** Npgsql probes for Kerberos/GSSAPI support at startup and the migrator image
+  simply doesn't ship that library (nothing here uses Kerberos auth). It's noise, not a
+  failure: the run continues and still reports the real outcome on the next line ("Schema is
+  up to date" / the applied migrations). Don't chase it, and don't report it as a deploy problem.
 - **EF Core migration scaffolding sometimes can't tell a rename from a drop+recreate.**
   Always open a scaffolded migration and check for `DropTable`/`DropColumn` where a rename
   was intended — rewrite by hand as `RenameTable`/`RenameColumn`/`RenameIndex` (+ raw SQL
