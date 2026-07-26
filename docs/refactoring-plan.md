@@ -287,7 +287,7 @@ feature editors), with three different field names for the same state. Add
   `AnonymousMessageModalModule`, `TicketModalModule` (+2 more). Move to
   `GuildAllianceService` or an interaction-context extension.
 
-## Phase 5 — Big-file splits & careful genericization (lowest urgency)
+## Phase 5 — Big-file splits & careful genericization — DONE (2026-07-26)
 
 - `Pages/Manage/Guild/PermissionCheck.razor` (921 lines): extract the two audit engines
   (`RunAudit`, `RunBotAccessCheckAsync`) + fix paths into a `PermissionAuditService`
@@ -301,8 +301,12 @@ feature editors), with three different field names for the same state. Add
   workarounds (both documented against real Postgres 23505 failures) — genericize only
   if both behaviors are preserved exactly, otherwise leave as-is.
 - `HoshiBot.Domain` references the `Pgvector` package (an infra type leaking into the
-  "pure" project). Known wart; fix only if a clean seam appears (e.g. mapping the
-  vector column in `Data` configurations instead) — optional.
+  "pure" project). Evaluated and deliberately kept: the typed `Vector` properties on
+  `AiChatIndexedMessage`/`GuildMemory` are exactly what makes the pgvector distance
+  operators translate in EF queries; mapping in `Data` instead would need an untyped
+  stand-in + converter and lose that. The Domain csproj comment remains the record of
+  this exception. (`PlayerLinkService` was likewise reviewed for a split and left
+  whole — its clusters are mutually entangled.)
 
 ## Phase 6 — Localization of Discord-facing text
 
