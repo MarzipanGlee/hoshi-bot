@@ -5,7 +5,7 @@ using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.Alerts;
 
 // Discord caps both select-menu options and slash-command choices at 25, and a plain
 // choices list can't dynamically filter — so a static list can't hold all systems with

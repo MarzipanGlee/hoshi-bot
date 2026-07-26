@@ -5,7 +5,7 @@ using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.Players;
 
 public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {

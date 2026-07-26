@@ -1,4 +1,4 @@
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.Alerts;
 
 // Which staff-reported shield-loss button was used — determines the reminder's expiration
 // time (see AlertService.ResolveShieldExpirationAsync). Not persisted: it only shapes the

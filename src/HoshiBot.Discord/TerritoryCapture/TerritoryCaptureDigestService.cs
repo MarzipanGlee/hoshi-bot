@@ -8,7 +8,7 @@ using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.TerritoryCapture;
 
 // Core Territory Capture digest logic shared by the weekly and daily Quartz jobs, and by
 // TerritoryCaptureRoleSyncJob (which needs the same "this week's owned zones, in slot

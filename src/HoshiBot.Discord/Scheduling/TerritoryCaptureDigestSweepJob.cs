@@ -1,3 +1,4 @@
+using HoshiBot.Discord.TerritoryCapture;
 using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;

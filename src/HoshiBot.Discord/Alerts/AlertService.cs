@@ -8,7 +8,7 @@ using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.Alerts;
 
 // Core raid/shield-reminder logic shared between the slash commands (AlertModule) and
 // the Command Bridge button/modal flow (CommandBridgeModule) — both are valid entry

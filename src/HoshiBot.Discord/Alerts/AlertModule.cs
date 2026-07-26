@@ -5,7 +5,7 @@ using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.Alerts;
 
 public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {

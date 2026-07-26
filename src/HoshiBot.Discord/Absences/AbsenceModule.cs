@@ -5,7 +5,7 @@ using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.Absences;
 
 // Kept alongside the Command Bridge button/modal flow (AbsenceButtonModule etc.) —
 // both are valid entry points to the same AbsenceService logic. Saves straight to

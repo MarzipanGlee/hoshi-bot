@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
 
-namespace HoshiBot.Discord;
+namespace HoshiBot.Discord.TerritoryCapture;
 
 public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding embedBranding) : ComponentInteractionModule<ButtonInteractionContext>
 {

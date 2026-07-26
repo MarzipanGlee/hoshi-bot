@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Discord.Alerts;
 using HoshiBot.Domain.Entities;
 using NetCord;
 using NetCord.Rest;

@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Domain.Entities;

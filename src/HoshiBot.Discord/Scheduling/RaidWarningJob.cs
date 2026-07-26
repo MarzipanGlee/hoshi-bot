@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
