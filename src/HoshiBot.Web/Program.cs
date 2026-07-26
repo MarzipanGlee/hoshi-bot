@@ -115,6 +115,16 @@ builder.Services
             context.Response.Redirect(context.RedirectUri + "&prompt=consent");
             return Task.CompletedTask;
         };
+        options.Events.OnRemoteFailure = context =>
+        {
+            // Anything that reaches the callback without a usable Discord response: the user
+            // declined the prompt, the state expired, or someone opened /signin-discord-link
+            // directly (it's the handler's callback, not a page). The framework's default is to
+            // rethrow, which renders the raw error page — send them back to /me instead.
+            context.Response.Redirect($"/me?{DiscordAccountLink.ResultQueryKey}=failed");
+            context.HandleResponse();
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddAuthorizationBuilder()
