@@ -49,7 +49,7 @@ These rules are enforced going forward (also recorded in
 
 ---
 
-## Phase 0 — Repo hygiene (small, immediate)
+## Phase 0 — Repo hygiene (small, immediate) — DONE (2026-07-26)
 
 - ~~Fix the `HoshiBot.StfcCatalogSync` → `HoshiBot.StfcSeedSync` naming in README's
   project table and `.gitignore`~~ — done alongside this plan's introduction.
