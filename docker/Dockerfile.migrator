@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY HoshiBot.slnx ./
+COPY HoshiBot.slnx Directory.Build.props Directory.Packages.props ./
 COPY tools/HoshiBot.Migrator/HoshiBot.Migrator.csproj tools/HoshiBot.Migrator/
 COPY src/HoshiBot.Domain/HoshiBot.Domain.csproj src/HoshiBot.Domain/
 COPY src/HoshiBot.Data/HoshiBot.Data.csproj src/HoshiBot.Data/
