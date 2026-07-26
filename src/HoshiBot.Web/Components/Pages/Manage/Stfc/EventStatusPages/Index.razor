@@ -9,15 +9,13 @@
     Only "incursions" is currently acted on by InfiniteIncursionsNotifyJob; NotifiedEventStart is what it last announced.
 </p>
 
-@* EventStart/EventEnd/UpdatedAt/NotifiedEventStart aren't sortable — they're
-   DateTimeOffset, which SQLite's EF provider can't translate in ORDER BY. *@
 <QuickGrid Class="table" Items="Context.StfcEventStatuses.OrderBy(e => e.EventGroup)">
     <PropertyColumn Property="status => status.EventGroup" Sortable="true" />
-    <PropertyColumn Property="status => status.EventStart" />
-    <PropertyColumn Property="status => status.EventEnd" />
+    <PropertyColumn Property="status => status.EventStart" Sortable="true" />
+    <PropertyColumn Property="status => status.EventEnd" Sortable="true" />
     <PropertyColumn Property="status => status.Active" Sortable="true" />
-    <PropertyColumn Property="status => status.UpdatedAt" />
-    <PropertyColumn Property="status => status.NotifiedEventStart" Title="Notified Event Start" />
+    <PropertyColumn Property="status => status.UpdatedAt" Sortable="true" />
+    <PropertyColumn Property="status => status.NotifiedEventStart" Title="Notified Event Start" Sortable="true" />
 </QuickGrid>
 
 <PoweredBy For="@(new[] { typeof(StfcEventStatus) })" />

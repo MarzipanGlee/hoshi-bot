@@ -6,11 +6,8 @@
 <h1>Guild Members</h1>
 <p>Read-only — synced from Discord, not admin-editable here. For debugging.</p>
 
-@* GuildId/DiscordUserId are ulong (Discord snowflakes) and JoinedAt is a DateTimeOffset —
-   SQLite's EF Core provider can't translate any of them in ORDER BY, so this is left
-   unordered and all three columns non-sortable. *@
 <QuickGrid Class="table" Items="Context.GuildMembers">
-    <PropertyColumn Property="member => member.GuildId" />
-    <PropertyColumn Property="member => member.DiscordUserId" />
-    <PropertyColumn Property="member => member.JoinedAt" />
+    <PropertyColumn Property="member => member.GuildId" Sortable="true" />
+    <PropertyColumn Property="member => member.DiscordUserId" Sortable="true" />
+    <PropertyColumn Property="member => member.JoinedAt" Sortable="true" />
 </QuickGrid>

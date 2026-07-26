@@ -17,25 +17,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <!-- Pins EF Core to 10.0.9 for this project and everything that references it. Npgsql
-         10.0.2 only pulls EF Core 10.0.4 transitively, but Design (above, PrivateAssets=all)
-         compiles this assembly against 10.0.9, so consumers must resolve 10.0.9 too or they
-         hit CS1705 — the Sqlite package used to provide this pin incidentally. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
-    <!-- pgvector EF Core integration (o => o.UseVector(), the vector column type mapping, and the
-         CosineDistance/L2Distance query operators). 0.3.0 supports EF Core 9 & 10. -->
-    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
+    <!-- The explicit Relational reference pins EF Core for this project and all consumers —
+         version rationale documented in Directory.Packages.props. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
 
 </Project>

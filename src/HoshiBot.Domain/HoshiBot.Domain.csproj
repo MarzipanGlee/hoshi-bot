@@ -1,17 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
   <ItemGroup>
     <!-- The Pgvector.Vector type used by AiChatIndexedMessage.Embedding. A tiny netstandard2.0
          library (only an Npgsql dependency) — a deliberate, minimal exception to the otherwise
          dependency-free Domain, because the stored embedding column needs the typed Vector so the
          pgvector distance operators translate in EF queries. -->
-    <PackageReference Include="Pgvector" Version="0.3.2" />
+    <PackageReference Include="Pgvector" />
   </ItemGroup>
 
 </Project>

@@ -6,20 +6,17 @@
 <h1>Alerts</h1>
 <p>Read-only — reported raid/station-move alerts, managed via <code>/raid</code> and <code>/raid-terminate</code>. For debugging.</p>
 
-@* TriggeredAt/TerminatedAt are DateTimeOffset and GuildId is a ulong (Discord snowflake) —
-   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
-   Id instead and leaves the others non-sortable. *@
 <QuickGrid Class="table" Items="Context.Alerts.Include(a => a.StfcSystem).OrderByDescending(a => a.Id)">
     <PropertyColumn Property="alert => alert.Id" Sortable="true" />
-    <PropertyColumn Property="alert => alert.GuildId" />
+    <PropertyColumn Property="alert => alert.GuildId" Sortable="true" />
     <PropertyColumn Property="alert => alert.Type" Sortable="true" />
-    <PropertyColumn Property="alert => alert.TargetDiscordUserId" />
+    <PropertyColumn Property="alert => alert.TargetDiscordUserId" Sortable="true" />
     <PropertyColumn Property="alert => alert.StfcSystem == null ? null : alert.StfcSystem.Name" Title="System" Sortable="true" />
-    <PropertyColumn Property="alert => alert.Attacker" />
+    <PropertyColumn Property="alert => alert.Attacker" Sortable="true" />
     <PropertyColumn Property="alert => alert.ServerLocation" Sortable="true" />
     <PropertyColumn Property="alert => alert.IsTest" Sortable="true" />
-    <PropertyColumn Property="alert => alert.TriggeredByDiscordUserId" />
-    <PropertyColumn Property="alert => alert.TriggeredAt" />
-    <PropertyColumn Property="alert => alert.TerminatedAt" />
-    <PropertyColumn Property="alert => alert.TerminatedByDiscordUserId" />
+    <PropertyColumn Property="alert => alert.TriggeredByDiscordUserId" Sortable="true" />
+    <PropertyColumn Property="alert => alert.TriggeredAt" Sortable="true" />
+    <PropertyColumn Property="alert => alert.TerminatedAt" Sortable="true" />
+    <PropertyColumn Property="alert => alert.TerminatedByDiscordUserId" Sortable="true" />
 </QuickGrid>

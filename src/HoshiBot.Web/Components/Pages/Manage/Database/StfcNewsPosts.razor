@@ -10,18 +10,15 @@
     each. For debugging.
 </p>
 
-@* PublishedAt/DetectedAt/SubmittedAt/ResolvedAt are DateTimeOffset — SQLite's EF Core
-   provider can't translate them in ORDER BY, so this orders by Id instead and leaves
-   them non-sortable. *@
 <QuickGrid Class="table" Items="Context.StfcNewsPosts.OrderByDescending(p => p.Id)">
     <PropertyColumn Property="post => post.Id" Sortable="true" />
     <PropertyColumn Property="post => post.EventGroup" Sortable="true" />
     <PropertyColumn Property="post => post.Title" Sortable="true" />
-    <PropertyColumn Property="post => post.Link" />
-    <PropertyColumn Property="post => post.DetectedAt" />
+    <PropertyColumn Property="post => post.Link" Sortable="true" />
+    <PropertyColumn Property="post => post.DetectedAt" Sortable="true" />
     <PropertyColumn Property="post => post.SubmittedDate" Sortable="true" />
-    <PropertyColumn Property="post => post.SubmittedByDiscordUserId" />
+    <PropertyColumn Property="post => post.SubmittedByDiscordUserId" Sortable="true" />
     <PropertyColumn Property="post => post.RequiredConfirmations" Sortable="true" />
     <PropertyColumn Property="post => post.LastDisplayedConfirmationCount" Title="Displayed Confirmations" Sortable="true" />
-    <PropertyColumn Property="post => post.ResolvedAt" />
+    <PropertyColumn Property="post => post.ResolvedAt" Sortable="true" />
 </QuickGrid>

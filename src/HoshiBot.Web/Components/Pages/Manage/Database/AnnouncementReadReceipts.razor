@@ -6,13 +6,10 @@
 <h1>Announcement Read Receipts</h1>
 <p>Read-only — one row per member who clicked "read confirm" on an announcement. For debugging.</p>
 
-@* ReadAt is a DateTimeOffset and GuildId/DiscordUserId are ulong (Discord snowflakes) —
-   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
-   Id instead and leaves the others non-sortable. *@
 <QuickGrid Class="table" Items="Context.AnnouncementReadReceipts.OrderByDescending(r => r.Id)">
     <PropertyColumn Property="receipt => receipt.Id" Sortable="true" />
     <PropertyColumn Property="receipt => receipt.AnnouncementId" Sortable="true" />
-    <PropertyColumn Property="receipt => receipt.GuildId" />
-    <PropertyColumn Property="receipt => receipt.DiscordUserId" />
-    <PropertyColumn Property="receipt => receipt.ReadAt" />
+    <PropertyColumn Property="receipt => receipt.GuildId" Sortable="true" />
+    <PropertyColumn Property="receipt => receipt.DiscordUserId" Sortable="true" />
+    <PropertyColumn Property="receipt => receipt.ReadAt" Sortable="true" />
 </QuickGrid>

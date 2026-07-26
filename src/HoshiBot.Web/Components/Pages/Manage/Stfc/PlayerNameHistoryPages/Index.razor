@@ -6,8 +6,7 @@
 <h1>Player Name History</h1>
 <p>Read-only audit trail — one row per name a player has been observed under. Most recent first.</p>
 
-@* Ordered by Id, not ObservedAt — this table is append-only so Id already reflects
-   insertion order, and SQLite's EF provider can't translate ORDER BY on DateTimeOffset. *@
+@* Ordered by Id, not ObservedAt — append-only, so Id already reflects insertion order. *@
 <QuickGrid Class="table" Items="Context.StfcPlayerNameHistories.Include(h => h.StfcPlayer).ThenInclude(p => p.Server).ThenInclude(s => s.Region).OrderByDescending(h => h.Id)" Pagination="pagination">
     @* DisplayName is a computed property — PropertyColumn can't take an explicit SortBy
        (that's TemplateColumn-only), so this sorts by the real ServerId column instead. *@
@@ -15,8 +14,7 @@
         @h.StfcPlayer.Server.DisplayName
     </TemplateColumn>
     <PropertyColumn Property="h => h.Name" Sortable="true" />
-    @* Not sortable — ObservedAt is a DateTimeOffset (see the initial-sort comment above). *@
-    <PropertyColumn Property="h => h.ObservedAt" />
+    <PropertyColumn Property="h => h.ObservedAt" Sortable="true" />
     <TemplateColumn Title="Current Player" Context="h">
         <a href="@($"manage/stfc/players/edit?id={h.StfcPlayerId}")">@h.StfcPlayer.Name</a>
     </TemplateColumn>

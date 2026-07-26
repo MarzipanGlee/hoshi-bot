@@ -1,0 +1,49 @@
+<Project>
+
+  <!-- Central package management: every PackageReference in the solution resolves its
+       version from here (csprojs carry no Version attributes). Keeps packages used by
+       several projects (EF Core/Npgsql, NetCord, Quartz, Serilog) on one version by
+       construction. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="AspNet.Security.OAuth.Discord" Version="10.0.0" />
+    <PackageVersion Include="BootstrapBlazor" Version="10.7.3" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Google.GenAI" Version="1.12.0" />
+    <PackageVersion Include="HtmlAgilityPack" Version="1.11.71" />
+    <PackageVersion Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />
+    <!-- Pins EF Core to 10.0.9 for HoshiBot.Data and everything that references it. Npgsql
+         10.0.2 only pulls EF Core 10.0.4 transitively, but Design (PrivateAssets=all)
+         compiles that assembly against 10.0.9, so consumers must resolve 10.0.9 too or they
+         hit CS1705 — the Sqlite package used to provide this pin incidentally. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="NetCord" Version="1.0.0-beta.9" />
+    <PackageVersion Include="NetCord.Hosting" Version="1.0.0-beta.9" />
+    <PackageVersion Include="NetCord.Hosting.Services" Version="1.0.0-beta.9" />
+    <PackageVersion Include="NetCord.Services" Version="1.0.0-beta.9" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <PackageVersion Include="OllamaSharp" Version="5.4.27" />
+    <PackageVersion Include="Pgvector" Version="0.3.2" />
+    <!-- pgvector EF Core integration (o => o.UseVector(), the vector column type mapping, and
+         the CosineDistance/L2Distance query operators). 0.3.0 supports EF Core 9 & 10. -->
+    <PackageVersion Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
+    <PackageVersion Include="Quartz" Version="3.18.2" />
+    <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.18.2" />
+    <PackageVersion Include="Quartz.Serialization.SystemTextJson" Version="3.18.2" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Settings.Configuration" Version="10.0.1" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+</Project>

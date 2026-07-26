@@ -6,11 +6,9 @@
 <h1>User Players</h1>
 <p>Read-only — links a Discord user to their STFC player(s). For debugging.</p>
 
-@* DiscordUserId is a ulong (Discord snowflake) — SQLite's EF Core provider can't
-   translate it in ORDER BY, so it's left non-sortable here. *@
 <QuickGrid Class="table" Items="Context.UserPlayers.Include(p => p.StfcPlayer).OrderByDescending(p => p.Id)">
     <PropertyColumn Property="link => link.Id" Sortable="true" />
-    <PropertyColumn Property="link => link.DiscordUserId" />
+    <PropertyColumn Property="link => link.DiscordUserId" Sortable="true" />
     <PropertyColumn Property="link => link.StfcPlayer.Name" Title="Player" Sortable="true" />
-    <PropertyColumn Property="link => link.StfcPlayerId" />
+    <PropertyColumn Property="link => link.StfcPlayerId" Sortable="true" />
 </QuickGrid>

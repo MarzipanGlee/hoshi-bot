@@ -6,14 +6,11 @@
 <h1>Shield Reminders</h1>
 <p>Read-only — a member's self-set shield-expiration countdown. For debugging.</p>
 
-@* ShieldExpiration is a DateTimeOffset and GuildId/DiscordUserId are ulong (Discord
-   snowflakes) — SQLite's EF Core provider can't translate any of them in ORDER BY, so
-   this orders by Id instead and leaves the others non-sortable. *@
 <QuickGrid Class="table" Items="Context.ShieldReminders.Include(r => r.StfcSystem).OrderByDescending(r => r.Id)">
     <PropertyColumn Property="reminder => reminder.Id" Sortable="true" />
-    <PropertyColumn Property="reminder => reminder.GuildId" />
-    <PropertyColumn Property="reminder => reminder.DiscordUserId" />
-    <PropertyColumn Property="reminder => reminder.ShieldExpiration" />
+    <PropertyColumn Property="reminder => reminder.GuildId" Sortable="true" />
+    <PropertyColumn Property="reminder => reminder.DiscordUserId" Sortable="true" />
+    <PropertyColumn Property="reminder => reminder.ShieldExpiration" Sortable="true" />
     <PropertyColumn Property="reminder => reminder.StfcSystem == null ? null : reminder.StfcSystem.Name" Title="System" Sortable="true" />
     <PropertyColumn Property="reminder => reminder.Disabled" Sortable="true" />
 </QuickGrid>

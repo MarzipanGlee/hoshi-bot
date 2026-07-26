@@ -17,7 +17,6 @@ namespace HoshiBot.Discord.Scheduling;
 // of accumulating old ones. RankRoles is a single guild-wide feature (GuildAudience.Guild) —
 // one set of 5 roles for the whole guild, not per-audience or per-alliance.
 public class RankRoleSyncJob(
-    HoshiBotDbContext db,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,

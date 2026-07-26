@@ -6,10 +6,8 @@
 <h1>Discord Users</h1>
 <p>Read-only — synced from Discord, not admin-editable here. For debugging.</p>
 
-@* DiscordUserId is a ulong (Discord snowflake) — SQLite's EF Core provider can't
-   translate it in ORDER BY, so this is left unordered and DiscordUserId non-sortable. *@
 <QuickGrid Class="table" Items="Context.DiscordUsers">
-    <PropertyColumn Property="user => user.DiscordUserId" />
-    <PropertyColumn Property="user => user.PlayerLinks.Count" Title="Linked Players" />
-    <PropertyColumn Property="user => user.GuildMemberships.Count" Title="Guild Memberships" />
+    <PropertyColumn Property="user => user.DiscordUserId" Sortable="true" />
+    <PropertyColumn Property="user => user.PlayerLinks.Count" Title="Linked Players" Sortable="true" />
+    <PropertyColumn Property="user => user.GuildMemberships.Count" Title="Guild Memberships" Sortable="true" />
 </QuickGrid>

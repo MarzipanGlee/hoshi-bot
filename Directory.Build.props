@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- Shared build settings for every project in the solution — per-csproj copies of these
+       are a regression (see docs/refactoring-plan.md, Phase 0). Project-specific settings
+       (OutputType, UserSecretsId, NoWarn, …) stay in the individual csproj. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

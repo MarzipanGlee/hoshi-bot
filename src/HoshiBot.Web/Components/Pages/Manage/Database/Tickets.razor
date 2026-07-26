@@ -6,18 +6,15 @@
 <h1>Tickets</h1>
 <p>Read-only — a support thread under the guild's Tickets channel. For debugging.</p>
 
-@* CreatedAt/ClosedAt are DateTimeOffset and GuildId is a ulong (Discord snowflake) —
-   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
-   Id instead and leaves the others non-sortable. *@
 <QuickGrid Class="table" Items="Context.Tickets.OrderByDescending(t => t.Id)">
     <PropertyColumn Property="ticket => ticket.Id" Sortable="true" />
-    <PropertyColumn Property="ticket => ticket.GuildId" />
-    <PropertyColumn Property="ticket => ticket.ThreadId" />
+    <PropertyColumn Property="ticket => ticket.GuildId" Sortable="true" />
+    <PropertyColumn Property="ticket => ticket.ThreadId" Sortable="true" />
     <PropertyColumn Property="ticket => ticket.Subject" Sortable="true" />
-    <PropertyColumn Property="ticket => ticket.OpenedByDiscordUserId" />
+    <PropertyColumn Property="ticket => ticket.OpenedByDiscordUserId" Sortable="true" />
     <PropertyColumn Property="ticket => ticket.Audience" Sortable="true" />
     <PropertyColumn Property="ticket => ticket.Status" Sortable="true" />
-    <PropertyColumn Property="ticket => ticket.CreatedAt" />
-    <PropertyColumn Property="ticket => ticket.ClosedAt" />
-    <PropertyColumn Property="ticket => ticket.ClosedByDiscordUserId" />
+    <PropertyColumn Property="ticket => ticket.CreatedAt" Sortable="true" />
+    <PropertyColumn Property="ticket => ticket.ClosedAt" Sortable="true" />
+    <PropertyColumn Property="ticket => ticket.ClosedByDiscordUserId" Sortable="true" />
 </QuickGrid>

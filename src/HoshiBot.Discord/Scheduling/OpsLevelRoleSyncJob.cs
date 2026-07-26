@@ -18,7 +18,6 @@ namespace HoshiBot.Discord.Scheduling;
 // ones. OpsLevelRoles is a single guild-wide feature (GuildAudience.Guild) — one set of 7
 // roles for the whole guild, not per-audience or per-alliance.
 public class OpsLevelRoleSyncJob(
-    HoshiBotDbContext db,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,

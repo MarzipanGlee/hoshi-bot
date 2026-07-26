@@ -6,10 +6,8 @@
 <h1>Discord Guilds</h1>
 <p>Read-only — synced from Discord, not admin-editable here. For debugging.</p>
 
-@* Id is a ulong (Discord snowflake) — SQLite's EF Core provider can't translate it in
-   ORDER BY, so it's left non-sortable here. *@
 <QuickGrid Class="table" Items="Context.DiscordGuilds.OrderBy(g => g.Name)">
-    <PropertyColumn Property="guild => guild.Id" />
+    <PropertyColumn Property="guild => guild.Id" Sortable="true" />
     <PropertyColumn Property="guild => guild.Name" Sortable="true" />
     <PropertyColumn Property="guild => guild.Locale" Sortable="true" />
 </QuickGrid>

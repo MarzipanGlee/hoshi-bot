@@ -6,20 +6,17 @@
 <h1>RoE Violation Reports</h1>
 <p>Read-only — a private thread under the guild's RoE Violation Reports channel. For debugging.</p>
 
-@* CreatedAt/ClosedAt are DateTimeOffset and GuildId is a ulong (Discord snowflake) —
-   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
-   Id instead and leaves the others non-sortable. *@
 <QuickGrid Class="table" Items="Context.RoeViolationReports.OrderByDescending(r => r.Id)">
     <PropertyColumn Property="report => report.Id" Sortable="true" />
-    <PropertyColumn Property="report => report.GuildId" />
-    <PropertyColumn Property="report => report.ThreadId" />
+    <PropertyColumn Property="report => report.GuildId" Sortable="true" />
+    <PropertyColumn Property="report => report.ThreadId" Sortable="true" />
     <PropertyColumn Property="report => report.AttackerAllianceTag" Title="Attacker Tag" Sortable="true" />
     <PropertyColumn Property="report => report.AttackerCommanderName" Title="Attacker" Sortable="true" />
     <PropertyColumn Property="report => report.DefenderAllianceTag" Title="Defender Tag" Sortable="true" />
     <PropertyColumn Property="report => report.DefenderCommanderName" Title="Defender" Sortable="true" />
-    <PropertyColumn Property="report => report.ReportedByDiscordUserId" />
+    <PropertyColumn Property="report => report.ReportedByDiscordUserId" Sortable="true" />
     <PropertyColumn Property="report => report.Status" Sortable="true" />
-    <PropertyColumn Property="report => report.CreatedAt" />
-    <PropertyColumn Property="report => report.ClosedAt" />
-    <PropertyColumn Property="report => report.ClosedByDiscordUserId" />
+    <PropertyColumn Property="report => report.CreatedAt" Sortable="true" />
+    <PropertyColumn Property="report => report.ClosedAt" Sortable="true" />
+    <PropertyColumn Property="report => report.ClosedByDiscordUserId" Sortable="true" />
 </QuickGrid>

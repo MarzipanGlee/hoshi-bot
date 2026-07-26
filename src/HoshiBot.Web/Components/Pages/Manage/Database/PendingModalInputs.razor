@@ -9,17 +9,14 @@
     reopen it pre-filled. Swept away by <code>PendingModalInputSweepJob</code>. For debugging.
 </p>
 
-@* CreatedAt is a DateTimeOffset, and GuildId/DiscordUserId are ulong (Discord snowflakes) —
-   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by Id
-   instead and leaves the other three non-sortable. *@
 <QuickGrid Class="table" Items="Context.PendingModalInputs.OrderByDescending(i => i.Id)">
     <PropertyColumn Property="input => input.Id" Sortable="true" />
-    <PropertyColumn Property="input => input.GuildId" />
-    <PropertyColumn Property="input => input.DiscordUserId" />
+    <PropertyColumn Property="input => input.GuildId" Sortable="true" />
+    <PropertyColumn Property="input => input.DiscordUserId" Sortable="true" />
     <PropertyColumn Property="input => input.Kind" Sortable="true" />
-    <PropertyColumn Property="input => input.Field1" />
-    <PropertyColumn Property="input => input.Field2" />
-    <PropertyColumn Property="input => input.Field3" />
-    <PropertyColumn Property="input => input.Field4" />
-    <PropertyColumn Property="input => input.CreatedAt" />
+    <PropertyColumn Property="input => input.Field1" Sortable="true" />
+    <PropertyColumn Property="input => input.Field2" Sortable="true" />
+    <PropertyColumn Property="input => input.Field3" Sortable="true" />
+    <PropertyColumn Property="input => input.Field4" Sortable="true" />
+    <PropertyColumn Property="input => input.CreatedAt" Sortable="true" />
 </QuickGrid>

@@ -18,9 +18,7 @@
     </TemplateColumn>
     <PropertyColumn Property="status => status.Status" Sortable="true" />
     <PropertyColumn Property="status => status.Maintenance" Sortable="true" />
-    @* Not sortable — UpdatedAt is a DateTimeOffset, which SQLite's EF provider can't
-       translate in ORDER BY. *@
-    <PropertyColumn Property="status => status.UpdatedAt" />
+    <PropertyColumn Property="status => status.UpdatedAt" Sortable="true" />
     <PropertyColumn Property="status => status.NotifiedStatus" Title="Notified Status" Sortable="true" />
     <PropertyColumn Property="status => status.NotifiedMaintenance" Title="Notified Maintenance" Sortable="true" />
 </QuickGrid>

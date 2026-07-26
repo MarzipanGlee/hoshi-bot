@@ -6,12 +6,9 @@
 <h1>STFC Event Date Confirmations</h1>
 <p>Read-only — one row per Discord user who confirmed a news post's submitted date. For debugging.</p>
 
-@* ConfirmedAt is a DateTimeOffset and DiscordUserId is a ulong (Discord snowflake) —
-   SQLite's EF Core provider can't translate either in ORDER BY, so this orders by Id
-   instead and leaves both non-sortable. *@
 <QuickGrid Class="table" Items="Context.StfcEventDateConfirmations.OrderByDescending(c => c.Id)">
     <PropertyColumn Property="confirmation => confirmation.Id" Sortable="true" />
     <PropertyColumn Property="confirmation => confirmation.StfcNewsPostId" Sortable="true" />
-    <PropertyColumn Property="confirmation => confirmation.DiscordUserId" />
-    <PropertyColumn Property="confirmation => confirmation.ConfirmedAt" />
+    <PropertyColumn Property="confirmation => confirmation.DiscordUserId" Sortable="true" />
+    <PropertyColumn Property="confirmation => confirmation.ConfirmedAt" Sortable="true" />
 </QuickGrid>

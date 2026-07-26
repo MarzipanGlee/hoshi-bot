@@ -6,13 +6,10 @@
 <h1>Thread Removal Requests</h1>
 <p>Read-only — managed entirely via feature-specific Discord buttons. For debugging.</p>
 
-@* RequestedAt is a DateTimeOffset, and GuildId/ThreadId are ulong (Discord snowflakes) —
-   SQLite's EF Core provider can't translate any of them in ORDER BY, so this orders by
-   Id instead and leaves the others non-sortable. *@
 <QuickGrid Class="table" Items="Context.ThreadRemovalRequests.OrderByDescending(r => r.Id)">
     <PropertyColumn Property="request => request.Id" Sortable="true" />
-    <PropertyColumn Property="request => request.GuildId" />
-    <PropertyColumn Property="request => request.ThreadId" />
-    <PropertyColumn Property="request => request.RequestedByDiscordUserId" />
-    <PropertyColumn Property="request => request.RequestedAt" />
+    <PropertyColumn Property="request => request.GuildId" Sortable="true" />
+    <PropertyColumn Property="request => request.ThreadId" Sortable="true" />
+    <PropertyColumn Property="request => request.RequestedByDiscordUserId" Sortable="true" />
+    <PropertyColumn Property="request => request.RequestedAt" Sortable="true" />
 </QuickGrid>

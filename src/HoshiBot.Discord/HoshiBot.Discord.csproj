@@ -6,13 +6,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.GenAI" Version="1.12.0" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.11.71" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
-    <PackageReference Include="NetCord" Version="1.0.0-beta.9" />
-    <PackageReference Include="NetCord.Services" Version="1.0.0-beta.9" />
-    <PackageReference Include="OllamaSharp" Version="5.4.27" />
-    <PackageReference Include="Quartz" Version="3.18.2" />
+    <PackageReference Include="Google.GenAI" />
+    <PackageReference Include="HtmlAgilityPack" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="NetCord" />
+    <PackageReference Include="NetCord.Services" />
+    <PackageReference Include="OllamaSharp" />
+    <PackageReference Include="Quartz" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,9 +20,6 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <!-- OllamaSharp ships an optional source-generator (AOT JSON contexts, which we don't use)
          built against a newer Roslyn than the SDK; it's skipped with CS9057. The warning also
          propagates to any project referencing this one (see HoshiBot.Host). Harmless — silence it. -->

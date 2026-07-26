@@ -6,13 +6,11 @@
 <h1>STFC News Post Guild Messages</h1>
 <p>Read-only — one row per guild pinged for a news post, so its copy of the message can be edited in place. For debugging.</p>
 
-@* GuildId is a ulong (Discord snowflake) — SQLite's EF Core provider can't translate it
-   in ORDER BY, so it's left non-sortable here. *@
 <QuickGrid Class="table" Items="Context.StfcNewsPostGuildMessages.OrderByDescending(m => m.Id)">
     <PropertyColumn Property="message => message.Id" Sortable="true" />
     <PropertyColumn Property="message => message.StfcNewsPostId" Sortable="true" />
-    <PropertyColumn Property="message => message.GuildId" />
-    <PropertyColumn Property="message => message.ChannelId" />
-    <PropertyColumn Property="message => message.MessageId" />
+    <PropertyColumn Property="message => message.GuildId" Sortable="true" />
+    <PropertyColumn Property="message => message.ChannelId" Sortable="true" />
+    <PropertyColumn Property="message => message.MessageId" Sortable="true" />
     <PropertyColumn Property="message => message.EligibleMemberCount" Sortable="true" />
 </QuickGrid>
