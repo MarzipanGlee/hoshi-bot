@@ -7,7 +7,7 @@ namespace HoshiBot.Domain.Entities;
 // features get one independent row set per relevant audience). Whether a given Key is
 // meant to hold one value or a list of values is a fact the feature's own code knows, not
 // something stored here — see GuildFeatureSettingsService for the singular vs. list API.
-public class GuildFeatureSettingSnowflake
+public class GuildFeatureSettingSnowflake : IGuildFeatureSetting
 {
     public int Id { get; set; }
 

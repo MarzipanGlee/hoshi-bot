@@ -4,7 +4,7 @@ namespace HoshiBot.Domain.Entities;
 // (GuildId, Feature, Audience, Key) shape, but for the one setting that isn't a Discord
 // snowflake (TerritoryCapture's instructions text). Always singular in practice today; see
 // GuildFeatureSettingsService.
-public class GuildFeatureSettingText
+public class GuildFeatureSettingText : IGuildFeatureSetting
 {
     public int Id { get; set; }
 

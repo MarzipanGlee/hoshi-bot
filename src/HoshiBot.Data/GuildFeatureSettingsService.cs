@@ -23,66 +23,45 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
     {
         FeatureScopeGuard.Validate(audience, guildAllianceId);
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await db.GuildFeatureSettingSnowflakes
-            .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key)
+        return await ScopeQuery<GuildFeatureSettingSnowflake>(db, guildId, feature, audience, guildAllianceId, key)
             .Select(s => (ulong?)s.Value)
             .FirstOrDefaultAsync();
     }
 
-    public async Task SetSnowflakeAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key, ulong? value)
-    {
-        FeatureScopeGuard.Validate(audience, guildAllianceId);
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var existing = await db.GuildFeatureSettingSnowflakes
-            .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key)
-            .ToListAsync();
-
-        if (value is null)
+    public Task SetSnowflakeAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key, ulong? value) =>
+        SetSingularAsync<GuildFeatureSettingSnowflake>(guildId, feature, audience, guildAllianceId, key, clear: value is null, (db, existing) =>
         {
-            if (existing.Count == 0)
-                return;
-            db.GuildFeatureSettingSnowflakes.RemoveRange(existing);
-            await db.SaveChangesAsync();
-            return;
-        }
+            // Snowflake collision strategy: keep the row that already holds the target value (if
+            // any) and drop the rest, rather than delete-all + insert. EF Core doesn't guarantee
+            // the DELETE runs before the ADD within one SaveChanges, and this table's unique index
+            // includes Value — so re-adding the same value while its old row is being deleted
+            // collides (Postgres 23505; hit for real by the periodic jobs re-setting an unchanged
+            // id). Keeping the matching row sidesteps that and makes re-setting an unchanged value
+            // a no-op instead of churn. (Update-in-place — the text table's strategy — would be
+            // wrong here: retargeting one row onto a value a sibling row already holds collides on
+            // the same Value-including index.)
+            var target = value!.Value; // non-null here: `clear` above covers the null case
+            var match = existing.FirstOrDefault(s => s.Value == target);
+            var others = existing.Where(s => s != match).ToList();
+            if (others.Count > 0)
+                db.GuildFeatureSettingSnowflakes.RemoveRange(others);
 
-        // Keep the row that already holds the target value (if any) and drop the rest, rather than
-        // delete-all + insert. EF Core doesn't guarantee the DELETE runs before the ADD within one
-        // SaveChanges, and this table's unique index includes Value — so re-adding the same value
-        // while its old row is being deleted collides (Postgres 23505; hit for real by the periodic
-        // jobs re-setting an unchanged id). Keeping the matching row sidesteps that and makes
-        // re-setting an unchanged value a no-op instead of churn.
-        var match = existing.FirstOrDefault(s => s.Value == value.Value);
-        var others = existing.Where(s => s != match).ToList();
-        if (others.Count > 0)
-            db.GuildFeatureSettingSnowflakes.RemoveRange(others);
-
-        if (match is null)
-        {
-            db.GuildFeatureSettingSnowflakes.Add(new GuildFeatureSettingSnowflake
+            if (match is null)
             {
-                GuildId = guildId,
-                Feature = feature,
-                Audience = audience,
-                GuildAllianceId = guildAllianceId,
-                Key = key,
-                Value = value.Value,
-            });
-        }
-        else if (others.Count == 0)
-        {
-            return; // already exactly the desired single row — no write needed
-        }
+                var row = NewScopedRow<GuildFeatureSettingSnowflake>(guildId, feature, audience, guildAllianceId, key);
+                row.Value = target;
+                db.GuildFeatureSettingSnowflakes.Add(row);
+                return true;
+            }
 
-        await db.SaveChangesAsync();
-    }
+            return others.Count > 0; // false: already exactly the desired single row — no write needed
+        });
 
     public async Task<List<ulong>> GetSnowflakeListAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key)
     {
         FeatureScopeGuard.Validate(audience, guildAllianceId);
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await db.GuildFeatureSettingSnowflakes
-            .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key)
+        return await ScopeQuery<GuildFeatureSettingSnowflake>(db, guildId, feature, audience, guildAllianceId, key)
             .Select(s => s.Value)
             .ToListAsync();
     }
@@ -91,20 +70,14 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
     {
         FeatureScopeGuard.Validate(audience, guildAllianceId);
         await using var db = await dbFactory.CreateDbContextAsync();
-        var exists = await db.GuildFeatureSettingSnowflakes
-            .AnyAsync(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key && s.Value == value);
+        var exists = await ScopeQuery<GuildFeatureSettingSnowflake>(db, guildId, feature, audience, guildAllianceId, key)
+            .AnyAsync(s => s.Value == value);
         if (exists)
             return;
 
-        db.GuildFeatureSettingSnowflakes.Add(new GuildFeatureSettingSnowflake
-        {
-            GuildId = guildId,
-            Feature = feature,
-            Audience = audience,
-            GuildAllianceId = guildAllianceId,
-            Key = key,
-            Value = value,
-        });
+        var row = NewScopedRow<GuildFeatureSettingSnowflake>(guildId, feature, audience, guildAllianceId, key);
+        row.Value = value;
+        db.GuildFeatureSettingSnowflakes.Add(row);
         await db.SaveChangesAsync();
     }
 
@@ -112,8 +85,8 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
     {
         FeatureScopeGuard.Validate(audience, guildAllianceId);
         await using var db = await dbFactory.CreateDbContextAsync();
-        var existing = await db.GuildFeatureSettingSnowflakes
-            .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key && s.Value == value)
+        var existing = await ScopeQuery<GuildFeatureSettingSnowflake>(db, guildId, feature, audience, guildAllianceId, key)
+            .Where(s => s.Value == value)
             .ToListAsync();
         db.GuildFeatureSettingSnowflakes.RemoveRange(existing);
         await db.SaveChangesAsync();
@@ -138,61 +111,43 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
     {
         FeatureScopeGuard.Validate(audience, guildAllianceId);
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await db.GuildFeatureSettingTexts
-            .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key)
+        return await ScopeQuery<GuildFeatureSettingText>(db, guildId, feature, audience, guildAllianceId, key)
             .Select(s => s.Value)
             .FirstOrDefaultAsync();
     }
 
-    public async Task SetTextAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key, string? value)
-    {
-        FeatureScopeGuard.Validate(audience, guildAllianceId);
-        await using var db = await dbFactory.CreateDbContextAsync();
-        var existing = await db.GuildFeatureSettingTexts
-            .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key)
-            .ToListAsync();
-
-        if (string.IsNullOrEmpty(value))
+    public Task SetTextAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key, string? value) =>
+        SetSingularAsync<GuildFeatureSettingText>(guildId, feature, audience, guildAllianceId, key, clear: string.IsNullOrEmpty(value), (db, existing) =>
         {
-            if (existing.Count == 0)
-                return;
-            db.GuildFeatureSettingTexts.RemoveRange(existing);
-            await db.SaveChangesAsync();
-            return;
-        }
+            // Text collision strategy: update the existing row in place instead of delete +
+            // re-insert — this table's unique index is on the key columns only (no Value), so
+            // re-inserting the same key while its old row is being deleted collides (EF Core
+            // doesn't guarantee DELETE-before-ADD within one SaveChanges → Postgres 23505).
+            // Updating also makes re-setting an unchanged value a no-op. (The snowflake table's
+            // keep-the-matching-row strategy would be wrong here: with a different value there is
+            // no matching row, so it degenerates into exactly the delete + re-insert-same-key
+            // pattern this index forbids.)
+            var primary = existing.FirstOrDefault();
+            var extras = existing.Skip(1).ToList();
+            if (extras.Count > 0)
+                db.GuildFeatureSettingTexts.RemoveRange(extras);
 
-        // Update the existing row in place instead of delete + re-insert: this table's unique index
-        // is on the key columns, so re-inserting the same key while its old row is being deleted
-        // collides (EF Core doesn't guarantee DELETE-before-ADD within one SaveChanges → Postgres
-        // 23505). Updating also makes re-setting an unchanged value a no-op.
-        var primary = existing.FirstOrDefault();
-        var extras = existing.Skip(1).ToList();
-        if (extras.Count > 0)
-            db.GuildFeatureSettingTexts.RemoveRange(extras);
-
-        if (primary is null)
-        {
-            db.GuildFeatureSettingTexts.Add(new GuildFeatureSettingText
+            if (primary is null)
             {
-                GuildId = guildId,
-                Feature = feature,
-                Audience = audience,
-                GuildAllianceId = guildAllianceId,
-                Key = key,
-                Value = value,
-            });
-        }
-        else if (primary.Value != value)
-        {
-            primary.Value = value;
-        }
-        else if (extras.Count == 0)
-        {
-            return; // unchanged — no write needed
-        }
+                var row = NewScopedRow<GuildFeatureSettingText>(guildId, feature, audience, guildAllianceId, key);
+                row.Value = value!;
+                db.GuildFeatureSettingTexts.Add(row);
+                return true;
+            }
 
-        await db.SaveChangesAsync();
-    }
+            if (primary.Value != value)
+            {
+                primary.Value = value!;
+                return true;
+            }
+
+            return extras.Count > 0; // false: unchanged — no write needed
+        });
 
     // Secret-typed text setting (e.g. a third-party API key): same (Feature, Audience, Key) storage
     // as GetText/SetText, but the value is transparently encrypted at rest via SettingSecretProtector
@@ -218,4 +173,49 @@ public class GuildFeatureSettingsService(IDbContextFactory<HoshiBotDbContext> db
     public Task SetSecretAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key, string? value) =>
         SetTextAsync(guildId, feature, audience, guildAllianceId, key,
             string.IsNullOrEmpty(value) ? null : secretProtector.Protect(value));
+
+    // The one scope predicate both setting tables share (via IGuildFeatureSetting's common
+    // (GuildId, Feature, Audience, GuildAllianceId, Key) columns).
+    private static IQueryable<TRow> ScopeQuery<TRow>(HoshiBotDbContext db, ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key)
+        where TRow : class, IGuildFeatureSetting =>
+        db.Set<TRow>()
+            .Where(s => s.GuildId == guildId && s.Feature == feature && s.Audience == audience && s.GuildAllianceId == guildAllianceId && s.Key == key);
+
+    private static TRow NewScopedRow<TRow>(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key)
+        where TRow : IGuildFeatureSetting, new() =>
+        new()
+        {
+            GuildId = guildId,
+            Feature = feature,
+            Audience = audience,
+            GuildAllianceId = guildAllianceId,
+            Key = key,
+        };
+
+    // Shared skeleton for the two singular Set methods: scope-validate, load every row in scope,
+    // remove them all when clearing (an unset value), otherwise hand off to `reconcile` and save
+    // only if it reports a change. `reconcile` is deliberately a per-table STRATEGY POINT, not
+    // shared logic: the two tables carry different unique indexes and therefore need different,
+    // individually-battle-tested Postgres-23505 collision workarounds — see the comments inside
+    // SetSnowflakeAsync (keep-the-matching-row) and SetTextAsync (update-in-place). Do not unify
+    // them.
+    private async Task SetSingularAsync<TRow>(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key, bool clear, Func<HoshiBotDbContext, List<TRow>, bool> reconcile)
+        where TRow : class, IGuildFeatureSetting
+    {
+        FeatureScopeGuard.Validate(audience, guildAllianceId);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var existing = await ScopeQuery<TRow>(db, guildId, feature, audience, guildAllianceId, key).ToListAsync();
+
+        if (clear)
+        {
+            if (existing.Count == 0)
+                return;
+            db.Set<TRow>().RemoveRange(existing);
+            await db.SaveChangesAsync();
+            return;
+        }
+
+        if (reconcile(db, existing))
+            await db.SaveChangesAsync();
+    }
 }
