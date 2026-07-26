@@ -72,6 +72,16 @@ public static class FeatureCatalog
     public static IFeatureModule? FindBySlug(string slug) =>
         All.FirstOrDefault(f => f.Slug == slug);
 
+    // The real, toggleable features relevant to an audience. Feature-count cards use this for
+    // their denominator and filter their enabled numerator through the returned set — the
+    // storage-only AiChatKnowledge* pseudo-features have no catalog entry, so counting enabled
+    // rows unfiltered would make a fully-configured alliance read as "21/18" (18 real features
+    // + 3 knowledge-tier rows).
+    public static HashSet<GuildFeature> RelevantTo(GuildAudience audience) =>
+        All.Where(f => f.RelevantAudiences().HasFlag(audience))
+            .Select(f => f.Feature)
+            .ToHashSet();
+
     // Resolve the module for a GuildFeature — used to turn a declared FeatureDependency into
     // its Title/Slug/Configure link. Returns null for the storage-only pseudo-features
     // (AiChatKnowledge*) that have no IFeatureModule; every dependency in the declared map

@@ -1,6 +1,5 @@
 @using HoshiBot.Web.Services
 @using NetCord
-@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildFeatureSettingsService SettingsService
 
@@ -115,20 +114,12 @@
     private async Task SaveAsync(TierState state)
     {
         saveError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, state.RoleId, state.Spec.DefaultName, state.Color, state.Mentionable, roles);
-            state.RoleId = roleId?.ToString();
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SettingsService.SetSnowflakeAsync(GuildId, Feature, Audience, GuildAllianceId, state.Spec.SettingKey, roleId);
-        }
-        catch (RestException)
-        {
-            saveError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            // Only reset a failed *creation* back to blank — a failed *modify* of an already-selected
-            // existing role should keep that selection, not silently drop it.
-            if (state.RoleId == RolePicker.CreateSentinel)
-                state.RoleId = null;
-        }
+        (var roleId, state.RoleId, saveError) = await DiscordData.EnsureRoleOrErrorAsync(
+            GuildId, state.RoleId, state.Spec.DefaultName, state.Color, state.Mentionable, roles);
+        if (saveError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SettingsService.SetSnowflakeAsync(GuildId, Feature, Audience, GuildAllianceId, state.Spec.SettingKey, roleId);
     }
 }

@@ -1,67 +1,10 @@
 @page "/manage/bot/global-admins"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <PageTitle>Global Admins</PageTitle>
 
 <h1>Global Admins</h1>
 <p>Discord users with bot-wide access to the STFC catalog.</p>
 
-<table class="table">
-    <thead><tr><th>Discord User ID</th><th></th></tr></thead>
-    <tbody>
-        @foreach (var admin in admins)
-        {
-            <tr>
-                <td>@admin.DiscordUserId</td>
-                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAdmin(admin)">Delete</button></td>
-            </tr>
-        }
-    </tbody>
-</table>
-
-<EditForm Model="this" FormName="add-global-admin" OnValidSubmit="AddAdmin">
-    <input type="text" class="form-control d-inline-block w-auto" @bind="newDiscordUserIdInput" placeholder="Discord user ID" />
-    <button type="submit" class="btn btn-primary">Add</button>
-</EditForm>
-
-@code {
-    private List<GlobalAdmin> admins = [];
-    private string? newDiscordUserIdInput;
-
-    protected override Task OnInitializedAsync() => LoadAsync();
-
-    private async Task LoadAsync()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        admins = await db.GlobalAdmins.AsNoTracking().ToListAsync();
-    }
-
-    private async Task AddAdmin()
-    {
-        if (!ulong.TryParse(newDiscordUserIdInput, out var discordUserId))
-            return;
-
-        await using (var db = await DbFactory.CreateDbContextAsync())
-        {
-            if (await db.GlobalAdmins.FindAsync(discordUserId) is null)
-            {
-                db.GlobalAdmins.Add(new GlobalAdmin { DiscordUserId = discordUserId });
-                await db.SaveChangesAsync();
-            }
-        }
-
-        newDiscordUserIdInput = null;
-        await LoadAsync();
-    }
-
-    private async Task DeleteAdmin(GlobalAdmin admin)
-    {
-        await using (var db = await DbFactory.CreateDbContextAsync())
-        {
-            db.GlobalAdmins.Remove(admin);
-            await db.SaveChangesAsync();
-        }
-
-        await LoadAsync();
-    }
-}
+<SnowflakeAllowListEditor TItem="GlobalAdmin" FormName="add-global-admin"
+    Items="@(db => db.GlobalAdmins)" Id="@(a => a.DiscordUserId)"
+    Create="@(id => new GlobalAdmin { DiscordUserId = id })" />

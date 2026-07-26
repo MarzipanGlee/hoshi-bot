@@ -1,6 +1,5 @@
 @inherits FeatureEditorBase
 @using NetCord
-@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildAllianceService AllianceService
 
@@ -61,19 +60,12 @@
     private async Task SaveServicesRoleAsync()
     {
         createError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, servicesRoleInput, "Commodore");
-            servicesRoleInput = roleId?.ToString();
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SetSnowflakeAsync(GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesRole, roleId);
-        }
-        catch (RestException)
-        {
-            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (servicesRoleInput == RolePicker.CreateSentinel)
-                servicesRoleInput = null;
-        }
+        (var roleId, servicesRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, servicesRoleInput, "Commodore");
+        if (createError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesRole, roleId);
     }
 
     // Writes GuildAlliance.MemberRoleId (same value Alliance Settings' Member card edits). A blank
@@ -84,25 +76,18 @@
             return;
 
         createError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, memberRoleInput, memberRoleName);
-            memberRoleInput = roleId?.ToString();
-            roles = await DiscordData.GetRolesAsync(GuildId);
+        (var roleId, memberRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, memberRoleInput, memberRoleName);
+        if (createError is not null)
+            return;
 
-            await using var db = await DbFactory.CreateDbContextAsync();
-            var existing = await db.GuildAlliances.FirstOrDefaultAsync(a => a.Id == allianceId && a.GuildId == GuildId);
-            if (existing is not null)
-            {
-                existing.MemberRoleId = roleId;
-                await db.SaveChangesAsync();
-            }
-        }
-        catch (RestException)
+        roles = await DiscordData.GetRolesAsync(GuildId);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.GuildAlliances.FirstOrDefaultAsync(a => a.Id == allianceId && a.GuildId == GuildId);
+        if (existing is not null)
         {
-            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (memberRoleInput == RolePicker.CreateSentinel)
-                memberRoleInput = null;
+            existing.MemberRoleId = roleId;
+            await db.SaveChangesAsync();
         }
     }
 }

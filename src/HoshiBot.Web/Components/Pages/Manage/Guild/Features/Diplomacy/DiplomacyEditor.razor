@@ -1,7 +1,6 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
 @using NetCord
-@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
@@ -44,18 +43,11 @@
     private async Task SaveDiplomatRoleAsync()
     {
         createRoleError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, "Diplomat");
-            diplomatRoleIdInput = roleId?.ToString();
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SetSnowflakeAsync(DiplomacySettingKeys.DiplomatRole, roleId);
-        }
-        catch (RestException)
-        {
-            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (diplomatRoleIdInput == RolePicker.CreateSentinel)
-                diplomatRoleIdInput = null;
-        }
+        (var roleId, diplomatRoleIdInput, createRoleError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, diplomatRoleIdInput, "Diplomat");
+        if (createRoleError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(DiplomacySettingKeys.DiplomatRole, roleId);
     }
 }

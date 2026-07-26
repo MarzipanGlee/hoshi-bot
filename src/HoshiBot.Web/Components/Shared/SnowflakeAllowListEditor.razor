@@ -1,0 +1,97 @@
+@* One bot-wide snowflake-keyed allow-list (Global Admins, Trusted Users): a table of the
+   current entries with a per-row Delete, plus an add-row that parses a Discord user ID. The
+   page supplies the DbSet plus how to read/build an entry; the optional extra column
+   (Trusted Users' DisplayName) renders between the ID and the Delete button. *@
+@typeparam TItem where TItem : class
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Discord User ID</th>
+            @if (ExtraColumnHeader is not null)
+            {
+                <th>@ExtraColumnHeader</th>
+            }
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in items)
+        {
+            <tr>
+                <td>@Id(item)</td>
+                @if (ExtraColumn is not null)
+                {
+                    <td>@ExtraColumn(item)</td>
+                }
+                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAsync(item)">Delete</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<EditForm Model="this" FormName="@FormName" OnValidSubmit="AddAsync">
+    <input type="text" class="form-control d-inline-block w-auto" @bind="newDiscordUserIdInput" placeholder="Discord user ID" />
+    @ExtraInputs
+    <button type="submit" class="btn btn-primary">Add</button>
+</EditForm>
+
+@code {
+    // Must stay unique per page — Blazor identifies posted forms by it.
+    [Parameter, EditorRequired] public string FormName { get; set; } = "";
+    [Parameter, EditorRequired] public Func<HoshiBotDbContext, DbSet<TItem>> Items { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<TItem, ulong> Id { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<ulong, TItem> Create { get; set; } = default!;
+    [Parameter] public string? ExtraColumnHeader { get; set; }
+    [Parameter] public RenderFragment<TItem>? ExtraColumn { get; set; }
+    [Parameter] public RenderFragment? ExtraInputs { get; set; }
+    // Fires after a parsed add attempt (whether or not the ID was already listed) so the page
+    // can clear any state its ExtraInputs bind to, mirroring the built-in ID input's reset.
+    [Parameter] public EventCallback OnAdded { get; set; }
+
+    private List<TItem> items = [];
+    private string? newDiscordUserIdInput;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        items = await Items(db).AsNoTracking().ToListAsync();
+    }
+
+    private async Task AddAsync()
+    {
+        if (!ulong.TryParse(newDiscordUserIdInput, out var discordUserId))
+            return;
+
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            // Duplicate check via a fresh full read rather than a translated query — the Id
+            // delegate can't be used inside an EF expression, and these allow-lists are a
+            // handful of rows.
+            var existing = await Items(db).AsNoTracking().ToListAsync();
+            if (!existing.Any(i => Id(i) == discordUserId))
+            {
+                Items(db).Add(Create(discordUserId));
+                await db.SaveChangesAsync();
+            }
+        }
+
+        newDiscordUserIdInput = null;
+        await OnAdded.InvokeAsync();
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(TItem item)
+    {
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            Items(db).Remove(item);
+            await db.SaveChangesAsync();
+        }
+
+        await LoadAsync();
+    }
+}

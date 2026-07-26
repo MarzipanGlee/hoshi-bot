@@ -16,17 +16,7 @@
     <div class="card-grid">
         @foreach (var p in GuildAdminPages.All.Where(x => x.ShowOnOverviewCard))
         {
-            <SettingsCard Href="@GuildAdminPages.Href(ParsedGuildId, p)">
-                <HeaderContent>
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="oi @p.Icon fs-4 card-icon" aria-hidden="true"></span>
-                        <h2 class="fs-6 fw-semibold mb-0">@p.Label</h2>
-                    </div>
-                </HeaderContent>
-                <ChildContent>
-                    <p class="mb-0 card-subtext">@CardSubtitle(p)</p>
-                </ChildContent>
-            </SettingsCard>
+            <NavCard Href="@GuildAdminPages.Href(ParsedGuildId, p)" Icon="@p.Icon" Title="@p.Label" Subtitle="@CardSubtitle(p)" />
         }
     </div>
 
@@ -59,14 +49,7 @@
     {
         links = await AllianceService.GetLinksAsync(ParsedGuildId);
 
-        // Only the real, toggleable Alliance-audience features count toward the card — the storage-
-        // only AiChatKnowledge* pseudo-features have no FeatureCatalog entry, so they're not in the
-        // denominator; filter them out of the enabled numerator too, or a fully-configured alliance
-        // reads as "21/18" (18 real features + 3 knowledge-tier rows).
-        var allianceRelevantFeatures = FeatureCatalog.All
-            .Where(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance))
-            .Select(f => f.Feature)
-            .ToHashSet();
+        var allianceRelevantFeatures = FeatureCatalog.RelevantTo(GuildAudience.Alliance);
         allianceFeatureTotal = allianceRelevantFeatures.Count;
         allianceEnabledCounts = (await FeatureService.GetEnabledAsync(ParsedGuildId))
             .Where(s => s.Audience == GuildAudience.Alliance && s.GuildAllianceId is not null && allianceRelevantFeatures.Contains(s.Feature))

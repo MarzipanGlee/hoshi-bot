@@ -2,7 +2,6 @@
 @page "/manage/guild/{GuildId}/alliance/{GuildAllianceIdRaw:int}/settings"
 @using HoshiBot.Web.Services
 @using NetCord
-@using NetCord.Rest
 @inherits AllianceAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
@@ -146,19 +145,12 @@
     private async Task SaveDefaultChannelCategoryAsync()
     {
         createError = null;
-        try
-        {
-            var categoryId = await DiscordData.EnsureChannelAsync(ParsedGuildId, defaultChannelCategoryIdInput, "Hoshi Bot", ChannelType.CategoryChannel);
-            defaultChannelCategoryIdInput = categoryId?.ToString();
-            categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
-            await SaveAsync(a => a.DefaultChannelCategoryId = categoryId);
-        }
-        catch (RestException)
-        {
-            createError = "Could not create a category on Discord — does the bot have Manage Channels permission in this server?";
-            if (defaultChannelCategoryIdInput == ChannelPicker.CreateSentinel)
-                defaultChannelCategoryIdInput = null;
-        }
+        (var categoryId, defaultChannelCategoryIdInput, createError) = await DiscordData.EnsureChannelOrErrorAsync(ParsedGuildId, defaultChannelCategoryIdInput, "Hoshi Bot", ChannelType.CategoryChannel);
+        if (createError is not null)
+            return;
+
+        categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
+        await SaveAsync(a => a.DefaultChannelCategoryId = categoryId);
     }
 
     // A blank selection creates a new role (named after the alliance tag) instead of saving null.
@@ -166,19 +158,14 @@
     private async Task SaveRoleAsync(Action<GuildAlliance, ulong?> setter, string? currentInput, Action<string?> setInput, string defaultName)
     {
         createError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(ParsedGuildId, currentInput, defaultName);
-            setInput(roleId?.ToString());
-            roles = await DiscordData.GetRolesAsync(ParsedGuildId);
-            await SaveAsync(a => setter(a, roleId));
-        }
-        catch (RestException)
-        {
-            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (currentInput == RolePicker.CreateSentinel)
-                setInput(null);
-        }
+        var (roleId, input, error) = await DiscordData.EnsureRoleOrErrorAsync(ParsedGuildId, currentInput, defaultName);
+        setInput(input);
+        createError = error;
+        if (error is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(ParsedGuildId);
+        await SaveAsync(a => setter(a, roleId));
     }
 
     private Task SaveMemberRoleAsync() => SaveRoleAsync((a, id) => a.MemberRoleId = id, memberRoleIdInput, v => memberRoleIdInput = v, memberRoleName);

@@ -1,6 +1,5 @@
 @using HoshiBot.Web.Services
 @using NetCord
-@using NetCord.Rest
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
@@ -79,19 +78,14 @@
     private async Task SaveRoleAsync(Action<GuildSettings, ulong?> setter, string? currentInput, Action<string?> setInput, string defaultName)
     {
         createError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, defaultName);
-            setInput(roleId?.ToString());
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SaveAsync(s => setter(s, roleId));
-        }
-        catch (RestException)
-        {
-            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (currentInput == RolePicker.CreateSentinel)
-                setInput(null);
-        }
+        var (roleId, input, error) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, currentInput, defaultName);
+        setInput(input);
+        createError = error;
+        if (error is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SaveAsync(s => setter(s, roleId));
     }
 
     private Task SaveCrewsRoleAsync() => SaveRoleAsync((s, id) => s.CrewsRoleId = id, crewsRoleIdInput, v => crewsRoleIdInput = v, "Crews");

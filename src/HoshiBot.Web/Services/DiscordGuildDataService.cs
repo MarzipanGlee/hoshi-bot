@@ -435,6 +435,67 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         return created.Id;
     }
 
+    // Shared failure texts for the OrError wrappers below — before those existed, every editor
+    // carried its own copy of these strings next to a hand-rolled try/catch.
+    private const string RoleCreateError =
+        "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
+    private const string ChannelCreateError =
+        "Could not create a channel on Discord — does the bot have Manage Channels permission in this server?";
+    private const string CategoryCreateError =
+        "Could not create a category on Discord — does the bot have Manage Channels permission in this server?";
+
+    // EnsureRoleAsync wrapped in the create-failure handling every editor used to repeat inline:
+    // on success Error is null and Input is the ensured id as picker input; on a RestException
+    // Error carries the shared Manage-Roles message and Input resets a failed *create* back to
+    // blank while keeping an existing selection (a failed modify of an already-selected role
+    // shouldn't silently drop it). Callers deconstruct straight into their own state:
+    //   (var roleId, roleIdInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(...);
+    public async Task<(ulong? Id, string? Input, string? Error)> EnsureRoleOrErrorAsync(
+        ulong guildId, string? currentInput, string defaultName)
+    {
+        try
+        {
+            var id = await EnsureRoleAsync(guildId, currentInput, defaultName);
+            return (id, id?.ToString(), null);
+        }
+        catch (RestException)
+        {
+            return (null, currentInput == RolePicker.CreateSentinel ? null : currentInput, RoleCreateError);
+        }
+    }
+
+    // Same wrapper for the richer color/mentionable EnsureRoleAsync overload (RoleTierEditor).
+    public async Task<(ulong? Id, string? Input, string? Error)> EnsureRoleOrErrorAsync(
+        ulong guildId, string? currentInput, string defaultName, string? colorInput, bool mentionable, IReadOnlyList<Role> currentRoles)
+    {
+        try
+        {
+            var id = await EnsureRoleAsync(guildId, currentInput, defaultName, colorInput, mentionable, currentRoles);
+            return (id, id?.ToString(), null);
+        }
+        catch (RestException)
+        {
+            return (null, currentInput == RolePicker.CreateSentinel ? null : currentInput, RoleCreateError);
+        }
+    }
+
+    // ChannelPicker counterpart — the message says "category" when that's what was being
+    // created, matching the text each page showed before this wrapper existed.
+    public async Task<(ulong? Id, string? Input, string? Error)> EnsureChannelOrErrorAsync(
+        ulong guildId, string? currentInput, string defaultName, ChannelType type, ulong? categoryId = null)
+    {
+        try
+        {
+            var id = await EnsureChannelAsync(guildId, currentInput, defaultName, type, categoryId);
+            return (id, id?.ToString(), null);
+        }
+        catch (RestException)
+        {
+            return (null, currentInput == ChannelPicker.CreateSentinel ? null : currentInput,
+                type == ChannelType.CategoryChannel ? CategoryCreateError : ChannelCreateError);
+        }
+    }
+
     // null = Discord's own "Default" (raw color value 0) — can't just omit Colors when
     // modifying an existing role, since Discord's API treats an omitted field as "leave
     // unchanged," not "clear", so resetting to Default needs this explicit raw-0 value.

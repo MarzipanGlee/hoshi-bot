@@ -18,17 +18,7 @@
         <div class="card-grid">
             @foreach (var p in AllianceAdminPages.All.Where(x => x.ShowOnOverviewCard))
             {
-                <SettingsCard Href="@AllianceAdminPages.Href(ParsedGuildId, ResolvedAllianceId!.Value, p)">
-                    <HeaderContent>
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="oi @p.Icon fs-4 card-icon" aria-hidden="true"></span>
-                            <h2 class="fs-6 fw-semibold mb-0">@p.Label</h2>
-                        </div>
-                    </HeaderContent>
-                    <ChildContent>
-                        <p class="mb-0 card-subtext">@CardSubtitle(p)</p>
-                    </ChildContent>
-                </SettingsCard>
+                <NavCard Href="@AllianceAdminPages.Href(ParsedGuildId, ResolvedAllianceId!.Value, p)" Icon="@p.Icon" Title="@p.Label" Subtitle="@CardSubtitle(p)" />
             }
         </div>
     }
@@ -54,14 +44,7 @@
         allianceTag = alliance.StfcAlliance.Tag;
         allianceName = alliance.StfcAlliance.Name;
 
-        // Only the real, toggleable Alliance-audience features count — the storage-only
-        // AiChatKnowledge* pseudo-features have no FeatureCatalog entry, so they're excluded from
-        // both the denominator and the enabled numerator (same guard as the guild Overview's
-        // Alliance cards, which would otherwise read "21/18").
-        var allianceRelevantFeatures = FeatureCatalog.All
-            .Where(f => f.RelevantAudiences().HasFlag(GuildAudience.Alliance))
-            .Select(f => f.Feature)
-            .ToHashSet();
+        var allianceRelevantFeatures = FeatureCatalog.RelevantTo(GuildAudience.Alliance);
         featureTotal = allianceRelevantFeatures.Count;
         enabledCount = (await FeatureService.GetEnabledAsync(ParsedGuildId))
             .Count(s => s.Audience == GuildAudience.Alliance && s.GuildAllianceId == guildAllianceId && allianceRelevantFeatures.Contains(s.Feature));

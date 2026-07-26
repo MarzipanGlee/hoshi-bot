@@ -1,0 +1,22 @@
+@* Overview/shortcut card that links to another page: icon + title header, one-line subtitle
+   body. The Guild/Alliance/Me overview grids and the Dashboard's global-admin shortcuts all
+   rendered this exact SettingsCard arrangement by hand before this existed — use this so the
+   grids stay visually in sync. *@
+<SettingsCard Href="@Href">
+    <HeaderContent>
+        <div class="d-flex align-items-center gap-3">
+            <span class="oi @Icon fs-4 card-icon" aria-hidden="true"></span>
+            <h2 class="fs-6 fw-semibold mb-0">@Title</h2>
+        </div>
+    </HeaderContent>
+    <ChildContent>
+        <p class="mb-0 card-subtext">@Subtitle</p>
+    </ChildContent>
+</SettingsCard>
+
+@code {
+    [Parameter, EditorRequired] public string Href { get; set; } = "";
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Subtitle { get; set; } = "";
+}

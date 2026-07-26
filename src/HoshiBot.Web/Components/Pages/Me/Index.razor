@@ -39,17 +39,7 @@
     <div class="card-grid">
         @foreach (var p in MePages.All)
         {
-            <SettingsCard Href="@MePages.Href(p)">
-                <HeaderContent>
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="oi @p.Icon fs-4 card-icon" aria-hidden="true"></span>
-                        <h2 class="fs-6 fw-semibold mb-0">@p.Label</h2>
-                    </div>
-                </HeaderContent>
-                <ChildContent>
-                    <p class="mb-0 card-subtext">@p.Description</p>
-                </ChildContent>
-            </SettingsCard>
+            <NavCard Href="@MePages.Href(p)" Icon="@p.Icon" Title="@p.Label" Subtitle="@p.Description" />
         }
     </div>
 

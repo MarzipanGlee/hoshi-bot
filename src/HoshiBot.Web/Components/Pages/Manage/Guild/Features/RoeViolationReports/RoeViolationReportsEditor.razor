@@ -1,7 +1,6 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
 @using NetCord
-@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
@@ -46,36 +45,22 @@
     private async Task SaveChannelAsync()
     {
         createError = null;
-        try
-        {
-            var channelId = await DiscordData.EnsureChannelAsync(GuildId, channelIdInput, "roe-verstösse", ChannelType.ForumGuildChannel);
-            channelIdInput = channelId?.ToString();
-            channels = await DiscordData.GetChannelsAsync(GuildId);
-            await SetSnowflakeAsync(RoeViolationReportsSettingKeys.Channel, channelId);
-        }
-        catch (RestException)
-        {
-            createError = "Could not create a channel on Discord — does the bot have Manage Channels permission in this server?";
-            if (channelIdInput == ChannelPicker.CreateSentinel)
-                channelIdInput = null;
-        }
+        (var channelId, channelIdInput, createError) = await DiscordData.EnsureChannelOrErrorAsync(GuildId, channelIdInput, "roe-verstösse", ChannelType.ForumGuildChannel);
+        if (createError is not null)
+            return;
+
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        await SetSnowflakeAsync(RoeViolationReportsSettingKeys.Channel, channelId);
     }
 
     private async Task SaveDiplomatRoleAsync()
     {
         createError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, diplomatRoleIdInput, "Diplomat");
-            diplomatRoleIdInput = roleId?.ToString();
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SetSnowflakeAsync(GuildFeature.Diplomacy, DiplomacySettingKeys.DiplomatRole, roleId);
-        }
-        catch (RestException)
-        {
-            createError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (diplomatRoleIdInput == RolePicker.CreateSentinel)
-                diplomatRoleIdInput = null;
-        }
+        (var roleId, diplomatRoleIdInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, diplomatRoleIdInput, "Diplomat");
+        if (createError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(GuildFeature.Diplomacy, DiplomacySettingKeys.DiplomatRole, roleId);
     }
 }

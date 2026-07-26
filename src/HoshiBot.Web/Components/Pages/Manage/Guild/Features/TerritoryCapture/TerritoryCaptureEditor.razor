@@ -2,7 +2,6 @@
 @using System.Globalization
 @using HoshiBot.Web.Services
 @using NetCord
-@using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
 @inject GuildAllianceService AllianceService
 
@@ -139,37 +138,25 @@
     private async Task SaveServicesRoleAsync()
     {
         createRoleError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, servicesRoleInput, "Commodore");
-            servicesRoleInput = roleId?.ToString();
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesRole, roleId);
-        }
-        catch (RestException)
-        {
-            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (servicesRoleInput == RolePicker.CreateSentinel)
-                servicesRoleInput = null;
-        }
+        (var roleId, servicesRoleInput, createRoleError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, servicesRoleInput, "Commodore");
+        if (createRoleError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesRole, roleId);
     }
 
     private async Task SaveZoneSlotAsync(string key, Action<string?> setInput, string? currentInput, string slotName)
     {
         createRoleError = null;
-        try
-        {
-            var roleId = await DiscordData.EnsureRoleAsync(GuildId, currentInput, slotName);
-            setInput(roleId?.ToString());
-            roles = await DiscordData.GetRolesAsync(GuildId);
-            await SetSnowflakeAsync(key, roleId);
-        }
-        catch (RestException)
-        {
-            createRoleError = "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-            if (currentInput == RolePicker.CreateSentinel)
-                setInput(null);
-        }
+        var (roleId, input, error) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, currentInput, slotName);
+        setInput(input);
+        createRoleError = error;
+        if (error is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(key, roleId);
     }
 
     private Task SaveZoneSlot1Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot1Role, v => zoneSlot1Input = v, zoneSlot1Input, "Slot 1");

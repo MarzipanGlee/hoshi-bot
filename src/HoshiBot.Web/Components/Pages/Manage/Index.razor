@@ -70,28 +70,10 @@
         @if (isGlobalAdmin)
         {
             <div class="card-grid mt-4">
-                <SettingsCard Href="manage/stfc/regions">
-                    <HeaderContent>
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="oi oi-globe fs-4 card-icon" aria-hidden="true"></span>
-                            <h2 class="fs-6 fw-semibold mb-0">STFC Catalog</h2>
-                        </div>
-                    </HeaderContent>
-                    <ChildContent>
-                        <p class="mb-0 card-subtext">Regions, servers, alliances, and territories</p>
-                    </ChildContent>
-                </SettingsCard>
-                <SettingsCard Href="manage/bot/global-admins">
-                    <HeaderContent>
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="oi oi-shield fs-4 card-icon" aria-hidden="true"></span>
-                            <h2 class="fs-6 fw-semibold mb-0">Bot</h2>
-                        </div>
-                    </HeaderContent>
-                    <ChildContent>
-                        <p class="mb-0 card-subtext">Manage global admin access</p>
-                    </ChildContent>
-                </SettingsCard>
+                <NavCard Href="manage/stfc/regions" Icon="oi-globe" Title="STFC Catalog"
+                         Subtitle="Regions, servers, alliances, and territories" />
+                <NavCard Href="manage/bot/global-admins" Icon="oi-shield" Title="Bot"
+                         Subtitle="Manage global admin access" />
             </div>
         }
     </Authorized>
