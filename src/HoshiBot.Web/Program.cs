@@ -45,7 +45,7 @@ builder.Services.AddHttpClient("DiscordUserApi", client =>
 });
 
 builder.Services.AddHttpClient(nameof(StfcSystemSyncService));
-builder.Services.AddHostedService<StfcSystemSyncService>();
+builder.Services.AddHostedService<StfcSystemAutoSyncService>();
 builder.Services.AddHostedService<TerritoryServiceAutoSyncService>();
 builder.Services.AddHostedService<TerritoryOwnershipAutoSyncService>();
 
@@ -149,6 +149,7 @@ builder.Services.AddScoped<StfcServerStatusImportService>();
 builder.Services.AddScoped<StfcTerritoryOwnershipImportService>();
 builder.Services.AddScoped<StfcTerritoryOwnershipSyncService>();
 builder.Services.AddScoped<TerritoryServiceSyncService>();
+builder.Services.AddScoped<StfcSystemSyncService>();
 builder.Services.AddScoped<CurrentGuildContext>();
 builder.Services.AddScoped<CurrentAllianceContext>();
 builder.Services.AddScoped<SupportModeContext>();

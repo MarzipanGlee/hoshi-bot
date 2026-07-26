@@ -24,6 +24,8 @@
     <!-- The explicit Relational reference pins EF Core for this project and all consumers —
          version rationale documented in Directory.Packages.props. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <!-- IHttpClientFactory for the STFC import/sync services (StfcSystemSyncService etc.) -->
+    <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Pgvector.EntityFrameworkCore" />
   </ItemGroup>

@@ -1,16 +1,17 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
-namespace HoshiBot.Web.Services;
+namespace HoshiBot.Data;
 
-// Keeps StfcSystem in sync with stfc.space's own data feeds — syncs immediately on startup
-// if the table is empty, then once a day thereafter. No robots.txt disallows these endpoints
-// (unlike stfc.pro), and stfc.space is now operated by Scopely (the game's own developer),
-// not a fan project with separate usage terms.
+// Keeps StfcSystem in sync with stfc.space's own data feeds. Scheduled by
+// StfcSystemAutoSyncService (HoshiBot.Web) — on startup if the table is empty, then once a
+// day. No robots.txt disallows these endpoints (unlike stfc.pro), and stfc.space is now
+// operated by Scopely (the game's own developer), not a fan project with separate usage terms.
 //
 // Two endpoints are combined:
 //   - system/summary.json: the authoritative list of real system IDs (2,596 of them), with
@@ -28,9 +29,9 @@ namespace HoshiBot.Web.Services;
 //     raw entries for 2,596 real systems). Joining against summary.json's id set is exact,
 //     unlike guessing from name-repetition frequency.
 public partial class StfcSystemSyncService(
-    IServiceScopeFactory scopeFactory,
+    IDbContextFactory<HoshiBotDbContext> dbFactory,
     IHttpClientFactory httpClientFactory,
-    ILogger<StfcSystemSyncService> logger) : BackgroundService
+    ILogger<StfcSystemSyncService> logger)
 {
     private const string SystemSummaryUrl = "https://data.stfc.space/system/summary.json";
     private const string SystemNamesUrl = "https://data.stfc.space/translations/en/systems.json";
@@ -38,28 +39,13 @@ public partial class StfcSystemSyncService(
     [GeneratedRegex(@"<[^>]+>")]
     private static partial Regex RichTextTagRegex();
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task<bool> IsEmptyAsync(CancellationToken cancellationToken = default)
     {
-        if (await IsEmptyAsync(stoppingToken))
-        {
-            await SyncAsync(stoppingToken);
-        }
-
-        using var timer = new PeriodicTimer(TimeSpan.FromDays(1));
-        while (await timer.WaitForNextTickAsync(stoppingToken))
-        {
-            await SyncAsync(stoppingToken);
-        }
-    }
-
-    private async Task<bool> IsEmptyAsync(CancellationToken cancellationToken)
-    {
-        using var scope = scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         return !await db.StfcSystems.AnyAsync(cancellationToken);
     }
 
-    private async Task SyncAsync(CancellationToken cancellationToken)
+    public async Task SyncAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -90,8 +76,7 @@ public partial class StfcSystemSyncService(
                 systems.Add((summary.Id, name, summary.HasPlayerContainers));
             }
 
-            using var scope = scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<HoshiBotDbContext>();
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var existingByNumber = await db.StfcSystems.ToDictionaryAsync(s => s.Number, cancellationToken);
 
             var added = 0;

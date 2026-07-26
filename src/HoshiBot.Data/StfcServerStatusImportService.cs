@@ -1,8 +1,8 @@
-using HoshiBot.Data;
+
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace HoshiBot.Web.Services;
+namespace HoshiBot.Data;
 
 // One entry from an external server-status feed (see Manage/Stfc/ServerStatusPages/Import.razor
 // for where these come from) — same shape as StfcServerStatusSeedData's raw JSON.

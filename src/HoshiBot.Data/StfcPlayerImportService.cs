@@ -1,8 +1,8 @@
-using HoshiBot.Data;
+
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace HoshiBot.Web.Services;
+namespace HoshiBot.Data;
 
 // One entry from an external player-data feed (see Manage/Stfc/PlayerPages/Import.razor for
 // where these come from) — deliberately just the fields the upsert actually needs, not a

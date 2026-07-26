@@ -1,8 +1,8 @@
-using HoshiBot.Data;
+
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace HoshiBot.Web.Services;
+namespace HoshiBot.Data;
 
 // One entry from stfc.pro's territory-ownership feed (see
 // Manage/Stfc/TerritoryOwnershipPages/Import.razor) — same shape as

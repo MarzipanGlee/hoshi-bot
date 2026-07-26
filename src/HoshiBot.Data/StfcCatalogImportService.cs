@@ -1,9 +1,9 @@
-using HoshiBot.Data;
+
 using HoshiBot.Data.Seeding;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace HoshiBot.Web.Services;
+namespace HoshiBot.Data;
 
 // One server record from the server-overview feed (see Manage/Stfc/ServerPages/Import.razor) —
 // same shape as tools/HoshiBot.StfcSeedSync's StfcServerSeedData.json.

@@ -1,11 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
-namespace HoshiBot.Web.Services;
+namespace HoshiBot.Data;
 
 // Manually-triggered synchronizer for Territory Capture service data from territory.lol. Populates
 // the global service catalog (StfcTerritoryService) and the per-server territory→service mapping

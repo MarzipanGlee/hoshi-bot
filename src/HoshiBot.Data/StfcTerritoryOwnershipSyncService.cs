@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
-namespace HoshiBot.Web.Services;
+namespace HoshiBot.Data;
 
 // Fetches the live territory-ownership feed from stfc.pro (https://api.stfc.pro/stfc_territories — the
 // same feed territory.lol uses) and hands it to StfcTerritoryOwnershipImportService's upsert. Isolates
