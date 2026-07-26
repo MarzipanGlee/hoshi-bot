@@ -1,12 +1,8 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NetCord;
 using NetCord.Gateway;
-using NetCord.Rest;
-using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
@@ -22,74 +18,17 @@ public class OpsLevelRoleSyncJob(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
-    ILogger<OpsLevelRoleSyncJob> logger) : IJob
+    ILogger<OpsLevelRoleSyncJob> logger)
+    : ExclusiveTierRoleSyncJob<StfcOpsGroup>(gatewayClient, featureService, settingsService, playerLinkService, logger)
 {
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.OpsLevelRoles);
+    protected override GuildFeature Feature => GuildFeature.OpsLevelRoles;
 
-        foreach (var guildId in guildIds)
-        {
-            // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience,
-            // ignoring any orphaned rows left under other audiences by the audience refactor.
-            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.OpsLevelRoles, GuildAudience.Guild, null))
-                continue;
+    protected override StfcOpsGroup? TierOf(GuildPrimaryPlayer player) => StfcOpsGroupExtensions.FromLevel(player.OpsLevel);
 
-            // Ops level comes from whichever player represents the member in *this* guild.
-            var members = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values
-                .Select(p => new MemberOpsLevel(p.DiscordUserId, p.OpsLevel))
-                .ToList();
+    protected override string RoleSettingKey(StfcOpsGroup tier) => OpsLevelRolesSettingKeys.RoleForGroup(tier);
 
-            var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
-            await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members, roster);
-        }
-    }
-
-    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, IReadOnlyList<MemberOpsLevel> members, IReadOnlyDictionary<ulong, GuildUser> roster)
-    {
-        var roleIdsByGroup = new Dictionary<StfcOpsGroup, ulong>();
-        foreach (var group in Enum.GetValues<StfcOpsGroup>())
-        {
-            var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.OpsLevelRoles, audience, guildAllianceId, OpsLevelRolesSettingKeys.RoleForGroup(group));
-            if (roleId is { } id)
-                roleIdsByGroup[group] = id;
-        }
-
-        if (roleIdsByGroup.Count == 0)
-            return;
-
-        foreach (var member in members)
-        {
-            if (!roster.TryGetValue(member.DiscordUserId, out var guildUser))
-                continue;
-            var group = StfcOpsGroupExtensions.FromLevel(member.OpsLevel);
-            var targetRoleId = group is { } g ? roleIdsByGroup.GetValueOrDefault(g) : (ulong?)null;
-            await SyncMemberAsync(guildId, guildUser, roleIdsByGroup.Values, targetRoleId);
-        }
-    }
-
-    private async Task SyncMemberAsync(ulong guildId, GuildUser guildUser, IEnumerable<ulong> allGroupRoleIds, ulong? targetRoleId)
-    {
-        try
-        {
-            foreach (var roleId in allGroupRoleIds)
-            {
-                var hasRole = guildUser.RoleIds.Contains(roleId);
-                var shouldHaveRole = roleId == targetRoleId;
-
-                if (shouldHaveRole && !hasRole)
-                    await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, guildUser.Id, roleId);
-                else if (!shouldHaveRole && hasRole)
-                    await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, guildUser.Id, roleId);
-            }
-        }
-        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-        {
-            logger.LogInformation(
-                "Skipped Ops level role sync for user {UserId} in guild {GuildId}: {StatusCode}",
-                guildUser.Id, guildId, ex.StatusCode);
-        }
-    }
-
-    private record MemberOpsLevel(ulong DiscordUserId, int? OpsLevel);
+    protected override void LogSkippedMember(ulong userId, ulong guildId, HttpStatusCode statusCode) =>
+        Logger.LogInformation(
+            "Skipped Ops level role sync for user {UserId} in guild {GuildId}: {StatusCode}",
+            userId, guildId, statusCode);
 }

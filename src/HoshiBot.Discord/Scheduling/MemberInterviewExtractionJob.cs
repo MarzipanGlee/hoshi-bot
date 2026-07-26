@@ -36,24 +36,12 @@ public class MemberInterviewExtractionJob(
     private const int KeepMemoriesPerPerson = 5;
 
     private const int MemberMemorySalience = 2;
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var cancellationToken = context.CancellationToken;
 
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.MemberLore, cancellationToken);
-
-        foreach (var guildId in guildIds)
-        {
-            try
-            {
-                await ProcessGuildAsync(guildId, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Member-note extraction failed for guild {GuildId}", guildId);
-            }
-        }
-    }
+    public Task Execute(IJobExecutionContext context) =>
+        // recheckAudience null: extraction runs off already-completed interviews — a guild with
+        // pending rows is processed regardless of which MemberLore audience is currently on.
+        this.ForEachEnabledGuildAsync(featureService, GuildFeature.MemberLore, null, logger,
+            guildId => ProcessGuildAsync(guildId, context.CancellationToken), context.CancellationToken);
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {

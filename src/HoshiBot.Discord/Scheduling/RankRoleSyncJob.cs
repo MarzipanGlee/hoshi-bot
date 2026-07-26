@@ -1,12 +1,8 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NetCord;
 using NetCord.Gateway;
-using NetCord.Rest;
-using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
@@ -21,73 +17,17 @@ public class RankRoleSyncJob(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
-    ILogger<RankRoleSyncJob> logger) : IJob
+    ILogger<RankRoleSyncJob> logger)
+    : ExclusiveTierRoleSyncJob<StfcPlayerRank>(gatewayClient, featureService, settingsService, playerLinkService, logger)
 {
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.RankRoles);
+    protected override GuildFeature Feature => GuildFeature.RankRoles;
 
-        foreach (var guildId in guildIds)
-        {
-            // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience,
-            // ignoring any orphaned rows left under other audiences by the audience refactor.
-            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.RankRoles, GuildAudience.Guild, null))
-                continue;
+    protected override StfcPlayerRank? TierOf(GuildPrimaryPlayer player) => player.Rank;
 
-            // Rank comes from whichever player represents the member in *this* guild.
-            var members = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values
-                .Select(p => new MemberRank(p.DiscordUserId, p.Rank))
-                .ToList();
+    protected override string RoleSettingKey(StfcPlayerRank tier) => RankRolesSettingKeys.RoleForRank(tier);
 
-            var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
-            await SyncAudienceAsync(guildId, GuildAudience.Guild, null, members, roster);
-        }
-    }
-
-    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, IReadOnlyList<MemberRank> members, IReadOnlyDictionary<ulong, GuildUser> roster)
-    {
-        var roleIdsByRank = new Dictionary<StfcPlayerRank, ulong>();
-        foreach (var rank in Enum.GetValues<StfcPlayerRank>())
-        {
-            var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.RankRoles, audience, guildAllianceId, RankRolesSettingKeys.RoleForRank(rank));
-            if (roleId is { } id)
-                roleIdsByRank[rank] = id;
-        }
-
-        if (roleIdsByRank.Count == 0)
-            return;
-
-        foreach (var member in members)
-        {
-            if (!roster.TryGetValue(member.DiscordUserId, out var guildUser))
-                continue;
-            var targetRoleId = member.Rank is { } rank ? roleIdsByRank.GetValueOrDefault(rank) : (ulong?)null;
-            await SyncMemberAsync(guildId, guildUser, roleIdsByRank.Values, targetRoleId);
-        }
-    }
-
-    private async Task SyncMemberAsync(ulong guildId, GuildUser guildUser, IEnumerable<ulong> allRankRoleIds, ulong? targetRoleId)
-    {
-        try
-        {
-            foreach (var roleId in allRankRoleIds)
-            {
-                var hasRole = guildUser.RoleIds.Contains(roleId);
-                var shouldHaveRole = roleId == targetRoleId;
-
-                if (shouldHaveRole && !hasRole)
-                    await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, guildUser.Id, roleId);
-                else if (!shouldHaveRole && hasRole)
-                    await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, guildUser.Id, roleId);
-            }
-        }
-        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-        {
-            logger.LogInformation(
-                "Skipped rank role sync for user {UserId} in guild {GuildId}: {StatusCode}",
-                guildUser.Id, guildId, ex.StatusCode);
-        }
-    }
-
-    private record MemberRank(ulong DiscordUserId, StfcPlayerRank? Rank);
+    protected override void LogSkippedMember(ulong userId, ulong guildId, HttpStatusCode statusCode) =>
+        Logger.LogInformation(
+            "Skipped rank role sync for user {UserId} in guild {GuildId}: {StatusCode}",
+            userId, guildId, statusCode);
 }

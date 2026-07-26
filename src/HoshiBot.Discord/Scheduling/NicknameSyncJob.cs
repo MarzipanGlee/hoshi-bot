@@ -26,27 +26,10 @@ public class NicknameSyncJob(
 {
     private const int DiscordNicknameMaxLength = 32;
 
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.NicknameSync);
-
-        foreach (var guildId in guildIds)
-        {
-            // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience, ignoring
-            // any orphaned rows left under other audiences.
-            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null))
-                continue;
-
-            try
-            {
-                await ProcessGuildAsync(guildId);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Nickname sync failed for guild {GuildId}", guildId);
-            }
-        }
-    }
+    public Task Execute(IJobExecutionContext context) =>
+        // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience, ignoring
+        // any orphaned rows left under other audiences.
+        this.ForEachEnabledGuildAsync(featureService, GuildFeature.NicknameSync, GuildAudience.Guild, logger, ProcessGuildAsync);
 
     private async Task ProcessGuildAsync(ulong guildId)
     {

@@ -31,24 +31,11 @@ public class MemberInterviewInviteJob(
     private const int MaxPerRun = 5;
     private const int ActivityWindowDays = 90;
 
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var cancellationToken = context.CancellationToken;
-
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.MemberLore, cancellationToken);
-
-        foreach (var guildId in guildIds)
-        {
-            try
-            {
-                await ProcessGuildAsync(guildId, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Member interview invites failed for guild {GuildId}", guildId);
-            }
-        }
-    }
+    public Task Execute(IJobExecutionContext context) =>
+        // recheckAudience null: MemberLore is per-alliance — the body gates on the guild's enabled
+        // alliance links (GetEnabledAllianceIdsAsync), not a single audience.
+        this.ForEachEnabledGuildAsync(featureService, GuildFeature.MemberLore, null, logger,
+            guildId => ProcessGuildAsync(guildId, context.CancellationToken), context.CancellationToken);
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {

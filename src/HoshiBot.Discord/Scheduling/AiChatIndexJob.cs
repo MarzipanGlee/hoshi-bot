@@ -21,25 +21,14 @@ public class AiChatIndexJob(
     GuildFeatureService featureService,
     ILogger<AiChatIndexJob> logger) : IJob
 {
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var cancellationToken = context.CancellationToken;
-
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.AiChat, cancellationToken);
-
-        foreach (var guildId in guildIds)
+    public Task Execute(IJobExecutionContext context) =>
+        // recheckAudience null: no per-guild audience re-check — indexing runs for every guild with
+        // any AiChat row; the index service itself no-ops on guilds with no enabled channels.
+        this.ForEachEnabledGuildAsync(featureService, GuildFeature.AiChat, null, logger, async guildId =>
         {
-            try
-            {
-                await indexService.BackfillGuildAsync(guildId, cancellationToken);
-                // Fill embeddings for newly/previously indexed rows (bounded per run) so the vector
-                // leg of hybrid search catches up alongside the progressive history backfill.
-                await indexService.EmbedPendingAsync(guildId, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "AiChat index backfill failed for guild {GuildId}", guildId);
-            }
-        }
-    }
+            await indexService.BackfillGuildAsync(guildId, context.CancellationToken);
+            // Fill embeddings for newly/previously indexed rows (bounded per run) so the vector
+            // leg of hybrid search catches up alongside the progressive history backfill.
+            await indexService.EmbedPendingAsync(guildId, context.CancellationToken);
+        }, context.CancellationToken);
 }

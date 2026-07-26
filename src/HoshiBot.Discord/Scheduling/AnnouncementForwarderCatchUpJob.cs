@@ -37,24 +37,11 @@ public class AnnouncementForwarderCatchUpJob(
     // so a normal catch-up window is comfortably covered in one page without deep pagination.
     private const int MessagesPerChannel = 20;
 
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var cancellationToken = context.CancellationToken;
-
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.AnnouncementForwarder, cancellationToken);
-
-        foreach (var guildId in guildIds)
-        {
-            try
-            {
-                await ProcessGuildAsync(guildId, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Announcement forwarder catch-up failed for guild {GuildId}", guildId);
-            }
-        }
-    }
+    public Task Execute(IJobExecutionContext context) =>
+        // recheckAudience null: the audience re-check stays at the top of ProcessGuildAsync (inside
+        // the per-guild catch), exactly where it was before the runner extraction.
+        this.ForEachEnabledGuildAsync(featureService, GuildFeature.AnnouncementForwarder, null, logger,
+            guildId => ProcessGuildAsync(guildId, context.CancellationToken), context.CancellationToken);
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {

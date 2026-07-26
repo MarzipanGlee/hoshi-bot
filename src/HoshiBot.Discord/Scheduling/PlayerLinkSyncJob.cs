@@ -23,30 +23,17 @@ public class PlayerLinkSyncJob(
     PlayerLinkService playerLinkService,
     ILogger<PlayerLinkSyncJob> logger) : IJob
 {
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var cancellationToken = context.CancellationToken;
-
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.PlayerLink, cancellationToken);
-
-        foreach (var guildId in guildIds)
-        {
-            if (!await featureService.IsEnabledAsync(guildId, GuildFeature.PlayerLink))
-                continue;
-
-            try
-            {
-                await ProcessGuildAsync(guildId, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "PlayerLink backfill failed for guild {GuildId}", guildId);
-            }
-        }
-    }
+    public Task Execute(IJobExecutionContext context) =>
+        // recheckAudience null: this job re-checks with the guild-wide IsEnabledAsync overload
+        // (enabled under any relevant audience) below, not the audience-explicit one.
+        this.ForEachEnabledGuildAsync(featureService, GuildFeature.PlayerLink, null, logger,
+            guildId => ProcessGuildAsync(guildId, context.CancellationToken), context.CancellationToken);
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.PlayerLink))
+            return;
+
         var linked = 0;
         var queued = 0;
         await foreach (var member in gatewayClient.Rest.GetGuildUsersAsync(guildId).WithCancellation(cancellationToken))

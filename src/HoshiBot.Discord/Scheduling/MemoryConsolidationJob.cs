@@ -46,24 +46,11 @@ public class MemoryConsolidationJob(
     private const int KeepMemoriesPerPerson = 5;
     private const int MemberMemorySalience = 2;
 
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var cancellationToken = context.CancellationToken;
-
-        var guildIds = await featureService.GetEnabledGuildIdsAsync(GuildFeature.AiChat, cancellationToken);
-
-        foreach (var guildId in guildIds)
-        {
-            try
-            {
-                await ProcessGuildAsync(guildId, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Memory consolidation failed for guild {GuildId}", guildId);
-            }
-        }
-    }
+    public Task Execute(IJobExecutionContext context) =>
+        // recheckAudience null: no per-guild audience re-check here — the body gates itself on the
+        // MemoryEnabled setting (any audience) instead.
+        this.ForEachEnabledGuildAsync(featureService, GuildFeature.AiChat, null, logger,
+            guildId => ProcessGuildAsync(guildId, context.CancellationToken), context.CancellationToken);
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {

@@ -1,0 +1,101 @@
+using System.Net;
+using HoshiBot.Data;
+using HoshiBot.Domain.Entities;
+using Microsoft.Extensions.Logging;
+using NetCord;
+using NetCord.Gateway;
+using NetCord.Rest;
+using Quartz;
+
+namespace HoshiBot.Discord.Scheduling;
+
+// Shared engine for the "exactly one tier role per member" sync jobs (RankRoleSyncJob /
+// OpsLevelRoleSyncJob): the one configured role matching a member's current tier is added, the
+// other tiers' roles are removed if present, so moving between tiers swaps the role instead of
+// accumulating old ones. Both features are single guild-wide features (GuildAudience.Guild) — one
+// role set for the whole guild, not per-audience or per-alliance. Concrete jobs supply the feature,
+// the member → tier mapping and the tier → role-setting-key mapping; they must keep their exact
+// class name and namespace — Quartz's persistent store (qrtz_job_details) records each job by the
+// concrete type's fully-qualified name.
+public abstract class ExclusiveTierRoleSyncJob<TTier>(
+    GatewayClient gatewayClient,
+    GuildFeatureService featureService,
+    GuildFeatureSettingsService settingsService,
+    PlayerLinkService playerLinkService,
+    ILogger logger) : IJob
+    where TTier : struct, Enum
+{
+    protected abstract GuildFeature Feature { get; }
+
+    // The member's current tier, from whichever player represents them in this guild — null when
+    // no tier applies (no import data yet), which strips every configured tier role they hold.
+    protected abstract TTier? TierOf(GuildPrimaryPlayer player);
+
+    protected abstract string RoleSettingKey(TTier tier);
+
+    // Concrete jobs own the skip-log line so each keeps its original wording verbatim.
+    protected abstract void LogSkippedMember(ulong userId, ulong guildId, HttpStatusCode statusCode);
+
+    // Exposed for LogSkippedMember implementations — a concrete class capturing its own ctor logger
+    // besides passing it to base would trip CS9107 (double capture).
+    protected ILogger Logger => logger;
+
+    public Task Execute(IJobExecutionContext context) =>
+        // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience, ignoring
+        // any orphaned rows left under other audiences by the audience refactor.
+        this.ForEachEnabledGuildAsync(featureService, Feature, GuildAudience.Guild, logger, SyncGuildAsync);
+
+    private async Task SyncGuildAsync(ulong guildId)
+    {
+        // The tier comes from whichever player represents the member in *this* guild.
+        var players = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values.ToList();
+
+        var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
+        await SyncAudienceAsync(guildId, GuildAudience.Guild, null, players, roster);
+    }
+
+    private async Task SyncAudienceAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, IReadOnlyList<GuildPrimaryPlayer> players, IReadOnlyDictionary<ulong, GuildUser> roster)
+    {
+        var roleIdsByTier = new Dictionary<TTier, ulong>();
+        foreach (var tier in Enum.GetValues<TTier>())
+        {
+            var roleId = await settingsService.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, RoleSettingKey(tier));
+            if (roleId is { } id)
+                roleIdsByTier[tier] = id;
+        }
+
+        if (roleIdsByTier.Count == 0)
+            return;
+
+        foreach (var player in players)
+        {
+            if (!roster.TryGetValue(player.DiscordUserId, out var guildUser))
+                continue;
+            // A tier with no configured role yields 0 here (not null) — deliberately: the member
+            // then matches no role, so stale tier roles still get removed.
+            var targetRoleId = TierOf(player) is { } tier ? roleIdsByTier.GetValueOrDefault(tier) : (ulong?)null;
+            await SyncMemberAsync(guildId, guildUser, roleIdsByTier.Values, targetRoleId);
+        }
+    }
+
+    private async Task SyncMemberAsync(ulong guildId, GuildUser guildUser, IEnumerable<ulong> allTierRoleIds, ulong? targetRoleId)
+    {
+        try
+        {
+            foreach (var roleId in allTierRoleIds)
+            {
+                var hasRole = guildUser.RoleIds.Contains(roleId);
+                var shouldHaveRole = roleId == targetRoleId;
+
+                if (shouldHaveRole && !hasRole)
+                    await gatewayClient.Rest.AddGuildUserRoleAsync(guildId, guildUser.Id, roleId);
+                else if (!shouldHaveRole && hasRole)
+                    await gatewayClient.Rest.RemoveGuildUserRoleAsync(guildId, guildUser.Id, roleId);
+            }
+        }
+        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            LogSkippedMember(guildUser.Id, guildId, ex.StatusCode);
+        }
+    }
+}
