@@ -6,29 +6,27 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @using NetCord.Rest
-@attribute [Authorize]
-@layout HoshiBot.Web.Components.Layout.LandingLayout
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject RestClient BotRest
 
-<PageTitle>Mein Steckbrief</PageTitle>
+<PageTitle>My Profile</PageTitle>
 
 <div class="container py-4" style="max-width:900px">
 
-<h1>Mein Steckbrief bei Hoshi</h1>
+<h1>My Profile in Hoshi</h1>
 <p class="text-muted">
-    Hier siehst und bearbeitest du, was Hoshi über dich weiß, damit sie dich richtig anspricht und wie
-    ein echtes Community-Mitglied mit dir plaudern kann. Nur du kannst deine eigenen Angaben ändern.
+    Here you can see and edit what Hoshi knows about you, so she addresses you the right way and can
+    chat with you like a real community member. Only you can change your own entries.
 </p>
 
 @if (loading)
 {
-    <p>Lade…</p>
+    <p>Loading…</p>
 }
 else if (cards.Count == 0)
 {
-    <p class="text-muted">Für dich gibt es hier gerade nichts zu bearbeiten (keine passende Community gefunden).</p>
+    <p class="text-muted">There's nothing for you to edit here right now (no matching community found).</p>
 }
 else
 {
@@ -40,55 +38,55 @@ else
 
                 <div class="row g-2">
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Wie soll Hoshi dich nennen?</label>
+                        <label class="form-label small mb-1">What should Hoshi call you?</label>
                         <input class="form-control form-control-sm" @bind="c.Note.PreferredName" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Spitznamen</label>
+                        <label class="form-label small mb-1">Nicknames</label>
                         <input class="form-control form-control-sm" @bind="c.Note.Nicknames" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Sprachen</label>
+                        <label class="form-label small mb-1">Languages</label>
                         <input class="form-control form-control-sm" @bind="c.Note.Languages" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Interessen / Hobbys</label>
+                        <label class="form-label small mb-1">Interests / hobbies</label>
                         <textarea class="form-control form-control-sm" rows="2" @bind="c.Note.Interests"></textarea>
                     </div>
                     <div class="col-12">
-                        <label class="form-label small mb-1">Über dich (was du teilen magst)</label>
+                        <label class="form-label small mb-1">About you (whatever you'd like to share)</label>
                         <textarea class="form-control form-control-sm" rows="2" @bind="c.Note.Background"></textarea>
                     </div>
                 </div>
 
                 <div class="mt-2">
-                    <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(c)">Speichern</button>
+                    <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(c)">Save</button>
                     @if (c.Saved)
                     {
-                        <span class="text-success small ms-2">Gespeichert ✓</span>
+                        <span class="text-success small ms-2">Saved ✓</span>
                     }
                 </div>
 
                 @if (c.HasPeerLore)
                 {
                     <hr />
-                    <h3 class="h6">Was andere über dich erzählt haben</h3>
+                    <h3 class="h6">What others have said about you</h3>
                     <p class="form-text mt-0">
-                        Von anderen beigesteuerte Notizen. Du kannst sie nicht bearbeiten, aber ausblenden —
-                        dann nutzt Hoshi sie nicht und das Team schaut noch mal drüber.
+                        Notes contributed by other members. You can't edit them, but you can hide them —
+                        then Hoshi won't use them and the team takes another look.
                     </p>
                     @if (!string.IsNullOrWhiteSpace(c.Note.RunningJokes))
                     {
-                        <p class="mb-1"><span class="badge bg-secondary">Running Gags</span> @c.Note.RunningJokes</p>
+                        <p class="mb-1"><span class="badge bg-secondary">Running jokes</span> @c.Note.RunningJokes</p>
                     }
                     @if (!string.IsNullOrWhiteSpace(c.Note.TeaseAbout))
                     {
-                        <p class="mb-1"><span class="badge bg-secondary">Necken ok</span> @c.Note.TeaseAbout</p>
+                        <p class="mb-1"><span class="badge bg-secondary">OK to tease</span> @c.Note.TeaseAbout</p>
                     }
                     <div class="form-switch mt-2">
                         <input type="checkbox" class="form-check-input" role="switch" id="hide-@c.GuildId"
                                checked="@c.Note.PeerLoreHidden" @onchange="e => ToggleHiddenAsync(c, (bool)e.Value!)" />
-                        <label class="form-check-label" for="hide-@c.GuildId">Diese Notizen ausblenden</label>
+                        <label class="form-check-label" for="hide-@c.GuildId">Hide these notes</label>
                     </div>
                 }
             </div>

@@ -119,6 +119,26 @@ public class DiscordUserGuildsService(
             .ToList();
     }
 
+    // Every guild the user is a member of that our bot is ALSO in — the member-facing
+    // counterpart to GetUserManagedGuildsAsync, with no Manage Server filter: this is
+    // "communities you and Hoshi share", not "servers you administer". Reuses the same
+    // cached /users/@me/guilds call the guild picker and GuildAdminHandler already make,
+    // so on a normal session this costs no extra request. BotInstalled is always true (the
+    // list is intersected with our DiscordGuild rows), so there's no "not added yet" half.
+    public async Task<List<UserManagedGuild>> GetUserSharedBotGuildsAsync(string accessToken, ulong userId)
+    {
+        var userGuilds = await GetUserDiscordGuildsAsync(accessToken, userId);
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var botGuildIds = (await db.DiscordGuilds.Select(g => g.Id).ToListAsync()).ToHashSet();
+
+        return userGuilds
+            .Where(g => botGuildIds.Contains(g.Id))
+            .Select(g => new UserManagedGuild(g.Id, g.Name, g.IconHash, true))
+            .OrderBy(g => g.Name)
+            .ToList();
+    }
+
     // Every guild the bot is in (all our DiscordGuild rows), shaped for the guild picker —
     // the support-mode data source, where a global admin sees all guilds regardless of
     // their own Discord membership/permissions. All BotInstalled = true (a DiscordGuild row

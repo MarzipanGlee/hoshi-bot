@@ -16,6 +16,7 @@
                 <AuthorizeView>
                     <Authorized>
                         <a class="btn btn-outline-light btn-lg" href="manage">Manage</a>
+                        <a class="btn btn-outline-light btn-lg" href="me">My Area</a>
                     </Authorized>
                     <NotAuthorized>
                         <a class="btn btn-outline-light btn-lg" href="login">Log in with Discord</a>
@@ -77,6 +78,41 @@
         }
     </section>
 }
+
+<section class="features">
+    <h2>For Members, Too</h2>
+    <p class="features-intro">
+        Hoshi isn't only for the people running the server — every member gets their own corner of the
+        site to control what Hoshi knows about them.
+    </p>
+    <div class="row g-4">
+        @foreach (var p in MePages.All)
+        {
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon"><span class="oi @p.Icon" aria-hidden="true"></span></div>
+                        <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@p.Label</h3>
+                        <p class="mb-0 card-subtext">@p.Description</p>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="mt-4">
+        <AuthorizeView>
+            <Authorized>
+                <a class="btn btn-primary btn-lg" href="me">Open my area</a>
+            </Authorized>
+            <NotAuthorized>
+                @* returnUrl so the login round-trip lands on /me instead of /manage — without it
+                   an anonymous click straight through to /me is bounced to "/" by Routes.razor's
+                   RedirectToHome. *@
+                <a class="btn btn-primary btn-lg" href="login?returnUrl=/me">Log in with Discord</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</section>
 
 <section class="cta">
     <div class="cta-inner">

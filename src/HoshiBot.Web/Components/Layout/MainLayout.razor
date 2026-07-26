@@ -20,8 +20,11 @@
                         <SupportModeToggle />
                         <GuildSelector />
                         <AllianceSelector />
-                        <span class="topbar-user d-flex align-items-center gap-2 text-nowrap" title="@context.User.Identity?.Name">
-                            @{ var avatarUrl = GetAvatarUrl(context.User); }
+                        @* text-decoration-none only — Bootstrap's text-body is !important and would
+                           beat .topbar-user's own grey; the scoped .topbar-user rule already outranks
+                           the browser's default link colour on its own. *@
+                        <a href="me" class="topbar-user d-flex align-items-center gap-2 text-nowrap text-decoration-none" title="My area">
+                            @{ var avatarUrl = DiscordAvatar.UrlFor(context.User); }
                             @if (avatarUrl is not null)
                             {
                                 <img src="@avatarUrl" alt="" class="topbar-avatar rounded-circle object-fit-cover" />
@@ -31,7 +34,7 @@
                                 <span class="oi oi-person topbar-avatar-fallback align-items-center justify-content-center rounded-circle flex-shrink-0" aria-hidden="true"></span>
                             }
                             <span class="topbar-user-name">@context.User.Identity?.Name</span>
-                        </span>
+                        </a>
                         <form method="post" action="logout" data-enhance="false">
                             <button type="submit" class="btn btn-sm btn-outline-secondary topbar-logout-btn d-inline-flex align-items-center" aria-label="Log out">
                                 <span class="oi oi-account-logout topbar-logout-icon" aria-hidden="true"></span>
@@ -70,14 +73,5 @@
             await GuildContext.InitializeAsync(authState.User);
             await AllianceContext.InitializeAsync();
         }
-    }
-
-    private static string? GetAvatarUrl(ClaimsPrincipal user)
-    {
-        var id = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var avatarHash = user.FindFirst("urn:discord:avatar:hash")?.Value;
-        return id is not null && avatarHash is not null
-            ? $"https://cdn.discordapp.com/avatars/{id}/{avatarHash}.png"
-            : null;
     }
 }

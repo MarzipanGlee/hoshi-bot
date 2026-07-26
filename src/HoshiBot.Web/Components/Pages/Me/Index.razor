@@ -1,0 +1,128 @@
+@page "/me"
+@using Microsoft.AspNetCore.Authentication
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IHttpContextAccessor HttpContextAccessor
+@inject DiscordUserGuildsService DiscordUserGuilds
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+
+<PageTitle>My Area</PageTitle>
+
+<div class="container py-4" style="max-width:900px">
+
+    <div class="d-flex align-items-center gap-3 mb-2">
+        @if (avatarUrl is not null)
+        {
+            <img src="@avatarUrl" alt="" class="rounded-circle object-fit-cover flex-shrink-0" style="width:3.5rem;height:3.5rem;" />
+        }
+        else
+        {
+            @* Same fallback the admin topbar uses for a user with no custom Discord avatar;
+               inline because the sizing is arbitrary and the colours aren't worth a class
+               for one element. *@
+            <span class="oi oi-person d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
+                  style="width:3.5rem;height:3.5rem;background-color:#e5e5e8;color:#8a8a92;" aria-hidden="true"></span>
+        }
+        <h1 class="mb-0">@(userName ?? "My Area")</h1>
+    </div>
+    <p class="card-subtext">Your personal Hoshi settings. Only you can change what's here.</p>
+
+    <div class="card-grid">
+        @foreach (var p in MePages.All)
+        {
+            <SettingsCard Href="@MePages.Href(p)">
+                <HeaderContent>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="oi @p.Icon fs-4 card-icon" aria-hidden="true"></span>
+                        <h2 class="fs-6 fw-semibold mb-0">@p.Label</h2>
+                    </div>
+                </HeaderContent>
+                <ChildContent>
+                    <p class="mb-0 card-subtext">@p.Description</p>
+                </ChildContent>
+            </SettingsCard>
+        }
+    </div>
+
+    <h2 class="mt-5 mb-2">My Communities</h2>
+    @if (loadingGuilds)
+    {
+        <p class="card-subtext">Loading…</p>
+    }
+    else if (sharedGuilds.Count == 0)
+    {
+        @* One message for both cases: DiscordUserGuildsService degrades a rate-limited or
+           failed /users/@@me/guilds call to an empty list, so "none shared" and "Discord
+           didn't answer" are indistinguishable here. *@
+        <p class="card-subtext">
+            No communities to show — either Hoshi isn't in any of your Discord servers yet, or Discord
+            didn't answer just now. Try again in a moment.
+        </p>
+    }
+    else
+    {
+        <div class="card-grid">
+            @foreach (var guild in sharedGuilds)
+            {
+                <SettingsCard>
+                    <HeaderContent>
+                        <div class="d-flex align-items-center gap-3">
+                            <GuildIcon GuildId="guild.Id" IconHash="@guild.IconHash" Name="@guild.Name"
+                                       CssClass="rounded-circle object-fit-cover flex-shrink-0"
+                                       Style="width:2.5rem;height:2.5rem;font-size:1rem;" />
+                            <h3 class="fs-6 fw-semibold mb-0">@guild.Name</h3>
+                        </div>
+                    </HeaderContent>
+                    <ChildContent>
+                        @{ var audience = audiencesByGuildId.GetValueOrDefault(guild.Id); }
+                        @if (audience != GuildAudience.None)
+                        {
+                            <div>
+                                @foreach (var label in AudienceDisplay.Labels(audience))
+                                {
+                                    <span class="badge bg-secondary me-1">@label</span>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="mb-0 card-subtext">Hoshi is here too.</p>
+                        }
+                    </ChildContent>
+                </SettingsCard>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private string? userName;
+    private string? avatarUrl;
+    private bool loadingGuilds = true;
+    private List<UserManagedGuild> sharedGuilds = [];
+    private Dictionary<ulong, GuildAudience> audiencesByGuildId = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userName = user.Identity?.Name;
+        avatarUrl = DiscordAvatar.UrlFor(user);
+
+        // Same access-token route every other caller of DiscordUserGuildsService takes
+        // (GuildSelector, Manage/Index) — the user's own OAuth token, not the bot's.
+        var httpContext = HttpContextAccessor.HttpContext;
+        var accessToken = httpContext is null ? null : await httpContext.GetTokenAsync("access_token");
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (accessToken is not null && ulong.TryParse(userIdClaim, out var userId))
+        {
+            sharedGuilds = await DiscordUserGuilds.GetUserSharedBotGuildsAsync(accessToken, userId);
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+            audiencesByGuildId = await db.GuildSettings.AsNoTracking()
+                .ToDictionaryAsync(s => s.GuildId, s => s.Audiences);
+        }
+
+        loadingGuilds = false;
+    }
+}
