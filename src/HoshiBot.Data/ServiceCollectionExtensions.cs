@@ -36,6 +36,24 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    // The application services this assembly provides that both host processes (Host + Web)
+    // consume. Registered in one place so the two Program.cs files can't drift apart — Web
+    // once silently omitted MemberNoteService this way. Data services used by only one host
+    // (e.g. the STFC import/sync services, Web-only) stay registered in that host's Program.cs.
+    public static IServiceCollection AddHoshiBotDataServices(this IServiceCollection services)
+    {
+        services.AddScoped<GuildFeatureService>();
+        services.AddScoped<GuildFeatureSettingsService>();
+        services.AddScoped<GuildFeatureChannelService>();
+        services.AddScoped<GuildAllianceService>();
+        services.AddScoped<AiChatHealthService>();
+        services.AddScoped<MemoryService>();
+        services.AddScoped<PlayerLinkService>();
+        services.AddScoped<MemberNoteService>();
+
+        return services;
+    }
+
     // Scoped-DbContext boilerplate shared by every seeder below: open a DI scope, resolve a
     // HoshiBotDbContext, run the seeder body, dispose. Each seeder just supplies its own
     // empty-guard + AddRange body.

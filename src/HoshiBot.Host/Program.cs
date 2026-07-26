@@ -64,6 +64,7 @@ builder.Services
     .AddGatewayHandlers(typeof(Program).Assembly);
 
 builder.Services.AddHoshiBotDatabase(builder.Configuration);
+builder.Services.AddHoshiBotDataServices();
 builder.Services.AddSingleton(new EmbedBrandingOptions(builder.Configuration["PublicWebBaseUrl"] ?? ""));
 builder.Services.AddScoped<EmbedBranding>();
 builder.Services.AddScoped<NotificationDispatcher>();
@@ -75,12 +76,6 @@ builder.Services.AddScoped<RoeViolationService>();
 builder.Services.AddScoped<AbsenceService>();
 builder.Services.AddScoped<AnonymousMessageService>();
 builder.Services.AddScoped<PendingModalInputService>();
-builder.Services.AddScoped<GuildFeatureService>();
-builder.Services.AddScoped<GuildFeatureSettingsService>();
-builder.Services.AddScoped<MemberNoteService>();
-builder.Services.AddScoped<GuildFeatureChannelService>();
-builder.Services.AddScoped<GuildAllianceService>();
-builder.Services.AddScoped<AiChatHealthService>();
 builder.Services.AddScoped<CommandBridgeHubService>();
 builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();
@@ -94,11 +89,9 @@ builder.Services.AddScoped<AiChatService>();
 builder.Services.AddScoped<AiChatModelResolver>();
 builder.Services.AddScoped<MemberInterviewService>();
 builder.Services.AddScoped<MemberNoteExtractor>();
-builder.Services.AddScoped<MemoryService>();
 builder.Services.AddScoped<MemoryExtractor>();
 builder.Services.AddScoped<AnnouncementTranslator>();
 builder.Services.AddScoped<AnnouncementForwarderService>();
-builder.Services.AddScoped<PlayerLinkService>();
 builder.Services.AddScoped<MemberOnboardingService>();
 
 // The shared local Ollama server (compose service `ollama`); base URL is deployment config

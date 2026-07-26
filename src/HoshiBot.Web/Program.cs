@@ -132,13 +132,7 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddScoped<IAuthorizationHandler, GuildAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, GlobalAdminHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, SupportModeGuildAdminHandler>();
-builder.Services.AddScoped<GuildFeatureService>();
-builder.Services.AddScoped<GuildFeatureSettingsService>();
-builder.Services.AddScoped<MemoryService>();
-builder.Services.AddScoped<GuildFeatureChannelService>();
-builder.Services.AddScoped<GuildAllianceService>();
-builder.Services.AddScoped<AiChatHealthService>();
-builder.Services.AddScoped<PlayerLinkService>();
+builder.Services.AddHoshiBotDataServices();
 builder.Services.AddScoped<GuildAccessService>();
 builder.Services.AddScoped<DiscordUserGuildsService>();
 builder.Services.AddScoped<DiscordGuildDataService>();
