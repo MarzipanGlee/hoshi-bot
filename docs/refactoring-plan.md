@@ -254,7 +254,7 @@ feature editors), with three different field names for the same state. Add
 - Replace `MemberNotesAdmin.razor`'s raw `RenderTreeBuilder` lambdas with a small
   `NoteField` component.
 
-## Phase 4 — Discord dedup
+## Phase 4 — Discord dedup — DONE (2026-07-26)
 
 - **Tier role sync**: `Scheduling/RankRoleSyncJob.cs` and
   `Scheduling/OpsLevelRoleSyncJob.cs` are token-identical apart from the tier enum and
