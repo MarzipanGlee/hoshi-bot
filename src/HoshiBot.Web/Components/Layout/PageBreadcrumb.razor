@@ -152,6 +152,18 @@
                 }
             }
         }
+        else if (segments.Length >= 1 && segments[0] == "me")
+        {
+            // The member self-service area. Page labels come from MePages, so a new /me page
+            // is breadcrumbed automatically with no change here.
+            var hasPage = segments.Length >= 2;
+            result.Add(("My Area", hasPage ? "me" : null));
+            if (hasPage)
+            {
+                var mePage = MePages.All.FirstOrDefault(p => p.RouteSuffix == segments[1]);
+                result.Add((mePage?.Label ?? segments[1], null));
+            }
+        }
 
         items = result;
     }

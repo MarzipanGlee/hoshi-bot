@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+
+@* The /me area's chrome: the public site's header/footer plus a breadcrumb. Not nested inside
+   LandingLayout because the two differ in the footer as well — /me drops the legal disclaimer
+   (like the admin shell does) and a nested layout can't pass a parameter to its parent. Done as
+   a layout rather than per page so a new /me page gets both for free; the crumbs themselves are
+   driven off MePages in PageBreadcrumb. The breadcrumb container's width matches the pages' own
+   so the crumb line sits flush with the content below it. *@
+<PageTitle>Hoshi Bot</PageTitle>
+
+<div class="landing min-vh-100 d-flex flex-column">
+    <LandingHeader />
+
+    <main class="flex-grow-1">
+        <div class="container pt-3" style="max-width:900px">
+            <PageBreadcrumb />
+        </div>
+
+        @Body
+    </main>
+
+    <SiteFooter ShowDisclaimer="false" />
+</div>

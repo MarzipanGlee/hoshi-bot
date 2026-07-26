@@ -3,28 +3,7 @@
 <PageTitle>Hoshi Bot</PageTitle>
 
 <div class="landing min-vh-100 d-flex flex-column">
-    <header class="landing-nav d-flex align-items-center sticky-top">
-        <div class="landing-nav-inner d-flex align-items-center justify-content-between mx-auto px-4">
-            <a class="landing-brand d-flex align-items-center text-white text-decoration-none fw-semibold" href="/">
-                <img src="favicon.png" alt="" class="landing-brand-icon rounded-circle object-fit-cover" />
-                Hoshi Bot
-            </a>
-            <div class="landing-nav-actions d-flex align-items-center gap-2">
-                <AuthorizeView>
-                    <Authorized>
-                        <a class="btn btn-outline-light btn-sm" href="me">My Area</a>
-                        <a class="btn btn-outline-light btn-sm" href="manage">Manage</a>
-                        <form method="post" action="logout" data-enhance="false" class="d-inline">
-                            <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
-                        </form>
-                    </Authorized>
-                    <NotAuthorized>
-                        <a class="btn btn-outline-light btn-sm" href="login">Log in</a>
-                    </NotAuthorized>
-                </AuthorizeView>
-            </div>
-        </div>
-    </header>
+    <LandingHeader />
 
     <main class="flex-grow-1">
         @Body
