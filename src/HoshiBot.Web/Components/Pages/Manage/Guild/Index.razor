@@ -111,7 +111,7 @@
     // Per-card subtitle for the Overview grid, keyed by the page's route suffix. The dynamic bits
     // (audience summary, feature counts, setup + permission status) are computed above; Settings
     // has no single headline number, so it gets a static descriptor.
-    private string CardSubtitle(GuildAdminPage page) => page.RouteSuffix switch
+    private string CardSubtitle(AdminPage page) => page.RouteSuffix switch
     {
         "audience" => audienceSummary,
         "features" => $"{enabledCount}/{totalCount} enabled",

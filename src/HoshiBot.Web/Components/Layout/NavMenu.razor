@@ -72,136 +72,31 @@
                    also hides the whole group from regular guild admins so it isn't just a dead link. *@
                 <AuthorizeView Policy="GlobalAdmin" Context="adminAuth">
                     <Authorized>
-                <NavMenuGroup Title="Bot" Icon="oi-shield" Active="@IsGroupActive(BotHrefs)">
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/bot/global-admins">Global Admins</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/bot/trusted-users">Trusted Users</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/bot/stfc-news-settings">STFC News Settings</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/bot/incursions-schedule">Incursions Schedule</NavLink>
-                    </div>
+                <NavMenuGroup Title="Bot" Icon="oi-shield" Active="@IsGroupActive(BotAdminPages.All, BotAdminPages.Href)">
+                    @foreach (var p in BotAdminPages.All)
+                    {
+                        <div class="nav-item">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@BotAdminPages.Href(p)">@p.Label</NavLink>
+                        </div>
+                    }
                 </NavMenuGroup>
 
-                <NavMenuGroup Title="STFC Catalog" Icon="oi-globe" Active="@IsGroupActive(CatalogHrefs)">
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/regions">Regions</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/veil-groups">Veil Groups</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/veil-group-invites">Veil Group Invites</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/servers">Servers</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/server-invites">Server Invites</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/alliances">Alliances</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/alliance-invites">Alliance Invites</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/alliance-name-history">Alliance Name History</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/alliance-diplomacy">Diplomacy</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/players">Players</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/player-name-history">Player Name History</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/systems">Systems</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/territories">Territories</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/territory-ownership">Territory Ownership</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/territory-neighbours">Territory Neighbours</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/territory-services">Territory Services</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/server-status">Server Status</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/stfc/event-status">Event Status</NavLink>
-                    </div>
+                <NavMenuGroup Title="STFC Catalog" Icon="oi-globe" Active="@IsGroupActive(StfcCatalogPages.All, StfcCatalogPages.Href)">
+                    @foreach (var p in StfcCatalogPages.All)
+                    {
+                        <div class="nav-item">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@StfcCatalogPages.Href(p)">@p.Label</NavLink>
+                        </div>
+                    }
                 </NavMenuGroup>
 
-                <NavMenuGroup Title="Database" Icon="oi-list-rich" Active="@IsGroupActive(DatabaseHrefs)">
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/client-releases">Client Releases</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/discord-guilds">Discord Guilds</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/discord-users">Discord Users</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/guild-members">Guild Members</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/user-players">User Players</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/pending-modal-inputs">Pending Modal Inputs</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/absences">Absences</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/thread-removal-requests">Thread Removal Requests</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/alerts">Alerts</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/alert-notifications">Alert Notifications</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/shield-reminders">Shield Reminders</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/shield-reminder-notifications">Shield Reminder Notifications</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/announcements">Announcements</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/announcement-read-receipts">Announcement Read Receipts</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/tickets">Tickets</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/roe-violation-reports">RoE Violation Reports</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/stfc-news-posts">STFC News Posts</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/stfc-news-post-guild-messages">STFC News Post Guild Messages</NavLink>
-                    </div>
-                    <div class="nav-item">
-                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="manage/database/stfc-event-date-confirmations">STFC Event Date Confirmations</NavLink>
-                    </div>
+                <NavMenuGroup Title="Database" Icon="oi-list-rich" Active="@IsGroupActive(DatabaseAdminPages.All, DatabaseAdminPages.Href)">
+                    @foreach (var p in DatabaseAdminPages.All)
+                    {
+                        <div class="nav-item">
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@DatabaseAdminPages.Href(p)">@p.Label</NavLink>
+                        </div>
+                    }
                 </NavMenuGroup>
                     </Authorized>
                 </AuthorizeView>
@@ -211,23 +106,6 @@
 </div>
 
 @code {
-    private static readonly string[] CatalogHrefs =
-        ["manage/stfc/regions", "manage/stfc/veil-groups", "manage/stfc/servers", "manage/stfc/server-invites", "manage/stfc/veil-group-invites",
-         "manage/stfc/alliances", "manage/stfc/alliance-invites", "manage/stfc/alliance-diplomacy",
-         "manage/stfc/alliance-name-history", "manage/stfc/players", "manage/stfc/player-name-history", "manage/stfc/systems",
-         "manage/stfc/territories", "manage/stfc/territory-ownership", "manage/stfc/territory-neighbours",
-         "manage/stfc/territory-services", "manage/stfc/server-status", "manage/stfc/event-status"];
-    private static readonly string[] BotHrefs =
-        ["manage/bot/global-admins", "manage/bot/trusted-users", "manage/bot/stfc-news-settings",
-         "manage/bot/incursions-schedule"];
-    private static readonly string[] DatabaseHrefs =
-        ["manage/database/client-releases", "manage/database/discord-guilds", "manage/database/discord-users",
-         "manage/database/guild-members", "manage/database/user-players", "manage/database/pending-modal-inputs",
-         "manage/database/absences", "manage/database/thread-removal-requests", "manage/database/alerts",
-         "manage/database/alert-notifications", "manage/database/shield-reminders", "manage/database/shield-reminder-notifications",
-         "manage/database/announcements", "manage/database/announcement-read-receipts", "manage/database/tickets",
-         "manage/database/roe-violation-reports", "manage/database/stfc-news-posts", "manage/database/stfc-news-post-guild-messages",
-         "manage/database/stfc-event-date-confirmations"];
     // Guild is always shown (its own group) and Alliance gets one group per linked alliance;
     // these are the remaining guild-selectable audiences, each rendered as its own group when
     // the guild serves it.
@@ -305,7 +183,10 @@
         string.Equals(currentUrl, href, StringComparison.OrdinalIgnoreCase) ||
         (currentUrl?.StartsWith(href + "/", StringComparison.OrdinalIgnoreCase) ?? false);
 
-    private bool IsGroupActive(string[] hrefs) => Array.Exists(hrefs, IsActive);
+    // Active test for the global-admin groups — driven off the same registry the group's links
+    // iterate, so an href never exists in two places.
+    private bool IsGroupActive(IReadOnlyList<AdminPage> pages, Func<AdminPage, string> href) =>
+        pages.Any(p => IsActive(href(p)));
 
     // The per-audience Features catalog page — the audience comes before "features" in the path
     // (Guild is the bare .../features; others are .../{slug}/features). Alliance pages are

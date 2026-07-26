@@ -52,7 +52,7 @@
 
     // Per-card subtitle for the Overview grid, keyed by the page's route suffix. Settings has no
     // single headline number, so it gets a static descriptor.
-    private string CardSubtitle(AllianceAdminPage page) => page.RouteSuffix switch
+    private string CardSubtitle(AdminPage page) => page.RouteSuffix switch
     {
         "features" => $"{enabledCount}/{featureTotal} enabled",
         "settings" => "Channels & roles",

@@ -1,0 +1,74 @@
+namespace HoshiBot.Web.Components.Shared;
+
+// The three global-admin-only sidebar groups (Bot settings, STFC Catalog, raw Database debug
+// tables) as one registry each — NavMenu iterates these for both the links and the group's
+// active-href test, so a new page is a single entry here (previously each href was hand-rolled
+// twice: once as markup, once in a parallel active-test array). Sidebar items are text-only, so
+// no icons; list order is the sidebar's display order.
+public static class BotAdminPages
+{
+    public static readonly IReadOnlyList<AdminPage> All =
+    [
+        new("Global Admins", "global-admins"),
+        new("Trusted Users", "trusted-users"),
+        new("STFC News Settings", "stfc-news-settings"),
+        new("Incursions Schedule", "incursions-schedule"),
+    ];
+
+    public static string Href(AdminPage page) => page.Href("manage/bot");
+}
+
+public static class StfcCatalogPages
+{
+    public static readonly IReadOnlyList<AdminPage> All =
+    [
+        new("Regions", "regions"),
+        new("Veil Groups", "veil-groups"),
+        new("Veil Group Invites", "veil-group-invites"),
+        new("Servers", "servers"),
+        new("Server Invites", "server-invites"),
+        new("Alliances", "alliances"),
+        new("Alliance Invites", "alliance-invites"),
+        new("Alliance Name History", "alliance-name-history"),
+        new("Diplomacy", "alliance-diplomacy"),
+        new("Players", "players"),
+        new("Player Name History", "player-name-history"),
+        new("Systems", "systems"),
+        new("Territories", "territories"),
+        new("Territory Ownership", "territory-ownership"),
+        new("Territory Neighbours", "territory-neighbours"),
+        new("Territory Services", "territory-services"),
+        new("Server Status", "server-status"),
+        new("Event Status", "event-status"),
+    ];
+
+    public static string Href(AdminPage page) => page.Href("manage/stfc");
+}
+
+public static class DatabaseAdminPages
+{
+    public static readonly IReadOnlyList<AdminPage> All =
+    [
+        new("Client Releases", "client-releases"),
+        new("Discord Guilds", "discord-guilds"),
+        new("Discord Users", "discord-users"),
+        new("Guild Members", "guild-members"),
+        new("User Players", "user-players"),
+        new("Pending Modal Inputs", "pending-modal-inputs"),
+        new("Absences", "absences"),
+        new("Thread Removal Requests", "thread-removal-requests"),
+        new("Alerts", "alerts"),
+        new("Alert Notifications", "alert-notifications"),
+        new("Shield Reminders", "shield-reminders"),
+        new("Shield Reminder Notifications", "shield-reminder-notifications"),
+        new("Announcements", "announcements"),
+        new("Announcement Read Receipts", "announcement-read-receipts"),
+        new("Tickets", "tickets"),
+        new("RoE Violation Reports", "roe-violation-reports"),
+        new("STFC News Posts", "stfc-news-posts"),
+        new("STFC News Post Guild Messages", "stfc-news-post-guild-messages"),
+        new("STFC Event Date Confirmations", "stfc-event-date-confirmations"),
+    ];
+
+    public static string Href(AdminPage page) => page.Href("manage/database");
+}
