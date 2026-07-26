@@ -1,6 +1,5 @@
 @page "/manage/stfc/territory-ownership/create"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityCreatePageBase<StfcTerritoryOwnership>
 
 <PageTitle>Create Territory Ownership</PageTitle>
 
@@ -9,38 +8,38 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="Ownership" OnValidSubmit="AddOwnership" FormName="create" Enhance>
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddOwnership" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <FormField For="territory" Label="Territory:" Required>
-                <InputSelect id="territory" @bind-Value="Ownership.TerritoryId" class="form-control">
+                <InputSelect id="territory" @bind-Value="Entity.TerritoryId" class="form-control">
                     <option value="0">Select territory...</option>
                     @foreach (var territory in territories)
                     {
                         <option value="@territory.Id">@territory.Name</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => Ownership.TerritoryId" class="text-danger" />
+                <ValidationMessage For="() => Entity.TerritoryId" class="text-danger" />
             </FormField>
             <FormField For="server" Label="Server:" Required>
-                <InputSelect id="server" @bind-Value="Ownership.ServerId" class="form-control">
+                <InputSelect id="server" @bind-Value="Entity.ServerId" class="form-control">
                     <option value="0">Select server...</option>
                     @foreach (var server in servers)
                     {
                         <option value="@server.Id">@server.DisplayName</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => Ownership.ServerId" class="text-danger" />
+                <ValidationMessage For="() => Entity.ServerId" class="text-danger" />
             </FormField>
             <FormField For="alliance" Label="Alliance:" Required>
-                <InputSelect id="alliance" @bind-Value="Ownership.AllianceId" class="form-control">
+                <InputSelect id="alliance" @bind-Value="Entity.AllianceId" class="form-control">
                     <option value="0">Select alliance...</option>
                     @foreach (var alliance in alliances)
                     {
                         <option value="@alliance.Id">@alliance.Tag (@alliance.Server.DisplayName)</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => Ownership.AllianceId" class="text-danger" />
+                <ValidationMessage For="() => Entity.AllianceId" class="text-danger" />
             </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
@@ -52,16 +51,16 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private StfcTerritoryOwnership Ownership { get; set; } = default!;
-
     private List<StfcTerritory> territories = [];
     private List<StfcServer> servers = [];
     private List<StfcAlliance> alliances = [];
 
+    protected override string ListHref => "/manage/stfc/territory-ownership";
+
+    protected override StfcTerritoryOwnership CreateNew() => new();
+
     protected override async Task OnInitializedAsync()
     {
-        Ownership ??= new();
         using var context = DbFactory.CreateDbContext();
         territories = await context.StfcTerritories.AsNoTracking().OrderBy(t => t.Name).ToListAsync();
         servers = await context.StfcServers.Include(s => s.Region).AsNoTracking().OrderBy(s => s.Name).ToListAsync();
@@ -70,7 +69,7 @@
 
     private async Task AddOwnership()
     {
-        if (Ownership.TerritoryId == 0 || Ownership.ServerId == 0 || Ownership.AllianceId == 0)
+        if (Entity.TerritoryId == 0 || Entity.ServerId == 0 || Entity.AllianceId == 0)
             return;
 
         using var context = DbFactory.CreateDbContext();
@@ -79,18 +78,18 @@
         // constraint (see the entity's comment) — replicate that here rather than let a
         // second row for the same pair silently coexist.
         var existing = await context.StfcTerritoryOwnerships
-            .FirstOrDefaultAsync(o => o.TerritoryId == Ownership.TerritoryId && o.ServerId == Ownership.ServerId);
+            .FirstOrDefaultAsync(o => o.TerritoryId == Entity.TerritoryId && o.ServerId == Entity.ServerId);
 
         if (existing is null)
         {
-            context.StfcTerritoryOwnerships.Add(Ownership);
+            context.StfcTerritoryOwnerships.Add(Entity);
         }
         else
         {
-            existing.AllianceId = Ownership.AllianceId;
+            existing.AllianceId = Entity.AllianceId;
         }
 
         await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/territory-ownership");
+        NavigationManager.NavigateTo(ListHref);
     }
 }

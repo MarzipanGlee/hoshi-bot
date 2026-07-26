@@ -1,12 +1,11 @@
 @page "/manage/stfc/veil-groups/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcVeilGroup, int>
 
 <PageTitle>Edit Veil Group</PageTitle>
 
 <h1>Edit Veil Group</h1>
 <hr />
-@if (VeilGroup is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,22 +13,22 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="VeilGroup" OnValidSubmit="UpdateVeilGroup" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="VeilGroup.Id" value="@VeilGroup.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <FormField For="name" Label="Name:" Required>
-                    <InputText id="name" @bind-Value="VeilGroup.Name" class="form-control" aria-required="true" />
-                    <ValidationMessage For="() => VeilGroup.Name" class="text-danger" />
+                    <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Entity.Name" class="text-danger" />
                 </FormField>
                 <FormField For="region" Label="Region:" Required>
-                    <InputSelect id="region" @bind-Value="VeilGroup.RegionId" class="form-control">
+                    <InputSelect id="region" @bind-Value="Entity.RegionId" class="form-control">
                         @foreach (var region in regions)
                         {
                             <option value="@region.Id">@region.Name</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => VeilGroup.RegionId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.RegionId" class="text-danger" />
                 </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
@@ -60,30 +59,29 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcVeilGroup? VeilGroup { get; set; }
-
     private List<StfcRegion> regions = [];
     private List<StfcVeilGroupDiscordInvite> invites = [];
     private string? newInviteUrl;
+
+    protected override string ListHref => "/manage/stfc/veil-groups";
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         regions = await context.StfcRegions.AsNoTracking().ToListAsync();
-        VeilGroup ??= await context.StfcVeilGroups.FirstOrDefaultAsync(v => v.Id == Id);
+        await base.OnInitializedAsync();
 
-        if (VeilGroup is null)
-        {
-            NavigationManager.NotFound();
+        if (Entity is null)
             return;
-        }
 
         await LoadInvitesAsync();
     }
+
+    protected override Task<StfcVeilGroup?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcVeilGroups.FirstOrDefaultAsync(v => v.Id == id);
+
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcVeilGroups.AnyAsync(v => v.Id == id);
 
     private async Task LoadInvitesAsync()
     {
@@ -110,35 +108,5 @@ else
         context.StfcVeilGroupDiscordInvites.Remove(invite);
         await context.SaveChangesAsync();
         await LoadInvitesAsync();
-    }
-
-    private async Task UpdateVeilGroup()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(VeilGroup!).State = EntityState.Modified;
-
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await VeilGroupExistsAsync(VeilGroup!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/veil-groups");
-    }
-
-    private async Task<bool> VeilGroupExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcVeilGroups.AnyAsync(v => v.Id == id);
     }
 }

@@ -1,12 +1,11 @@
 @page "/manage/stfc/territory-ownership/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcTerritoryOwnership, int>
 
 <PageTitle>Edit Territory Ownership</PageTitle>
 
 <h1>Edit Territory Ownership</h1>
 <hr />
-@if (Ownership is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,36 +13,36 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Ownership" OnValidSubmit="UpdateOwnership" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Ownership.Id" value="@Ownership.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <FormField For="territory" Label="Territory:" Required>
-                    <InputSelect id="territory" @bind-Value="Ownership.TerritoryId" class="form-control">
+                    <InputSelect id="territory" @bind-Value="Entity.TerritoryId" class="form-control">
                         @foreach (var territory in territories)
                         {
                             <option value="@territory.Id">@territory.Name</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Ownership.TerritoryId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.TerritoryId" class="text-danger" />
                 </FormField>
                 <FormField For="server" Label="Server:" Required>
-                    <InputSelect id="server" @bind-Value="Ownership.ServerId" class="form-control">
+                    <InputSelect id="server" @bind-Value="Entity.ServerId" class="form-control">
                         @foreach (var server in servers)
                         {
                             <option value="@server.Id">@server.DisplayName</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Ownership.ServerId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.ServerId" class="text-danger" />
                 </FormField>
                 <FormField For="alliance" Label="Alliance:" Required>
-                    <InputSelect id="alliance" @bind-Value="Ownership.AllianceId" class="form-control">
+                    <InputSelect id="alliance" @bind-Value="Entity.AllianceId" class="form-control">
                         @foreach (var alliance in alliances)
                         {
                             <option value="@alliance.Id">@alliance.Tag (@alliance.Server.DisplayName)</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Ownership.AllianceId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.AllianceId" class="text-danger" />
                 </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
@@ -56,15 +55,11 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcTerritoryOwnership? Ownership { get; set; }
-
     private List<StfcTerritory> territories = [];
     private List<StfcServer> servers = [];
     private List<StfcAlliance> alliances = [];
+
+    protected override string ListHref => "/manage/stfc/territory-ownership";
 
     protected override async Task OnInitializedAsync()
     {
@@ -72,41 +67,12 @@ else
         territories = await context.StfcTerritories.AsNoTracking().OrderBy(t => t.Name).ToListAsync();
         servers = await context.StfcServers.Include(s => s.Region).AsNoTracking().OrderBy(s => s.Name).ToListAsync();
         alliances = await context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).AsNoTracking().OrderBy(a => a.Tag).ToListAsync();
-        Ownership ??= await context.StfcTerritoryOwnerships.FirstOrDefaultAsync(o => o.Id == Id);
-
-        if (Ownership is null)
-        {
-            NavigationManager.NotFound();
-        }
+        await base.OnInitializedAsync();
     }
 
-    private async Task UpdateOwnership()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Ownership!).State = EntityState.Modified;
+    protected override Task<StfcTerritoryOwnership?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcTerritoryOwnerships.FirstOrDefaultAsync(o => o.Id == id);
 
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await OwnershipExistsAsync(Ownership!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/territory-ownership");
-    }
-
-    private async Task<bool> OwnershipExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcTerritoryOwnerships.AnyAsync(o => o.Id == id);
-    }
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcTerritoryOwnerships.AnyAsync(o => o.Id == id);
 }

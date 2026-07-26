@@ -1,12 +1,11 @@
 @page "/manage/stfc/regions/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcRegion, int>
 
 <PageTitle>Edit Region</PageTitle>
 
 <h1>Edit Region</h1>
 <hr />
-@if (Region is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,13 +13,13 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Region" OnValidSubmit="UpdateRegion" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Region.Id" value="@Region.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <FormField For="name" Label="Name:" Required>
-                    <InputText id="name" @bind-Value="Region.Name" class="form-control" aria-required="true" />
-                    <ValidationMessage For="() => Region.Name" class="text-danger" />
+                    <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Entity.Name" class="text-danger" />
                 </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
@@ -33,50 +32,11 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
+    protected override string ListHref => "/manage/stfc/regions";
 
-    [SupplyParameterFromForm]
-    private StfcRegion? Region { get; set; }
+    protected override Task<StfcRegion?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcRegions.FirstOrDefaultAsync(r => r.Id == id);
 
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        Region ??= await context.StfcRegions.FirstOrDefaultAsync(r => r.Id == Id);
-
-        if (Region is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task UpdateRegion()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Region!).State = EntityState.Modified;
-
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await RegionExistsAsync(Region!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/regions");
-    }
-
-    private async Task<bool> RegionExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcRegions.AnyAsync(r => r.Id == id);
-    }
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcRegions.AnyAsync(r => r.Id == id);
 }

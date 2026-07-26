@@ -1,6 +1,5 @@
 @page "/manage/stfc/territory-neighbours/create"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityCreatePageBase<StfcTerritoryNeighbour>
 
 <PageTitle>Create Territory Neighbour</PageTitle>
 
@@ -8,28 +7,28 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="Neighbour" OnValidSubmit="AddNeighbour" FormName="create" Enhance>
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddNeighbour" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <FormField For="territory" Label="Territory:" Required>
-                <InputSelect id="territory" @bind-Value="Neighbour.TerritoryId" class="form-control">
+                <InputSelect id="territory" @bind-Value="Entity.TerritoryId" class="form-control">
                     <option value="0">Select territory...</option>
                     @foreach (var territory in territories)
                     {
                         <option value="@territory.Id">@territory.Name</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => Neighbour.TerritoryId" class="text-danger" />
+                <ValidationMessage For="() => Entity.TerritoryId" class="text-danger" />
             </FormField>
             <FormField For="neighbourTerritory" Label="Neighbour Territory:" Required>
-                <InputSelect id="neighbourTerritory" @bind-Value="Neighbour.NeighbourTerritoryId" class="form-control">
+                <InputSelect id="neighbourTerritory" @bind-Value="Entity.NeighbourTerritoryId" class="form-control">
                     <option value="0">Select territory...</option>
                     @foreach (var territory in territories)
                     {
                         <option value="@territory.Id">@territory.Name</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => Neighbour.NeighbourTerritoryId" class="text-danger" />
+                <ValidationMessage For="() => Entity.NeighbourTerritoryId" class="text-danger" />
             </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
@@ -41,26 +40,23 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private StfcTerritoryNeighbour Neighbour { get; set; } = default!;
-
     private List<StfcTerritory> territories = [];
+
+    protected override string ListHref => "/manage/stfc/territory-neighbours";
+
+    protected override StfcTerritoryNeighbour CreateNew() => new();
 
     protected override async Task OnInitializedAsync()
     {
-        Neighbour ??= new();
         using var context = DbFactory.CreateDbContext();
         territories = await context.StfcTerritories.AsNoTracking().OrderBy(t => t.Name).ToListAsync();
     }
 
     private async Task AddNeighbour()
     {
-        if (Neighbour.TerritoryId == 0 || Neighbour.NeighbourTerritoryId == 0)
+        if (Entity.TerritoryId == 0 || Entity.NeighbourTerritoryId == 0)
             return;
 
-        using var context = DbFactory.CreateDbContext();
-        context.StfcTerritoryNeighbours.Add(Neighbour);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/territory-neighbours");
+        await AddAsync();
     }
 }

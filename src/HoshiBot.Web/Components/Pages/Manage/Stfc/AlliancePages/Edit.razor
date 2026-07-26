@@ -1,12 +1,11 @@
 @page "/manage/stfc/alliances/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcAlliance, int>
 
 <PageTitle>Edit Alliance</PageTitle>
 
 <h1>Edit Alliance</h1>
 <hr />
-@if (Alliance is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,30 +13,30 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Alliance" OnValidSubmit="UpdateAlliance" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Alliance.Id" value="@Alliance.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <FormField For="tag" Label="Tag:" Required>
-                    <InputText id="tag" @bind-Value="Alliance.Tag" class="form-control" aria-required="true" />
-                    <ValidationMessage For="() => Alliance.Tag" class="text-danger" />
+                    <InputText id="tag" @bind-Value="Entity.Tag" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Entity.Tag" class="text-danger" />
                 </FormField>
                 <FormField For="name" Label="Name:" Required>
-                    <InputText id="name" @bind-Value="Alliance.Name" class="form-control" aria-required="true" />
-                    <ValidationMessage For="() => Alliance.Name" class="text-danger" />
+                    <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Entity.Name" class="text-danger" />
                 </FormField>
                 <FormField For="server" Label="Server:" Required>
-                    <InputSelect id="server" @bind-Value="Alliance.ServerId" class="form-control">
+                    <InputSelect id="server" @bind-Value="Entity.ServerId" class="form-control">
                         @foreach (var server in servers)
                         {
                             <option value="@server.Id">@server.DisplayName</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Alliance.ServerId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.ServerId" class="text-danger" />
                 </FormField>
                 <div class="mb-3">
                     <label class="form-label">Emblem:</label>
-                    <InputRadioGroup @bind-Value="Alliance.Emblem">
+                    <InputRadioGroup @bind-Value="Entity.Emblem">
                         <div class="emblem-picker">
                             <label class="emblem-tile emblem-tile-none">
                                 <InputRadio Value="@((int?)null)" class="d-none" />
@@ -86,30 +85,29 @@ else
     // Highest emblem index bundled in wwwroot/images/emblems (emblem_000..emblem_026).
     private const int MaxEmblem = 26;
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcAlliance? Alliance { get; set; }
-
     private List<StfcServer> servers = [];
     private List<StfcAllianceDiscordInvite> invites = [];
     private string? newInviteUrl;
+
+    protected override string ListHref => "/manage/stfc/alliances";
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         servers = await context.StfcServers.Include(s => s.Region).OrderBy(s => s.Region.Name).ThenBy(s => s.Id).AsNoTracking().ToListAsync();
-        Alliance ??= await context.StfcAlliances.FirstOrDefaultAsync(a => a.Id == Id);
+        await base.OnInitializedAsync();
 
-        if (Alliance is null)
-        {
-            NavigationManager.NotFound();
+        if (Entity is null)
             return;
-        }
 
         await LoadInvitesAsync();
     }
+
+    protected override Task<StfcAlliance?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcAlliances.FirstOrDefaultAsync(a => a.Id == id);
+
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcAlliances.AnyAsync(a => a.Id == id);
 
     private async Task LoadInvitesAsync()
     {
@@ -136,35 +134,5 @@ else
         context.StfcAllianceDiscordInvites.Remove(invite);
         await context.SaveChangesAsync();
         await LoadInvitesAsync();
-    }
-
-    private async Task UpdateAlliance()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Alliance!).State = EntityState.Modified;
-
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await AllianceExistsAsync(Alliance!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/alliances");
-    }
-
-    private async Task<bool> AllianceExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcAlliances.AnyAsync(a => a.Id == id);
     }
 }

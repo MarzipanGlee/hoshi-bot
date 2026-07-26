@@ -1,6 +1,5 @@
 @page "/manage/stfc/alliance-invites/create"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityCreatePageBase<StfcAllianceDiscordInvite>
 
 <PageTitle>Create Alliance Discord Invite</PageTitle>
 
@@ -8,22 +7,22 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="Invite" OnValidSubmit="AddInvite" FormName="create" Enhance>
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddInvite" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <FormField For="alliance" Label="Alliance:" Required>
-                <InputSelect id="alliance" @bind-Value="Invite.AllianceId" class="form-control">
+                <InputSelect id="alliance" @bind-Value="Entity.AllianceId" class="form-control">
                     <option value="0">Select alliance...</option>
                     @foreach (var alliance in alliances)
                     {
                         <option value="@alliance.Id">@alliance.Tag (@alliance.Server.DisplayName)</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => Invite.AllianceId" class="text-danger" />
+                <ValidationMessage For="() => Entity.AllianceId" class="text-danger" />
             </FormField>
             <FormField For="url" Label="Invite URL:" Required>
-                <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => Invite.Url" class="text-danger" />
+                <InputText id="url" @bind-Value="Entity.Url" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Url" class="text-danger" />
             </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
@@ -35,26 +34,23 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private StfcAllianceDiscordInvite Invite { get; set; } = default!;
-
     private List<StfcAlliance> alliances = [];
+
+    protected override string ListHref => "/manage/stfc/alliance-invites";
+
+    protected override StfcAllianceDiscordInvite CreateNew() => new() { Url = "" };
 
     protected override async Task OnInitializedAsync()
     {
-        Invite ??= new() { Url = "" };
         using var context = DbFactory.CreateDbContext();
         alliances = await context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).AsNoTracking().OrderBy(a => a.Tag).ToListAsync();
     }
 
     private async Task AddInvite()
     {
-        if (Invite.AllianceId == 0)
+        if (Entity.AllianceId == 0)
             return;
 
-        using var context = DbFactory.CreateDbContext();
-        context.StfcAllianceDiscordInvites.Add(Invite);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/alliance-invites");
+        await AddAsync();
     }
 }

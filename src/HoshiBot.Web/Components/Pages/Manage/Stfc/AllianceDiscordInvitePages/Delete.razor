@@ -1,40 +1,20 @@
 @page "/manage/stfc/alliance-invites/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcAllianceDiscordInvite, int>
 
-<DeleteConfirmation EntityName="Alliance Discord Invite" BackHref="/manage/stfc/alliance-invites" Loaded="invite is not null" OnConfirm="DeleteInvite">
+<DeleteConfirmation EntityName="Alliance Discord Invite" BackHref="/manage/stfc/alliance-invites" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Alliance</dt>
-    <dd class="col-sm-10">@invite!.Alliance.Tag (@invite!.Alliance.Server.DisplayName)</dd>
+    <dd class="col-sm-10">@Entity!.Alliance.Tag (@Entity!.Alliance.Server.DisplayName)</dd>
     <dt class="col-sm-2">Url</dt>
-    <dd class="col-sm-10">@invite!.Url</dd>
+    <dd class="col-sm-10">@Entity!.Url</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcAllianceDiscordInvite? invite;
+    protected override string ListHref => "/manage/stfc/alliance-invites";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        invite = await context.StfcAllianceDiscordInvites
+    protected override Task<StfcAllianceDiscordInvite?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcAllianceDiscordInvites
             .Include(i => i.Alliance)
             .Include(i => i.Alliance.Server)
             .Include(i => i.Alliance.Server.Region)
-            .FirstOrDefaultAsync(i => i.Id == Id);
-
-        if (invite is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteInvite()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcAllianceDiscordInvites.Remove(invite!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/alliance-invites");
-    }
+            .FirstOrDefaultAsync(i => i.Id == id);
 }

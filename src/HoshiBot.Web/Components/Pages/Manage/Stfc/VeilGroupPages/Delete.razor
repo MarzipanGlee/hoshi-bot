@@ -1,36 +1,16 @@
 @page "/manage/stfc/veil-groups/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcVeilGroup, int>
 
-<DeleteConfirmation EntityName="Veil Group" BackHref="/manage/stfc/veil-groups" Loaded="veilGroup is not null" OnConfirm="DeleteVeilGroup">
+<DeleteConfirmation EntityName="Veil Group" BackHref="/manage/stfc/veil-groups" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Name</dt>
-    <dd class="col-sm-10">@veilGroup!.Name</dd>
+    <dd class="col-sm-10">@Entity!.Name</dd>
     <dt class="col-sm-2">Region</dt>
-    <dd class="col-sm-10">@veilGroup!.Region.Name</dd>
+    <dd class="col-sm-10">@Entity!.Region.Name</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcVeilGroup? veilGroup;
+    protected override string ListHref => "/manage/stfc/veil-groups";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        veilGroup = await context.StfcVeilGroups.Include(v => v.Region).FirstOrDefaultAsync(v => v.Id == Id);
-
-        if (veilGroup is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteVeilGroup()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcVeilGroups.Remove(veilGroup!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/veil-groups");
-    }
+    protected override Task<StfcVeilGroup?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcVeilGroups.Include(v => v.Region).FirstOrDefaultAsync(v => v.Id == id);
 }

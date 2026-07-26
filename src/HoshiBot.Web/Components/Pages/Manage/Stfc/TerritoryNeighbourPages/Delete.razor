@@ -1,39 +1,19 @@
 @page "/manage/stfc/territory-neighbours/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcTerritoryNeighbour, int>
 
-<DeleteConfirmation EntityName="Territory Neighbour" BackHref="/manage/stfc/territory-neighbours" Loaded="neighbour is not null" OnConfirm="DeleteNeighbour">
+<DeleteConfirmation EntityName="Territory Neighbour" BackHref="/manage/stfc/territory-neighbours" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Territory</dt>
-    <dd class="col-sm-10">@neighbour!.Territory.Name</dd>
+    <dd class="col-sm-10">@Entity!.Territory.Name</dd>
     <dt class="col-sm-2">Neighbour</dt>
-    <dd class="col-sm-10">@neighbour!.NeighbourTerritory.Name</dd>
+    <dd class="col-sm-10">@Entity!.NeighbourTerritory.Name</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcTerritoryNeighbour? neighbour;
+    protected override string ListHref => "/manage/stfc/territory-neighbours";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        neighbour = await context.StfcTerritoryNeighbours
+    protected override Task<StfcTerritoryNeighbour?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcTerritoryNeighbours
             .Include(n => n.Territory)
             .Include(n => n.NeighbourTerritory)
-            .FirstOrDefaultAsync(n => n.Id == Id);
-
-        if (neighbour is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteNeighbour()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcTerritoryNeighbours.Remove(neighbour!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/territory-neighbours");
-    }
+            .FirstOrDefaultAsync(n => n.Id == id);
 }

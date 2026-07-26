@@ -1,12 +1,11 @@
 @page "/manage/stfc/servers/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcServer, int>
 
 <PageTitle>Edit Server</PageTitle>
 
 <h1>Edit Server</h1>
 <hr />
-@if (Server is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,29 +13,29 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Server" OnValidSubmit="UpdateServer" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Server.Id" value="@Server.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <div class="mb-3">
                     <label class="form-label">Server Number (ID):</label>
-                    <p class="form-control-plaintext">@Server.Id</p>
+                    <p class="form-control-plaintext">@Entity.Id</p>
                 </div>
                 <FormField For="name" Label="Name:" Required>
-                    <InputText id="name" @bind-Value="Server.Name" class="form-control" aria-required="true" />
-                    <ValidationMessage For="() => Server.Name" class="text-danger" />
+                    <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Entity.Name" class="text-danger" />
                 </FormField>
                 <FormField For="region" Label="Region:" Required>
-                    <InputSelect id="region" @bind-Value="Server.RegionId" class="form-control">
+                    <InputSelect id="region" @bind-Value="Entity.RegionId" class="form-control">
                         @foreach (var region in regions)
                         {
                             <option value="@region.Id">@region.Name</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Server.RegionId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.RegionId" class="text-danger" />
                 </FormField>
                 <FormField For="veilGroup" Label="Veil Group:">
-                    <InputSelect id="veilGroup" @bind-Value="Server.VeilGroupId" class="form-control">
+                    <InputSelect id="veilGroup" @bind-Value="Entity.VeilGroupId" class="form-control">
                         <option value="">No veil group (new/unclassified)</option>
                         @foreach (var veilGroup in veilGroups)
                         {
@@ -73,32 +72,31 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcServer? Server { get; set; }
-
     private List<StfcRegion> regions = [];
     private List<StfcVeilGroup> veilGroups = [];
     private List<StfcServerDiscordInvite> invites = [];
     private string? newInviteUrl;
+
+    protected override string ListHref => "/manage/stfc/servers";
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         regions = await context.StfcRegions.AsNoTracking().ToListAsync();
         veilGroups = await context.StfcVeilGroups.AsNoTracking().ToListAsync();
-        Server ??= await context.StfcServers.FirstOrDefaultAsync(s => s.Id == Id);
+        await base.OnInitializedAsync();
 
-        if (Server is null)
-        {
-            NavigationManager.NotFound();
+        if (Entity is null)
             return;
-        }
 
         await LoadInvitesAsync();
     }
+
+    protected override Task<StfcServer?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcServers.FirstOrDefaultAsync(s => s.Id == id);
+
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcServers.AnyAsync(s => s.Id == id);
 
     private async Task LoadInvitesAsync()
     {
@@ -125,35 +123,5 @@ else
         context.StfcServerDiscordInvites.Remove(invite);
         await context.SaveChangesAsync();
         await LoadInvitesAsync();
-    }
-
-    private async Task UpdateServer()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Server!).State = EntityState.Modified;
-
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await ServerExistsAsync(Server!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/servers");
-    }
-
-    private async Task<bool> ServerExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcServers.AnyAsync(s => s.Id == id);
     }
 }

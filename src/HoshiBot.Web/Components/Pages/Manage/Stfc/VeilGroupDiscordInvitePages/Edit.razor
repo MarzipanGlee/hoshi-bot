@@ -1,12 +1,11 @@
 @page "/manage/stfc/veil-group-invites/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcVeilGroupDiscordInvite, int>
 
 <PageTitle>Edit Veil Group Discord Invite</PageTitle>
 
 <h1>Edit Veil Group Discord Invite</h1>
 <hr />
-@if (Invite is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,22 +13,22 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Invite" OnValidSubmit="UpdateInvite" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Invite.Id" value="@Invite.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <FormField For="veilGroup" Label="Veil Group:" Required>
-                    <InputSelect id="veilGroup" @bind-Value="Invite.VeilGroupId" class="form-control">
+                    <InputSelect id="veilGroup" @bind-Value="Entity.VeilGroupId" class="form-control">
                         @foreach (var veilGroup in veilGroups)
                         {
                             <option value="@veilGroup.Id">@veilGroup.Name</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Invite.VeilGroupId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.VeilGroupId" class="text-danger" />
                 </FormField>
                 <FormField For="url" Label="Invite URL:" Required>
-                    <InputText id="url" @bind-Value="Invite.Url" class="form-control" aria-required="true" />
-                    <ValidationMessage For="() => Invite.Url" class="text-danger" />
+                    <InputText id="url" @bind-Value="Entity.Url" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Entity.Url" class="text-danger" />
                 </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
@@ -42,53 +41,20 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcVeilGroupDiscordInvite? Invite { get; set; }
-
     private List<StfcVeilGroup> veilGroups = [];
+
+    protected override string ListHref => "/manage/stfc/veil-group-invites";
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         veilGroups = await context.StfcVeilGroups.AsNoTracking().OrderBy(v => v.Name).ToListAsync();
-        Invite ??= await context.StfcVeilGroupDiscordInvites.FirstOrDefaultAsync(i => i.Id == Id);
-
-        if (Invite is null)
-        {
-            NavigationManager.NotFound();
-        }
+        await base.OnInitializedAsync();
     }
 
-    private async Task UpdateInvite()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Invite!).State = EntityState.Modified;
+    protected override Task<StfcVeilGroupDiscordInvite?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcVeilGroupDiscordInvites.FirstOrDefaultAsync(i => i.Id == id);
 
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await InviteExistsAsync(Invite!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/veil-group-invites");
-    }
-
-    private async Task<bool> InviteExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcVeilGroupDiscordInvites.AnyAsync(i => i.Id == id);
-    }
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcVeilGroupDiscordInvites.AnyAsync(i => i.Id == id);
 }

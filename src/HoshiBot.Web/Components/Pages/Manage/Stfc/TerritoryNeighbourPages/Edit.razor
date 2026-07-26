@@ -1,12 +1,11 @@
 @page "/manage/stfc/territory-neighbours/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcTerritoryNeighbour, int>
 
 <PageTitle>Edit Territory Neighbour</PageTitle>
 
 <h1>Edit Territory Neighbour</h1>
 <hr />
-@if (Neighbour is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,27 +13,27 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Neighbour" OnValidSubmit="UpdateNeighbour" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Neighbour.Id" value="@Neighbour.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <FormField For="territory" Label="Territory:" Required>
-                    <InputSelect id="territory" @bind-Value="Neighbour.TerritoryId" class="form-control">
+                    <InputSelect id="territory" @bind-Value="Entity.TerritoryId" class="form-control">
                         @foreach (var territory in territories)
                         {
                             <option value="@territory.Id">@territory.Name</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Neighbour.TerritoryId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.TerritoryId" class="text-danger" />
                 </FormField>
                 <FormField For="neighbourTerritory" Label="Neighbour Territory:" Required>
-                    <InputSelect id="neighbourTerritory" @bind-Value="Neighbour.NeighbourTerritoryId" class="form-control">
+                    <InputSelect id="neighbourTerritory" @bind-Value="Entity.NeighbourTerritoryId" class="form-control">
                         @foreach (var territory in territories)
                         {
                             <option value="@territory.Id">@territory.Name</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Neighbour.NeighbourTerritoryId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.NeighbourTerritoryId" class="text-danger" />
                 </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
@@ -47,53 +46,20 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcTerritoryNeighbour? Neighbour { get; set; }
-
     private List<StfcTerritory> territories = [];
+
+    protected override string ListHref => "/manage/stfc/territory-neighbours";
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         territories = await context.StfcTerritories.AsNoTracking().OrderBy(t => t.Name).ToListAsync();
-        Neighbour ??= await context.StfcTerritoryNeighbours.FirstOrDefaultAsync(n => n.Id == Id);
-
-        if (Neighbour is null)
-        {
-            NavigationManager.NotFound();
-        }
+        await base.OnInitializedAsync();
     }
 
-    private async Task UpdateNeighbour()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Neighbour!).State = EntityState.Modified;
+    protected override Task<StfcTerritoryNeighbour?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcTerritoryNeighbours.FirstOrDefaultAsync(n => n.Id == id);
 
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await NeighbourExistsAsync(Neighbour!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/territory-neighbours");
-    }
-
-    private async Task<bool> NeighbourExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcTerritoryNeighbours.AnyAsync(n => n.Id == id);
-    }
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcTerritoryNeighbours.AnyAsync(n => n.Id == id);
 }

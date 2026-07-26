@@ -1,43 +1,23 @@
 @page "/manage/stfc/servers/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcServer, int>
 
-<DeleteConfirmation EntityName="Server" BackHref="/manage/stfc/servers" Loaded="server is not null" OnConfirm="DeleteServer">
+<DeleteConfirmation EntityName="Server" BackHref="/manage/stfc/servers" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Number</dt>
-    <dd class="col-sm-10">@server!.Id</dd>
+    <dd class="col-sm-10">@Entity!.Id</dd>
     <dt class="col-sm-2">Name</dt>
-    <dd class="col-sm-10">@server!.Name</dd>
+    <dd class="col-sm-10">@Entity!.Name</dd>
     <dt class="col-sm-2">Region</dt>
-    <dd class="col-sm-10">@server!.Region.Name</dd>
+    <dd class="col-sm-10">@Entity!.Region.Name</dd>
     <dt class="col-sm-2">Veil Group</dt>
-    <dd class="col-sm-10">@(server!.VeilGroup?.Name ?? "Unassigned")</dd>
+    <dd class="col-sm-10">@(Entity!.VeilGroup?.Name ?? "Unassigned")</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcServer? server;
+    protected override string ListHref => "/manage/stfc/servers";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        server = await context.StfcServers
+    protected override Task<StfcServer?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcServers
             .Include(s => s.Region)
             .Include(s => s.VeilGroup)
-            .FirstOrDefaultAsync(s => s.Id == Id);
-
-        if (server is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteServer()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcServers.Remove(server!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/servers");
-    }
+            .FirstOrDefaultAsync(s => s.Id == id);
 }

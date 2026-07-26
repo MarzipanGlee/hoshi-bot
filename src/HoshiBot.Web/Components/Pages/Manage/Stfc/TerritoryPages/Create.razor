@@ -1,6 +1,5 @@
 @page "/manage/stfc/territories/create"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityCreatePageBase<StfcTerritory>
 
 <PageTitle>Create Territory</PageTitle>
 
@@ -8,23 +7,23 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="Territory" OnValidSubmit="AddTerritory" FormName="create" Enhance>
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddAsync" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <FormField For="id" Label="Id (real Scopely territory ID):" Required>
-                <InputNumber id="id" @bind-Value="Territory.Id" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => Territory.Id" class="text-danger" />
+                <InputNumber id="id" @bind-Value="Entity.Id" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Id" class="text-danger" />
             </FormField>
             <FormField For="name" Label="Name:" Required>
-                <InputText id="name" @bind-Value="Territory.Name" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => Territory.Name" class="text-danger" />
+                <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Name" class="text-danger" />
             </FormField>
             <FormField For="tier" Label="Tier:" Required>
-                <InputNumber id="tier" @bind-Value="Territory.Tier" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => Territory.Tier" class="text-danger" />
+                <InputNumber id="tier" @bind-Value="Entity.Tier" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Tier" class="text-danger" />
             </FormField>
             <FormField For="weekday" Label="Weekday (UTC):">
-                <InputSelect id="weekday" @bind-Value="Territory.Weekday" class="form-control">
+                <InputSelect id="weekday" @bind-Value="Entity.Weekday" class="form-control">
                     <option value="">Unknown</option>
                     @foreach (var day in Enum.GetValues<DayOfWeek>())
                     {
@@ -33,7 +32,7 @@
                 </InputSelect>
             </FormField>
             <FormField For="captureTime" Label="Capture Time (UTC):">
-                <InputDate id="captureTime" Type="InputDateType.Time" @bind-Value="Territory.CaptureTimeUtc" class="form-control" />
+                <InputDate id="captureTime" Type="InputDateType.Time" @bind-Value="Entity.CaptureTimeUtc" class="form-control" />
             </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
@@ -45,19 +44,7 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private StfcTerritory Territory { get; set; } = default!;
+    protected override string ListHref => "/manage/stfc/territories";
 
-    protected override void OnInitialized()
-    {
-        Territory ??= new() { Name = "" };
-    }
-
-    private async Task AddTerritory()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcTerritories.Add(Territory);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/territories");
-    }
+    protected override StfcTerritory CreateNew() => new() { Name = "" };
 }

@@ -1,39 +1,19 @@
 @page "/manage/stfc/server-invites/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcServerDiscordInvite, int>
 
-<DeleteConfirmation EntityName="Server Discord Invite" BackHref="/manage/stfc/server-invites" Loaded="invite is not null" OnConfirm="DeleteInvite">
+<DeleteConfirmation EntityName="Server Discord Invite" BackHref="/manage/stfc/server-invites" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Server</dt>
-    <dd class="col-sm-10">@invite!.Server.DisplayName</dd>
+    <dd class="col-sm-10">@Entity!.Server.DisplayName</dd>
     <dt class="col-sm-2">Url</dt>
-    <dd class="col-sm-10">@invite!.Url</dd>
+    <dd class="col-sm-10">@Entity!.Url</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcServerDiscordInvite? invite;
+    protected override string ListHref => "/manage/stfc/server-invites";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        invite = await context.StfcServerDiscordInvites
+    protected override Task<StfcServerDiscordInvite?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcServerDiscordInvites
             .Include(i => i.Server)
             .Include(i => i.Server.Region)
-            .FirstOrDefaultAsync(i => i.Id == Id);
-
-        if (invite is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteInvite()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcServerDiscordInvites.Remove(invite!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/server-invites");
-    }
+            .FirstOrDefaultAsync(i => i.Id == id);
 }

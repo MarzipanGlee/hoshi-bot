@@ -1,41 +1,21 @@
 @page "/manage/stfc/territories/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcTerritory, int>
 
-<DeleteConfirmation EntityName="Territory" BackHref="/manage/stfc/territories" Loaded="territory is not null" OnConfirm="DeleteTerritory"
+<DeleteConfirmation EntityName="Territory" BackHref="/manage/stfc/territories" Loaded="Entity is not null" OnConfirm="DeleteAsync"
                     Warning="Linked systems, neighbour links, and ownership rows are removed too.">
     <dt class="col-sm-2">Name</dt>
-    <dd class="col-sm-10">@territory!.Name</dd>
+    <dd class="col-sm-10">@Entity!.Name</dd>
     <dt class="col-sm-2">Tier</dt>
-    <dd class="col-sm-10">@territory!.Tier</dd>
+    <dd class="col-sm-10">@Entity!.Tier</dd>
     <dt class="col-sm-2">Weekday</dt>
-    <dd class="col-sm-10">@(territory!.Weekday?.ToString() ?? "Unknown")</dd>
+    <dd class="col-sm-10">@(Entity!.Weekday?.ToString() ?? "Unknown")</dd>
     <dt class="col-sm-2">Capture Time (UTC)</dt>
-    <dd class="col-sm-10">@(territory!.CaptureTimeUtc?.ToString("HH:mm") ?? "Unknown")</dd>
+    <dd class="col-sm-10">@(Entity!.CaptureTimeUtc?.ToString("HH:mm") ?? "Unknown")</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcTerritory? territory;
+    protected override string ListHref => "/manage/stfc/territories";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        territory = await context.StfcTerritories.FirstOrDefaultAsync(t => t.Id == Id);
-
-        if (territory is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteTerritory()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcTerritories.Remove(territory!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/territories");
-    }
+    protected override Task<StfcTerritory?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcTerritories.FirstOrDefaultAsync(t => t.Id == id);
 }

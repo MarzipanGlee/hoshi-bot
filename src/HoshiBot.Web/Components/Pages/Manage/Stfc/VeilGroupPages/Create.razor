@@ -1,6 +1,5 @@
 @page "/manage/stfc/veil-groups/create"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityCreatePageBase<StfcVeilGroup>
 
 <PageTitle>Create Veil Group</PageTitle>
 
@@ -8,26 +7,26 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="VeilGroup" OnValidSubmit="AddVeilGroup" FormName="create" Enhance>
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddVeilGroup" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <FormField For="id" Label="Id (matches Scopely's veil-group numbering):" Required>
-                <InputNumber id="id" @bind-Value="VeilGroup.Id" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => VeilGroup.Id" class="text-danger" />
+                <InputNumber id="id" @bind-Value="Entity.Id" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Id" class="text-danger" />
             </FormField>
             <FormField For="name" Label="Name:" Required>
-                <InputText id="name" @bind-Value="VeilGroup.Name" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => VeilGroup.Name" class="text-danger" />
+                <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Name" class="text-danger" />
             </FormField>
             <FormField For="region" Label="Region:" Required>
-                <InputSelect id="region" @bind-Value="VeilGroup.RegionId" class="form-control">
+                <InputSelect id="region" @bind-Value="Entity.RegionId" class="form-control">
                     <option value="0">Select region...</option>
                     @foreach (var region in regions)
                     {
                         <option value="@region.Id">@region.Name</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => VeilGroup.RegionId" class="text-danger" />
+                <ValidationMessage For="() => Entity.RegionId" class="text-danger" />
             </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
@@ -39,26 +38,23 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private StfcVeilGroup VeilGroup { get; set; } = default!;
-
     private List<StfcRegion> regions = [];
+
+    protected override string ListHref => "/manage/stfc/veil-groups";
+
+    protected override StfcVeilGroup CreateNew() => new() { Name = "" };
 
     protected override async Task OnInitializedAsync()
     {
-        VeilGroup ??= new() { Name = "" };
         using var context = DbFactory.CreateDbContext();
         regions = await context.StfcRegions.AsNoTracking().ToListAsync();
     }
 
     private async Task AddVeilGroup()
     {
-        if (VeilGroup.RegionId == 0)
+        if (Entity.RegionId == 0)
             return;
 
-        using var context = DbFactory.CreateDbContext();
-        context.StfcVeilGroups.Add(VeilGroup);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/veil-groups");
+        await AddAsync();
     }
 }

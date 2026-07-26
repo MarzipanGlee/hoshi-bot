@@ -1,43 +1,23 @@
 @page "/manage/stfc/territory-ownership/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcTerritoryOwnership, int>
 
-<DeleteConfirmation EntityName="Territory Ownership" BackHref="/manage/stfc/territory-ownership" Loaded="ownership is not null" OnConfirm="DeleteOwnership">
+<DeleteConfirmation EntityName="Territory Ownership" BackHref="/manage/stfc/territory-ownership" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Territory</dt>
-    <dd class="col-sm-10">@ownership!.Territory.Name</dd>
+    <dd class="col-sm-10">@Entity!.Territory.Name</dd>
     <dt class="col-sm-2">Server</dt>
-    <dd class="col-sm-10">@ownership!.Server.DisplayName</dd>
+    <dd class="col-sm-10">@Entity!.Server.DisplayName</dd>
     <dt class="col-sm-2">Alliance</dt>
-    <dd class="col-sm-10">@ownership!.Alliance.Tag</dd>
+    <dd class="col-sm-10">@Entity!.Alliance.Tag</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcTerritoryOwnership? ownership;
+    protected override string ListHref => "/manage/stfc/territory-ownership";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        ownership = await context.StfcTerritoryOwnerships
+    protected override Task<StfcTerritoryOwnership?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcTerritoryOwnerships
             .Include(o => o.Territory)
             .Include(o => o.Server)
             .Include(o => o.Server.Region)
             .Include(o => o.Alliance)
-            .FirstOrDefaultAsync(o => o.Id == Id);
-
-        if (ownership is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteOwnership()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcTerritoryOwnerships.Remove(ownership!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/territory-ownership");
-    }
+            .FirstOrDefaultAsync(o => o.Id == id);
 }

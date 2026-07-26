@@ -1,41 +1,21 @@
 @page "/manage/stfc/alliance-diplomacy/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcAllianceDiplomacy, int>
 
-<DeleteConfirmation EntityName="Alliance Diplomacy" BackHref="/manage/stfc/alliance-diplomacy" Loaded="diplomacy is not null" OnConfirm="DeleteDiplomacy">
+<DeleteConfirmation EntityName="Alliance Diplomacy" BackHref="/manage/stfc/alliance-diplomacy" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Source</dt>
-    <dd class="col-sm-10">@diplomacy!.SourceAlliance.Tag</dd>
+    <dd class="col-sm-10">@Entity!.SourceAlliance.Tag</dd>
     <dt class="col-sm-2">Target</dt>
-    <dd class="col-sm-10">@diplomacy!.TargetAlliance.Tag</dd>
+    <dd class="col-sm-10">@Entity!.TargetAlliance.Tag</dd>
     <dt class="col-sm-2">Status</dt>
-    <dd class="col-sm-10">@diplomacy!.Status</dd>
+    <dd class="col-sm-10">@Entity!.Status</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcAllianceDiplomacy? diplomacy;
+    protected override string ListHref => "/manage/stfc/alliance-diplomacy";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        diplomacy = await context.StfcAllianceDiplomacies
+    protected override Task<StfcAllianceDiplomacy?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcAllianceDiplomacies
             .Include(d => d.SourceAlliance)
             .Include(d => d.TargetAlliance)
-            .FirstOrDefaultAsync(d => d.Id == Id);
-
-        if (diplomacy is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteDiplomacy()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcAllianceDiplomacies.Remove(diplomacy!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/alliance-diplomacy");
-    }
+            .FirstOrDefaultAsync(d => d.Id == id);
 }

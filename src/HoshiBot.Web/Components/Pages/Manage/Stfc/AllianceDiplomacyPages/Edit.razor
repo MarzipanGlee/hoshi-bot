@@ -1,12 +1,11 @@
 @page "/manage/stfc/alliance-diplomacy/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcAllianceDiplomacy, int>
 
 <PageTitle>Edit Alliance Diplomacy</PageTitle>
 
 <h1>Edit Alliance Diplomacy</h1>
 <hr />
-@if (Diplomacy is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,36 +13,36 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Diplomacy" OnValidSubmit="UpdateDiplomacy" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Diplomacy.Id" value="@Diplomacy.Id" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
                 <FormField For="source" Label="Source Alliance:" Required>
-                    <InputSelect id="source" @bind-Value="Diplomacy.SourceAllianceId" class="form-control">
+                    <InputSelect id="source" @bind-Value="Entity.SourceAllianceId" class="form-control">
                         @foreach (var alliance in alliances)
                         {
                             <option value="@alliance.Id">@alliance.Tag</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Diplomacy.SourceAllianceId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.SourceAllianceId" class="text-danger" />
                 </FormField>
                 <FormField For="target" Label="Target Alliance:" Required>
-                    <InputSelect id="target" @bind-Value="Diplomacy.TargetAllianceId" class="form-control">
+                    <InputSelect id="target" @bind-Value="Entity.TargetAllianceId" class="form-control">
                         @foreach (var alliance in alliances)
                         {
                             <option value="@alliance.Id">@alliance.Tag</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Diplomacy.TargetAllianceId" class="text-danger" />
+                    <ValidationMessage For="() => Entity.TargetAllianceId" class="text-danger" />
                 </FormField>
                 <FormField For="status" Label="Status:" Required>
-                    <InputSelect id="status" @bind-Value="Diplomacy.Status" class="form-control">
+                    <InputSelect id="status" @bind-Value="Entity.Status" class="form-control">
                         @foreach (var status in Enum.GetValues<DiplomacyStatus>())
                         {
                             <option value="@status">@status</option>
                         }
                     </InputSelect>
-                    <ValidationMessage For="() => Diplomacy.Status" class="text-danger" />
+                    <ValidationMessage For="() => Entity.Status" class="text-danger" />
                 </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
@@ -56,53 +55,20 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcAllianceDiplomacy? Diplomacy { get; set; }
-
     private List<StfcAlliance> alliances = [];
+
+    protected override string ListHref => "/manage/stfc/alliance-diplomacy";
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
         alliances = await context.StfcAlliances.AsNoTracking().ToListAsync();
-        Diplomacy ??= await context.StfcAllianceDiplomacies.FirstOrDefaultAsync(d => d.Id == Id);
-
-        if (Diplomacy is null)
-        {
-            NavigationManager.NotFound();
-        }
+        await base.OnInitializedAsync();
     }
 
-    private async Task UpdateDiplomacy()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Diplomacy!).State = EntityState.Modified;
+    protected override Task<StfcAllianceDiplomacy?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcAllianceDiplomacies.FirstOrDefaultAsync(d => d.Id == id);
 
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await DiplomacyExistsAsync(Diplomacy!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/alliance-diplomacy");
-    }
-
-    private async Task<bool> DiplomacyExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcAllianceDiplomacies.AnyAsync(d => d.Id == id);
-    }
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcAllianceDiplomacies.AnyAsync(d => d.Id == id);
 }

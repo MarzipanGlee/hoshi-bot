@@ -1,38 +1,18 @@
 @page "/manage/stfc/alliances/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcAlliance, int>
 
-<DeleteConfirmation EntityName="Alliance" BackHref="/manage/stfc/alliances" Loaded="alliance is not null" OnConfirm="DeleteAlliance">
+<DeleteConfirmation EntityName="Alliance" BackHref="/manage/stfc/alliances" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Tag</dt>
-    <dd class="col-sm-10">@alliance!.Tag</dd>
+    <dd class="col-sm-10">@Entity!.Tag</dd>
     <dt class="col-sm-2">Name</dt>
-    <dd class="col-sm-10">@alliance!.Name</dd>
+    <dd class="col-sm-10">@Entity!.Name</dd>
     <dt class="col-sm-2">Server</dt>
-    <dd class="col-sm-10">@alliance!.Server.DisplayName</dd>
+    <dd class="col-sm-10">@Entity!.Server.DisplayName</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcAlliance? alliance;
+    protected override string ListHref => "/manage/stfc/alliances";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        alliance = await context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).FirstOrDefaultAsync(a => a.Id == Id);
-
-        if (alliance is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteAlliance()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcAlliances.Remove(alliance!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/alliances");
-    }
+    protected override Task<StfcAlliance?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcAlliances.Include(a => a.Server).ThenInclude(s => s.Region).FirstOrDefaultAsync(a => a.Id == id);
 }

@@ -1,38 +1,18 @@
 @page "/manage/stfc/veil-group-invites/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcVeilGroupDiscordInvite, int>
 
-<DeleteConfirmation EntityName="Veil Group Discord Invite" BackHref="/manage/stfc/veil-group-invites" Loaded="invite is not null" OnConfirm="DeleteInvite">
+<DeleteConfirmation EntityName="Veil Group Discord Invite" BackHref="/manage/stfc/veil-group-invites" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Veil Group</dt>
-    <dd class="col-sm-10">@invite!.VeilGroup.Name</dd>
+    <dd class="col-sm-10">@Entity!.VeilGroup.Name</dd>
     <dt class="col-sm-2">Url</dt>
-    <dd class="col-sm-10">@invite!.Url</dd>
+    <dd class="col-sm-10">@Entity!.Url</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcVeilGroupDiscordInvite? invite;
+    protected override string ListHref => "/manage/stfc/veil-group-invites";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        invite = await context.StfcVeilGroupDiscordInvites
+    protected override Task<StfcVeilGroupDiscordInvite?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcVeilGroupDiscordInvites
             .Include(i => i.VeilGroup)
-            .FirstOrDefaultAsync(i => i.Id == Id);
-
-        if (invite is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteInvite()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcVeilGroupDiscordInvites.Remove(invite!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/veil-group-invites");
-    }
+            .FirstOrDefaultAsync(i => i.Id == id);
 }

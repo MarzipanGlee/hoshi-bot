@@ -1,12 +1,11 @@
 @page "/manage/stfc/players/edit"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityEditPageBase<StfcPlayer, int>
 
 <PageTitle>Edit Player</PageTitle>
 
 <h1>Edit Player</h1>
 <hr />
-@if (Player is null)
+@if (Entity is null)
 {
     <p><em>Loading...</em></p>
 }
@@ -14,26 +13,26 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="Player" OnValidSubmit="UpdatePlayer" FormName="edit" Enhance>
+            <EditForm method="post" Model="Entity" OnValidSubmit="SaveAsync" FormName="edit" Enhance>
                 <DataAnnotationsValidator />
                 <ValidationSummary role="alert" />
-                <input type="hidden" name="Player.Id" value="@Player.Id" />
-                <input type="hidden" name="Player.ServerId" value="@Player.ServerId" />
-                <input type="hidden" name="Player.ExternalId" value="@Player.ExternalId" />
+                <input type="hidden" name="Entity.Id" value="@Entity.Id" />
+                <input type="hidden" name="Entity.ServerId" value="@Entity.ServerId" />
+                <input type="hidden" name="Entity.ExternalId" value="@Entity.ExternalId" />
                 <div class="mb-3">
                     <label class="form-label">External ID:</label>
-                    <p class="form-control-plaintext">@Player.ExternalId</p>
+                    <p class="form-control-plaintext">@Entity.ExternalId</p>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Server:</label>
                     <p class="form-control-plaintext">@serverName</p>
                 </div>
                 <FormField For="name" Label="Name:" Required>
-                    <InputText id="name" @bind-Value="Player.Name" class="form-control" aria-required="true" />
-                    <ValidationMessage For="() => Player.Name" class="text-danger" />
+                    <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => Entity.Name" class="text-danger" />
                 </FormField>
                 <FormField For="alliance" Label="Alliance:">
-                    <InputSelect id="alliance" @bind-Value="Player.AllianceId" class="form-control">
+                    <InputSelect id="alliance" @bind-Value="Entity.AllianceId" class="form-control">
                         <option value="">Unaffiliated</option>
                         @foreach (var alliance in alliances)
                         {
@@ -42,7 +41,7 @@ else
                     </InputSelect>
                 </FormField>
                 <FormField For="rank" Label="Rank:">
-                    <InputSelect id="rank" @bind-Value="Player.Rank" class="form-control">
+                    <InputSelect id="rank" @bind-Value="Entity.Rank" class="form-control">
                         <option value="">— none —</option>
                         @foreach (var rank in Enum.GetValues<StfcPlayerRank>())
                         {
@@ -51,7 +50,7 @@ else
                     </InputSelect>
                 </FormField>
                 <FormField For="opsLevel" Label="Ops Level:">
-                    <InputNumber id="opsLevel" @bind-Value="Player.OpsLevel" class="form-control" />
+                    <InputNumber id="opsLevel" @bind-Value="Entity.OpsLevel" class="form-control" />
                 </FormField>
                 <button type="submit" class="btn btn-primary">Save</button>
             </EditForm>
@@ -64,66 +63,35 @@ else
 </div>
 
 @code {
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    [SupplyParameterFromForm]
-    private StfcPlayer? Player { get; set; }
-
     private string? serverName;
     private List<StfcAlliance> alliances = [];
 
+    protected override string ListHref => "/manage/stfc/players";
+
     protected override async Task OnInitializedAsync()
     {
-        using var context = DbFactory.CreateDbContext();
-        Player ??= await context.StfcPlayers.FirstOrDefaultAsync(p => p.Id == Id);
+        await base.OnInitializedAsync();
 
-        if (Player is null)
-        {
-            NavigationManager.NotFound();
+        if (Entity is null)
             return;
-        }
 
+        using var context = DbFactory.CreateDbContext();
         serverName = await context.StfcServers
             .Include(s => s.Region)
-            .Where(s => s.Id == Player.ServerId)
+            .Where(s => s.Id == Entity.ServerId)
             .Select(s => s.DisplayName)
             .FirstOrDefaultAsync();
 
         alliances = await context.StfcAlliances
-            .Where(a => a.ServerId == Player.ServerId)
+            .Where(a => a.ServerId == Entity.ServerId)
             .OrderBy(a => a.Tag)
             .AsNoTracking()
             .ToListAsync();
     }
 
-    private async Task UpdatePlayer()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.Attach(Player!).State = EntityState.Modified;
+    protected override Task<StfcPlayer?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcPlayers.FirstOrDefaultAsync(p => p.Id == id);
 
-        try
-        {
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await PlayerExistsAsync(Player!.Id))
-            {
-                NavigationManager.NotFound();
-            }
-            else
-            {
-                throw;
-            }
-        }
-
-        NavigationManager.NavigateTo("/manage/stfc/players");
-    }
-
-    private async Task<bool> PlayerExistsAsync(int id)
-    {
-        using var context = DbFactory.CreateDbContext();
-        return await context.StfcPlayers.AnyAsync(p => p.Id == id);
-    }
+    protected override Task<bool> ExistsAsync(HoshiBotDbContext context, int id)
+        => context.StfcPlayers.AnyAsync(p => p.Id == id);
 }

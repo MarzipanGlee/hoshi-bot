@@ -1,6 +1,5 @@
 @page "/manage/stfc/regions/create"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityCreatePageBase<StfcRegion>
 
 <PageTitle>Create Region</PageTitle>
 
@@ -8,16 +7,16 @@
 <hr />
 <div class="row">
     <div class="col-md-4">
-        <EditForm method="post" Model="Region" OnValidSubmit="AddRegion" FormName="create" Enhance>
+        <EditForm method="post" Model="Entity" OnValidSubmit="AddAsync" FormName="create" Enhance>
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <FormField For="id" Label="Id (matches Scopely's region numbering):" Required>
-                <InputNumber id="id" @bind-Value="Region.Id" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => Region.Id" class="text-danger" />
+                <InputNumber id="id" @bind-Value="Entity.Id" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Id" class="text-danger" />
             </FormField>
             <FormField For="name" Label="Name:" Required>
-                <InputText id="name" @bind-Value="Region.Name" class="form-control" aria-required="true" />
-                <ValidationMessage For="() => Region.Name" class="text-danger" />
+                <InputText id="name" @bind-Value="Entity.Name" class="form-control" aria-required="true" />
+                <ValidationMessage For="() => Entity.Name" class="text-danger" />
             </FormField>
             <button type="submit" class="btn btn-primary">Create</button>
         </EditForm>
@@ -29,16 +28,7 @@
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private StfcRegion Region { get; set; } = default!;
+    protected override string ListHref => "/manage/stfc/regions";
 
-    protected override void OnInitialized() => Region ??= new() { Name = "" };
-
-    private async Task AddRegion()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcRegions.Add(Region);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/regions");
-    }
+    protected override StfcRegion CreateNew() => new() { Name = "" };
 }

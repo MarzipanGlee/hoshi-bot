@@ -1,34 +1,14 @@
 @page "/manage/stfc/regions/delete"
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject NavigationManager NavigationManager
+@inherits EntityDeletePageBase<StfcRegion, int>
 
-<DeleteConfirmation EntityName="Region" BackHref="/manage/stfc/regions" Loaded="region is not null" OnConfirm="DeleteRegion">
+<DeleteConfirmation EntityName="Region" BackHref="/manage/stfc/regions" Loaded="Entity is not null" OnConfirm="DeleteAsync">
     <dt class="col-sm-2">Name</dt>
-    <dd class="col-sm-10">@region!.Name</dd>
+    <dd class="col-sm-10">@Entity!.Name</dd>
 </DeleteConfirmation>
 
 @code {
-    private StfcRegion? region;
+    protected override string ListHref => "/manage/stfc/regions";
 
-    [SupplyParameterFromQuery]
-    private int Id { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        using var context = DbFactory.CreateDbContext();
-        region = await context.StfcRegions.FirstOrDefaultAsync(r => r.Id == Id);
-
-        if (region is null)
-        {
-            NavigationManager.NotFound();
-        }
-    }
-
-    private async Task DeleteRegion()
-    {
-        using var context = DbFactory.CreateDbContext();
-        context.StfcRegions.Remove(region!);
-        await context.SaveChangesAsync();
-        NavigationManager.NavigateTo("/manage/stfc/regions");
-    }
+    protected override Task<StfcRegion?> LoadAsync(HoshiBotDbContext context, int id)
+        => context.StfcRegions.FirstOrDefaultAsync(r => r.Id == id);
 }
