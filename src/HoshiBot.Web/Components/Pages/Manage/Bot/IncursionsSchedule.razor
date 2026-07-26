@@ -1,56 +1,42 @@
 @page "/manage/bot/incursions-schedule"
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject IAuthorizationService AuthorizationService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Infinite Incursions Schedule</PageTitle>
 
-@if (authorized is null)
-{
-    <p>Checking access...</p>
-}
-else if (authorized == false)
-{
-    <p>You do not have admin access to this page.</p>
-}
-else
-{
-    <h1>Infinite Incursions Schedule</h1>
-    <p>
-        Infinite Incursions has 3 distinct regional start times. An admin only ever submits
-        one shared event date — these preserved daily times (and the event's duration) are
-        combined with that date to produce each region's actual start/end.
-    </p>
+<h1>Infinite Incursions Schedule</h1>
+<p>
+    Infinite Incursions has 3 distinct regional start times. An admin only ever submits
+    one shared event date — these preserved daily times (and the event's duration) are
+    combined with that date to produce each region's actual start/end.
+</p>
 
-    <EditForm Model="this" FormName="incursions-schedule" OnValidSubmit="SaveAsync">
-        <table class="table" style="max-width: 500px;">
-            <thead><tr><th>Region</th><th>Default start time (UTC)</th></tr></thead>
-            <tbody>
-                @foreach (var row in regionRows)
-                {
-                    <tr>
-                        <td>@row.RegionName</td>
-                        <td><input type="time" class="form-control" @bind="row.StartTime" /></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<EditForm Model="this" FormName="incursions-schedule" OnValidSubmit="SaveAsync">
+    <table class="table" style="max-width: 500px;">
+        <thead><tr><th>Region</th><th>Default start time (UTC)</th></tr></thead>
+        <tbody>
+            @foreach (var row in regionRows)
+            {
+                <tr>
+                    <td>@row.RegionName</td>
+                    <td><input type="time" class="form-control" @bind="row.StartTime" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
 
-        <div class="mb-3" style="max-width: 200px;">
-            <label class="form-label">Event duration (hours)</label>
-            <input type="number" class="form-control" min="1" max="72" @bind="durationHours" />
-        </div>
+    <div class="mb-3" style="max-width: 200px;">
+        <label class="form-label">Event duration (hours)</label>
+        <input type="number" class="form-control" min="1" max="72" @bind="durationHours" />
+    </div>
 
-        <button type="submit" class="btn btn-primary">Save</button>
-        @if (saved)
-        {
-            <span class="text-success ms-2">Saved.</span>
-        }
-    </EditForm>
-}
+    <button type="submit" class="btn btn-primary">Save</button>
+    @if (saved)
+    {
+        <span class="text-success ms-2">Saved.</span>
+    }
+</EditForm>
 
 @code {
-    private bool? authorized;
     private List<RegionRow> regionRows = [];
     private int durationHours = 12;
     private bool saved;
@@ -62,15 +48,7 @@ else
         public TimeOnly StartTime { get; set; }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var result = await AuthorizationService.AuthorizeAsync(authState.User, null, new GlobalAdminRequirement());
-        authorized = result.Succeeded;
-
-        if (authorized == true)
-            await LoadAsync();
-    }
+    protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync()
     {
