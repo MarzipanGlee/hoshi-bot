@@ -59,7 +59,10 @@
                         if (!guildAudiences.HasFlag(audience))
                             continue;
 
-                        <NavMenuGroup Title="@AudienceDisplay.Labels(audience).First()" Icon="@AudienceDisplay.Icon(audience)" Active="@IsAudienceFeaturesActive(audience)">
+                        <NavMenuGroup Title="@AudienceDisplay.Labels(audience).First()" Icon="@AudienceDisplay.Icon(audience)" Active="@IsAudienceGroupActive(audience)">
+                            <div class="nav-item">
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceSettingsHref(guildId, audience)">Settings</NavLink>
+                            </div>
                             <div class="nav-item">
                                 <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, audience)">Features</NavLink>
                             </div>
@@ -188,6 +191,11 @@
     private bool IsGroupActive(IReadOnlyList<AdminPage> pages, Func<AdminPage, string> href) =>
         pages.Any(p => IsActive(href(p)));
 
+    // The per-audience Settings page (AudienceSettings.razor) — same audience-prefix shape as
+    // the feature pages.
+    private string AudienceSettingsHref(ulong guildId, GuildAudience audience) =>
+        $"{AudienceDisplay.FeatureScopePrefix(guildId, audience, null)}/settings";
+
     // The per-audience Features catalog page — the audience comes before "features" in the path
     // (Guild is the bare .../features; others are .../{slug}/features). Alliance pages are
     // per-alliance and come from AllianceAdminPages.Href instead.
@@ -216,18 +224,18 @@
             ? string.Equals(currentUrl, GuildAdminPages.Href(guildId, p), StringComparison.OrdinalIgnoreCase)
             : IsActive(GuildAdminPages.Href(guildId, p)));
 
-    // Highlights a guild-scoped audience's group on its catalog page and its feature editors,
-    // which share the audience's feature-path prefix: Guild = the bare .../features; every other
-    // audience = .../{slug}/features.
-    private bool IsAudienceFeaturesActive(GuildAudience audience)
+    // Highlights a guild-scoped audience's group on its Settings page, its catalog page and
+    // its feature editors — all sharing the audience's path prefix (.../{slug}/...).
+    private bool IsAudienceGroupActive(GuildAudience audience)
     {
         if (GuildContext.GuildId is not { } guildId)
             return false;
 
-        var basePath = audience == GuildAudience.Guild
-            ? $"manage/guild/{guildId}/features"
-            : $"manage/guild/{guildId}/{AudienceDisplay.Slug(audience)}/features";
-        return IsActive(basePath);
+        if (audience == GuildAudience.Guild)
+            return IsActive($"manage/guild/{guildId}/features");
+
+        var prefix = $"manage/guild/{guildId}/{AudienceDisplay.Slug(audience)}";
+        return IsActive($"{prefix}/features") || IsActive($"{prefix}/settings");
     }
 
     public void Dispose()

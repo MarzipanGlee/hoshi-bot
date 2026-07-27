@@ -10,8 +10,8 @@ public static class GuildAdminPages
     [
         new("Overview", "", Icon: "oi-home", ExactMatch: true, ShowOnOverviewCard: false),
         new("Audience", "audience", Icon: "oi-people"),
-        new("Features", "features", Icon: "oi-puzzle-piece"),
         new("Settings", "settings", Icon: "oi-cog"),
+        new("Features", "features", Icon: "oi-puzzle-piece"),
         new("Setup Wizard", "setup-wizard", Icon: "oi-list-rich"),
         new("Permission Check", "permission-check", Icon: "oi-lock-locked"),
     ];

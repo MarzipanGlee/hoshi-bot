@@ -1,0 +1,91 @@
+@page "/manage/guild/{GuildId}/{AudienceSlug}/settings"
+@using HoshiBot.Domain.Localization
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject LanguageResolver LanguageResolver
+
+<PageTitle>@AudienceTitle Settings</PageTitle>
+
+<AuthorizedGuildView Authorized="Authorized">
+    @if (!validAudience)
+    {
+        <h1>Audience Settings</h1>
+        <p>Unknown audience. Pick one on the <a href="@($"manage/guild/{GuildId}/audience")">Audience</a> page.</p>
+    }
+    else
+    {
+        <h1>@AudienceTitle Settings</h1>
+        <p>@AudienceDisplay.Description(audience) Feature-agnostic settings for this audience — per-feature configuration lives on the <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/features")">Features</a> page.</p>
+
+        <h2>Regional</h2>
+        <div class="card-grid mt-1">
+            <LanguagePicker CardTitle="Language"
+                            Usage="The bot's language for public posts scoped to this audience."
+                            InheritedLabel="@inheritedLanguageLabel"
+                            @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
+        </div>
+    }
+</AuthorizedGuildView>
+
+@code {
+    [Parameter] public string? AudienceSlug { get; set; }
+
+    private GuildAudience audience;
+    private bool validAudience;
+    private string? languageInput;
+    private string inheritedLanguageLabel = "guild language";
+
+    private string AudienceTitle => validAudience ? AudienceDisplay.Labels(audience).First() : "Audience";
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        validAudience = AudienceDisplay.TryParseSlug(AudienceSlug, out audience);
+
+        // Guild-wide and Alliance settings have their own homes — redirect rather than
+        // duplicating them here (Alliance language is per-alliance, not per-audience).
+        if (audience == GuildAudience.Guild)
+        {
+            Nav.NavigateTo($"manage/guild/{GuildId}/settings");
+            return;
+        }
+        if (audience == GuildAudience.Alliance)
+        {
+            Nav.NavigateTo($"manage/guild/{GuildId}/alliance/settings");
+            return;
+        }
+
+        if (!validAudience)
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        languageInput = await db.GuildAudienceLanguages
+            .Where(l => l.GuildId == ParsedGuildId && l.Audience == audience)
+            .Select(l => l.Language)
+            .FirstOrDefaultAsync();
+
+        inheritedLanguageLabel = $"guild language: {Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId))}";
+    }
+
+    private async Task SaveLanguageAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.GuildAudienceLanguages
+            .FirstOrDefaultAsync(l => l.GuildId == ParsedGuildId && l.Audience == audience);
+
+        if (languageInput is null)
+        {
+            if (existing is not null)
+                db.GuildAudienceLanguages.Remove(existing);
+        }
+        else if (existing is null)
+        {
+            db.GuildAudienceLanguages.Add(new GuildAudienceLanguage { GuildId = ParsedGuildId, Audience = audience, Language = languageInput });
+        }
+        else
+        {
+            existing.Language = languageInput;
+        }
+
+        await db.SaveChangesAsync();
+    }
+}

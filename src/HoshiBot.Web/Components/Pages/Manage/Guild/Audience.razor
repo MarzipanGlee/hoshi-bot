@@ -1,8 +1,6 @@
 @page "/manage/guild/{GuildId}/audience"
-@using HoshiBot.Domain.Localization
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
-@inject LanguageResolver LanguageResolver
 
 <PageTitle>Audience</PageTitle>
 
@@ -17,18 +15,18 @@
         <ScopeAccordion @ref="scopeAccordion" GuildId="ParsedGuildId" Audiences="audiences" />
     </div>
 
-    @if (languageAudiences.Count > 0)
+    @if (settingsAudiences.Count > 0)
     {
         <div class="mt-4">
-            <h2>Language per audience</h2>
-            <p>Public posts scoped to an audience use its language; unset audiences inherit the guild language. The Alliance audience is configured per alliance on its <a href="@($"manage/guild/{GuildId}/alliance/settings")">Alliance Settings</a> page.</p>
+            <h2>Audience settings</h2>
+            <p>Feature-agnostic settings per audience, such as the posting language. The Alliance audience is configured per alliance on its own Settings page.</p>
             <div class="card-grid mt-1">
-                @foreach (var audience in languageAudiences)
+                @foreach (var audience in settingsAudiences)
                 {
-                    <LanguagePicker CardTitle="@AudienceDisplay.Labels(audience).First()"
-                                    InheritedLabel="@inheritedLanguageLabel"
-                                    Value="@AudienceLanguage(audience)"
-                                    ValueChanged="value => SaveAudienceLanguageAsync(audience, value)" />
+                    <NavCard Href="@AudienceSettingsHref(audience)"
+                             Icon="@AudienceDisplay.Icon(audience)"
+                             Title="@($"{AudienceDisplay.Labels(audience).First()} Settings")"
+                             Subtitle="@AudienceDisplay.Description(audience)" />
                 }
             </div>
         </div>
@@ -38,15 +36,16 @@
 @code {
     private GuildAudience audiences;
     private ScopeAccordion? scopeAccordion;
-    private Dictionary<GuildAudience, string> audienceLanguages = [];
-    private string inheritedLanguageLabel = "guild language";
 
-    // Alliance is per-alliance (GuildAlliance.Language), so only the other selectable
-    // audiences get a per-audience selector here.
-    private List<GuildAudience> languageAudiences =>
+    // Alliance settings are per-alliance (its own page); the other selectable audiences
+    // each get an AudienceSettings page.
+    private List<GuildAudience> settingsAudiences =>
         new[] { GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community }
             .Where(a => audiences.HasFlag(a))
             .ToList();
+
+    private string AudienceSettingsHref(GuildAudience audience) =>
+        $"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/settings";
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
@@ -55,43 +54,9 @@
             .Where(s => s.GuildId == ParsedGuildId)
             .Select(s => s.Audiences)
             .FirstOrDefaultAsync();
-
-        audienceLanguages = await db.GuildAudienceLanguages
-            .Where(l => l.GuildId == ParsedGuildId)
-            .ToDictionaryAsync(l => l.Audience, l => l.Language);
-
-        inheritedLanguageLabel = $"guild language: {Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId))}";
     }
 
     private void OnAudienceChanged(GuildAudience newAudiences) => audiences = newAudiences;
-
-    private string? AudienceLanguage(GuildAudience audience) => audienceLanguages.GetValueOrDefault(audience);
-
-    private async Task SaveAudienceLanguageAsync(GuildAudience audience, string? value)
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var existing = await db.GuildAudienceLanguages
-            .FirstOrDefaultAsync(l => l.GuildId == ParsedGuildId && l.Audience == audience);
-
-        if (value is null)
-        {
-            if (existing is not null)
-                db.GuildAudienceLanguages.Remove(existing);
-            audienceLanguages.Remove(audience);
-        }
-        else if (existing is null)
-        {
-            db.GuildAudienceLanguages.Add(new GuildAudienceLanguage { GuildId = ParsedGuildId, Audience = audience, Language = value });
-            audienceLanguages[audience] = value;
-        }
-        else
-        {
-            existing.Language = value;
-            audienceLanguages[audience] = value;
-        }
-
-        await db.SaveChangesAsync();
-    }
 
     // Expands the matching accordion section, then scrolls to it — the section can be a
     // fair way down the page below the audience cards.
