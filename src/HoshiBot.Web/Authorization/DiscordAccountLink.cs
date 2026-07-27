@@ -19,4 +19,9 @@ public static class DiscordAccountLink
     public const string StartPath = "/me/link-discord";
 
     public const string ResultQueryKey = "link";
+
+    // Claim type carrying the user's Discord client locale — mapped on the *main* login
+    // scheme (not the link scheme) from /users/@me's "locale"; consumed by /me's language
+    // selector. Only present in sessions signed in after the mapping was added.
+    public const string LocaleClaim = "urn:discord:locale";
 }

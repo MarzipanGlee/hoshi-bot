@@ -7,6 +7,7 @@
 @inject DiscordGuildDataService DiscordData
 @inject PlayerLinkService PlayerLink
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject LanguageResolver LanguageResolver
 
 <PageTitle>My Area</PageTitle>
 
@@ -304,7 +305,15 @@
                 .Select(u => new { u.Language, u.DiscordLocale })
                 .FirstOrDefaultAsync();
             userLanguage = userRow?.Language;
-            automaticLanguageLabel = Languages.FromDiscordLocale(userRow?.DiscordLocale) is { } discordLanguage
+
+            // The bot records DiscordLocale from interactions; before the first one, the web
+            // login itself knows the locale (the mapped OAuth claim) — use it for the label
+            // and seed the stored value so DMs can resolve the language too.
+            var discordLocale = userRow?.DiscordLocale ?? user.FindFirst(DiscordAccountLink.LocaleClaim)?.Value;
+            if (userRow?.DiscordLocale is null && discordLocale is not null)
+                await LanguageResolver.RecordUserLocaleAsync(currentUserId, discordLocale);
+
+            automaticLanguageLabel = Languages.FromDiscordLocale(discordLocale) is { } discordLanguage
                 ? $"Discord: {Languages.NativeName(discordLanguage)}"
                 : "your Discord language";
         }

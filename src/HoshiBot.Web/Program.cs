@@ -89,6 +89,10 @@ builder.Services
         options.ClientSecret = builder.Configuration["Discord:ClientSecret"]!;
         options.Scope.Add("guilds");
         options.SaveTokens = true;
+        // Discord's /users/@me includes the client locale (identify scope) but the provider
+        // doesn't map it by default — /me uses it to show what "Automatic" language resolves
+        // to (and to seed DiscordUser.DiscordLocale before the bot ever saw an interaction).
+        options.ClaimActions.MapJsonKey(DiscordAccountLink.LocaleClaim, "locale");
     })
     // A second Discord handler used *only* to prove ownership of another Discord account from
     // /me, never to sign in. Its ticket lands in the short-lived DiscordAccountLink.ExternalScheme
