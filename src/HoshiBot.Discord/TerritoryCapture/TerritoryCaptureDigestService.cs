@@ -340,9 +340,10 @@ public partial class TerritoryCaptureDigestService(
             .Select(chunk => new ActionRowProperties(chunk))
             .ToList();
 
+        RestMessage message;
         try
         {
-            var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
+            message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
             {
                 Content = content,
                 Embeds = [embed],
@@ -353,11 +354,6 @@ public partial class TerritoryCaptureDigestService(
                     ? new AllowedMentionsProperties { Everyone = false, AllowedRoles = mentionRoleIds.ToArray() }
                     : AllowedMentionsProperties.None,
             });
-
-            if (pin)
-                await gatewayClient.Rest.PinMessageAsync(channelId, message.Id);
-
-            return message.Id;
         }
         catch (RestException ex)
         {
@@ -371,6 +367,27 @@ public partial class TerritoryCaptureDigestService(
                 channelId, guildId, link.StfcAlliance.Tag);
             return null;
         }
+
+        if (pin)
+        {
+            try
+            {
+                await gatewayClient.Rest.PinMessageAsync(channelId, message.Id);
+            }
+            catch (RestException ex)
+            {
+                // Pinning is best-effort (missing "Manage Messages", channel already at Discord's
+                // 50-pin cap, etc.) and must NOT roll back a successful send: this once lived inside
+                // the send's try/catch, so a pin failure returned null here, RecordSentMessageAsync
+                // never ran, the dedup row was never written, and the next 30-minute sweep tick
+                // re-sent (and re-pinged @role on) the entire digest as a brand-new message.
+                logger.LogWarning(ex,
+                    "Failed to pin Territory Capture digest message {MessageId} in channel {ChannelId} for guild {GuildId} (alliance {AllianceTag})",
+                    message.Id, channelId, guildId, link.StfcAlliance.Tag);
+            }
+        }
+
+        return message.Id;
     }
 
     private async Task RecordSentMessageAsync(ulong guildId, int guildAllianceId, TerritoryCaptureMessageKind kind,
