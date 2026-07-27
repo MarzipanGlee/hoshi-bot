@@ -1,10 +1,12 @@
 @page "/manage/guild/{GuildId}/alliance/settings"
 @page "/manage/guild/{GuildId}/alliance/{GuildAllianceIdRaw:int}/settings"
+@using HoshiBot.Domain.Localization
 @using HoshiBot.Web.Services
 @using NetCord
 @inherits AllianceAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
+@inject LanguageResolver LanguageResolver
 
 <PageTitle>Alliance Settings</PageTitle>
 
@@ -52,6 +54,10 @@
                 </p>
                 <Select TValue="string" ShowSearch="true" @bind-Value="timeZoneIdInput" @bind-Value:after="SaveTimeZoneAsync" Items="TimeZoneItems" />
             </SettingsCard>
+            <LanguagePicker CardTitle="Language"
+                            Usage="The bot's language for public posts scoped to this alliance (digests, reminders, announcements)."
+                            InheritedLabel="@inheritedLanguageLabel"
+                            @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
         </div>
     }
 </AuthorizedGuildView>
@@ -82,6 +88,8 @@
     private string? diplomatRoleIdInput;
     private string? boardingRoleIdInput;
     private string? timeZoneIdInput;
+    private string? languageInput;
+    private string inheritedLanguageLabel = "guild language";
 
     // IANA ids (on Linux TimeZoneInfo.Id is the IANA id); searchable so the admin can type e.g. "Zurich".
     private static readonly List<SelectedItem> TimeZoneItems =
@@ -121,10 +129,14 @@
         diplomatRoleIdInput = alliance.DiplomatRoleId?.ToString();
         boardingRoleIdInput = alliance.BoardingRoleId?.ToString();
         timeZoneIdInput = alliance.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
+        languageInput = alliance.Language;
+        inheritedLanguageLabel = $"guild language: {Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId))}";
     }
 
     private Task SaveTimeZoneAsync() =>
         SaveAsync(a => a.TimeZoneId = string.IsNullOrEmpty(timeZoneIdInput) ? null : timeZoneIdInput);
+
+    private Task SaveLanguageAsync() => SaveAsync(a => a.Language = languageInput);
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
 

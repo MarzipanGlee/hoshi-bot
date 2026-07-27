@@ -1,4 +1,5 @@
 @page "/me"
+@using HoshiBot.Domain.Localization
 @using Microsoft.AspNetCore.Authentication
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
@@ -177,6 +178,27 @@
         </div>
     }
 
+    <h2 class="mt-5 mb-2">My Language</h2>
+    <p class="card-subtext">
+        The language Hoshi uses when talking to you personally — private replies, DMs and
+        your tickets. Public channel posts follow the community's language instead.
+    </p>
+
+    @if (!loading)
+    {
+        @* Plain <select>, not BootstrapBlazor's — MeLayout has no BootstrapBlazorRoot,
+           same constraint as the per-community primary-player selects above. *@
+        <select class="form-select w-auto" @onchange="OnLanguageChangedAsync">
+            <option value="" selected="@(userLanguage is null)">Automatic (@automaticLanguageLabel)</option>
+            @foreach (var language in Languages.Enabled)
+            {
+                <option value="@Languages.ToCode(language)" selected="@(userLanguage == Languages.ToCode(language))">
+                    @Languages.NativeName(language)
+                </option>
+            }
+        </select>
+    }
+
     <h2 class="mt-5 mb-2">My Discord Accounts</h2>
     <p class="card-subtext">
         Play from more than one Discord account? Link them and Hoshi treats them as one person —
@@ -239,6 +261,9 @@
     private List<PlayerSearchResult> playerSearchResults = [];
     private string? playerError;
 
+    private string? userLanguage;
+    private string automaticLanguageLabel = "your Discord language";
+
     private string? LinkResultMessage => Link switch
     {
         "ok" => "Discord account linked — both accounts now share your player accounts.",
@@ -273,10 +298,38 @@
         {
             audiencesByGuildId = await db.GuildSettings.AsNoTracking()
                 .ToDictionaryAsync(s => s.GuildId, s => s.Audiences);
+
+            var userRow = await db.DiscordUsers.AsNoTracking()
+                .Where(u => u.DiscordUserId == currentUserId)
+                .Select(u => new { u.Language, u.DiscordLocale })
+                .FirstOrDefaultAsync();
+            userLanguage = userRow?.Language;
+            automaticLanguageLabel = Languages.FromDiscordLocale(userRow?.DiscordLocale) is { } discordLanguage
+                ? $"Discord: {Languages.NativeName(discordLanguage)}"
+                : "your Discord language";
         }
 
         await ReloadPersonAsync();
         loading = false;
+    }
+
+    private async Task OnLanguageChangedAsync(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        userLanguage = string.IsNullOrEmpty(value) ? null : value;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var user = await db.DiscordUsers.FindAsync(currentUserId);
+        if (user is null)
+        {
+            db.DiscordUsers.Add(new DiscordUser { DiscordUserId = currentUserId, Language = userLanguage });
+        }
+        else
+        {
+            user.Language = userLanguage;
+        }
+
+        await db.SaveChangesAsync();
     }
 
     // The whole person, not just this account: every Discord account linked to it and every player

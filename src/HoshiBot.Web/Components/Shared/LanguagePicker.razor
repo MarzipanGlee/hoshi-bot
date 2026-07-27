@@ -1,0 +1,55 @@
+@using HoshiBot.Domain.Localization
+
+@if (CardTitle is not null)
+{
+    <SettingsCard Title="@CardTitle">
+        @Body
+    </SettingsCard>
+}
+else
+{
+    @Body
+}
+
+@code {
+    // Language selector over the enabled bot languages plus a first "Default" entry whose
+    // label explains what inheriting means right now (e.g. "Discord: Deutsch" or
+    // "guild language: English") — value "" saves null (= inherit).
+    [Parameter] public string? CardTitle { get; set; }
+
+    [Parameter] public string? Usage { get; set; }
+
+    // What the empty selection resolves to, computed by the parent (it knows the scope).
+    [Parameter, EditorRequired] public string InheritedLabel { get; set; } = "";
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+
+    private string current = "";
+
+    protected override void OnParametersSet() => current = Value ?? "";
+
+    private List<SelectedItem> Items =>
+    [
+        new("", $"Default ({InheritedLabel})"),
+        .. Languages.Enabled.Select(l => new SelectedItem(Languages.ToCode(l), Languages.NativeName(l))),
+    ];
+
+    private async Task OnChangedAsync()
+    {
+        var newValue = string.IsNullOrEmpty(current) ? null : current;
+        if (newValue == Value)
+            return;
+
+        Value = newValue;
+        await ValueChanged.InvokeAsync(newValue);
+    }
+
+    private RenderFragment Body => @<div>
+        @if (Usage is not null)
+        {
+            <p class="form-text mb-2">@Usage</p>
+        }
+        <Select TValue="string" @bind-Value="current" @bind-Value:after="OnChangedAsync" Items="Items" />
+    </div>;
+}

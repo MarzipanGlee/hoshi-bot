@@ -1,3 +1,4 @@
+@using HoshiBot.Domain.Localization
 @using HoshiBot.Web.Services
 @using NetCord
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
@@ -21,6 +22,14 @@
     <RolePicker CardTitle="Hoshi Tester" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
 </div>
 
+<h2>Regional</h2>
+<div class="card-grid mt-1">
+    <LanguagePicker CardTitle="Language"
+                    Usage="The bot's language for public posts in this guild. Audiences and alliances inherit it unless they set their own; members' ephemeral replies follow their personal language."
+                    InheritedLabel="@inheritedLanguageLabel"
+                    @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
+</div>
+
 @code {
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
@@ -35,12 +44,21 @@
     private string? crewsRoleIdInput;
     private string? betaTesterRoleIdInput;
     private string? hoshiTesterRoleIdInput;
+    private string? languageInput;
+    private string inheritedLanguageLabel = "English";
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId)
             ?? new GuildSettings { GuildId = GuildId };
+
+        // What "Default" currently resolves to: the guild's synced Discord locale.
+        var preferredLocale = await db.DiscordGuilds
+            .Where(g => g.Id == GuildId)
+            .Select(g => g.PreferredLocale)
+            .FirstOrDefaultAsync();
+        inheritedLanguageLabel = $"Discord: {Languages.NativeName(LanguagePolicy.ForGuild(null, preferredLocale))}";
 
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
@@ -51,6 +69,7 @@
         crewsRoleIdInput = settings.CrewsRoleId?.ToString();
         betaTesterRoleIdInput = settings.BetaTesterRoleId?.ToString();
         hoshiTesterRoleIdInput = settings.HoshiTesterRoleId?.ToString();
+        languageInput = settings.Language;
     }
 
     private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
@@ -69,6 +88,7 @@
         await db.SaveChangesAsync();
     }
 
+    private Task SaveLanguageAsync() => SaveAsync(s => s.Language = languageInput);
     private Task SaveLogChannelAsync() => SaveAsync(s => s.LogChannelId = ParseId(logChannelIdInput));
     private Task SaveAdminChannelAsync() => SaveAsync(s => s.AdminChannelId = ParseId(adminChannelIdInput));
     private Task SaveUserLogChannelAsync() => SaveAsync(s => s.UserLogChannelId = ParseId(userLogChannelIdInput));
