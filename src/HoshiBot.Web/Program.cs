@@ -243,15 +243,16 @@ app.MapGet(DiscordAccountLink.ReturnPath, async (HttpContext http, PlayerLinkSer
 // doesn't have to manually tick them (or under/over-grant). Keep this bitmask in sync
 // with what the bot's commands/jobs actually call: ManageRoles (notification/TC role
 // sync, and creating roles from the Setup Wizard), ManageChannels (creating channels/
-// categories from the Setup Wizard), ManageNicknames (nickname sync), ManageMessages
-// (pinning the weekly TC digest), ManageThreads (closing/removing threads), EmbedLinks
-// (digest/report embeds), ReadMessageHistory (reading announcement drafts back to publish
-// them), MentionEveryone (pinging the — usually non-mentionable — TC/notification roles on
-// the daily/weekly digest), SendMessages/ViewChannel (posting at all).
+// categories from the Setup Wizard), ManageNicknames (nickname sync), PinMessages
+// (pinning the weekly TC digest — a bit Discord split out of Manage Messages; a bot with
+// only Manage Messages still gets a 403 on the pin call), ManageThreads (closing/removing
+// threads), EmbedLinks (digest/report embeds), ReadMessageHistory (reading announcement
+// drafts back to publish them), MentionEveryone (pinging the — usually non-mentionable —
+// TC/notification roles on the daily/weekly digest), SendMessages/ViewChannel (posting at all).
 app.MapGet("/invite", (IConfiguration config, ulong? guildId) =>
 {
     const Permissions botPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.EmbedLinks |
-        Permissions.ManageMessages | Permissions.ManageThreads | Permissions.ManageRoles | Permissions.ManageNicknames |
+        Permissions.PinMessages | Permissions.ManageThreads | Permissions.ManageRoles | Permissions.ManageNicknames |
         Permissions.ManageChannels | Permissions.ReadMessageHistory | Permissions.MentionEveryone;
 
     var clientId = config["Discord:ClientId"];

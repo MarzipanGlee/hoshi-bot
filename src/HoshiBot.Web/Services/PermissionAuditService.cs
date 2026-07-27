@@ -40,11 +40,13 @@ public sealed class PermissionAuditService(
     private const Permissions AiChatKnowledgePermissions = Permissions.ViewChannel | Permissions.ReadMessageHistory;
 
     // The Territory Capture digest channel also gets its weekly message pinned (see
-    // TerritoryCaptureDigestService.SendDigestAsync) — Manage Messages on top of the normal post
-    // permissions. Missing it doesn't block the digest from posting, but silently fails the pin
-    // and (before that failure was isolated from the send) once caused the whole digest to be
-    // treated as failed and resent every 30 minutes, double-pinging the alliance's role.
-    private const Permissions TerritoryCaptureDigestPermissions = PostPermissions | Permissions.ManageMessages;
+    // TerritoryCaptureDigestService.SendDigestAsync) — Pin Messages on top of the normal post
+    // permissions. Discord split pinning out of Manage Messages into its own bit; a bot that
+    // only has Manage Messages still gets a 403 on the pin call. Missing it doesn't block the
+    // digest from posting, but silently fails the pin and (before that failure was isolated
+    // from the send) once caused the whole digest to be treated as failed and resent every
+    // 30 minutes, double-pinging the alliance's role.
+    private const Permissions TerritoryCaptureDigestPermissions = PostPermissions | Permissions.PinMessages;
 
     public static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
 
@@ -60,7 +62,7 @@ public sealed class PermissionAuditService(
         Permissions.EmbedLinks => "Embed Links",
         Permissions.ReadMessageHistory => "Read Message History",
         Permissions.AddReactions => "Add Reactions",
-        Permissions.ManageMessages => "Manage Messages",
+        Permissions.PinMessages => "Pin Messages",
         _ => permission.ToString(),
     };
 
