@@ -10,5 +10,7 @@ public class DiscordUserConfiguration : IEntityTypeConfiguration<DiscordUser>
     {
         builder.HasKey(u => u.DiscordUserId);
         builder.Property(u => u.DiscordUserId).ValueGeneratedNever();
+        builder.Property(u => u.Language).HasMaxLength(10);
+        builder.Property(u => u.DiscordLocale).HasMaxLength(10);
     }
 }

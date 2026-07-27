@@ -13,7 +13,10 @@ public class DiscordGuild
     // when null. Animated icons carry an "a_" prefix, so this can exceed 32 chars.
     public string? IconHash { get; set; }
 
-    public string Locale { get; set; } = "de";
+    // The guild's Discord preferred_locale, kept in sync by GuildSyncHandler like
+    // Name/IconHash. The default source for the guild's bot language when no explicit
+    // GuildSettings.Language is set — see LanguagePolicy.ForGuild.
+    public string? PreferredLocale { get; set; }
 
     // A guild's scope is any combination of linked alliances/servers/veil-groups —
     // none of these are mutually exclusive (a coalition Discord can manage several

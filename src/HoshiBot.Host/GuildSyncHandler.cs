@@ -22,12 +22,19 @@ public class GuildSyncHandler(IServiceScopeFactory scopeFactory) : IGuildCreateG
         var existing = await db.DiscordGuilds.FindAsync(guild.Id);
         if (existing is null)
         {
-            db.DiscordGuilds.Add(new DiscordGuild { Id = guild.Id, Name = guild.Name, IconHash = guild.IconHash });
+            db.DiscordGuilds.Add(new DiscordGuild
+            {
+                Id = guild.Id,
+                Name = guild.Name,
+                IconHash = guild.IconHash,
+                PreferredLocale = guild.PreferredLocale,
+            });
         }
         else
         {
             existing.Name = guild.Name;
             existing.IconHash = guild.IconHash;
+            existing.PreferredLocale = guild.PreferredLocale;
         }
 
         await db.SaveChangesAsync();

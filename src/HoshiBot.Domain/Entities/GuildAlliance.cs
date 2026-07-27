@@ -25,6 +25,11 @@ public class GuildAlliance
     // IANA timezone id (e.g. "Europe/Zurich") — see DefaultTimeZoneId. Null → default.
     public string? TimeZoneId { get; set; }
 
+    // This alliance's bot language (ISO 639-1 code) for public alliance-scoped posts.
+    // Null = inherit the guild language — see LanguagePolicy.ForAlliance. Same
+    // feature-agnostic-attribute pattern as TimeZoneId.
+    public string? Language { get; set; }
+
     // Roles
     public ulong? MemberRoleId { get; set; }
     public ulong? OfficerRoleId { get; set; }

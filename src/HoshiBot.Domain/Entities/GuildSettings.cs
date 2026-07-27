@@ -20,6 +20,11 @@ public class GuildSettings
     // filtering only, never a runtime feature gate.
     public GuildAudience Audiences { get; set; }
 
+    // Explicit guild bot-language (ISO 639-1 code). Null = derive from the guild's
+    // Discord preferred_locale (DiscordGuild.PreferredLocale) — see
+    // LanguagePolicy.ForGuild. Audience/alliance languages inherit from this.
+    public string? Language { get; set; }
+
     // Channels. Alliance-scoped channels (Alliance Boarding, Reminders, Rules, User
     // Notifications, Bot Support, Command Staff Jobs) and the Command Bridge channels/message
     // IDs moved to GuildAlliance so they can differ per linked alliance.

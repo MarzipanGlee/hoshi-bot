@@ -10,6 +10,7 @@ public class GuildAllianceConfiguration : IEntityTypeConfiguration<GuildAlliance
     {
         builder.HasKey(ga => ga.Id);
         builder.HasIndex(ga => new { ga.GuildId, ga.StfcAllianceId }).IsUnique();
+        builder.Property(ga => ga.Language).HasMaxLength(10);
 
         builder.HasOne(ga => ga.Guild)
             .WithMany(g => g.AllianceLinks)

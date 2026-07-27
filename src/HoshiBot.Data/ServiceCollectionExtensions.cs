@@ -50,6 +50,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<MemoryService>();
         services.AddScoped<PlayerLinkService>();
         services.AddScoped<MemberNoteService>();
+        services.AddScoped<LanguageResolver>();
+        // Singleton: the resolved-language cache spans scopes by design (5-min TTL).
+        services.AddSingleton<LanguageCache>();
 
         return services;
     }
