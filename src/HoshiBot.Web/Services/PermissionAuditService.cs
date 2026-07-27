@@ -39,6 +39,13 @@ public sealed class PermissionAuditService(
     // propagates to its synced child channels.)
     private const Permissions AiChatKnowledgePermissions = Permissions.ViewChannel | Permissions.ReadMessageHistory;
 
+    // The Territory Capture digest channel also gets its weekly message pinned (see
+    // TerritoryCaptureDigestService.SendDigestAsync) — Manage Messages on top of the normal post
+    // permissions. Missing it doesn't block the digest from posting, but silently fails the pin
+    // and (before that failure was isolated from the send) once caused the whole digest to be
+    // treated as failed and resent every 30 minutes, double-pinging the alliance's role.
+    private const Permissions TerritoryCaptureDigestPermissions = PostPermissions | Permissions.ManageMessages;
+
     public static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
 
     private static bool IsManage(Permissions perms) =>
@@ -53,6 +60,7 @@ public sealed class PermissionAuditService(
         Permissions.EmbedLinks => "Embed Links",
         Permissions.ReadMessageHistory => "Read Message History",
         Permissions.AddReactions => "Add Reactions",
+        Permissions.ManageMessages => "Manage Messages",
         _ => permission.ToString(),
     };
 
@@ -298,9 +306,12 @@ public sealed class PermissionAuditService(
                 .ToListAsync();
             foreach (var sc in settingChannels)
             {
-                var perms = sc is { Feature: GuildFeature.Announcements, Key: AnnouncementsSettingKeys.DraftChannel }
-                    ? DraftPermissions
-                    : PostPermissions;
+                var perms = sc switch
+                {
+                    { Feature: GuildFeature.Announcements, Key: AnnouncementsSettingKeys.DraftChannel } => DraftPermissions,
+                    { Feature: GuildFeature.TerritoryCapture, Key: TerritoryCaptureSettingKeys.DigestChannel } => TerritoryCaptureDigestPermissions,
+                    _ => PostPermissions,
+                };
                 Add(sc.Value, $"Feature: {sc.Feature} ({sc.Key})", perms);
             }
 
