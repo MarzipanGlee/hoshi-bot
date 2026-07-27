@@ -308,28 +308,15 @@ feature editors), with three different field names for the same state. Add
   this exception. (`PlayerLinkService` was likewise reviewed for a split and left
   whole — its clusters are mutually entangled.)
 
-## Phase 6 — Localization of Discord-facing text
+## Phase 6 — Localization of Discord-facing text — IN PROGRESS
 
-German is the current, temporary primary language for bot-facing text. Target: full
-localization with English as the base language.
-
-1. **Safeguard the current German first.** Extract every user-facing German string —
-   embeds, button labels, select options, modal titles, error messages, job
-   notifications — from `HoshiBot.Discord` *and* the Data-layer label/message helpers
-   (`GuildFeatureService.FeatureLabel`/`AudienceLabel`/`DisabledMessage`) into a
-   resource catalog (`.resx` per assembly, or a JSON/DB-backed string catalog) as the
-   `de` locale **before any translation work**. The current German wording is the
-   authoritative source and must not be lost; the extraction commit must be
-   behavior-identical (same strings, now resolved through the catalog).
-2. Translate the catalog to English; `en` becomes the neutral/base language (fallback
-   for missing keys).
-3. Add translations for the languages STFC itself supports (e.g. French, German,
-   Italian, Spanish, Portuguese, Russian, Japanese, Korean — **confirm the exact set
-   against the game before executing**).
-4. Add a per-guild (or per-audience) language setting so each guild picks its bot
-   language. Default existing guilds to `de` so nothing visibly changes at rollout.
-5. Update [CONTRIBUTING.md](../CONTRIBUTING.md)'s language policy once this ships: new
-   user-facing strings go into the catalog (all locales), never hardcoded.
+Planned in detail in **[localization-plan.md](localization-plan.md)** (2026-07-27):
+typed catalog + per-locale embedded JSON in `HoshiBot.Domain`, language selectors on
+four levels (guild / audience / alliance / user) with Discord-locale defaults,
+ephemeral & user-dedicated output in the user's language, public output in the owning
+scope's language, launching with English + German and scaling to all 9 STFC in-game
+languages. Supersedes the earlier sketch here (notably: no `de` seeding of existing
+guilds — the Discord-locale default applies, admins set the selector explicitly).
 
 ## Explicit don't-touch list
 
