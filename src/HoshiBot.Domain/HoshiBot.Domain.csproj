@@ -1,6 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- Per-locale message templates for MessageCatalog (Localization/) — embedded like
+         Data's seed JSON so deployment stays a single assembly per project. -->
+    <EmbeddedResource Include="Localization\Locales\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The Pgvector.Vector type used by AiChatIndexedMessage.Embedding. A tiny netstandard2.0
          library (only an Npgsql dependency) — a deliberate, minimal exception to the otherwise
          dependency-free Domain, because the stored embedding column needs the typed Vector so the
