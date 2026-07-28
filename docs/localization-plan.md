@@ -108,6 +108,12 @@ feature-scoped (wrong altitude) and has no user dimension.
 - `GuildFeatureService.FeatureLabel/AudienceLabel/DisabledMessage` gain a `Language`
   parameter (parameterless overloads default to En for the Web admin).
   `CommandBridgeCatalog.LabelDe` → `LabelKey` (a catalog key rendered per language).
+- **Web request language**: when the Web UI renders catalog content, the language is
+  resolved as: the signed-in user's explicit `DiscordUser.Language` → the browser's
+  `Accept-Language` request header (first supported match) → En. Applies equally to
+  anonymous pages (no login → straight to the header). This governs Web *rendering*
+  only — it never writes anything and is independent of the Discord-side resolver
+  chains above.
 - `CommanderName.Greeting/Address` (a German-grammar salutation split used at 16
   sites) is dissolved: extracted messages become full-sentence templates including
   the salutation; `CommanderName.Of` (tag stripping) stays.
