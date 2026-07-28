@@ -84,7 +84,7 @@ File placement rules:
   work)` for the ack-immediately-then-edit confirmation flow. Plain text is only for the
   transient `⏳ Processing...` ack.
 - Feature-gate an interaction with
-  `GuildFeatureService.EnsureEnabledAsync(guildId, feature)` (returns the disabled
+  `GuildFeatureService.EnsureEnabledAsync(guildId, feature, lang)` (returns the disabled
   message or null).
 - Per-guild feature toggles (`GuildFeature` enum + `GuildFeatureService`) gate **three
   layers** for every toggleable feature: the Command Bridge hub button (hidden if

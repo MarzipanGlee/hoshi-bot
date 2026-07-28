@@ -47,7 +47,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("raid-report")]
     public async Task<InteractionMessageProperties> ReportRaidPrompt()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts) is { } msg)
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts, Lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
@@ -76,7 +76,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("shield-reminder-setup")]
     public async Task<InteractionCallbackProperties> ShieldReminderSetup()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, Lang) is { } msg)
             return InteractionCallback.Message(await EphemeralEmbedAsync(msg));
 
         return ShieldReminderModal();
@@ -163,7 +163,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     {
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets, parsedAudience, guildAllianceId))
-            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Tickets)));
+            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Tickets, Lang)));
 
         return InteractionCallback.Modal(new ModalProperties($"ticket-open-modal:{audience}", Msg.Bridge.TicketOpen(Lang),
         [
@@ -203,7 +203,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         var guildId = Context.Guild!.Id;
         if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Announcements))
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Announcements))));
+            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Announcements, Lang))));
             return;
         }
 
@@ -243,7 +243,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("roe-violation-report")]
     public async Task<InteractionMessageProperties> ReportRoeViolationPrompt()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RoeViolationReports) is { } msg)
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RoeViolationReports, Lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         var buttons = new List<ButtonProperties>
@@ -278,7 +278,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     {
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId))
-            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging)));
+            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging, Lang)));
 
         return InteractionCallback.Modal(new ModalProperties($"anonymous-message-modal:{audience}", Msg.Bridge.AnonymousMessage(Lang),
         [

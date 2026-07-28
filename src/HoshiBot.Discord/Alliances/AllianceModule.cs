@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -9,6 +10,10 @@ namespace HoshiBot.Discord.Alliances;
 
 public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
+    // Catalog-rendered strings (the feature-disabled guard) are pinned to German until
+    // sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [SlashCommand("set-diplomacy", "Set one of this guild's alliances' diplomatic status toward another alliance",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
     public Task SetDiplomacy(string ourAllianceTag, string targetAllianceTag, DiplomacyStatus status) =>
@@ -25,7 +30,7 @@ public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureSer
             // Gate per that specific alliance — Diplomacy can be enabled for one linked alliance
             // but not another.
             if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Diplomacy, GuildAudience.Alliance, ourGuildAlliance.Id))
-                return GuildFeatureService.DisabledMessage(GuildFeature.Diplomacy);
+                return GuildFeatureService.DisabledMessage(GuildFeature.Diplomacy, Lang);
 
             var ourAlliance = ourGuildAlliance.StfcAlliance;
 

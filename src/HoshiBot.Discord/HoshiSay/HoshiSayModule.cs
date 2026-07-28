@@ -44,7 +44,7 @@ public class HoshiSayModule(
             var guildId = Context.Guild!.Id;
 
             // Feature gate (Discord can send stale interactions from an unrefreshed command list).
-            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.HoshiSay) is { } disabled)
+            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.HoshiSay, Lang) is { } disabled)
                 return disabled;
 
             // Role gate: only members holding the configured allowed role may run the command.

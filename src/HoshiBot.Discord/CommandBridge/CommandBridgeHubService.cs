@@ -106,7 +106,7 @@ public class CommandBridgeHubService(
                 if (entry.Feature is { } feature && !IsEnabledForHub(feature))
                     continue;
 
-                buttons.Add(new ButtonProperties(entry.CustomId, entry.LabelDe, EmojiProperties.Standard(entry.Emoji), ButtonStyle.Primary));
+                buttons.Add(new ButtonProperties(entry.CustomId, MessageCatalog.Format(Lang, entry.LabelKey), EmojiProperties.Standard(entry.Emoji), ButtonStyle.Primary));
             }
 
             if (buttons.Count > 0)
@@ -141,7 +141,7 @@ public class CommandBridgeHubService(
         // The single-audience label doubles as the contact step's title — same wording, one key.
         return configured.Select(audience => new ButtonProperties(
             $"contact-command-staff:{audience}",
-            configured.Count > 1 ? Msg.Bridge.ContactStaffAudience(Lang, GuildFeatureService.AudienceLabel(audience)) : Msg.Bridge.ContactTitle(Lang),
+            configured.Count > 1 ? Msg.Bridge.ContactStaffAudience(Lang, GuildFeatureService.AudienceLabel(audience, Lang)) : Msg.Bridge.ContactTitle(Lang),
             EmojiProperties.Standard("📮"), ButtonStyle.Primary)).ToList();
     }
 

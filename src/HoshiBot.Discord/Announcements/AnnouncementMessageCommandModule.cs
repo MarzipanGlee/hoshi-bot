@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
@@ -11,12 +12,16 @@ namespace HoshiBot.Discord.Announcements;
 public class AnnouncementMessageCommandModule(GuildFeatureService featureService, GuildFeatureSettingsService settingsService, EmbedBranding embedBranding)
     : ApplicationCommandModule<MessageCommandContext>
 {
+    // Catalog-rendered strings (the feature-disabled guard) are pinned to German until
+    // sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [MessageCommand("Vorschau erstellen")]
     public async Task<InteractionMessageProperties> Preview()
     {
         var guildId = Context.Guild!.Id;
         if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Announcements))
-            return await embedBranding.EphemeralAsync(guildId, GuildFeatureService.DisabledMessage(GuildFeature.Announcements));
+            return await embedBranding.EphemeralAsync(guildId, GuildFeatureService.DisabledMessage(GuildFeature.Announcements, Lang));
 
         var draft = Context.Target;
 

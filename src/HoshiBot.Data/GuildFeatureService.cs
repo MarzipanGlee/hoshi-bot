@@ -1,4 +1,5 @@
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Data;
@@ -34,10 +35,10 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
 
     // Gate helper for interaction handlers: null when the feature is enabled for this guild, else the
     // localized "disabled" message to return. Collapses the repeated
-    // `if (!await IsEnabledAsync(id, X)) return DisabledMessage(X)` guard — and its duplicated feature
-    // arg — to `if (await EnsureEnabledAsync(id, X) is { } msg) return <wrap>(msg)`.
-    public async Task<string?> EnsureEnabledAsync(ulong guildId, GuildFeature feature) =>
-        await IsEnabledAsync(guildId, feature) ? null : DisabledMessage(feature);
+    // `if (!await IsEnabledAsync(id, X)) return DisabledMessage(X, lang)` guard — and its duplicated
+    // feature arg — to `if (await EnsureEnabledAsync(id, X, lang) is { } msg) return <wrap>(msg)`.
+    public async Task<string?> EnsureEnabledAsync(ulong guildId, GuildFeature feature, Language lang) =>
+        await IsEnabledAsync(guildId, feature) ? null : DisabledMessage(feature, lang);
 
     // The distinct guilds that have this feature enabled for any audience/alliance — the guild set a
     // feature's periodic job iterates. Replaces the verbatim
@@ -164,43 +165,14 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         }
     }
 
-    public static string DisabledMessage(GuildFeature feature) =>
-        $"Diese Funktion ({FeatureLabel(feature)}) ist auf diesem Server deaktiviert.";
+    // Label/message texts live in the message catalog ("Feature.<X>" / "Audience.<X>" /
+    // "Feature.Disabled" keys); these delegations keep the historical call-site shape.
+    public static string DisabledMessage(GuildFeature feature, Language lang) =>
+        Msg.Feature.Disabled(lang, feature);
 
-    public static string AudienceLabel(GuildAudience audience) => audience switch
-    {
-        GuildAudience.Guild => "Serverweit",
-        GuildAudience.Alliance => "Allianz",
-        GuildAudience.Server => "Server",
-        GuildAudience.VeilGroup => "Veil-Gruppe",
-        GuildAudience.Community => "Community",
-        _ => audience.ToString(),
-    };
+    public static string AudienceLabel(GuildAudience audience, Language lang) =>
+        Msg.Audience.Label(lang, audience);
 
-    public static string FeatureLabel(GuildFeature feature) => feature switch
-    {
-        GuildFeature.RaidAlerts => "Raid melden",
-        GuildFeature.ShieldReminders => "Schilderinnerung",
-        GuildFeature.TerritoryCapture => "Gebietsübernahmen",
-        GuildFeature.Announcements => "Ankündigungen",
-        GuildFeature.Tickets => "Ticket öffnen",
-        GuildFeature.AnonymousMessaging => "Anonyme Nachricht",
-        GuildFeature.RoeViolationReports => "ROE Verstoss melden",
-        GuildFeature.Absences => "Abwesenheiten verwalten",
-        GuildFeature.AlertsOptIn => "Alarme verwalten",
-        GuildFeature.Diplomacy => "Diplomatie",
-        GuildFeature.ServerStatus => "Serverstatus",
-        GuildFeature.InfiniteIncursions => "Infinite-Incursions-Ankündigungen",
-        GuildFeature.RankRoles => "Rangrollen",
-        GuildFeature.OpsLevelRoles => "Ops-Level-Rollen",
-        GuildFeature.StfcNews => "STFC-News-Benachrichtigungen",
-        GuildFeature.AllianceTournament => "Allianz-Turnier-Benachrichtigungen",
-        GuildFeature.ClientRelease => "Client-Versions-Benachrichtigungen",
-        GuildFeature.AiChat => "KI-Chat",
-        GuildFeature.AiChatKnowledge => "KI-Chat: Wissensquellen",
-        GuildFeature.AiChatKnowledgePreferred => "KI-Chat: Wissensquellen (bevorzugt)",
-        GuildFeature.AiChatKnowledgeLastResort => "KI-Chat: Wissensquellen (letzte Wahl)",
-        GuildFeature.HoshiSay => "Hoshi sag",
-        _ => feature.ToString(),
-    };
+    public static string FeatureLabel(GuildFeature feature, Language lang) =>
+        Msg.Feature.Label(lang, feature);
 }

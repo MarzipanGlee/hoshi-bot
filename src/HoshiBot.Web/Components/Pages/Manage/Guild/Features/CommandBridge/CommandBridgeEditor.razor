@@ -1,8 +1,10 @@
 @inherits FeatureEditorBase
+@using HoshiBot.Domain.Localization
 @using HoshiBot.Web.Services
 @using NetCord
 @using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
+@inject WebRequestLanguage RequestLanguage
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -96,6 +98,10 @@
     // this alliance (Alliance audience) or for any of its non-alliance (guild-scoped) audiences.
     private HashSet<GuildFeature> enabledForHub = [];
 
+    // The catalog's button labels render in the viewer's request language (WebRequestLanguage) —
+    // unlike the bot's hub rendering, which follows the guild-side language resolution.
+    private Language labelLanguage = Language.En;
+
     private bool IsBusy(CommandBridgeKind bridge) => statuses.TryGetValue(bridge, out var s) && !s.Done;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -110,6 +116,7 @@
         }
 
         channels = await DiscordData.GetChannelsAsync(GuildId);
+        labelLanguage = await RequestLanguage.GetAsync();
 
         var enabled = await FeatureService.GetEnabledAsync(GuildId);
         enabledForHub = enabled
@@ -192,6 +199,7 @@
         var items = new List<OverviewItem>();
         foreach (var entry in CommandBridgeCatalog.ForBridge(bridge))
         {
+            var label = MessageCatalog.Format(labelLanguage, entry.LabelKey);
             if (entry.Kind == CommandBridgeButtonKind.ContactStaff)
             {
                 // Mirrors the hub's rule approximately: shown when Tickets OR AnonymousMessaging
@@ -199,15 +207,15 @@
                 // exact per-audience check lives in the bot).
                 var shown = enabledForHub.Contains(GuildFeature.Tickets)
                     || enabledForHub.Contains(GuildFeature.AnonymousMessaging);
-                items.Add(new OverviewItem(entry.LabelDe, shown, SlugFor(GuildFeature.Tickets)));
+                items.Add(new OverviewItem(label, shown, SlugFor(GuildFeature.Tickets)));
                 continue;
             }
 
             if (entry.Feature is { } feature)
-                items.Add(new OverviewItem(entry.LabelDe, enabledForHub.Contains(feature), SlugFor(feature)));
+                items.Add(new OverviewItem(label, enabledForHub.Contains(feature), SlugFor(feature)));
             else
                 // Not gated by a feature (e.g. beta-tests) — always shown, no feature page.
-                items.Add(new OverviewItem(entry.LabelDe, true, null));
+                items.Add(new OverviewItem(label, true, null));
         }
 
         return items;

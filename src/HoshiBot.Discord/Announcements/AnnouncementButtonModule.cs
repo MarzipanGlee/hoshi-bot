@@ -71,7 +71,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
         {
-            var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements);
+            var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements, Lang);
             return await embedBranding.BrandedEditAsync(Context.Guild!.Id, disabledMessage);
         }
 
@@ -99,7 +99,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
             Components =
             [
                 new ActionRowProperties(GuildFeatureAudiences.EnumerateFlags(GuildFeatureAudiences.RelevantAudiences(GuildFeature.Announcements))
-                    .Select(a => new ButtonProperties($"announcement-pick-audience:{idPart}:{a}", GuildFeatureService.AudienceLabel(a), ButtonStyle.Primary))
+                    .Select(a => new ButtonProperties($"announcement-pick-audience:{idPart}:{a}", GuildFeatureService.AudienceLabel(a, Lang), ButtonStyle.Primary))
                     .Append(new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(Lang), ButtonStyle.Secondary))),
             ],
         };

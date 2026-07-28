@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -9,6 +10,10 @@ namespace HoshiBot.Discord.Alerts;
 
 public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
+    // Catalog-rendered strings (the feature-disabled guard) are pinned to German until
+    // sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Tip: targeting yourself runs a self-test — see AlertService.ReportRaidAsync.
     [SlashCommand("raid", "Report a raid on a commander's station (tip: target yourself to try it out risk-free)", Contexts = [InteractionContextType.Guild])]
     public Task ReportRaid(
@@ -18,7 +23,7 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
         string? attacker = null) =>
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
-            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts) is { } msg)
+            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts, Lang) is { } msg)
                 return msg;
 
             return await alertService.ReportRaidAsync(Context.Guild!.Id, Context.User.Id, target.Id, system, server, attacker);
@@ -37,7 +42,7 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
         [SlashCommandParameter(AutocompleteProviderType = typeof(StationHousingSystemAutocompleteProvider))] string system) =>
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
-            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
+            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, Lang) is { } msg)
                 return msg;
 
             return await alertService.SetShieldReminderAsync(Context.Guild!.Id, Context.User.Id, duration, system);

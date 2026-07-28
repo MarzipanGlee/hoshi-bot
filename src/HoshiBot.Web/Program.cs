@@ -153,6 +153,7 @@ builder.Services.AddScoped<StfcSystemSyncService>();
 builder.Services.AddScoped<CurrentGuildContext>();
 builder.Services.AddScoped<CurrentAllianceContext>();
 builder.Services.AddScoped<SupportModeContext>();
+builder.Services.AddScoped<WebRequestLanguage>();
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtection:KeyPath"] ?? "keys"));

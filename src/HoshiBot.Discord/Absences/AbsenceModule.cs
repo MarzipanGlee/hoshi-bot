@@ -28,7 +28,7 @@ public class AbsenceModule(AbsenceService absenceService, GuildFeatureService fe
         AbsenceVisibility visibility = AbsenceVisibility.Public) =>
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
-            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.Absences) is { } msg)
+            if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.Absences, Lang) is { } msg)
                 return msg;
 
             if (hours <= 0)

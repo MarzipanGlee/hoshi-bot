@@ -33,7 +33,7 @@ public class CommandBridgeStaffButtonModule(
 
     private async Task<InteractionMessageProperties> ShieldReportPromptAsync(ShieldLossVariant variant)
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, Lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
@@ -45,7 +45,7 @@ public class CommandBridgeStaffButtonModule(
     [ComponentInteraction("staff-shield-mute")]
     public async Task<InteractionMessageProperties> MutePrompt()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders) is { } msg)
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, Lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
