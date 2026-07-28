@@ -10,8 +10,8 @@ namespace HoshiBot.Discord.Alerts;
 
 public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
-    // Catalog-rendered strings (the feature-disabled guard) are pinned to German until
-    // sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    // All strings come from the message catalog (Msg.Alert); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
     private const Language Lang = Language.De;
 
     // Tip: targeting yourself runs a self-test — see AlertService.ReportRaidAsync.
@@ -64,11 +64,11 @@ public class AlertModule(AlertService alertService, HoshiBotDbContext db, GuildF
 
             var reminder = await db.ShieldReminders.FirstOrDefaultAsync(s => s.GuildId == guildId && s.DiscordUserId == userId);
             if (reminder is null)
-                return "You don't have a shield reminder set.";
+                return Msg.Alert.NoShieldReminder(Lang);
 
             reminder.Disabled = true;
             await db.SaveChangesAsync();
 
-            return "Shield reminders disabled. Run /shield-reminder again anytime to re-enable.";
+            return Msg.Alert.ShieldRemindersDisabled(Lang);
         });
 }

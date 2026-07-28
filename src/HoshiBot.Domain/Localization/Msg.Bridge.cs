@@ -12,6 +12,15 @@ public static partial class Msg
         public static string RaidModalTitle(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.RaidModalTitle");
 
+        public static string RaidServerPrompt(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidServerPrompt");
+
+        public static string HomeServerButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.HomeServerButton");
+
+        public static string EnemyServerButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.EnemyServerButton");
+
         public static string LocationLabel(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.LocationLabel");
 

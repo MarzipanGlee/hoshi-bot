@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Discord.Scheduling;
@@ -18,6 +19,10 @@ public class InfiniteIncursionsNotifyJob(
     HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
     : DiffNotifyJobBase<StfcEventStatus>(db, dispatcher, embedBranding)
 {
+    // All strings come from the message catalog (Msg.Event); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // The string value ("incursions") is a real persisted lookup key (StfcEventStatus.EventGroup)
     // — do not change the value, only the constant's own name is cosmetic.
     private const string InfiniteIncursionsEventGroup = "incursions";
@@ -53,7 +58,7 @@ public class InfiniteIncursionsNotifyJob(
     protected override (string Content, NetCord.Color Color) BuildAnnouncement(StfcEventStatus row)
     {
         var regionName = row.Region?.Name ?? "?";
-        return ($"⚔️ [{regionName}] A new Infinite Incursions event is scheduled to start <t:{row.EventStart.ToUnixTimeSeconds()}:R>!",
+        return (Msg.Event.IncursionsScheduled(Lang, regionName, row.EventStart.ToUnixTimeSeconds()),
             EmbedBranding.WarningColor);
     }
 

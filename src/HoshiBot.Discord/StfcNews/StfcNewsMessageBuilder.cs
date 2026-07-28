@@ -1,4 +1,5 @@
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 
@@ -10,14 +11,17 @@ namespace HoshiBot.Discord.StfcNews;
 // always reflects the exact same shared state.
 public static class StfcNewsMessageBuilder
 {
+    // All strings come from the message catalog (Msg.News); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     public static (EmbedProperties Embed, IReadOnlyList<ButtonProperties>? Buttons) Build(StfcNewsPost post, int confirmationCount)
     {
         if (post.ResolvedAt is not null)
         {
             return (new EmbedProperties
             {
-                Description = $"📰 **[{post.Title}]({post.Link})**\n\n" +
-                    $"✅ Event date confirmed: **{post.SubmittedDate:yyyy-MM-dd}**. Notifications will go out automatically.",
+                Description = Msg.News.ResolvedBody(Lang, post.Title, post.Link, post.SubmittedDate!.Value),
                 Color = EmbedBranding.InformationColor,
             }, null);
         }
@@ -26,23 +30,21 @@ public static class StfcNewsMessageBuilder
         {
             return (new EmbedProperties
             {
-                Description = $"📰 **[{post.Title}]({post.Link})**\n\n" +
-                    $"📅 <@{post.SubmittedByDiscordUserId}> suggested **{date:yyyy-MM-dd}**. " +
-                    $"({confirmationCount}/{post.RequiredConfirmations} confirmed). Please confirm if this looks right.",
+                Description = Msg.News.SuggestedBody(Lang, post.Title, post.Link,
+                    $"<@{post.SubmittedByDiscordUserId}>", date, confirmationCount, post.RequiredConfirmations),
                 Color = EmbedBranding.WarningColor,
             }, [
-                new ButtonProperties($"stfc-news-confirm:{post.Id}", "Confirm", EmojiProperties.Standard("✅"), ButtonStyle.Success),
-                new ButtonProperties($"stfc-news-edit:{post.Id}", "Edit", EmojiProperties.Standard("✏️"), ButtonStyle.Secondary),
+                new ButtonProperties($"stfc-news-confirm:{post.Id}", Msg.News.ConfirmButton(Lang), EmojiProperties.Standard("✅"), ButtonStyle.Success),
+                new ButtonProperties($"stfc-news-edit:{post.Id}", Msg.News.EditButton(Lang), EmojiProperties.Standard("✏️"), ButtonStyle.Secondary),
             ]);
         }
 
         return (new EmbedProperties
         {
-            Description = $"📰 **[{post.Title}]({post.Link})**\n\n" +
-                "A new post was just published on the official STFC blog. Please read it and enter the event date.",
+            Description = Msg.News.NewPostBody(Lang, post.Title, post.Link),
             Color = EmbedBranding.InformationColor,
         }, [
-            new ButtonProperties($"stfc-news-enter-date:{post.Id}", "Enter Event Date", EmojiProperties.Standard("📅"), ButtonStyle.Primary),
+            new ButtonProperties($"stfc-news-enter-date:{post.Id}", Msg.News.EnterDateTitle(Lang), EmojiProperties.Standard("📅"), ButtonStyle.Primary),
         ]);
     }
 }

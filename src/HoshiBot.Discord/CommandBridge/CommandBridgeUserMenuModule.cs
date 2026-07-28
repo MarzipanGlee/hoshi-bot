@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -6,6 +7,10 @@ namespace HoshiBot.Discord.CommandBridge;
 
 public class CommandBridgeUserMenuModule(EmbedBranding embedBranding) : ComponentInteractionModule<UserMenuInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Modals can't have radio buttons/selects, so the Home/Enemy server choice is a
     // button step here rather than a modal field — see CommandBridgeButtonModule for
     // the buttons that actually open the modal. This always follows raid-report's own
@@ -16,7 +21,7 @@ public class CommandBridgeUserMenuModule(EmbedBranding embedBranding) : Componen
         var target = Context.SelectedValues[0];
         var guildId = Context.Guild!.Id;
 
-        var embed = await embedBranding.BuildBrandedAsync(guildId, "Auf welchem Server wird die Station geraidet?");
+        var embed = await embedBranding.BuildBrandedAsync(guildId, Msg.Bridge.RaidServerPrompt(Lang));
 
         return InteractionCallback.ModifyMessage(m =>
         {
@@ -25,8 +30,8 @@ public class CommandBridgeUserMenuModule(EmbedBranding embedBranding) : Componen
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"raid-report-location-home:{target.Id}", "Home Server", EmojiProperties.Standard("🏠"), ButtonStyle.Primary),
-                    new ButtonProperties($"raid-report-location-enemy:{target.Id}", "Enemy Server", EmojiProperties.Standard("⚔️"), ButtonStyle.Danger),
+                    new ButtonProperties($"raid-report-location-home:{target.Id}", Msg.Bridge.HomeServerButton(Lang), EmojiProperties.Standard("🏠"), ButtonStyle.Primary),
+                    new ButtonProperties($"raid-report-location-enemy:{target.Id}", Msg.Bridge.EnemyServerButton(Lang), EmojiProperties.Standard("⚔️"), ButtonStyle.Danger),
                 ]),
             ];
         });

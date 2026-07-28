@@ -1,6 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord.Gateway;
@@ -14,6 +15,10 @@ namespace HoshiBot.Discord.Scheduling;
 // gives requesters a window to reconsider before the thread is actually deleted.
 public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher, ILogger<ThreadCleanupJob> logger) : IJob
 {
+    // All strings come from the message catalog (Msg.Cleanup); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     private static readonly TimeSpan GracePeriod = TimeSpan.FromMinutes(5);
 
     public async Task Execute(IJobExecutionContext context)
@@ -47,8 +52,8 @@ public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient,
             logger.LogWarning(ex,
                 "Failed to remove thread {ThreadId} requested by {RequestedBy}; will retry next run",
                 request.ThreadId, request.RequestedByDiscordUserId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(request.GuildId, "einen Thread entfernen",
-                $"fehlende Manage-Threads-Berechtigung im Thread <#{request.ThreadId}>?");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(request.GuildId, Msg.Cleanup.ActionRemoveThread(Lang),
+                Msg.Cleanup.HintManageThreads(Lang, $"<#{request.ThreadId}>"));
             return;
         }
 

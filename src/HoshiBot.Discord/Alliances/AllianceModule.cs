@@ -10,8 +10,8 @@ namespace HoshiBot.Discord.Alliances;
 
 public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
-    // Catalog-rendered strings (the feature-disabled guard) are pinned to German until
-    // sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    // All strings come from the message catalog (Msg.Alliance); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
     private const Language Lang = Language.De;
 
     [SlashCommand("set-diplomacy", "Set one of this guild's alliances' diplomatic status toward another alliance",
@@ -25,7 +25,7 @@ public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureSer
                 .Include(ga => ga.StfcAlliance)
                 .FirstOrDefaultAsync(ga => ga.GuildId == guildId && ga.StfcAlliance.Tag == ourAllianceTag);
             if (ourGuildAlliance is null)
-                return $"This guild doesn't manage an alliance tagged \"{ourAllianceTag}\". Ask an admin to link it via the web admin.";
+                return Msg.Alliance.NotManagedHere(Lang, ourAllianceTag);
 
             // Gate per that specific alliance — Diplomacy can be enabled for one linked alliance
             // but not another.
@@ -39,7 +39,7 @@ public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureSer
             var targetAlliance = await db.StfcAlliances.FirstOrDefaultAsync(a =>
                 a.Tag == targetAllianceTag && a.ServerId == ourAlliance.ServerId);
             if (targetAlliance is null)
-                return $"No alliance with tag \"{targetAllianceTag}\" found. Ask an admin to add it first (via the web admin).";
+                return Msg.Alliance.TargetNotFound(Lang, targetAllianceTag);
 
             var diplomacy = await db.StfcAllianceDiplomacies.FirstOrDefaultAsync(d =>
                 d.SourceAllianceId == ourAlliance.Id && d.TargetAllianceId == targetAlliance.Id);
@@ -60,6 +60,6 @@ public class AllianceModule(HoshiBotDbContext db, GuildFeatureService featureSer
 
             await db.SaveChangesAsync();
 
-            return $"Set {ourAlliance.Tag}'s diplomatic status toward {targetAlliance.Name} ({targetAlliance.Tag}) to **{status}**.";
+            return Msg.Alliance.DiplomacySet(Lang, ourAlliance.Tag, targetAlliance.Name, targetAlliance.Tag, status.ToString());
         });
 }

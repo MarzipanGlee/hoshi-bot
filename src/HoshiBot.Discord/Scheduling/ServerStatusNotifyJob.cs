@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Discord.Scheduling;
@@ -16,9 +17,13 @@ public class ServerStatusNotifyJob(
     HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
     : DiffNotifyJobBase<StfcServerStatus>(db, dispatcher, embedBranding)
 {
+    // All strings come from the message catalog (Msg.Server); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     protected override GuildAlertChannelKind ChannelKind => GuildAlertChannelKind.ServerStatus;
     protected override GuildFeature Feature => GuildFeature.ServerStatus;
-    protected override string? Title => "Server Status Change";
+    protected override string? Title => Msg.Server.StatusChangeTitle(Lang);
 
     protected override Task<List<StfcServerStatus>> LoadPendingRowsAsync() =>
         Db.StfcServerStatuses
@@ -37,12 +42,12 @@ public class ServerStatusNotifyJob(
         var serverName = status.StfcServer.DisplayName;
 
         if (status.Maintenance != "0")
-            return ($"🛠️ **{serverName}** is entering maintenance.", EmbedBranding.WarningColor);
+            return (Msg.Server.Maintenance(Lang, serverName), EmbedBranding.WarningColor);
 
         if (status.Status != 1)
-            return ($"🔴 **{serverName}** is down.", EmbedBranding.DangerColor);
+            return (Msg.Server.Down(Lang, serverName), EmbedBranding.DangerColor);
 
-        return ($"🟢 **{serverName}** is back online.", EmbedBranding.InformationColor);
+        return (Msg.Server.BackOnline(Lang, serverName), EmbedBranding.InformationColor);
     }
 
     protected override void MarkNotified(StfcServerStatus status)

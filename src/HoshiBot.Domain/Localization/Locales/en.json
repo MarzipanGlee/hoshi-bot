@@ -33,6 +33,7 @@
   "Alert.MutedResult": "The public shield expiration warnings for {target} are now muted.",
   "Alert.UnmutedResult": "The public shield expiration warnings for {target} are now active again.",
   "Alert.NoShieldReminder": "You don't have a shield reminder set.",
+  "Alert.ShieldRemindersDisabled": "Shield reminders disabled. Run /shield-reminder again anytime to re-enable.",
   "Alert.ShieldRemoved": "Shield reminder removed.",
   "Alert.OptInAlertsLabel": "Alerts",
   "Alert.RoleUnavailable": "This role is not available (anymore).",
@@ -106,6 +107,10 @@
   "Absence.Recorded": "Absence recorded until <t:{end}:f>.",
   "Absence.RecordedNotifySuffix": " You'll be excluded from notifications until then.",
 
+  "Alliance.NotManagedHere": "This guild doesn't manage an alliance tagged \"{tag}\". Ask an admin to link it via the web admin.",
+  "Alliance.TargetNotFound": "No alliance with tag \"{tag}\" found. Ask an admin to add it first (via the web admin).",
+  "Alliance.DiplomacySet": "Set {source}'s diplomatic status toward {name} ({tag}) to **{status}**.",
+
   "Announce.ReadButton": "Read receipt ({count})",
   "Announce.ChannelNotConfigured": "Set the Announcements channel first (via the guild settings page).",
   "Announce.FieldSeverity": "Severity",
@@ -149,6 +154,9 @@
 
   "Bridge.RaidTargetPrompt": "Select the commander being raided.\n-# Tip: Select yourself to try out the flow without consequences.",
   "Bridge.RaidModalTitle": "Report raid",
+  "Bridge.RaidServerPrompt": "On which server is the station being raided?",
+  "Bridge.HomeServerButton": "Home Server",
+  "Bridge.EnemyServerButton": "Enemy Server",
   "Bridge.LocationLabel": "Location",
   "Bridge.SystemPlaceholder": "Enter system",
   "Bridge.AttackerLabel": "Attacker",
@@ -230,6 +238,16 @@
   "BridgeItem.StaffShieldMute": "Manage public shield expiration warnings",
   "BridgeItem.StaffBetaTests": "Manage beta tests",
 
+  "Cleanup.ActionRemoveThread": "remove a thread",
+  "Cleanup.HintManageThreads": "missing Manage Threads permission in thread {thread}?",
+
+  "Client.NewVersionTitle": "New {platform} Version",
+  "Client.Released": "Version {version} was released.",
+  "Client.ReleasedOnStore": "Version {version} was released on the {store}.",
+
+  "Event.TournamentScheduled": "🏆 A new Alliance Tournament is scheduled to start <t:{start}:R>!",
+  "Event.IncursionsScheduled": "⚔️ [{region}] A new Infinite Incursions event is scheduled to start <t:{start}:R>!",
+
   "Feature.Disabled": "This function ({label}) is disabled on this server.",
   "Feature.RaidAlerts": "Report raid",
   "Feature.ShieldReminders": "Shield reminder",
@@ -259,6 +277,22 @@
   "Interview.OptOutClose": "Alright, no problem! If you change your mind later, just message me. 🖖",
   "Interview.DeclineClose": "No problem, I'll leave you alone! If you ever feel like telling me something after all, just message me. 🖖",
 
+  "News.EnterDateTitle": "Enter Event Date",
+  "News.DateInputLabel": "Event date",
+  "News.DatePlaceholder": "DD.MM.YYYY",
+  "News.DateParseError": "Could not read that date. Format: DD.MM.YYYY.",
+  "News.PostNotFound": "This post could no longer be found.",
+  "News.AlreadyConfirmed": "This event date has already been confirmed.",
+  "News.CannotConfirmOwn": "You submitted this date — another admin needs to confirm it.",
+  "News.FinalConfirmation": "Thanks — that was the final confirmation needed. The event date has been confirmed!",
+  "News.ConfirmationRecorded": "Thanks — your confirmation has been recorded. ({count}/{required} confirmed).",
+  "News.DateSubmitted": "Thanks — your date ({date:dd.MM.yyyy}) has been submitted. Other admins can now confirm it.",
+  "News.ResolvedBody": "📰 **[{title}]({link})**\n\n✅ Event date confirmed: **{date:yyyy-MM-dd}**. Notifications will go out automatically.",
+  "News.SuggestedBody": "📰 **[{title}]({link})**\n\n📅 {user} suggested **{date:yyyy-MM-dd}**. ({count}/{required} confirmed). Please confirm if this looks right.",
+  "News.NewPostBody": "📰 **[{title}]({link})**\n\nA new post was just published on the official STFC blog. Please read it and enter the event date.",
+  "News.ConfirmButton": "Confirm",
+  "News.EditButton": "Edit",
+
   "Notify.ActionSendAlert": "send an alert message",
   "Notify.HintChannelPermission": "missing permission in {channel}?",
   "Notify.SkipReasonForbidden": "missing permission (the bot cannot write there)",
@@ -279,6 +313,12 @@
   "Onboarding.NameModalTitle": "Player matching",
   "Onboarding.NameInputLabel": "Your in-game name",
   "Onboarding.NameInputPlaceholder": "e.g. Riker",
+
+  "Player.ServerNotFound": "No server named \"{server}\" found. Ask an admin to add it first (via the web admin).",
+  "Player.Linked": "Linked your Discord account to **{player}** on {server}.",
+  "Player.NoLinkedPlayer": "You haven't linked a player yet. Use /link-player first.",
+  "Player.AllianceNotFound": "No alliance with tag \"{tag}\" found on your server. Ask an admin to add it first (via the web admin).",
+  "Player.AllianceSet": "Set your alliance to {name} ({tag}).",
 
   "Roe.Title": "RoE Violation",
   "Roe.VictimSteps": "1. Review the loss you suffered carefully.\n2. Are you certain it wasn't a zero node? Open the attacker's chat to verify this.\n3. Contact the attacker directly and ask for clarification. Give them a few hours to respond.\n4. If no agreement is reached, post screenshots with all relevant information here. This includes the battle, the battle log and your communication with the player.",
@@ -318,6 +358,11 @@
   "Say.RoleRequired": "⚠️ Only members with the role {role} may use this command.",
   "Say.ComposeFailed": "⚠️ I couldn't compose a message just now – is the AI backend (AiBackend) configured for this guild? Otherwise, try again in a moment.",
   "Say.Posted": "✅ Hoshi has posted here:\n\n{text}",
+
+  "Server.StatusChangeTitle": "Server Status Change",
+  "Server.Maintenance": "🛠️ **{server}** is entering maintenance.",
+  "Server.Down": "🔴 **{server}** is down.",
+  "Server.BackOnline": "🟢 **{server}** is back online.",
 
   "Tc.WeeklyTitle": "Territory captures from {from} to {to}",
   "Tc.DailyTitle": "Tomorrow's territory captures",

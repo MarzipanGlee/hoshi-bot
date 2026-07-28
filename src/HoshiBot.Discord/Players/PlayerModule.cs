@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -9,6 +10,10 @@ namespace HoshiBot.Discord.Players;
 
 public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
+    // All strings come from the message catalog (Msg.Player); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [SlashCommand("link-player", "Link your Discord account to your STFC in-game player name",
         Contexts = [InteractionContextType.Guild])]
     public Task LinkPlayer(string playerName, string serverName) =>
@@ -18,7 +23,7 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
 
             var server = await db.StfcServers.FirstOrDefaultAsync(s => s.Name == serverName);
             if (server is null)
-                return $"No server named \"{serverName}\" found. Ask an admin to add it first (via the web admin).";
+                return Msg.Player.ServerNotFound(Lang, serverName);
 
             var player = await db.StfcPlayers.FirstOrDefaultAsync(p => p.ServerId == server.Id && p.Name == playerName);
             if (player is null)
@@ -36,7 +41,7 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
                 await playerLinkService.EnsureGuildMemberAsync(guild.Id, userId);
             await playerLinkService.LinkAsync(userId, player.Id);
 
-            return $"Linked your Discord account to **{playerName}** on {server.Name}.";
+            return Msg.Player.Linked(Lang, playerName, server.Name);
         });
 
     [SlashCommand("set-my-alliance", "Set the alliance for the player representing you in this server",
@@ -49,16 +54,16 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
             var playerId = await playerLinkService.GetGuildPrimaryPlayerIdAsync(Context.Guild!.Id, userId);
             var player = playerId is null ? null : await db.StfcPlayers.FindAsync(playerId);
             if (player is null)
-                return "You haven't linked a player yet. Use /link-player first.";
+                return Msg.Player.NoLinkedPlayer(Lang);
 
             var alliance = await db.StfcAlliances.FirstOrDefaultAsync(a =>
                 a.ServerId == player.ServerId && a.Tag == allianceTag);
             if (alliance is null)
-                return $"No alliance with tag \"{allianceTag}\" found on your server. Ask an admin to add it first (via the web admin).";
+                return Msg.Player.AllianceNotFound(Lang, allianceTag);
 
             player.AllianceId = alliance.Id;
             await db.SaveChangesAsync();
 
-            return $"Set your alliance to {alliance.Name} ({alliance.Tag}).";
+            return Msg.Player.AllianceSet(Lang, alliance.Name, alliance.Tag);
         });
 }

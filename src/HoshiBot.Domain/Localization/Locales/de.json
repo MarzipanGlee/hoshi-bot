@@ -33,6 +33,7 @@
   "Alert.MutedResult": "Die öffentlichen Schildablaufwarnungen für {target} sind jetzt stummgeschaltet.",
   "Alert.UnmutedResult": "Die öffentlichen Schildablaufwarnungen für {target} sind jetzt wieder aktiv.",
   "Alert.NoShieldReminder": "Du hast keine Schilderinnerung eingerichtet.",
+  "Alert.ShieldRemindersDisabled": "Schilderinnerungen deaktiviert. Führe jederzeit wieder /shield-reminder aus, um sie erneut zu aktivieren.",
   "Alert.ShieldRemoved": "Schilderinnerung entfernt.",
   "Alert.OptInAlertsLabel": "Alarme",
   "Alert.RoleUnavailable": "Diese Rolle ist nicht (mehr) verfügbar.",
@@ -106,6 +107,10 @@
   "Absence.Recorded": "Abwesenheit erfasst bis <t:{end}:f>.",
   "Absence.RecordedNotifySuffix": " Bis dahin wirst Du von Benachrichtigungen ausgenommen.",
 
+  "Alliance.NotManagedHere": "Diese Guild verwaltet keine Allianz mit dem Tag \"{tag}\". Bitte einen Admin, sie über das Web-Admin zu verlinken.",
+  "Alliance.TargetNotFound": "Keine Allianz mit dem Tag \"{tag}\" gefunden. Bitte einen Admin, sie zuerst hinzuzufügen (über das Web-Admin).",
+  "Alliance.DiplomacySet": "Der diplomatische Status von {source} gegenüber {name} ({tag}) wurde auf **{status}** gesetzt.",
+
   "Announce.ReadButton": "Lesebestätigung ({count})",
   "Announce.ChannelNotConfigured": "Der Ankündigungen-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).",
   "Announce.FieldSeverity": "Alarmstufe",
@@ -149,6 +154,9 @@
 
   "Bridge.RaidTargetPrompt": "Wähle den Commander, der geraidet wird.\n-# Tipp: Wähle Dich selbst, um den Ablauf unverbindlich auszuprobieren.",
   "Bridge.RaidModalTitle": "Raid melden",
+  "Bridge.RaidServerPrompt": "Auf welchem Server wird die Station geraidet?",
+  "Bridge.HomeServerButton": "Home Server",
+  "Bridge.EnemyServerButton": "Enemy Server",
   "Bridge.LocationLabel": "Standort",
   "Bridge.SystemPlaceholder": "System eingeben",
   "Bridge.AttackerLabel": "Angreifer",
@@ -230,6 +238,16 @@
   "BridgeItem.StaffShieldMute": "Öffentliche Schildablaufwarnungen verwalten",
   "BridgeItem.StaffBetaTests": "Beta-Tests verwalten",
 
+  "Cleanup.ActionRemoveThread": "einen Thread entfernen",
+  "Cleanup.HintManageThreads": "fehlende Manage-Threads-Berechtigung im Thread {thread}?",
+
+  "Client.NewVersionTitle": "Neue {platform}-Version",
+  "Client.Released": "Version {version} wurde veröffentlicht.",
+  "Client.ReleasedOnStore": "Version {version} wurde im {store} veröffentlicht.",
+
+  "Event.TournamentScheduled": "🏆 Ein neues Allianz-Turnier ist angesetzt und beginnt <t:{start}:R>!",
+  "Event.IncursionsScheduled": "⚔️ [{region}] Ein neues Infinite-Incursions-Event ist angesetzt und beginnt <t:{start}:R>!",
+
   "Feature.Disabled": "Diese Funktion ({label}) ist auf diesem Server deaktiviert.",
   "Feature.RaidAlerts": "Raid melden",
   "Feature.ShieldReminders": "Schilderinnerung",
@@ -259,6 +277,22 @@
   "Interview.OptOutClose": "Alles klar, kein Problem! Falls du es dir später anders überlegst, schreib mir einfach. 🖖",
   "Interview.DeclineClose": "Kein Problem, ich lasse dich in Ruhe! Falls du mir doch mal etwas erzählen magst, schreib mir einfach. 🖖",
 
+  "News.EnterDateTitle": "Eventdatum eingeben",
+  "News.DateInputLabel": "Eventdatum",
+  "News.DatePlaceholder": "TT.MM.JJJJ",
+  "News.DateParseError": "Das Datum konnte nicht gelesen werden. Format: TT.MM.JJJJ.",
+  "News.PostNotFound": "Dieser Beitrag konnte nicht mehr gefunden werden.",
+  "News.AlreadyConfirmed": "Dieses Eventdatum wurde bereits bestätigt.",
+  "News.CannotConfirmOwn": "Du hast dieses Datum eingereicht — ein anderer Admin muss es bestätigen.",
+  "News.FinalConfirmation": "Danke — das war die letzte benötigte Bestätigung. Das Eventdatum wurde bestätigt!",
+  "News.ConfirmationRecorded": "Danke — Deine Bestätigung wurde erfasst. ({count}/{required} bestätigt).",
+  "News.DateSubmitted": "Danke — Dein Datum ({date:dd.MM.yyyy}) wurde eingereicht. Andere Admins können es jetzt bestätigen.",
+  "News.ResolvedBody": "📰 **[{title}]({link})**\n\n✅ Eventdatum bestätigt: **{date:dd.MM.yyyy}**. Die Benachrichtigungen werden automatisch verschickt.",
+  "News.SuggestedBody": "📰 **[{title}]({link})**\n\n📅 {user} hat **{date:dd.MM.yyyy}** vorgeschlagen. ({count}/{required} bestätigt). Bitte bestätige, wenn das Datum stimmt.",
+  "News.NewPostBody": "📰 **[{title}]({link})**\n\nAuf dem offiziellen STFC-Blog wurde gerade ein neuer Beitrag veröffentlicht. Bitte lies ihn und trage das Eventdatum ein.",
+  "News.ConfirmButton": "Bestätigen",
+  "News.EditButton": "Bearbeiten",
+
   "Notify.ActionSendAlert": "eine Alarm-Nachricht senden",
   "Notify.HintChannelPermission": "fehlende Berechtigung in {channel}?",
   "Notify.SkipReasonForbidden": "fehlende Berechtigung (der Bot kann dort nicht schreiben)",
@@ -279,6 +313,12 @@
   "Onboarding.NameModalTitle": "Spielerzuordnung",
   "Onboarding.NameInputLabel": "Dein In-Game-Name",
   "Onboarding.NameInputPlaceholder": "z. B. Riker",
+
+  "Player.ServerNotFound": "Kein Server namens \"{server}\" gefunden. Bitte einen Admin, ihn zuerst hinzuzufügen (über das Web-Admin).",
+  "Player.Linked": "Dein Discord-Konto wurde mit **{player}** auf {server} verknüpft.",
+  "Player.NoLinkedPlayer": "Du hast noch keinen Spieler verknüpft. Nutze zuerst /link-player.",
+  "Player.AllianceNotFound": "Keine Allianz mit dem Tag \"{tag}\" auf Deinem Server gefunden. Bitte einen Admin, sie zuerst hinzuzufügen (über das Web-Admin).",
+  "Player.AllianceSet": "Deine Allianz wurde auf {name} ({tag}) gesetzt.",
 
   "Roe.Title": "RoE-Verstoss",
   "Roe.VictimSteps": "1. Überprüfe den entstandenen Verlust genau.\n2. War es mit Sicherheit keine Zero-Node? Öffne den Chat des Angreifers, um dies zu verifizieren.\n3. Kontaktiere den Angreifer direkt und bitte um Aufklärung. Gib ihm ein paar Stunden Zeit, um reagieren zu können.\n4. Wird keine Einigung erzielt, poste hier Screenshots mit allen relevanten Informationen. Dazu gehören Kampf, Kampfprotokoll und Kommunikation mit dem Spieler.",
@@ -318,6 +358,11 @@
   "Say.RoleRequired": "⚠️ Nur Mitglieder mit der Rolle {role} dürfen diesen Befehl verwenden.",
   "Say.ComposeFailed": "⚠️ Ich konnte gerade keine Nachricht verfassen – ist das KI-Backend (AiBackend) für diese Gilde konfiguriert? Versuch es sonst gleich noch einmal.",
   "Say.Posted": "✅ Hoshi hat hier gepostet:\n\n{text}",
+
+  "Server.StatusChangeTitle": "Serverstatus-Änderung",
+  "Server.Maintenance": "🛠️ **{server}** geht in die Wartung.",
+  "Server.Down": "🔴 **{server}** ist offline.",
+  "Server.BackOnline": "🟢 **{server}** ist wieder online.",
 
   "Tc.WeeklyTitle": "Gebietsübernahmen vom {from} bis {to}",
   "Tc.DailyTitle": "Morgige Gebietsübernahmen",

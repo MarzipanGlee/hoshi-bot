@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using HtmlAgilityPack;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -36,6 +37,10 @@ public class StfcClientReleaseNotifyJob(
     EmbedBranding embedBranding,
     ILogger<StfcClientReleaseNotifyJob> logger) : IJob
 {
+    // All strings come from the message catalog (Msg.Client); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     private const string XsollaUpdatesUrl = "https://gus.xsolla.com/updates?project_id=152033&platform={0}";
     private const string PlayStoreUrl = "https://play.google.com/store/apps/details?id=com.scopely.startrek";
     private const string ITunesLookupUrl = "https://itunes.apple.com/lookup?id=1427744264";
@@ -101,7 +106,7 @@ public class StfcClientReleaseNotifyJob(
 
                 var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.ClientRelease, GuildAudience.None, null, roleKey);
 
-                var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.InformationColor, $"New {DisplayName(platform)} Version");
+                var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.InformationColor, Msg.Client.NewVersionTitle(Lang, DisplayName(platform)));
                 await dispatcher.SendToChannelIdsAsync(guildId, channelIds, roleId, content, embed);
             }
 
@@ -111,16 +116,13 @@ public class StfcClientReleaseNotifyJob(
         await db.SaveChangesAsync(context.CancellationToken);
     }
 
-    private static string BuildContent(StfcClientPlatform platform, string version)
+    private static string BuildContent(StfcClientPlatform platform, string version) => platform switch
     {
-        var store = platform switch
-        {
-            StfcClientPlatform.Android => " on the Google Play Store",
-            StfcClientPlatform.IOS => " on the Apple App Store",
-            _ => "",
-        };
-        return $"Version {version} was released{store}.";
-    }
+        // Store names are proper nouns and stay code-side arguments.
+        StfcClientPlatform.Android => Msg.Client.ReleasedOnStore(Lang, version, "Google Play Store"),
+        StfcClientPlatform.IOS => Msg.Client.ReleasedOnStore(Lang, version, "Apple App Store"),
+        _ => Msg.Client.Released(Lang, version),
+    };
 
     private static string DisplayName(StfcClientPlatform platform) => platform switch
     {

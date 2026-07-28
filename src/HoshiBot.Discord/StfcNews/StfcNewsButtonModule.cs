@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -6,6 +7,10 @@ namespace HoshiBot.Discord.StfcNews;
 
 public class StfcNewsButtonModule(StfcNewsService service, EmbedBranding embedBranding) : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.News); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Both Enter Date and Edit open the same modal, routed to the same submit handler
     // (StfcNewsModalModule) — a resubmission via Edit is just a later SubmitDateAsync call,
     // there's no separate "edit" concept on the data side.
@@ -16,9 +21,9 @@ public class StfcNewsButtonModule(StfcNewsService service, EmbedBranding embedBr
     public InteractionCallbackProperties<ModalProperties> Edit(int postId) => BuildDateModal(postId);
 
     private static InteractionCallbackProperties<ModalProperties> BuildDateModal(int postId) =>
-        InteractionCallback.Modal(new ModalProperties($"stfc-news-date-modal:{postId}", "Enter Event Date",
+        InteractionCallback.Modal(new ModalProperties($"stfc-news-date-modal:{postId}", Msg.News.EnterDateTitle(Lang),
         [
-            new LabelProperties("Event date", new TextInputProperties("event-date", TextInputStyle.Short) { Placeholder = "DD.MM.YYYY", Required = true }),
+            new LabelProperties(Msg.News.DateInputLabel(Lang), new TextInputProperties("event-date", TextInputStyle.Short) { Placeholder = Msg.News.DatePlaceholder(Lang), Required = true }),
         ]));
 
     // Personal ephemeral reply, not an edit to the shared message: an immediate "Processing"
@@ -34,11 +39,11 @@ public class StfcNewsButtonModule(StfcNewsService service, EmbedBranding embedBr
             var (outcome, count, required) = await service.ConfirmDateAsync(postId, Context.User.Id);
             return outcome switch
             {
-                StfcNewsActionOutcome.NotFound => "This post could no longer be found.",
-                StfcNewsActionOutcome.AlreadyResolved => "This event date has already been confirmed.",
-                StfcNewsActionOutcome.CannotConfirmOwnSubmission => "You submitted this date — another admin needs to confirm it.",
-                StfcNewsActionOutcome.Resolved => "Thanks — that was the final confirmation needed. The event date has been confirmed!",
-                _ => $"Thanks — your confirmation has been recorded. ({count}/{required} confirmed).",
+                StfcNewsActionOutcome.NotFound => Msg.News.PostNotFound(Lang),
+                StfcNewsActionOutcome.AlreadyResolved => Msg.News.AlreadyConfirmed(Lang),
+                StfcNewsActionOutcome.CannotConfirmOwnSubmission => Msg.News.CannotConfirmOwn(Lang),
+                StfcNewsActionOutcome.Resolved => Msg.News.FinalConfirmation(Lang),
+                _ => Msg.News.ConfirmationRecorded(Lang, count, required),
             };
         });
 }

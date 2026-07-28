@@ -1,4 +1,5 @@
 using HoshiBot.Discord.Alerts;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -12,6 +13,10 @@ namespace HoshiBot.Discord.CommandBridge;
 public class CommandBridgeStaffModalModule(AlertService alertService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ModalInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [ComponentInteraction("staff-shield-modal")]
     public Task SubmitShieldReport(ulong targetUserId, string variant) =>
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
@@ -21,7 +26,7 @@ public class CommandBridgeStaffModalModule(AlertService alertService, EmbedBrand
 
             var result = await alertService.ReportStaffShieldLossAsync(Context.Guild!.Id, targetUserId, system, parsedVariant);
 
-            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: "Schildverlust melden");
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffShieldTitle(Lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 

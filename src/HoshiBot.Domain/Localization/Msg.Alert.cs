@@ -101,6 +101,9 @@ public static partial class Msg
         public static string NoShieldReminder(Language lang) =>
             MessageCatalog.Format(lang, "Alert.NoShieldReminder");
 
+        public static string ShieldRemindersDisabled(Language lang) =>
+            MessageCatalog.Format(lang, "Alert.ShieldRemindersDisabled");
+
         public static string ShieldRemoved(Language lang) =>
             MessageCatalog.Format(lang, "Alert.ShieldRemoved");
 
