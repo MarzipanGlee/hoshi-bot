@@ -2,6 +2,7 @@ using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Gateway;
@@ -24,28 +25,32 @@ public class AbsenceService(
 {
     private static readonly TimeSpan DraftTtl = TimeSpan.FromMinutes(15);
 
+    // All strings come from the message catalog (Msg.Absence); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     public static ButtonProperties ConfirmButton(int draftId) =>
-        new($"absence-confirm:{draftId}", "Ja", EmojiProperties.Standard("✅"), ButtonStyle.Success);
+        new($"absence-confirm:{draftId}", Msg.Absence.ConfirmButton(Lang), EmojiProperties.Standard("✅"), ButtonStyle.Success);
 
     public static ButtonProperties CancelButton(int draftId) =>
-        new($"absence-cancel:{draftId}", "Nein", EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
+        new($"absence-cancel:{draftId}", Msg.Absence.CancelButton(Lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
 
     // No bold sub-heading here — the caller's embed Title and intro sentence already frame
     // this as "Deine Abwesenheiten", so this is just the bulleted list itself.
     public static string BuildOwnListText(List<Absence> absences)
     {
         if (absences.Count == 0)
-            return "- Keine künftigen Abwesenheiten gefunden.";
+            return Msg.Absence.NoUpcoming(Lang);
 
         return string.Join('\n', absences.Select(a =>
-            $"- {a.StartsAt:dd.MM. HH:mm} bis {a.EndsAt:dd.MM. HH:mm}" + (string.IsNullOrWhiteSpace(a.Reason) ? "" : $" ({a.Reason})")));
+            $"- {Msg.Absence.Range(Lang, a.StartsAt, a.EndsAt)}" + (string.IsNullOrWhiteSpace(a.Reason) ? "" : $" ({a.Reason})")));
     }
 
     public static StringMenuSelectOptionProperties BuildOption(Absence a)
     {
         var description = $"{VisibilityLabel(a.Visibility)}" + (string.IsNullOrWhiteSpace(a.Reason) ? "" : $" — {a.Reason}");
         return new StringMenuSelectOptionProperties(
-            $"{a.StartsAt:dd.MM. HH:mm} bis {a.EndsAt:dd.MM. HH:mm}",
+            Msg.Absence.Range(Lang, a.StartsAt, a.EndsAt),
             a.Id.ToString())
         {
             Description = description.Length > 100 ? description[..100] : description,
@@ -53,13 +58,10 @@ public class AbsenceService(
     }
 
     public static string BuildDraftSummary(Absence draft) =>
-        "**Zusammenfassung**\n" +
-        $"Von: {draft.StartsAt:dd.MM.yyyy HH:mm}\n" +
-        $"Bis: {draft.EndsAt:dd.MM.yyyy HH:mm}\n" +
-        $"Grund: {draft.Reason ?? "-"}\n" +
-        $"Sichtbarkeit: {VisibilityLabel(draft.Visibility)}\n" +
-        $"Benachrichtigungen: {(draft.SuppressNotifications ? "🔔 Aus" : "🔔 Ein")}\n\n" +
-        "Bestätigen?";
+        Msg.Absence.DraftSummary(Lang, draft.StartsAt, draft.EndsAt,
+            draft.Reason ?? "-",
+            VisibilityLabel(draft.Visibility),
+            draft.SuppressNotifications ? Msg.Absence.NotificationsOff(Lang) : Msg.Absence.NotificationsOn(Lang));
 
     public async Task<List<Absence>> GetOwnUpcomingAsync(ulong guildId, ulong userId)
     {
@@ -156,9 +158,9 @@ public class AbsenceService(
     {
         var draft = await db.Absences.FindAsync(draftId);
         if (draft is null || draft.Status != AbsenceStatus.Draft)
-            return "Entwurf nicht gefunden (evtl. abgelaufen).";
+            return Msg.Absence.DraftNotFound(Lang);
         if (draft.CreatedByDiscordUserId != callerId)
-            return "Nur die meldende Person kann dies bestätigen.";
+            return Msg.Absence.OnlyReporterConfirm(Lang);
 
         var guildId = draft.GuildId;
 
@@ -183,37 +185,37 @@ public class AbsenceService(
         await db.SaveChangesAsync();
         await RefreshReportsAsync(guildId);
 
-        return "Abwesenheit gespeichert.";
+        return Msg.Absence.Saved(Lang);
     }
 
     public async Task<string> CancelDraftAsync(int draftId, ulong callerId)
     {
         var draft = await db.Absences.FindAsync(draftId);
         if (draft is null || draft.Status != AbsenceStatus.Draft)
-            return "Entwurf nicht gefunden (evtl. abgelaufen).";
+            return Msg.Absence.DraftNotFound(Lang);
         if (draft.CreatedByDiscordUserId != callerId)
-            return "Nur die meldende Person kann dies abbrechen.";
+            return Msg.Absence.OnlyReporterCancel(Lang);
 
         db.Absences.Remove(draft);
         await db.SaveChangesAsync();
 
-        return "Abgebrochen.";
+        return Msg.Absence.Cancelled(Lang);
     }
 
     public async Task<string> DeleteAsync(int absenceId, ulong callerId)
     {
         var absence = await db.Absences.FindAsync(absenceId);
         if (absence is null)
-            return "Abwesenheit nicht gefunden.";
+            return Msg.Absence.NotFound(Lang);
         if (absence.CreatedByDiscordUserId != callerId)
-            return "Nur die meldende Person kann diese Abwesenheit löschen.";
+            return Msg.Absence.OnlyReporterDelete(Lang);
 
         var guildId = absence.GuildId;
         db.Absences.Remove(absence);
         await db.SaveChangesAsync();
         await RefreshReportsAsync(guildId);
 
-        return "Abwesenheit gelöscht.";
+        return Msg.Absence.Deleted(Lang);
     }
 
     // An abandoned create/edit that never got confirmed or cancelled — same TTL spirit as
@@ -260,9 +262,9 @@ public class AbsenceService(
             var staffEmbed = await BuildReportEmbedAsync(guildId, allianceId, active, upcoming, isStaffView: true);
 
             await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportChannel, AbsencesSettingKeys.ReportMessageId,
-                publicEmbed, "die öffentliche Abwesenheiten-Übersicht");
+                publicEmbed, Msg.Absence.PublicReportContext(Lang));
             await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportStaffChannel, AbsencesSettingKeys.ReportStaffMessageId,
-                staffEmbed, "die Führungsstab-Abwesenheiten-Übersicht");
+                staffEmbed, Msg.Absence.StaffReportContext(Lang));
         }
     }
 
@@ -297,7 +299,7 @@ public class AbsenceService(
                 // (seen in the wild — the report reposting instead of editing). Keep the id and let the
                 // next refresh retry the edit; surface a genuine permission problem to admins.
                 if (ex.StatusCode == HttpStatusCode.Forbidden)
-                    await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, $"{context} aktualisieren", $"fehlende Berechtigung in <#{channelId}>?");
+                    await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Absence.ActionRefresh(Lang, context), Msg.Absence.HintChannelPermission(Lang, $"<#{channelId}>"));
                 return messageId;
             }
         }
@@ -309,7 +311,7 @@ public class AbsenceService(
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, $"{context} aktualisieren", $"fehlende Berechtigung in <#{channelId}>?");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Absence.ActionRefresh(Lang, context), Msg.Absence.HintChannelPermission(Lang, $"<#{channelId}>"));
             return null;
         }
     }
@@ -322,18 +324,18 @@ public class AbsenceService(
             .Where(ga => ga.Id == guildAllianceId)
             .Select(ga => ga.CommandBridgeChannelId)
             .FirstOrDefaultAsync();
-        var bridge = bridgeChannelId is { } id ? $"<#{id}>" : "Kommandobrücke";
+        var bridge = bridgeChannelId is { } id ? $"<#{id}>" : Msg.Absence.BridgeFallback(Lang);
 
         var embed = await embedBranding.BuildBrandedAsync(guildId,
-            $"Bitte meldet Euch frühzeitig auf der {bridge} ab, solltet Ihr mehrere Tage verhindert sein.",
-            title: "Abwesenheiten");
+            Msg.Absence.ReportIntro(Lang, bridge),
+            title: Msg.Absence.ReportTitle(Lang));
         embed.Fields =
         [
-            new EmbedFieldProperties { Name = "Aktuelle Abwesenheiten", Value = BuildSection(active, isStaffView) },
-            new EmbedFieldProperties { Name = "Kommende Abwesenheiten", Value = BuildSection(upcoming, isStaffView) },
+            new EmbedFieldProperties { Name = Msg.Absence.FieldActive(Lang), Value = BuildSection(active, isStaffView) },
+            new EmbedFieldProperties { Name = Msg.Absence.FieldUpcoming(Lang), Value = BuildSection(upcoming, isStaffView) },
             // In-body Discord timestamp (localized per viewer), not the embed footer — a
             // <t:…> stamp only renders in the body, and the members here span time zones.
-            new EmbedFieldProperties { Name = "Stand", Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:f>" },
+            new EmbedFieldProperties { Name = Msg.Absence.FieldAsOf(Lang), Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:f>" },
         ];
         return embed;
     }
@@ -345,14 +347,14 @@ public class AbsenceService(
     private static string BuildSection(List<Absence> rows, bool isStaffView)
     {
         if (rows.Count == 0)
-            return "Keine Abwesenheiten gemeldet.";
+            return Msg.Absence.NoneReported(Lang);
 
         var visible = isStaffView ? rows : rows.Where(a => a.Visibility == AbsenceVisibility.Public).ToList();
         var hiddenCount = rows.Count - visible.Count;
 
         var lines = visible.Select(DetailLine).ToList();
         if (hiddenCount > 0)
-            lines.Add($"+{hiddenCount} weitere Abwesenheit(en)");
+            lines.Add(Msg.Absence.MoreHidden(Lang, hiddenCount));
 
         return string.Join('\n', lines);
     }
@@ -360,14 +362,14 @@ public class AbsenceService(
     private static string DetailLine(Absence a) =>
         // Discord <t:…> timestamps so each member sees the absence window in their own time zone,
         // rather than one fixed wall-clock string.
-        $"<@{a.DiscordUserId}> — <t:{a.StartsAt.ToUnixTimeSeconds()}:f> bis <t:{a.EndsAt.ToUnixTimeSeconds()}:f>"
+        $"<@{a.DiscordUserId}> — {Msg.Absence.TimestampRange(Lang, a.StartsAt.ToUnixTimeSeconds(), a.EndsAt.ToUnixTimeSeconds())}"
         + (string.IsNullOrWhiteSpace(a.Reason) ? "" : $" ({a.Reason})")
         + (a.SuppressNotifications ? " 🔔" : "")
-        + (a.Visibility == AbsenceVisibility.StaffOnly ? " 🙂 Privat" : "");
+        + (a.Visibility == AbsenceVisibility.StaffOnly ? $" {Msg.Absence.PrivateSuffix(Lang)}" : "");
 
     private static string VisibilityLabel(AbsenceVisibility visibility) => visibility switch
     {
-        AbsenceVisibility.StaffOnly => "🙂 Führungsstab",
-        _ => "🌐 Öffentlich",
+        AbsenceVisibility.StaffOnly => Msg.Absence.VisibilityStaff(Lang),
+        _ => Msg.Absence.VisibilityPublic(Lang),
     };
 }
