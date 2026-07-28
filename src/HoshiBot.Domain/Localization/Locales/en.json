@@ -220,6 +220,13 @@
   "Interview.OptOutClose": "Alright, no problem! If you change your mind later, just message me. 🖖",
   "Interview.DeclineClose": "No problem, I'll leave you alone! If you ever feel like telling me something after all, just message me. 🖖",
 
+  "Notify.ActionSendAlert": "send an alert message",
+  "Notify.HintChannelPermission": "missing permission in {channel}?",
+  "Notify.SkipReasonForbidden": "missing permission (the bot cannot write there)",
+  "Notify.SkipReasonNotFound": "the channel was not found",
+  "Notify.SkippedChannelLog": "⚠️ A message could not be sent to {channel} — {reason}. Please check the bot's channel permissions (Permission Check).",
+  "Notify.PermissionIssue": "⚠️ The bot could not perform the following action: {action} ({hint}). Please check the permissions.",
+
   "Onboarding.OutreachGuess": "🖖 Hi! So I can give you the right roles automatically, I'd like to match you to your player. I think you are **{player}**. Is that right?",
   "Onboarding.OutreachAsk": "🖖 Hi! So I can give you the right roles automatically, I'd like to match you to your player. What's your in-game name?",
   "Onboarding.ConfirmButton": "Yes, that's me ✅",
@@ -267,6 +274,11 @@
   "Roe.HintCreateForumPost": "missing permission (create forum post) in {channel}?",
   "Roe.HintThreadPermission": "missing permission in thread {thread}?",
   "Roe.HintManageThreads": "missing Manage Threads permission in thread {thread}?",
+
+  "Say.NoRoleConfigured": "⚠️ No authorized role is configured for \"Hoshi say\". Please set a role in the web admin under \"Hoshi Say\".",
+  "Say.RoleRequired": "⚠️ Only members with the role {role} may use this command.",
+  "Say.ComposeFailed": "⚠️ I couldn't compose a message just now – is the AI backend (AiBackend) configured for this guild? Otherwise, try again in a moment.",
+  "Say.Posted": "✅ Hoshi has posted here:\n\n{text}",
 
   "Tc.WeeklyTitle": "Territory captures from {from} to {to}",
   "Tc.DailyTitle": "Tomorrow's territory captures",

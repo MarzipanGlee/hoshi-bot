@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord.Gateway;
@@ -18,6 +19,10 @@ public class NotificationDispatcher(
     EmbedBranding embedBranding,
     GuildFeatureService featureService)
 {
+    // All strings come from the message catalog (Msg.Notify); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicAsync(ulong guildId, GuildAlertChannelKind kind, string content,
         ButtonProperties? terminateButton = null, EmbedProperties? embed = null)
     {
@@ -83,7 +88,8 @@ public class NotificationDispatcher(
             logger.LogWarning("Skipped {ChannelKind} channel {ChannelId} for guild {GuildId}: {StatusCode}",
                 channelKind, channelId, guildId, ex.StatusCode);
             await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode);
-            await NotifyAdminOfPermissionIssueAsync(guildId, "eine Alarm-Nachricht senden", $"fehlende Berechtigung in <#{channelId}>?");
+            await NotifyAdminOfPermissionIssueAsync(guildId, Msg.Notify.ActionSendAlert(Lang),
+                Msg.Notify.HintChannelPermission(Lang, $"<#{channelId}>"));
             return null;
         }
     }
@@ -191,14 +197,13 @@ public class NotificationDispatcher(
             return;
 
         var reason = statusCode == HttpStatusCode.Forbidden
-            ? "fehlende Berechtigung (der Bot kann dort nicht schreiben)"
-            : "der Kanal wurde nicht gefunden";
+            ? Msg.Notify.SkipReasonForbidden(Lang)
+            : Msg.Notify.SkipReasonNotFound(Lang);
 
         try
         {
             var embed = await embedBranding.BuildBrandedAsync(guildId,
-                $"⚠️ Eine Nachricht konnte nicht in <#{channelId}> gesendet werden — {reason}. " +
-                "Bitte die Kanal-Berechtigungen des Bots prüfen (Permission Check).",
+                Msg.Notify.SkippedChannelLog(Lang, $"<#{channelId}>", reason),
                 EmbedBranding.DangerColor);
             await gatewayClient.Rest.SendMessageAsync(logChannelId, new MessageProperties { Embeds = [embed] });
         }
@@ -243,7 +248,7 @@ public class NotificationDispatcher(
         try
         {
             var embed = await embedBranding.BuildBrandedAsync(guildId,
-                $"⚠️ Der Bot konnte folgende Aktion nicht ausführen: {context} ({missingPermissionHint}). Bitte Berechtigungen prüfen.",
+                Msg.Notify.PermissionIssue(Lang, context, missingPermissionHint),
                 EmbedBranding.DangerColor);
             await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties { Embeds = [embed] });
         }

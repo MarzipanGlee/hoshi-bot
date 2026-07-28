@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.AiChat;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -27,6 +28,10 @@ public class HoshiSayModule(
     EmbedBranding embedBranding)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
+    // All strings come from the message catalog (Msg.Say); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [SlashCommand("hoshi-say", "Lass Hoshi eine Nachricht in diesen Kanal schreiben (nur mit der berechtigten Rolle)",
         Contexts = [InteractionContextType.Guild])]
     public Task Say(
@@ -45,14 +50,14 @@ public class HoshiSayModule(
             // Role gate: only members holding the configured allowed role may run the command.
             var allowedRole = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.HoshiSay, GuildAudience.Guild, null, HoshiSaySettingKeys.AllowedRole);
             if (allowedRole is not { } roleId)
-                return "⚠️ Für „Hoshi sag“ ist keine berechtigte Rolle konfiguriert. Bitte im Web-Admin unter „Hoshi Say“ eine Rolle festlegen.";
+                return Msg.Say.NoRoleConfigured(Lang);
             if (Context.User is not GuildUser member || !member.RoleIds.Contains(roleId))
-                return $"⚠️ Nur Mitglieder mit der Rolle <@&{roleId}> dürfen diesen Befehl verwenden.";
+                return Msg.Say.RoleRequired(Lang, $"<@&{roleId}>");
 
             var text = await aiChat.ComposeMessageAsync(
                 guildId, instruction, mitglied?.Id, mitglied is null ? null : CommanderName.Of(mitglied), CancellationToken.None);
             if (text is null)
-                return "⚠️ Ich konnte gerade keine Nachricht verfassen – ist das KI-Backend (AiBackend) für diese Gilde konfiguriert? Versuch es sonst gleich noch einmal.";
+                return Msg.Say.ComposeFailed(Lang);
 
             // Post into the channel the command was used in, as a plain chat message (no embed) so it
             // reads like a natural Hoshi line. Only the explicitly-picked member may be pinged;
@@ -65,6 +70,6 @@ public class HoshiSayModule(
                     : AllowedMentionsProperties.None,
             });
 
-            return $"✅ Hoshi hat hier gepostet:\n\n{text}";
+            return Msg.Say.Posted(Lang, text);
         });
 }

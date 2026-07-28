@@ -220,6 +220,13 @@
   "Interview.OptOutClose": "Alles klar, kein Problem! Falls du es dir später anders überlegst, schreib mir einfach. 🖖",
   "Interview.DeclineClose": "Kein Problem, ich lasse dich in Ruhe! Falls du mir doch mal etwas erzählen magst, schreib mir einfach. 🖖",
 
+  "Notify.ActionSendAlert": "eine Alarm-Nachricht senden",
+  "Notify.HintChannelPermission": "fehlende Berechtigung in {channel}?",
+  "Notify.SkipReasonForbidden": "fehlende Berechtigung (der Bot kann dort nicht schreiben)",
+  "Notify.SkipReasonNotFound": "der Kanal wurde nicht gefunden",
+  "Notify.SkippedChannelLog": "⚠️ Eine Nachricht konnte nicht in {channel} gesendet werden — {reason}. Bitte die Kanal-Berechtigungen des Bots prüfen (Permission Check).",
+  "Notify.PermissionIssue": "⚠️ Der Bot konnte folgende Aktion nicht ausführen: {action} ({hint}). Bitte Berechtigungen prüfen.",
+
   "Onboarding.OutreachGuess": "🖖 Hi! Damit ich dir automatisch die richtigen Rollen geben kann, würde ich dich gern deinem Spieler zuordnen. Ich glaube, du bist **{player}**. Stimmt das?",
   "Onboarding.OutreachAsk": "🖖 Hi! Damit ich dir automatisch die richtigen Rollen geben kann, würde ich dich gern deinem Spieler zuordnen. Wie heißt du im Spiel?",
   "Onboarding.ConfirmButton": "Ja, das bin ich ✅",
@@ -267,6 +274,11 @@
   "Roe.HintCreateForumPost": "fehlende Berechtigung (Forum-Post erstellen) in {channel}?",
   "Roe.HintThreadPermission": "fehlende Berechtigung im Thread {thread}?",
   "Roe.HintManageThreads": "fehlende Manage-Threads-Berechtigung im Thread {thread}?",
+
+  "Say.NoRoleConfigured": "⚠️ Für „Hoshi sag“ ist keine berechtigte Rolle konfiguriert. Bitte im Web-Admin unter „Hoshi Say“ eine Rolle festlegen.",
+  "Say.RoleRequired": "⚠️ Nur Mitglieder mit der Rolle {role} dürfen diesen Befehl verwenden.",
+  "Say.ComposeFailed": "⚠️ Ich konnte gerade keine Nachricht verfassen – ist das KI-Backend (AiBackend) für diese Gilde konfiguriert? Versuch es sonst gleich noch einmal.",
+  "Say.Posted": "✅ Hoshi hat hier gepostet:\n\n{text}",
 
   "Tc.WeeklyTitle": "Gebietsübernahmen vom {from} bis {to}",
   "Tc.DailyTitle": "Morgige Gebietsübernahmen",
