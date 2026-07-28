@@ -58,4 +58,20 @@ public class GuildAlliance
     public ulong? CommandBridgeMessageId { get; set; }
     public ulong? StaffCommandBridgeMessageId { get; set; }
     public ulong? FriendsCommandBridgeMessageId { get; set; }
+
+    // Resolves an IANA timezone id (a TimeZoneId value) to a TimeZoneInfo, falling back to
+    // DefaultTimeZoneId for a null or unrecognized/invalid id — a stale id must never crash a
+    // schedule or a prompt. Shared by the schedule-driven features that read TimeZoneId (the TC
+    // digest; AiChat's current-date context).
+    public static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId ?? DefaultTimeZoneId);
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(DefaultTimeZoneId);
+        }
+    }
 }

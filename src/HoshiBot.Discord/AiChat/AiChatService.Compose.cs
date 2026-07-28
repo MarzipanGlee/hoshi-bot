@@ -38,6 +38,11 @@ public partial class AiChatService
         var system = new StringBuilder();
         system.AppendLine(HoshiPersona.Describe(botName));
         system.AppendLine();
+        // Give the composer the same current-date/environment awareness as a chat reply (no message
+        // audience here, so the timezone falls back to the guild's primary alliance) — so an
+        // admin-composed announcement uses the real date instead of inventing one.
+        system.Append(await BuildEnvironmentContextAsync(guildId, allianceId: null, model, provider.Kind));
+        system.AppendLine();
         system.AppendLine(
             "Ein Administrator bittet dich, eine Nachricht in einen Chat-Kanal der Community zu schreiben. " +
             "Der folgende Auftrag beschreibt, WAS du vermitteln sollst – formuliere daraus eine fertige " +

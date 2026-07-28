@@ -174,7 +174,7 @@ public partial class TerritoryCaptureDigestService(
         {
             foreach (var link in await GetTcEnabledLinksAsync(guildId))
             {
-                var nowInZone = TimeZoneInfo.ConvertTime(now, ResolveTimeZone(link.TimeZoneId));
+                var nowInZone = TimeZoneInfo.ConvertTime(now, GuildAlliance.ResolveTimeZone(link.TimeZoneId));
 
                 var weekly = await GetDigestTimeAsync(guildId, link.Id, TerritoryCaptureSettingKeys.WeeklyDigestTime, TerritoryCaptureSettingKeys.DefaultWeeklyTime);
                 if (TerritoryCaptureScheduler.IsWeeklyDigestDue(nowInZone, weekly))
@@ -193,20 +193,6 @@ public partial class TerritoryCaptureDigestService(
         return TimeOnly.TryParseExact(raw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
             ? parsed
             : TimeOnly.ParseExact(defaultValue, "HH:mm", CultureInfo.InvariantCulture);
-    }
-
-    // A stored id can be blank/invalid (or unknown on this OS) — always fall back to the default zone
-    // rather than throw and skip the alliance's digest entirely.
-    private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId ?? GuildAlliance.DefaultTimeZoneId);
-        }
-        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(GuildAlliance.DefaultTimeZoneId);
-        }
     }
 
     // The guild's linked alliances that have Territory Capture enabled, ordered by link id

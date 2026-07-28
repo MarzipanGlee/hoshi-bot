@@ -13,12 +13,15 @@ namespace HoshiBot.Discord.AiChat;
 // AiChatService.cs.
 public partial class AiChatService
 {
-    private async Task<string> BuildSystemInstructionAsync(ulong guildId, ulong channelId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, int knowledgeSnippetLimit, CancellationToken cancellationToken)
+    private async Task<string> BuildSystemInstructionAsync(ulong guildId, ulong channelId, string botName, string? systemExtra, bool addressed, string questionText, IReadOnlyDictionary<ulong, string> mentionable, int knowledgeSnippetLimit, string model, AiProvider providerKind, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder();
         sb.AppendLine(HoshiPersona.Describe(botName));
         sb.AppendLine("Antworte auf Deutsch, freundlich und knapp. Nutze zum Beantworten in erster Linie die unten angegebenen verlässlichen Fakten, Wissensquellen und den bisherigen Chatverlauf.");
         sb.AppendLine("Bei Sachfragen (Spielmechaniken, Crews, Aufstellungen, Zahlen, Daten, Ereignisse) sind allein die Wissensquellen, die verlässlichen Fakten und die offiziellen Ankündigungen maßgeblich — sie haben Vorrang vor deinen Erinnerungen und vor allgemeinem Wissen. Wenn diese Quellen eine Sachfrage nicht abdecken, rate nicht und stütze dich nicht auf Erinnerungen, sondern sag ehrlich, dass du es nicht sicher weißt.");
+
+        sb.AppendLine();
+        sb.Append(await BuildEnvironmentContextAsync(guildId, _settingsScope.AllianceId, model, providerKind));
 
         if (!string.IsNullOrWhiteSpace(systemExtra))
         {
@@ -98,6 +101,34 @@ public partial class AiChatService
             ? "Du wirst in dieser Nachricht direkt angesprochen. Antworte immer. Wenn du etwas nicht sicher weißt, sage das ehrlich."
             : $"Du liest in diesem Kanal nur mit und mischst dich NICHT ins Gespräch ein. Antworte ausschließlich dann, wenn die Nachricht eine klare Sachfrage ist, die dir (oder allgemein) gestellt wird und die du mit den Wissensquellen fundiert beantworten kannst. Bei Aussagen, Meinungen, Aufrufen an die Allianz oder an andere Mitglieder, Begrüßungen, Smalltalk, Reaktionen oder allem, was keine an dich gerichtete, beantwortbare Sachfrage ist, antworte ausschließlich mit exakt {NoAnswerSentinel} und sonst nichts. Im Zweifel immer {NoAnswerSentinel}.");
 
+        return sb.ToString();
+    }
+
+    // A compact, authoritative "current environment" block: today's date/time in the guild's
+    // configured timezone (so Hoshi can reason about relative dates instead of guessing — she was
+    // seen agreeing "in 3 Tagen" without knowing today's date), the community name, and the AI model
+    // she runs on (so she can answer meta-questions about herself). These are reliable computed
+    // facts, so they sit with the trusted top-of-prompt instructions, not the soft memory blocks.
+    // allianceId is the message's resolved alliance (from _settingsScope) for the chat path, or null
+    // for the admin-compose path — in which case the timezone falls back to the guild's primary
+    // alliance. Timezone is an alliance-only setting (unlike language); Server/Community scopes and
+    // the compose path use the primary alliance's zone.
+    private async Task<string> BuildEnvironmentContextAsync(ulong guildId, int? allianceId, string model, AiProvider providerKind)
+    {
+        var alliance = allianceId is { } id
+            ? await allianceService.FindByIdAsync(guildId, id)
+            : await allianceService.GetPrimaryAsync(guildId);
+        var tz = GuildAlliance.ResolveTimeZone(alliance?.TimeZoneId);
+        var localNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz);
+        var german = CultureInfo.GetCultureInfo("de-DE");
+        var providerName = providerKind == AiProvider.Ollama ? "Ollama, lokal" : "Google Gemini";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Verlässliche Angaben über deine aktuelle Umgebung (du darfst sie bei Bedarf nennen):");
+        sb.AppendLine($"- Aktuelles Datum und Uhrzeit: {localNow.ToString("dddd, d. MMMM yyyy, HH:mm 'Uhr'", german)} (Zeitzone {tz.Id}). Nutze dieses Datum, um relative Zeitangaben („in X Tagen“, „nächstes Turnier“, „übermorgen“) korrekt zu berechnen, statt zu raten.");
+        if (gatewayClient.Cache.Guilds.GetValueOrDefault(guildId)?.Name is { Length: > 0 } guildName)
+            sb.AppendLine($"- Du bist gerade in der Community „{guildName}“.");
+        sb.AppendLine($"- Du läufst aktuell auf dem KI-Modell {model} ({providerName}).");
         return sb.ToString();
     }
 

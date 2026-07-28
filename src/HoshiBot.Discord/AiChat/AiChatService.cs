@@ -250,7 +250,7 @@ public partial class AiChatService(
 
                 turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(message.Author)}: {content}"));
 
-                var systemInstruction = await BuildSystemInstructionAsync(guildId, message.ChannelId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, cancellationToken);
+                var systemInstruction = await BuildSystemInstructionAsync(guildId, message.ChannelId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, model, provider.Kind, cancellationToken);
 
                 var request = new AiChatCompletionRequest(model, systemInstruction, turns, apiKey);
                 string? answer;
