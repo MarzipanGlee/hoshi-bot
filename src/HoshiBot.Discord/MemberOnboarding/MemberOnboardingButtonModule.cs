@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -8,6 +9,10 @@ namespace HoshiBot.Discord.MemberOnboarding;
 // editing in place (ModifyMessage / ModifyDelayedResponseAsync) is safe — see CLAUDE.md.
 public class MemberOnboardingButtonModule(MemberOnboardingService onboarding) : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Onboarding); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // player-link-confirm:{reviewId}:{playerId} — the member accepted the bot's guess.
     [ComponentInteraction(MemberOnboardingService.ConfirmButtonId)]
     public Task Confirm(int reviewId, int playerId) =>
@@ -22,14 +27,14 @@ public class MemberOnboardingButtonModule(MemberOnboardingService onboarding) : 
     [ComponentInteraction(MemberOnboardingService.NameButtonId)]
     public async Task EnterName(int reviewId) =>
         await Context.Interaction.SendResponseAsync(InteractionCallback.Modal(new ModalProperties(
-            $"{MemberOnboardingService.NameModalId}:{reviewId}", "Spielerzuordnung",
+            $"{MemberOnboardingService.NameModalId}:{reviewId}", Msg.Onboarding.NameModalTitle(Lang),
             [
-                new LabelProperties("Dein In-Game-Name",
+                new LabelProperties(Msg.Onboarding.NameInputLabel(Lang),
                     new TextInputProperties(MemberOnboardingService.NameInputId, TextInputStyle.Short)
                     {
                         Required = true,
                         MaxLength = 100,
-                        Placeholder = "z. B. Riker",
+                        Placeholder = Msg.Onboarding.NameInputPlaceholder(Lang),
                     }),
             ])));
 }

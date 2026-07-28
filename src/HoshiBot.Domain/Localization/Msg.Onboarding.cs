@@ -35,5 +35,15 @@ public static partial class Msg
 
         public static string NameAmbiguous(Language lang, string name) =>
             MessageCatalog.Format(lang, "Onboarding.NameAmbiguous", ("name", name));
+
+        // The "enter your in-game name" modal (MemberOnboardingButtonModule).
+        public static string NameModalTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Onboarding.NameModalTitle");
+
+        public static string NameInputLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Onboarding.NameInputLabel");
+
+        public static string NameInputPlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Onboarding.NameInputPlaceholder");
     }
 }

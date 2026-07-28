@@ -2,6 +2,7 @@ using System.Globalization;
 using HoshiBot.Data;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -25,6 +26,10 @@ public partial class TerritoryCaptureDigestService(
     GuildFeatureSettingsService settingsService,
     ILogger<TerritoryCaptureDigestService> logger)
 {
+    // All strings come from the message catalog (Msg.Tc); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Discord's hard limit on a single embed field's Value; exceeding it makes the whole
     // SendMessageAsync throw a 400 RestException (hit for real — the neighbour-tag list once
     // blew past this and every digest silently failed, see GetNeighbourOwnerTagsAsync).
@@ -50,7 +55,12 @@ public partial class TerritoryCaptureDigestService(
 
             var links = await GetTcEnabledLinksAsync(guildId);
             var weekEnd = weekStart.AddDays(6);
-            var baseTitle = $"Gebietsübernahmen vom {weekStart.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy} bis {weekEnd.ToDateTime(TimeOnly.MinValue):MMMM d, yyyy}";
+            // The month-name format deliberately stays on the ambient culture (as the previous
+            // interpolated ToString did), NOT Languages.ToCulture(Lang) — switching would flip the
+            // month names on an invariant-culture host. Sub-phase 6e decides its per-language form.
+            var baseTitle = Msg.Tc.WeeklyTitle(Lang,
+                weekStart.ToDateTime(TimeOnly.MinValue).ToString("MMMM d, yyyy", CultureInfo.CurrentCulture),
+                weekEnd.ToDateTime(TimeOnly.MinValue).ToString("MMMM d, yyyy", CultureInfo.CurrentCulture));
 
             // One digest per TC-enabled alliance, each to its own configured digest channel;
             // the alliance tag is appended to the title only when the guild runs several.
@@ -89,7 +99,7 @@ public partial class TerritoryCaptureDigestService(
                     ? new List<ulong> { roleId }
                     : new List<ulong>();
 
-                var title = links.Count > 1 ? $"{baseTitle} — [{link.StfcAlliance.Tag}]" : baseTitle;
+                var title = links.Count > 1 ? Msg.Tc.TitleWithTag(Lang, baseTitle, link.StfcAlliance.Tag) : baseTitle;
                 var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true);
 
                 // Retention +7 days: no capture-free day anymore, so the pinned digest must live the
@@ -153,7 +163,9 @@ public partial class TerritoryCaptureDigestService(
                         mentionRoleIds.Add(rid);
                 }
 
-                var title = links.Count > 1 ? $"Morgige Gebietsübernahmen — [{link.StfcAlliance.Tag}]" : "Morgige Gebietsübernahmen";
+                var title = links.Count > 1
+                    ? Msg.Tc.TitleWithTag(Lang, Msg.Tc.DailyTitle(Lang), link.StfcAlliance.Tag)
+                    : Msg.Tc.DailyTitle(Lang);
                 var known = tomorrowSlots.Select(s => (s.SlotIndex, s.Territory, s.Start, s.End)).ToList();
                 var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false);
 
@@ -273,28 +285,29 @@ public partial class TerritoryCaptureDigestService(
         // (<t:unix:t>) OUTSIDE the span. Discord won't render a timestamp inside a code fence, so
         // the legacy design keeps only the aligned columns fenced and lets the time show in each
         // reader's local timezone — the whole reason this isn't one big ``` block.
-        var lines = new List<string> { "`#  Zone    Tier  Nachbarn                Tag Zeit`" };
+        var lines = new List<string> { Msg.Tc.ScheduleHeader(Lang) };
         foreach (var (slotIndex, territory, start, end) in known)
         {
             var neighbours = await GetNeighbourOwnerTagsAsync(territory.Id, link.StfcAlliance.ServerId, link.StfcAlliance.Tag);
-            var day = start.ToString("ddd", CultureInfo.GetCultureInfo("de-DE"));
-            lines.Add($"`{slotIndex}  {territory.Name,-9}  {territory.Tier}  {string.Join(", ", neighbours),-22}  {day} ` " +
-                $"<t:{start.ToUnixTimeSeconds()}:t>-<t:{end.ToUnixTimeSeconds()}:t>");
+            var day = start.ToString("ddd", Languages.ToCulture(Lang));
+            // The column padding stays here (the catalog's placeholders carry no alignment).
+            lines.Add(Msg.Tc.ScheduleRow(Lang, slotIndex, $"{territory.Name,-9}", territory.Tier,
+                $"{string.Join(", ", neighbours),-22}", day, start.ToUnixTimeSeconds(), end.ToUnixTimeSeconds()));
         }
 
         if (unknown.Count > 0)
         {
-            lines.Add($"Zeit noch unbekannt: {string.Join(", ", unknown.Select(t => t.Name))}");
+            lines.Add(Msg.Tc.TimesUnknown(Lang, string.Join(", ", unknown.Select(t => t.Name))));
         }
 
-        var bridgeMention = link.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : "Kommandobrücke";
+        var bridgeMention = link.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : Msg.Tc.BridgeFallback(Lang);
 
         var embed = await embedBranding.BuildBrandedAsync(guildId,
-            $"Bitte haltet Euch diese Termine nach Möglichkeit frei oder meldet Euch für einzelne Termine hier oder generell auf der {bridgeMention} ab!",
+            Msg.Tc.DigestIntro(Lang, bridgeMention),
             title: title);
         embed.Fields =
         [
-            new EmbedFieldProperties { Name = "Termine", Value = Clamp(string.Join("\n", lines)) },
+            new EmbedFieldProperties { Name = Msg.Tc.FieldSchedule(Lang), Value = Clamp(string.Join("\n", lines)) },
         ];
 
         var instructions = await settingsService.GetTextAsync(
@@ -303,7 +316,7 @@ public partial class TerritoryCaptureDigestService(
         {
             embed.Fields = embed.Fields.Append(new EmbedFieldProperties
             {
-                Name = $"Anweisungen von {link.StfcAlliance.Tag}-Führungsstab",
+                Name = Msg.Tc.FieldInstructions(Lang, link.StfcAlliance.Tag),
                 Value = Clamp(instructions),
             });
         }
@@ -311,7 +324,7 @@ public partial class TerritoryCaptureDigestService(
         var buttons = known
             .Select(z => new ButtonProperties(
                 $"territory-capture-unsubscribe:{z.Territory.Id}:{z.Start.ToUnixTimeSeconds()}:{z.End.ToUnixTimeSeconds()}",
-                $"Abmelden für {z.Territory.Name}", EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
+                Msg.Tc.UnsubscribeButton(Lang, z.Territory.Name), EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
             .ToList();
 
         var content = mentionRoleIds.Count > 0

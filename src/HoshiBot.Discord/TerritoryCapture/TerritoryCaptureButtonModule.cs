@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -8,6 +9,10 @@ namespace HoshiBot.Discord.TerritoryCapture;
 
 public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding embedBranding) : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Tc); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [ComponentInteraction("territory-capture-unsubscribe")]
     public Task Unsubscribe(int territoryId, long startUnix, long endUnix) =>
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
@@ -21,7 +26,7 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding em
                 .AnyAsync(a => a.GuildId == guildId && a.DiscordUserId == userId
                     && a.StartsAt < end && a.EndsAt > start);
             if (overlapping)
-                return CommanderName.Address(Context.User, "Du hast für diesen Zeitraum bereits eine Abwesenheit erfasst.");
+                return Msg.Tc.AlreadyAbsent(Lang, CommanderName.Of(Context.User));
 
             if (await db.DiscordUsers.FindAsync(userId) is null)
                 db.DiscordUsers.Add(new DiscordUser { DiscordUserId = userId });
@@ -36,7 +41,7 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding em
                 DiscordUserId = userId,
                 StartsAt = start,
                 EndsAt = end,
-                Reason = territory is null ? "Abmeldung Gebietsübernahme" : $"Abmeldung für {territory.Name}",
+                Reason = territory is null ? Msg.Tc.AbsenceReasonGeneric(Lang) : Msg.Tc.AbsenceReason(Lang, territory.Name),
                 SuppressNotifications = false,
                 CreatedByDiscordUserId = userId,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -44,6 +49,6 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding em
 
             await db.SaveChangesAsync();
 
-            return CommanderName.Address(Context.User, "Deine Abwesenheit wurde erfasst. Besten Dank für Deine Meldung!");
+            return Msg.Tc.AbsenceRecorded(Lang, CommanderName.Of(Context.User));
         });
 }

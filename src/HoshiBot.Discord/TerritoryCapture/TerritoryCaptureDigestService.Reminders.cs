@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -102,12 +103,12 @@ public partial class TerritoryCaptureDigestService
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slot.SlotIndex));
 
         var embed = await embedBranding.BuildBrandedAsync(guildId,
-            $"Beginnt <t:{startUnix}:R> (<t:{startUnix}:t>–<t:{endUnix}:t>). Meldet Euch ab, falls Ihr diesen Termin nicht wahrnehmen könnt.",
-            title: $"Gebietsübernahme {slot.Territory.Name} steht bevor");
+            Msg.Tc.ReminderBody(Lang, startUnix, endUnix),
+            title: Msg.Tc.ReminderTitle(Lang, slot.Territory.Name));
 
         var button = new ButtonProperties(
             $"territory-capture-unsubscribe:{slot.Territory.Id}:{startUnix}:{endUnix}",
-            $"Abmelden für {slot.Territory.Name}", EmojiProperties.Standard(DigitEmoji(slot.SlotIndex)), ButtonStyle.Primary);
+            Msg.Tc.UnsubscribeButton(Lang, slot.Territory.Name), EmojiProperties.Standard(DigitEmoji(slot.SlotIndex)), ButtonStyle.Primary);
 
         try
         {
@@ -143,7 +144,7 @@ public partial class TerritoryCaptureDigestService
         var description = await BuildServicesDescriptionAsync(link, slot.Territory);
 
         var embed = await embedBranding.BuildBrandedAsync(guildId, description,
-            title: $"Dienste aktivieren für {slot.Territory.Name}");
+            title: Msg.Tc.ServicesTitle(Lang, slot.Territory.Name));
 
         try
         {
@@ -179,7 +180,7 @@ public partial class TerritoryCaptureDigestService
             .ToListAsync();
 
         if (slots.Count == 0)
-            return $"Die Übernahme von **{territory.Name}** ist beendet — bitte jetzt die Gebietsdienste aktivieren.";
+            return Msg.Tc.ServicesGenericNudge(Lang, territory.Name);
 
         var priorityByService = await db.TerritoryServiceSelections
             .Where(x => x.GuildAllianceId == link.Id && x.TerritoryId == territory.Id)
@@ -195,14 +196,13 @@ public partial class TerritoryCaptureDigestService
 
         // No curation (or every curated service has since dropped off the zone) → list all, game order.
         if (mustHave.Count == 0 && niceToHave.Count == 0)
-            return Clamp($"Die Übernahme von **{territory.Name}** ist beendet — bitte folgende Dienste in dieser Reihenfolge aktivieren:\n\n"
-                + Numbered(slots.Select(s => s.Name)));
+            return Clamp(Msg.Tc.ServicesAllInOrder(Lang, territory.Name, Numbered(slots.Select(s => s.Name))));
 
-        var parts = new List<string> { $"Die Übernahme von **{territory.Name}** ist beendet." };
+        var parts = new List<string> { Msg.Tc.ServicesEnded(Lang, territory.Name) };
         if (mustHave.Count > 0)
-            parts.Add("Bitte folgende **obligatorische Dienste** in dieser Reihenfolge aktivieren:\n" + Numbered(mustHave));
+            parts.Add(Msg.Tc.ServicesMustHave(Lang, Numbered(mustHave)));
         if (niceToHave.Count > 0)
-            parts.Add("**Optionale Dienste**, können auf Anfrage aktiviert werden:\n" + Numbered(niceToHave));
+            parts.Add(Msg.Tc.ServicesNiceToHave(Lang, Numbered(niceToHave)));
 
         return Clamp(string.Join("\n\n", parts));
     }
