@@ -78,11 +78,16 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
     // Voice/Stage/Announcement all derive from TextGuildChannel in NetCord's model (they share
     // its shape — topic, ParentId, etc. — even though they're not plain text channels), so a
     // plain `is TextGuildChannel` check would wrongly match them too. Voice/Stage are excluded
-    // outright; Announcement is allowed only for Normal, since private-thread creation (used by
-    // Tickets) isn't supported there.
+    // outright; Announcement is allowed only for Normal (and NormalOrForum), since private-thread
+    // creation (used by Tickets) isn't supported there. NormalOrForum additionally keeps forums:
+    // it's for settings the bot only ever READS from (the AI-chat knowledge sources, which expand
+    // a forum to its threads — see AiChatIndexService.AddSourceAsync), where "can the bot post
+    // here" — the reason every other kind drops forums — simply doesn't apply.
     public static bool IsAllowedChannel(IGuildChannel channel, ChannelKind kind) => kind switch
     {
         ChannelKind.Forum => channel is ForumGuildChannel or MediaForumGuildChannel,
+        ChannelKind.NormalOrForum => channel is ForumGuildChannel or MediaForumGuildChannel
+            || IsAllowedChannel(channel, ChannelKind.Normal),
         _ => channel switch
         {
             VoiceGuildChannel or StageGuildChannel or ForumGuildChannel or MediaForumGuildChannel => false,
@@ -555,10 +560,12 @@ public sealed record MemberDirectory(IReadOnlyDictionary<ulong, string> Names)
 // See IsAllowedChannel. Normal covers most settings (anything SendMessageAsync can target);
 // TextOnly is for settings that create a private thread under the configured channel (Tickets),
 // which Discord doesn't support on Announcement channels; Forum is for settings that post as a
-// forum thread (RoE Violations — see RoeViolationService.CreateReportAsync).
+// forum thread (RoE Violations — see RoeViolationService.CreateReportAsync); NormalOrForum is for
+// read-only settings that never post (AI-chat knowledge sources).
 public enum ChannelKind
 {
     Normal,
     TextOnly,
     Forum,
+    NormalOrForum,
 }

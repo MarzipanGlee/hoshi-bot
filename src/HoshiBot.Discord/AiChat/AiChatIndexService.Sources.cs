@@ -104,6 +104,20 @@ public partial class AiChatIndexService
         return threads;
     }
 
+    // The subset of `ids` that GetMessagesAsync can actually be called on: plain text/announcement
+    // channels. A category or forum id holds no messages of its own, so fetching from one is a
+    // guaranteed-failing REST call — callers on the answer hot path (BuildLatestAnnouncementsBlock)
+    // filter first instead. Expanding a forum to its threads here would be the wrong trade: N extra
+    // REST calls per answer, when the forum's posts already reach answers through the index.
+    // Unknown ids are kept, so a channel missing from the cache behaves as before.
+    public async Task<List<ulong>> FilterDirectMessageSourcesAsync(ulong guildId, IEnumerable<ulong> ids, CancellationToken cancellationToken)
+    {
+        var byId = (await GetGuildChannelsAsync(guildId, cancellationToken)).ToDictionary(c => c.Id);
+        return ids.Where(id => byId.GetValueOrDefault(id) is not { } channel
+                || channel is TextGuildChannel and not (VoiceGuildChannel or StageGuildChannel))
+            .ToList();
+    }
+
     // Newest-first list of up to `limit` recent messages; empty on any REST error (missing
     // permissions etc. must never crash the message pump or the backfill job).
     public async Task<List<RestMessage>> FetchRecentAsync(ulong channelId, int limit, CancellationToken cancellationToken)

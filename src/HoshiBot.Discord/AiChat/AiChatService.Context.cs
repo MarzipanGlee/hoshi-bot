@@ -175,8 +175,13 @@ public partial class AiChatService
         if (preferredChannels.Count == 0)
             return "";
 
+        // A Preferred entry may be a whole category or a forum; neither holds messages of its own,
+        // so drop those before fetching rather than firing a doomed REST call per answer. Their
+        // content still reaches the answer through the index (the indexer expands both).
+        var fetchable = await indexService.FilterDirectMessageSourcesAsync(guildId, preferredChannels, cancellationToken);
+
         var messages = new List<(DateTimeOffset When, ulong ChannelId, string Text)>();
-        foreach (var channelId in preferredChannels)
+        foreach (var channelId in fetchable)
         {
             try
             {
@@ -191,7 +196,7 @@ public partial class AiChatService
             }
             catch (Exception ex)
             {
-                // A category id or an inaccessible channel just contributes nothing.
+                // An inaccessible channel just contributes nothing.
                 logger.LogWarning(ex, "Latest-announcements fetch failed for channel {ChannelId}", channelId);
             }
         }

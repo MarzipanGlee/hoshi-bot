@@ -11,8 +11,9 @@
 </p>
 
 <p class="form-text">
-    <strong>Knowledge channels</strong> (or whole categories) are the sources the bot draws on to
-    ground its answers. Their <strong>priority</strong> controls which sources the answer search
+    <strong>Knowledge channels</strong> (also forums, or whole categories) are the sources the bot
+    draws on to ground its answers — a forum contributes all of its posts. Their
+    <strong>priority</strong> controls which sources the answer search
     prefers — <em>Preferred</em> is boosted, <em>Last resort</em> is only used when the higher tiers
     have no answer. A channel belongs to exactly <em>one</em> tier (adding it to one removes it from
     the others).
@@ -31,20 +32,23 @@
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChat" Audience="ResolvedAudience"
         Title="Listen channels" Usage="Channels the bot reads and answers in." />
 
+    @* Knowledge sources are read-only, so forums are selectable too (Kind) — the indexer expands a
+       forum to its threads. The listen picker above stays Normal: the listen match compares the raw
+       channel id, so a forum there would never fire. *@
     <MultiChannelPicker @ref="preferredPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledgePreferred"
-        Audience="ResolvedAudience" AllowCategories="true"
+        Audience="ResolvedAudience" AllowCategories="true" Kind="ChannelKind.NormalOrForum"
         ExclusiveWith="PreferredExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
         Title="Knowledge – preferred"
         Usage="Curated/internal channels. Hits here are boosted in the answer search." />
 
     <MultiChannelPicker @ref="normalPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledge"
-        Audience="ResolvedAudience" AllowCategories="true"
+        Audience="ResolvedAudience" AllowCategories="true" Kind="ChannelKind.NormalOrForum"
         ExclusiveWith="NormalExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
         Title="Knowledge – normal"
         Usage="The bot's standard knowledge sources." />
 
     <MultiChannelPicker @ref="lastResortPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledgeLastResort"
-        Audience="ResolvedAudience" AllowCategories="true"
+        Audience="ResolvedAudience" AllowCategories="true" Kind="ChannelKind.NormalOrForum"
         ExclusiveWith="LastResortExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
         Title="Knowledge – last resort"
         Usage="E.g. external content (content creators / Scopely). Used only when the preferred/normal sources have no answer." />

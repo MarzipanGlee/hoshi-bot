@@ -41,7 +41,7 @@
                     }
                 </optgroup>
             }
-            @foreach (var group in NormalChannelGroups)
+            @foreach (var group in SelectableChannelGroups)
             {
                 @if (group.Category is not null)
                 {
@@ -74,8 +74,14 @@
 
     // When true, whole categories can also be added (stored by their category id). The consumer
     // is responsible for expanding a category id to its member channels at read time — see
-    // AiChatService.ExpandKnowledgeChannelsAsync.
+    // AiChatIndexService.ResolveSourcesAsync.
     [Parameter] public bool AllowCategories { get; set; }
+
+    // Which channel types are selectable — same parameter as ChannelPicker.Kind. Normal (anything
+    // SendMessageAsync can target) is right for every posting consumer; read-only consumers that
+    // also accept forums pass NormalOrForum (AI-chat knowledge). See
+    // DiscordGuildDataService.IsAllowedChannel.
+    [Parameter] public ChannelKind Kind { get; set; } = ChannelKind.Normal;
 
     // When set, adding a channel first removes it from these sibling features (same guild/audience),
     // so the channel lives in exactly one of the mutually-exclusive buckets (e.g. the AI-chat
@@ -129,14 +135,14 @@
 
     private Task NotifyChangedAsync() => OnChanged.HasDelegate ? OnChanged.InvokeAsync() : Task.CompletedTask;
 
-    // Every consumer posts via a plain SendMessageAsync (never a private thread), so Normal is
-    // always right here — same reasoning as AlertChannelListEditor.
     private List<CategoryGuildChannel> CategoryOptions =>
         channels.OfType<CategoryGuildChannel>().OrderBy(c => c.Name).ToList();
 
-    private List<ChannelGroup> NormalChannelGroups =>
+    // Categories stay in the list so a category whose children are all filtered out drops away as
+    // an empty group below, rather than rendering an empty <optgroup>.
+    private List<ChannelGroup> SelectableChannelGroups =>
         DiscordGuildDataService.GroupChannelsForDisplay(channels
-                .Where(c => c is CategoryGuildChannel || DiscordGuildDataService.IsAllowedChannel(c, ChannelKind.Normal))
+                .Where(c => c is CategoryGuildChannel || DiscordGuildDataService.IsAllowedChannel(c, Kind))
                 .ToList())
             .Where(g => g.Channels.Count > 0)
             .ToList();
