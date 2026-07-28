@@ -102,5 +102,96 @@ public static partial class Msg
 
         public static string VisibilityPublic(Language lang) =>
             MessageCatalog.Format(lang, "Absence.VisibilityPublic");
+
+        // The manage wizard (AbsenceButtonModule + modal/string-menu modules): entry screen,
+        // create/edit/delete steps, modal fields, and validation errors.
+        public static string ManageTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.ManageTitle");
+
+        public static string ManageIntro(Language lang, string name, string list) =>
+            MessageCatalog.Format(lang, "Absence.ManageIntro", ("name", name), ("list", list));
+
+        // Create/Edit/Delete each double as a wizard button label and the matching
+        // wizard-step/modal title.
+        public static string CreateTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.CreateTitle");
+
+        public static string EditTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.EditTitle");
+
+        public static string DeleteTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.DeleteTitle");
+
+        public static string VisibilityPrompt(Language lang, string name) =>
+            MessageCatalog.Format(lang, "Absence.VisibilityPrompt", ("name", name));
+
+        public static string PublicButton(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.PublicButton");
+
+        public static string StaffButton(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.StaffButton");
+
+        public static string NotificationsPrompt(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.NotificationsPrompt");
+
+        public static string NotificationsOnButton(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.NotificationsOnButton");
+
+        public static string NotificationsOffButton(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.NotificationsOffButton");
+
+        public static string StartDateLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.StartDateLabel");
+
+        public static string StartTimeLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.StartTimeLabel");
+
+        public static string EndDateLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.EndDateLabel");
+
+        public static string EndTimeLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.EndTimeLabel");
+
+        public static string ReasonLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.ReasonLabel");
+
+        public static string DatePlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.DatePlaceholder");
+
+        public static string TimePlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.TimePlaceholder");
+
+        public static string OptionalPlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.OptionalPlaceholder");
+
+        public static string EditPickPrompt(Language lang, string name) =>
+            MessageCatalog.Format(lang, "Absence.EditPickPrompt", ("name", name));
+
+        public static string DeletePickPrompt(Language lang, string name) =>
+            MessageCatalog.Format(lang, "Absence.DeletePickPrompt", ("name", name));
+
+        public static string StartParseError(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.StartParseError");
+
+        public static string EndParseError(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.EndParseError");
+
+        public static string EndMustBeAfterStart(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.EndMustBeAfterStart");
+
+        public static string NotFoundOrNoPermission(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.NotFoundOrNoPermission");
+
+        // The /absence slash command's replies (previously English; German authored per
+        // plan decision U4).
+        public static string HoursMustBePositive(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.HoursMustBePositive");
+
+        // end is unix seconds rendered as a Discord <t:…> stamp (per-viewer local time).
+        public static string Recorded(Language lang, long end) =>
+            MessageCatalog.Format(lang, "Absence.Recorded", ("end", end));
+
+        public static string RecordedNotifySuffix(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.RecordedNotifySuffix");
     }
 }

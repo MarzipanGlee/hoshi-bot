@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Absences;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
@@ -12,6 +13,12 @@ namespace HoshiBot.Discord.Absences;
 // Confirmed (no draft/confirm step): the command's arguments are already the review.
 public class AbsenceModule(AbsenceService absenceService, GuildFeatureService featureService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
 {
+    // All strings come from the message catalog (Msg.Absence); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    // This also normalized the file's previously English replies to the catalog (they now
+    // render German like everything else, per plan decision U4).
+    private const Language Lang = Language.De;
+
     [SlashCommand("absence", "Report yourself as absent for a number of hours",
         Contexts = [InteractionContextType.Guild])]
     public Task ReportAbsence(
@@ -25,7 +32,7 @@ public class AbsenceModule(AbsenceService absenceService, GuildFeatureService fe
                 return msg;
 
             if (hours <= 0)
-                return "Hours must be greater than 0.";
+                return Msg.Absence.HoursMustBePositive(Lang);
 
             var now = DateTimeOffset.UtcNow;
             var endsAt = now.AddHours(hours);
@@ -33,7 +40,7 @@ public class AbsenceModule(AbsenceService absenceService, GuildFeatureService fe
             await absenceService.CreateAsync(Context.Guild!.Id, Context.User.Id, now, endsAt,
                 reason, visibility, suppressNotifications);
 
-            return $"Absence recorded until <t:{endsAt.ToUnixTimeSeconds()}:f>."
-                + (suppressNotifications ? " You'll be excluded from notifications until then." : "");
+            return Msg.Absence.Recorded(Lang, endsAt.ToUnixTimeSeconds())
+                + (suppressNotifications ? Msg.Absence.RecordedNotifySuffix(Lang) : "");
         });
 }

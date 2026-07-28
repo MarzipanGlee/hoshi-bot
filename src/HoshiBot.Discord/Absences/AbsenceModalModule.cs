@@ -1,4 +1,5 @@
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -7,6 +8,10 @@ namespace HoshiBot.Discord.Absences;
 
 public class AbsenceModalModule(AbsenceService absenceService) : ComponentInteractionModule<ModalInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Absence); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Modals opened from a component (both of these are — see AbsenceButtonModule.CreateModal
     // and AbsenceStringMenuModule.EditTarget) can still ModifyMessage on submit: Discord
     // resolves it against the message the modal's originating component belonged to, so the
@@ -39,7 +44,7 @@ public class AbsenceModalModule(AbsenceService absenceService) : ComponentIntera
                 string.IsNullOrWhiteSpace(reason) ? null : reason);
 
             return draft is null
-                ? ErrorEdit("Abwesenheit nicht gefunden oder keine Berechtigung.")
+                ? ErrorEdit(Msg.Absence.NotFoundOrNoPermission(Lang))
                 : DraftEdit(draft);
         });
 
@@ -63,19 +68,19 @@ public class AbsenceModalModule(AbsenceService absenceService) : ComponentIntera
 
         if (!TryParseDateTime(values.GetValueOrDefault("start-date"), values.GetValueOrDefault("start-time"), out startsAt))
         {
-            error = "Startdatum/-zeit konnte nicht gelesen werden. Format: TT.MM.JJJJ / HH:MM.";
+            error = Msg.Absence.StartParseError(Lang);
             return false;
         }
 
         if (!TryParseDateTime(values.GetValueOrDefault("end-date"), values.GetValueOrDefault("end-time"), out endsAt))
         {
-            error = "Enddatum/-zeit konnte nicht gelesen werden. Format: TT.MM.JJJJ / HH:MM.";
+            error = Msg.Absence.EndParseError(Lang);
             return false;
         }
 
         if (endsAt <= startsAt)
         {
-            error = "Das Ende muss nach dem Start liegen.";
+            error = Msg.Absence.EndMustBeAfterStart(Lang);
             return false;
         }
 

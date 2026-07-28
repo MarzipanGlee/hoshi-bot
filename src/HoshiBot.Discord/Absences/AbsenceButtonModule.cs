@@ -1,4 +1,5 @@
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -7,6 +8,10 @@ namespace HoshiBot.Discord.Absences;
 
 public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding embedBranding) : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Absence); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Every wizard step after the entry point edits the same ephemeral message via ModifyMessage
     // (the wizard experience the legacy bot had) instead of stacking a fresh ephemeral per step.
     private async Task<InteractionCallbackProperties<MessageOptions>> EphemeralEmbedModifyAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null)
@@ -34,16 +39,14 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
             // matches the legacy bot's behavior instead of hiding the buttons outright.
             var buttons = new List<ButtonProperties>
             {
-                new("absence-create", "Abwesenheit erfassen", EmojiProperties.Standard("➕"), ButtonStyle.Success),
-                new ButtonProperties("absence-edit", "Abwesenheit bearbeiten", EmojiProperties.Standard("✏️"), ButtonStyle.Primary) { Disabled = !hasOwn },
-                new ButtonProperties("absence-delete", "Abwesenheit löschen", EmojiProperties.Standard("✖️"), ButtonStyle.Danger) { Disabled = !hasOwn },
+                new("absence-create", Msg.Absence.CreateTitle(Lang), EmojiProperties.Standard("➕"), ButtonStyle.Success),
+                new ButtonProperties("absence-edit", Msg.Absence.EditTitle(Lang), EmojiProperties.Standard("✏️"), ButtonStyle.Primary) { Disabled = !hasOwn },
+                new ButtonProperties("absence-delete", Msg.Absence.DeleteTitle(Lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger) { Disabled = !hasOwn },
             };
 
-            var description = CommanderName.Greeting(Context.User) + "hier sind Deine künftigen Abwesenheiten:\n\n" +
-                $"{AbsenceService.BuildOwnListText(own)}\n\n" +
-                "Wie lautet Dein Befehl, Commander?";
+            var description = Msg.Absence.ManageIntro(Lang, CommanderName.Of(Context.User), AbsenceService.BuildOwnListText(own));
 
-            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: "Abwesenheiten verwalten");
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: Msg.Absence.ManageTitle(Lang));
 
             return m =>
             {
@@ -55,15 +58,15 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
     [ComponentInteraction("absence-create")]
     public Task<InteractionCallbackProperties<MessageOptions>> CreatePrompt() =>
         EphemeralEmbedModifyAsync(
-            CommanderName.Address(Context.User, "darf ich Deine Abwesenheit der Allianz melden oder soll nur der Führungsstab informiert werden?"),
+            Msg.Absence.VisibilityPrompt(Lang, CommanderName.Of(Context.User)),
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.Public}", "Öffentlich", EmojiProperties.Standard("📢"), ButtonStyle.Primary),
-                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.StaffOnly}", "Führungsstab", EmojiProperties.Standard("🙂"), ButtonStyle.Primary),
+                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.Public}", Msg.Absence.PublicButton(Lang), EmojiProperties.Standard("📢"), ButtonStyle.Primary),
+                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.StaffOnly}", Msg.Absence.StaffButton(Lang), EmojiProperties.Standard("🙂"), ButtonStyle.Primary),
                 ]),
             ],
-            title: "Abwesenheit erfassen");
+            title: Msg.Absence.CreateTitle(Lang));
 
     // Read as a plain string, not bound as an AbsenceVisibility parameter directly —
     // component-interaction enum-from-custom-id binding isn't verified, same caution
@@ -71,12 +74,12 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
     [ComponentInteraction("absence-create-vis")]
     public Task<InteractionCallbackProperties<MessageOptions>> NotificationsPrompt(string visibility) =>
         EphemeralEmbedModifyAsync(
-            "Benachrichtigungen während der Abwesenheit?",
+            Msg.Absence.NotificationsPrompt(Lang),
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"absence-create-notify:{visibility}:true", "Aus", EmojiProperties.Standard("🔔"), ButtonStyle.Secondary),
-                    new ButtonProperties($"absence-create-notify:{visibility}:false", "Ein", EmojiProperties.Standard("🔔"), ButtonStyle.Primary),
+                    new ButtonProperties($"absence-create-notify:{visibility}:true", Msg.Absence.NotificationsOffButton(Lang), EmojiProperties.Standard("🔔"), ButtonStyle.Secondary),
+                    new ButtonProperties($"absence-create-notify:{visibility}:false", Msg.Absence.NotificationsOnButton(Lang), EmojiProperties.Standard("🔔"), ButtonStyle.Primary),
                 ]),
             ]);
 
@@ -85,13 +88,13 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
     // originating message (see AbsenceModalModule.CreateAbsence).
     [ComponentInteraction("absence-create-notify")]
     public InteractionCallbackProperties<ModalProperties> CreateModal(string visibility, bool suppressNotifications) =>
-        InteractionCallback.Modal(new ModalProperties($"absence-create-modal:{visibility}:{suppressNotifications}", "Abwesenheit erfassen",
+        InteractionCallback.Modal(new ModalProperties($"absence-create-modal:{visibility}:{suppressNotifications}", Msg.Absence.CreateTitle(Lang),
         [
-            new LabelProperties("Startdatum", new TextInputProperties("start-date", TextInputStyle.Short) { Placeholder = "TT.MM.JJJJ", Required = true }),
-            new LabelProperties("Startzeit", new TextInputProperties("start-time", TextInputStyle.Short) { Placeholder = "HH:MM", Required = true }),
-            new LabelProperties("Enddatum", new TextInputProperties("end-date", TextInputStyle.Short) { Placeholder = "TT.MM.JJJJ", Required = true }),
-            new LabelProperties("Endzeit", new TextInputProperties("end-time", TextInputStyle.Short) { Placeholder = "HH:MM", Required = true }),
-            new LabelProperties("Grund", new TextInputProperties("reason", TextInputStyle.Short) { Placeholder = "Optional", Required = false }),
+            new LabelProperties(Msg.Absence.StartDateLabel(Lang), new TextInputProperties("start-date", TextInputStyle.Short) { Placeholder = Msg.Absence.DatePlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Absence.StartTimeLabel(Lang), new TextInputProperties("start-time", TextInputStyle.Short) { Placeholder = Msg.Absence.TimePlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Absence.EndDateLabel(Lang), new TextInputProperties("end-date", TextInputStyle.Short) { Placeholder = Msg.Absence.DatePlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Absence.EndTimeLabel(Lang), new TextInputProperties("end-time", TextInputStyle.Short) { Placeholder = Msg.Absence.TimePlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Absence.ReasonLabel(Lang), new TextInputProperties("reason", TextInputStyle.Short) { Placeholder = Msg.Absence.OptionalPlaceholder(Lang), Required = false }),
         ]));
 
     // Same loading-then-edit pattern as ManageAbsences, just via ModifyMessage instead of a
@@ -102,8 +105,8 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
-            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du bearbeiten?"),
-                title: "Abwesenheit bearbeiten");
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Absence.EditPickPrompt(Lang, CommanderName.Of(Context.User)),
+                title: Msg.Absence.EditTitle(Lang));
 
             return m =>
             {
@@ -117,8 +120,8 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var own = await absenceService.GetOwnUpcomingAsync(Context.Guild!.Id, Context.User.Id);
-            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Address(Context.User, "welche Abwesenheitsmeldung willst Du löschen?"),
-                title: "Abwesenheit löschen");
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Absence.DeletePickPrompt(Lang, CommanderName.Of(Context.User)),
+                title: Msg.Absence.DeleteTitle(Lang));
 
             return m =>
             {
