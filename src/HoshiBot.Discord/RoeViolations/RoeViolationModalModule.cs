@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -51,7 +52,7 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
                         break;
                     }
                 default:
-                    embed = await roeViolationService.ResultEmbedAsync(guildId, "RoE-Verstoss", "Unbekannter Meldetyp.");
+                    embed = await roeViolationService.ResultEmbedAsync(guildId, Msg.Roe.Title(Language.De), Msg.Roe.UnknownReportType(Language.De));
                     break;
             }
 

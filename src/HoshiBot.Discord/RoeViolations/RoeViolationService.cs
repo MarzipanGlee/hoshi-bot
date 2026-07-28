@@ -2,6 +2,7 @@ using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Gateway;
@@ -25,29 +26,23 @@ public class RoeViolationService(
     GuildAllianceService allianceService,
     PlayerLinkService playerLinkService)
 {
-    private const string VictimSteps =
-        "1. Überprüfe den entstandenen Verlust genau.\n" +
-        "2. War es mit Sicherheit keine Zero-Node? Öffne den Chat des Angreifers, um dies zu verifizieren.\n" +
-        "3. Kontaktiere den Angreifer direkt und bitte um Aufklärung. Gib ihm ein paar Stunden Zeit, um reagieren zu können.\n" +
-        "4. Wird keine Einigung erzielt, poste hier Screenshots mit allen relevanten Informationen. Dazu gehören Kampf, Kampfprotokoll und Kommunikation mit dem Spieler.";
+    // All strings come from the message catalog (Msg.Roe); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
 
-    private const string OffenderSteps =
-        "1. Kontaktiere die betroffene Partei direkt und kläre den Vorfall in gegenseitigem Einvernehmen.\n" +
-        "2. Wird keine Einigung erzielt, poste hier Screenshots mit allen relevanten Informationen. Dazu gehören Kampf, Kampfprotokoll und Kommunikation mit dem Spieler.";
-
-    // Reporter-addressed instructions for the forum post. The "Commander {name}," intro and the
-    // closing line are built here (not baked into the step consts) so the report's own alliance
-    // diplomat role can be mentioned inline — matching the legacy post's format.
+    // Reporter-addressed instructions for the forum post. The steps are a separate catalog key
+    // spliced into the template so the report's own alliance diplomat role can be mentioned
+    // inline — matching the legacy post's format.
     private static string BuildInstructions(string reporterName, bool reporterIsVictim, string diplomatMention) =>
-        CommanderName.Greeting(reporterName) + "danke für Deine Meldung! Bitte beachte die nachfolgenden Anweisungen und hole fehlende Punkte nach:\n\n" +
-        (reporterIsVictim ? VictimSteps : OffenderSteps) +
-        $"\n\nSobald Du alles erledigt hast, bestätige das mit der entsprechenden Schaltfläche unten und {diplomatMention} nimmt sich dem Fall an.";
+        Msg.Roe.Instructions(Lang, reporterName,
+            reporterIsVictim ? Msg.Roe.VictimSteps(Lang) : Msg.Roe.OffenderSteps(Lang),
+            diplomatMention);
 
     public static ButtonProperties ReadyButton(int reportId) =>
-        new($"roe-violation-ready:{reportId}", "Alle Vorgaben erfüllt", EmojiProperties.Standard("✅"), ButtonStyle.Success);
+        new($"roe-violation-ready:{reportId}", Msg.Roe.ReadyButton(Lang), EmojiProperties.Standard("✅"), ButtonStyle.Success);
 
     public static ButtonProperties DoneButton(int reportId) =>
-        new($"roe-violation-done:{reportId}", "Verstoss geklärt", EmojiProperties.Standard("❌"), ButtonStyle.Danger);
+        new($"roe-violation-done:{reportId}", Msg.Roe.DoneButton(Lang), EmojiProperties.Standard("❌"), ButtonStyle.Danger);
 
     // Shared by both entry points that open this modal (CommandBridgeButtonModule for the
     // to/from branches, RoeViolationUserMenuModule for the other branch) — same 2-field
@@ -56,12 +51,12 @@ public class RoeViolationService(
     // consistent across all 3 branches (same convention already used for Raid's
     // location-in-custom-id).
     public static ModalProperties Modal(string branch, ulong otherUserId) =>
-        new($"roe-violation-modal:{branch}:{otherUserId}", "RoE-Verstoss melden",
+        new($"roe-violation-modal:{branch}:{otherUserId}", Msg.Roe.ModalTitle(Lang),
         [
-            new LabelProperties("Allianz-Tag der Gegenseite",
-                new TextInputProperties("tag", TextInputStyle.Short) { Placeholder = "z.B. ABC", Required = true, MaxLength = 10 }),
-            new LabelProperties("Name des Commanders der Gegenseite",
-                new TextInputProperties("name", TextInputStyle.Short) { Placeholder = "Name eingeben", Required = true }),
+            new LabelProperties(Msg.Roe.ModalTagLabel(Lang),
+                new TextInputProperties("tag", TextInputStyle.Short) { Placeholder = Msg.Roe.ModalTagPlaceholder(Lang), Required = true, MaxLength = 10 }),
+            new LabelProperties(Msg.Roe.ModalNameLabel(Lang),
+                new TextInputProperties("name", TextInputStyle.Short) { Placeholder = Msg.Roe.ModalNamePlaceholder(Lang), Required = true }),
         ]);
 
     // Gates the staff-only "report on behalf of an own player" option — the guild-wide Command
@@ -112,7 +107,7 @@ public class RoeViolationService(
             : await settingsService.GetSnowflakeAsync(
                 guildId, GuildFeature.RoeViolationReports, GuildAudience.Alliance, guildAllianceId, RoeViolationReportsSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
-            return await ResultEmbedAsync(guildId, "RoE-Verstoss", "Der RoE-Verstoss-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).");
+            return await ResultEmbedAsync(guildId, Msg.Roe.Title(Lang), Msg.Roe.ChannelNotConfigured(Lang));
 
         // Mentioned inline in the instructions so the reporter knows who picks the case up; the
         // same per-alliance Diplomat role that SetReadyForDiplomatAsync pings later.
@@ -120,7 +115,7 @@ public class RoeViolationService(
             ? null
             : await settingsService.GetSnowflakeAsync(
                 guildId, GuildFeature.Diplomacy, GuildAudience.Alliance, guildAllianceId, DiplomacySettingKeys.DiplomatRole);
-        var diplomatMention = diplomatRoleId is { } diplomatId ? $"<@&{diplomatId}>" : "ein Diplomat";
+        var diplomatMention = diplomatRoleId is { } diplomatId ? $"<@&{diplomatId}>" : Msg.Roe.DiplomatFallback(Lang);
 
         var report = new RoeViolationReport
         {
@@ -169,8 +164,8 @@ public class RoeViolationService(
         {
             db.RoeViolationReports.Remove(report);
             await db.SaveChangesAsync();
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "einen RoE-Verstoss melden", $"fehlende Berechtigung (Forum-Post erstellen) in <#{channelId}>?");
-            return await ResultEmbedAsync(guildId, "RoE-Verstoss", "Das RoE-Verstoss-System ist aktuell falsch konfiguriert — ein Admin wurde informiert.");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Roe.ActionReport(Lang), Msg.Roe.HintCreateForumPost(Lang, $"<#{channelId}>"));
+            return await ResultEmbedAsync(guildId, Msg.Roe.Title(Lang), Msg.Roe.Misconfigured(Lang));
         }
 
         report.ThreadId = thread.Id;
@@ -185,20 +180,20 @@ public class RoeViolationService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             // The post exists even if this part fails — nothing to roll back, just report it.
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "die RoE-Verstoss-Nutzer hinzufügen", $"fehlende Berechtigung im Thread <#{thread.Id}>?");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Roe.ActionAddThreadUsers(Lang), Msg.Roe.HintThreadPermission(Lang, $"<#{thread.Id}>"));
         }
 
-        return await ResultEmbedAsync(guildId, "RoE-Verstoss erstellt",
-            CommanderName.Address(reporterDisplayName, $"bitte wechsle in den Post <#{thread.Id}>, um Deine Meldung abzuschliessen und sie an einen Diplomaten zu übergeben."));
+        return await ResultEmbedAsync(guildId, Msg.Roe.CreatedTitle(Lang),
+            Msg.Roe.CreatedBody(Lang, reporterDisplayName, $"<#{thread.Id}>"));
     }
 
     public async Task<string> SetReadyForDiplomatAsync(int reportId, ulong callerId)
     {
         var report = await db.RoeViolationReports.FindAsync(reportId);
         if (report is null)
-            return "Meldung nicht gefunden.";
+            return Msg.Roe.ReportNotFound(Lang);
         if (callerId != report.ReportedByDiscordUserId)
-            return "Nur die meldende Person kann dies bestätigen.";
+            return Msg.Roe.OnlyReporterConfirm(Lang);
 
         // The diplomat pinged is the one for the report's own alliance (fallback to primary for
         // legacy reports created before per-alliance scoping).
@@ -211,28 +206,28 @@ public class RoeViolationService(
 
         try
         {
-            var embed = await embedBranding.BuildBrandedAsync(report.GuildId, "Der Fall ist bereit und kann übernommen werden.");
+            var embed = await embedBranding.BuildBrandedAsync(report.GuildId, Msg.Roe.CaseReady(Lang));
             await gatewayClient.Rest.SendMessageAsync(report.ThreadId,
                 new MessageProperties { Content = mention, Embeds = [embed] });
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, "eine Nachricht im RoE-Verstoss-Thread senden", $"fehlende Berechtigung im Thread <#{report.ThreadId}>?");
-            return "Nachricht konnte nicht gesendet werden — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, Msg.Roe.ActionSendThreadMessage(Lang), Msg.Roe.HintThreadPermission(Lang, $"<#{report.ThreadId}>"));
+            return Msg.Roe.SendFailed(Lang);
         }
 
-        return "Diplomat wurde benachrichtigt.";
+        return Msg.Roe.DiplomatNotified(Lang);
     }
 
     public async Task<string> CloseReportAsync(int reportId, ulong callerId)
     {
         var report = await db.RoeViolationReports.FindAsync(reportId);
         if (report is null)
-            return "Meldung nicht gefunden.";
+            return Msg.Roe.ReportNotFound(Lang);
         if (callerId != report.ReportedByDiscordUserId)
-            return "Nur die meldende Person kann diesen Verstoss als geklärt markieren.";
+            return Msg.Roe.OnlyReporterClose(Lang);
         if (report.Status == RoeViolationStatus.Closed)
-            return "Diese Meldung ist bereits geschlossen.";
+            return Msg.Roe.AlreadyClosed(Lang);
 
         try
         {
@@ -244,8 +239,8 @@ public class RoeViolationService(
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, "den RoE-Verstoss-Thread schliessen", $"fehlende Manage-Threads-Berechtigung im Thread <#{report.ThreadId}>?");
-            return "Verstoss konnte nicht geschlossen werden — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, Msg.Roe.ActionCloseThread(Lang), Msg.Roe.HintManageThreads(Lang, $"<#{report.ThreadId}>"));
+            return Msg.Roe.CloseFailed(Lang);
         }
 
         report.Status = RoeViolationStatus.Closed;
@@ -253,7 +248,7 @@ public class RoeViolationService(
         report.ClosedByDiscordUserId = callerId;
         await db.SaveChangesAsync();
 
-        return "Verstoss als geklärt markiert — Thread archiviert.";
+        return Msg.Roe.Closed(Lang);
     }
 
     private static string Slugify(string value)
