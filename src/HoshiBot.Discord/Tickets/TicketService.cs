@@ -3,6 +3,7 @@ using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -19,20 +20,21 @@ public class TicketService(
     EmbedBranding embedBranding,
     GuildFeatureSettingsService settingsService)
 {
-    private const string WelcomeMessageFormat =
-        "Willkommen Commander {0}!\n\nBitte beschreibe den Grund für die Eröffnung dieses Tickets und füge alle relevanten Informationen bei, wie z. B. Beweise, weitere Commander usw.";
+    // All strings come from the message catalog (Msg.Ticket); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
 
     public static ButtonProperties CloseButton(int ticketId) =>
-        new($"ticket-close:{ticketId}", "Ticket schliessen", EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
+        new($"ticket-close:{ticketId}", Msg.Ticket.CloseButton(Lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
 
     public static UserMenuProperties AddCommanderMenu(int ticketId) =>
-        new($"ticket-add-commander:{ticketId}") { Placeholder = "Commander zum Ticket hinzufügen" };
+        new($"ticket-add-commander:{ticketId}") { Placeholder = Msg.Ticket.AddCommanderMenu(Lang) };
 
     public async Task<string> OpenTicketAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, ulong openedByUserId, string openerName, string subject)
     {
         var channelIdResult = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, guildAllianceId, TicketsSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
-            return "Der Tickets-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).";
+            return Msg.Ticket.ChannelNotConfigured(Lang);
 
         var ticket = new Ticket
         {
@@ -60,8 +62,8 @@ public class TicketService(
         {
             db.Tickets.Remove(ticket);
             await db.SaveChangesAsync();
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "ein Ticket erstellen", $"fehlende Berechtigung (Threads erstellen) in <#{channelId}>?");
-            return "Das Ticket-System ist aktuell falsch konfiguriert — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionCreate(Lang), Msg.Ticket.HintCreateThreads(Lang, $"<#{channelId}>"));
+            return Msg.Ticket.Misconfigured(Lang);
         }
 
         ticket.ThreadId = thread.Id;
@@ -71,7 +73,7 @@ public class TicketService(
         {
             await gatewayClient.Rest.AddGuildThreadUserAsync(thread.Id, openedByUserId);
 
-            var embed = await embedBranding.BuildBrandedAsync(guildId, string.Format(WelcomeMessageFormat, openerName));
+            var embed = await embedBranding.BuildBrandedAsync(guildId, Msg.Ticket.Welcome(Lang, openerName));
 
             await gatewayClient.Rest.SendMessageAsync(thread.Id, new MessageProperties
             {
@@ -83,17 +85,17 @@ public class TicketService(
         {
             // The thread exists even if this part fails — staff with channel permissions
             // can still see/use it, so there's nothing to roll back, just report it.
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "die Ticket-Willkommensnachricht senden", $"fehlende Berechtigung im Thread <#{thread.Id}>?");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionSendWelcome(Lang), Msg.Ticket.HintThreadPermission(Lang, $"<#{thread.Id}>"));
         }
 
-        return $"Ticket erstellt: <#{thread.Id}>";
+        return Msg.Ticket.Created(Lang, $"<#{thread.Id}>");
     }
 
     public async Task<string> AddCommanderAsync(int ticketId, ulong userId)
     {
         var ticket = await db.Tickets.FindAsync(ticketId);
         if (ticket is null)
-            return "Ticket nicht gefunden.";
+            return Msg.Ticket.NotFound(Lang);
 
         try
         {
@@ -101,20 +103,20 @@ public class TicketService(
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, "einen Commander zum Ticket hinzufügen", $"fehlende Berechtigung im Thread <#{ticket.ThreadId}>?");
-            return "Commander konnte nicht hinzugefügt werden — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionAddCommander(Lang), Msg.Ticket.HintThreadPermission(Lang, $"<#{ticket.ThreadId}>"));
+            return Msg.Ticket.AddFailed(Lang);
         }
 
-        return $"<@{userId}> wurde zum Ticket hinzugefügt.";
+        return Msg.Ticket.CommanderAdded(Lang, $"<@{userId}>");
     }
 
     public async Task<string> CloseTicketAsync(int ticketId, ulong closedByUserId)
     {
         var ticket = await db.Tickets.FindAsync(ticketId);
         if (ticket is null)
-            return "Ticket nicht gefunden.";
+            return Msg.Ticket.NotFound(Lang);
         if (ticket.Status == TicketStatus.Closed)
-            return "Dieses Ticket ist bereits geschlossen.";
+            return Msg.Ticket.AlreadyClosed(Lang);
 
         try
         {
@@ -126,8 +128,8 @@ public class TicketService(
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, "das Ticket schliessen", $"fehlende Manage-Threads-Berechtigung im Thread <#{ticket.ThreadId}>?");
-            return "Ticket konnte nicht geschlossen werden — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionClose(Lang), Msg.Ticket.HintManageThreads(Lang, $"<#{ticket.ThreadId}>"));
+            return Msg.Ticket.CloseFailed(Lang);
         }
 
         ticket.Status = TicketStatus.Closed;
@@ -135,7 +137,7 @@ public class TicketService(
         ticket.ClosedByDiscordUserId = closedByUserId;
         await db.SaveChangesAsync();
 
-        return "Ticket geschlossen.";
+        return Msg.Ticket.Closed(Lang);
     }
 
     private static string Slugify(string value)

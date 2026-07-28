@@ -3,6 +3,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Gateway;
@@ -23,13 +24,19 @@ public class AlertService(
     GuildAllianceService allianceService,
     PlayerLinkService playerLinkService)
 {
+    // All strings come from the message catalog (Msg.Alert); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    // This also normalized the file's previously mixed German/English messages to the catalog
+    // (the English ones now render German like everything else, per plan decision U4).
+    private const Language Lang = Language.De;
+
     // Buttons can be clicked from a DM (no NetCord Guild context there), so the guild ID
     // travels in the custom_id itself rather than relying on Context.Guild.
     public static ButtonProperties RaidTerminateButton(ulong guildId, ulong targetUserId) =>
-        new($"raid-terminate:{guildId}:{targetUserId}", "Beenden", ButtonStyle.Danger);
+        new($"raid-terminate:{guildId}:{targetUserId}", Msg.Alert.TerminateButton(Lang), ButtonStyle.Danger);
 
     public static ButtonProperties ShieldReminderTerminateButton(ulong guildId) =>
-        new($"shield-reminder-terminate:{guildId}", "Beenden", ButtonStyle.Danger);
+        new($"shield-reminder-terminate:{guildId}", Msg.Alert.TerminateButton(Lang), ButtonStyle.Danger);
 
     // Case-insensitive: EF Core translates ToUpper() to the SQL UPPER() function — a
     // Unicode-aware case fold on Npgsql. Moot today since every synced system name is
@@ -64,12 +71,12 @@ public class AlertService(
 
         var stfcSystem = await FindSystemByNameAsync(system);
         if (stfcSystem is null)
-            return $"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.";
+            return Msg.Alert.UnknownSystem(Lang, system);
 
         var active = await db.Alerts.FirstOrDefaultAsync(a =>
             a.GuildId == guildId && a.Type == AlertType.Raid && a.TargetDiscordUserId == targetUserId && a.TerminatedAt == null);
         if (active is not null)
-            return $"<@{targetUserId}> was already reported by <@{active.TriggeredByDiscordUserId}> at <t:{active.TriggeredAt.ToUnixTimeSeconds()}:f>.";
+            return Msg.Alert.AlreadyReported(Lang, $"<@{targetUserId}>", $"<@{active.TriggeredByDiscordUserId}>", active.TriggeredAt.ToUnixTimeSeconds());
 
         // Excludes test runs, so a self-test never shows up in real history.
         var pastRaids = await db.Alerts
@@ -99,30 +106,30 @@ public class AlertService(
 
         var fields = new List<EmbedFieldProperties>
         {
-            new() { Name = "System", Value = stfcSystem.Name, Inline = true },
-            new() { Name = "Ziel", Value = $"<@{targetUserId}>", Inline = true },
-            new() { Name = "Server", Value = ServerLocationLabel(serverLocation), Inline = true },
-            new() { Name = "Angreifer", Value = attacker ?? "-", Inline = true },
-            new() { Name = "Gemeldet", Value = $"<t:{now.ToUnixTimeSeconds()}:f> von <@{triggeredByUserId}>", Inline = true },
+            new() { Name = Msg.Alert.FieldSystem(Lang), Value = stfcSystem.Name, Inline = true },
+            new() { Name = Msg.Alert.FieldTarget(Lang), Value = $"<@{targetUserId}>", Inline = true },
+            new() { Name = Msg.Alert.FieldServer(Lang), Value = ServerLocationLabel(serverLocation), Inline = true },
+            new() { Name = Msg.Alert.FieldAttacker(Lang), Value = attacker ?? "-", Inline = true },
+            new() { Name = Msg.Alert.FieldReported(Lang), Value = Msg.Alert.ReportedByValue(Lang, now.ToUnixTimeSeconds(), $"<@{triggeredByUserId}>"), Inline = true },
         };
         if (pastRaids.Count > 0)
         {
             var lines = pastRaids.Select(a =>
-                $"- <t:{a.TriggeredAt.ToUnixTimeSeconds()}:f> ({(int)(a.TerminatedAt!.Value - a.TriggeredAt).TotalMinutes} Min.) in {a.StfcSystem?.Name}");
-            fields.Add(new EmbedFieldProperties { Name = "Vergangene Raids", Value = string.Join('\n', lines) });
+                Msg.Alert.PastRaidLine(Lang, a.TriggeredAt.ToUnixTimeSeconds(), (int)(a.TerminatedAt!.Value - a.TriggeredAt).TotalMinutes, a.StfcSystem?.Name ?? ""));
+            fields.Add(new EmbedFieldProperties { Name = Msg.Alert.PastRaidsField(Lang), Value = string.Join('\n', lines) });
         }
 
         var embed = await embedBranding.BuildBrandedAsync(guildId,
-            $"Commander, die Station von Commander <@{targetUserId}> wird geraidet!", EmbedBranding.DangerColor, "Raid Alarm");
+            Msg.Alert.RaidEmbedBody(Lang, $"<@{targetUserId}>"), EmbedBranding.DangerColor, Msg.Alert.RaidTitle(Lang));
         embed.Fields = fields;
 
-        var publicContent = $"Commander, <@{targetUserId}> wird geraidet!";
+        var publicContent = Msg.Alert.RaidPublic(Lang, $"<@{targetUserId}>");
 
         if (isTest)
         {
             var alertChannel = await db.GuildAlertChannels.FirstOrDefaultAsync(c => c.GuildId == guildId && c.Kind == GuildAlertChannelKind.Raid);
             var hint = alertChannel is not null
-                ? $"Diese Nachricht würde normal in <#{alertChannel.ChannelId}> gesendet\n\n"
+                ? Msg.Alert.TestChannelHint(Lang, $"<#{alertChannel.ChannelId}>")
                 : "";
             var testMessageId = await dispatcher.SendDirectMessageAsync(targetUserId, hint + publicContent, terminateButton, embed);
             alert.Notifications.Add(new AlertNotification
@@ -149,7 +156,7 @@ public class AlertService(
         }
 
         var dmEmbed = await embedBranding.BuildBrandedAsync(guildId,
-            $"Commander, you're being raided in **{stfcSystem.Name}**! Use the button below or /raid-terminate once it's resolved.", EmbedBranding.DangerColor);
+            Msg.Alert.RaidDm(Lang, stfcSystem.Name), EmbedBranding.DangerColor);
         var dmMessageId = await dispatcher.SendDirectMessageAsync(targetUserId, "", terminateButton, dmEmbed);
         alert.Notifications.Add(new AlertNotification
         {
@@ -162,14 +169,14 @@ public class AlertService(
         await db.SaveChangesAsync();
 
         return isTest
-            ? "Testlauf abgeschlossen — Du hast zwei DMs erhalten (persönliche Warnung + Vorschau des öffentlichen Alarms). Dieser Testlauf erscheint nicht in der echten Raid-Historie."
-            : $"Raid reported for <@{targetUserId}> in {stfcSystem.Name}.";
+            ? Msg.Alert.TestCompleted(Lang)
+            : Msg.Alert.RaidReported(Lang, $"<@{targetUserId}>", stfcSystem.Name);
     }
 
     private static string ServerLocationLabel(RaidServerLocation location) => location switch
     {
-        RaidServerLocation.Home => "Home",
-        RaidServerLocation.Enemy => "Enemy",
+        RaidServerLocation.Home => Msg.Alert.ServerHome(Lang),
+        RaidServerLocation.Enemy => Msg.Alert.ServerEnemy(Lang),
         _ => "-",
     };
 
@@ -186,7 +193,7 @@ public class AlertService(
             }
 
             if (!isCommandStaff)
-                return "Only Command Staff can terminate another commander's raid alert.";
+                return Msg.Alert.OnlyStaffTerminate(Lang);
         }
 
         var alert = await db.Alerts
@@ -194,7 +201,7 @@ public class AlertService(
             .Where(a => a.GuildId == guildId && a.Type == AlertType.Raid && a.TargetDiscordUserId == targetId && a.TerminatedAt == null)
             .FirstOrDefaultAsync();
         if (alert is null)
-            return "No active raid alert found.";
+            return Msg.Alert.NoActiveRaid(Lang);
 
         alert.TerminatedAt = DateTimeOffset.UtcNow;
         alert.TerminatedByDiscordUserId = callerId;
@@ -202,27 +209,27 @@ public class AlertService(
 
         foreach (var notification in alert.Notifications.Where(n => n.Kind == NotificationKind.Public && n.MessageId is not null))
         {
-            await dispatcher.EditPublicAsync(notification.ChannelId, notification.MessageId!.Value, "Raid alert ended.");
+            await dispatcher.EditPublicAsync(notification.ChannelId, notification.MessageId!.Value, Msg.Alert.RaidEnded(Lang));
         }
 
-        return "Raid alert ended.";
+        return Msg.Alert.RaidEnded(Lang);
     }
 
     // A shield lives on a station, which can only be parked in a system that supports Station Housing
     // (StfcSystem.HasStationHousing). A system can be a perfectly valid name yet have no housing (e.g.
     // Tezera Beta), so "the system exists" isn't enough to accept a shield reminder there.
     public static string NoStationHousingMessage(string systemName) =>
-        $"Im System \"{systemName}\" gibt es keine Stationsunterkunft — dort kann kein Schild geparkt werden.";
+        Msg.Alert.NoStationHousing(Lang, systemName);
 
     public async Task<string> SetShieldReminderAsync(ulong guildId, ulong userId, string duration, string system)
     {
         var parsed = DurationParser.Parse(duration);
         if (parsed is null)
-            return "Couldn't parse that duration. Use a format like \"2d3h45m\" or \"90m\".";
+            return Msg.Alert.BadDuration(Lang);
 
         var stfcSystem = await FindSystemByNameAsync(system);
         if (stfcSystem is null)
-            return $"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.";
+            return Msg.Alert.UnknownSystem(Lang, system);
         if (!stfcSystem.HasStationHousing)
             return NoStationHousingMessage(stfcSystem.Name);
 
@@ -230,7 +237,7 @@ public class AlertService(
         var expiration = now.Add(parsed.Value);
         await UpsertShieldReminderAsync(guildId, userId, stfcSystem.Id, expiration, now);
 
-        return $"Shield reminder set for <t:{expiration.ToUnixTimeSeconds()}:f> (<t:{expiration.ToUnixTimeSeconds()}:R>) in {stfcSystem.Name}.";
+        return Msg.Alert.ShieldSet(Lang, expiration.ToUnixTimeSeconds(), stfcSystem.Name);
     }
 
     // Staff-side "Schildverlust melden/Incursions/Gebietsreset" from the Command Bridge
@@ -241,7 +248,7 @@ public class AlertService(
     {
         var stfcSystem = await FindSystemByNameAsync(system);
         if (stfcSystem is null)
-            return $"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.";
+            return Msg.Alert.UnknownSystem(Lang, system);
         if (!stfcSystem.HasStationHousing)
             return NoStationHousingMessage(stfcSystem.Name);
 
@@ -249,7 +256,7 @@ public class AlertService(
         var expiration = await ResolveShieldExpirationAsync(guildId, targetUserId, variant, now);
         await UpsertShieldReminderAsync(guildId, targetUserId, stfcSystem.Id, expiration, now);
 
-        return $"Der Schildverlust für <@{targetUserId}> in **{stfcSystem.Name}** ist eingerichtet (Ablauf <t:{expiration.ToUnixTimeSeconds()}:R>). Der Commander wird in den nächsten Minuten informiert.";
+        return Msg.Alert.StaffShieldLossSet(Lang, $"<@{targetUserId}>", stfcSystem.Name, expiration.ToUnixTimeSeconds());
     }
 
     // Current public-warning mute state for a member (false when no reminder row exists yet).
@@ -281,14 +288,12 @@ public class AlertService(
         reminder.Muted = muted;
         await db.SaveChangesAsync();
 
-        var memberNotice = muted
-            ? "Commander, ich wurde vom Führungsstab angewiesen, Deine Schildverluste nicht mehr öffentlich zu melden, da Du auffällig oft nicht auf meine Nachrichten reagiert und damit für unnötig viele Pings an die Allianz gesorgt hast. Möchtest Du das wieder geändert haben, dann kontaktiere den Führungsstab. Danke für dein Verständnis!"
-            : "Commander, Deine Schildverluste werden ab sofort wieder öffentlich gemeldet. Bitte reagiere jeweils auf meine Nachrichten, damit die Allianz nicht unnötig über diese informiert werden muss!";
+        var memberNotice = muted ? Msg.Alert.MutedNotice(Lang) : Msg.Alert.UnmutedNotice(Lang);
         await dispatcher.SendDirectMessageAsync(targetUserId, memberNotice);
 
         return muted
-            ? $"Die öffentlichen Schildablaufwarnungen für <@{targetUserId}> sind jetzt stummgeschaltet."
-            : $"Die öffentlichen Schildablaufwarnungen für <@{targetUserId}> sind jetzt wieder aktiv.";
+            ? Msg.Alert.MutedResult(Lang, $"<@{targetUserId}>")
+            : Msg.Alert.UnmutedResult(Lang, $"<@{targetUserId}>");
     }
 
     // StfcEventStatus.EventGroup lookup key for Infinite Incursions (matches
@@ -387,12 +392,12 @@ public class AlertService(
     {
         var reminder = await db.ShieldReminders.FirstOrDefaultAsync(s => s.GuildId == guildId && s.DiscordUserId == userId);
         if (reminder is null)
-            return "You don't have a shield reminder set.";
+            return Msg.Alert.NoShieldReminder(Lang);
 
         db.ShieldReminders.Remove(reminder);
         await db.SaveChangesAsync();
 
-        return "Shield reminder removed.";
+        return Msg.Alert.ShieldRemoved(Lang);
     }
 
     // One opt-in role a member can toggle from the alerts hub button.
@@ -424,7 +429,7 @@ public class AlertService(
             {
                 var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, allianceId, AlertsOptInSettingKeys.Role);
                 if (roleId is { } r)
-                    configured.Add(("alerts", "Alarme", r));
+                    configured.Add(("alerts", Msg.Alert.OptInAlertsLabel(Lang), r));
             }
         }
 
@@ -454,7 +459,7 @@ public class AlertService(
     {
         var role = (await GetOptInRolesAsync(guildId, userId)).FirstOrDefault(r => r.Key == key);
         if (role is null)
-            return "Diese Rolle ist nicht (mehr) verfügbar.";
+            return Msg.Alert.RoleUnavailable(Lang);
 
         try
         {
@@ -465,10 +470,10 @@ public class AlertService(
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "eine Opt-In-Rolle anpassen", "fehlende Berechtigung (Rolle verwalten)?");
-            return "Die Rolle konnte nicht angepasst werden — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Alert.ActionToggleRole(Lang), Msg.Alert.HintManageRoles(Lang));
+            return Msg.Alert.RoleToggleFailed(Lang);
         }
 
-        return role.HasRole ? $"**{role.Label}**: deaktiviert." : $"**{role.Label}**: aktiviert.";
+        return role.HasRole ? Msg.Alert.RoleDisabled(Lang, role.Label) : Msg.Alert.RoleEnabled(Lang, role.Label);
     }
 }
