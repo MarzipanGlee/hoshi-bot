@@ -3,6 +3,7 @@ using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -13,6 +14,10 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     PendingModalInputService pendingModalInputService, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Shared shape for every ephemeral prompt in this module — same branded style as
     // every real bot message, just also used for these interactive in-between steps.
     private async Task<InteractionMessageProperties> EphemeralEmbedAsync(string description, IReadOnlyList<IMessageComponentProperties>? components = null, string? title = null, Color? color = null)
@@ -46,7 +51,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
-            "Wähle den Commander, der geraidet wird.\n-# Tipp: Wähle Dich selbst, um den Ablauf unverbindlich auszuprobieren.",
+            Msg.Bridge.RaidTargetPrompt(Lang),
             [new UserMenuProperties("raid-report-target")]);
     }
 
@@ -60,12 +65,12 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
     private static InteractionCallbackProperties<ModalProperties> RaidReportModal(ulong targetUserId, RaidServerLocation location,
         string? system = null, string? attacker = null) =>
-        InteractionCallback.Modal(new ModalProperties($"raid-report-modal:{targetUserId}:{location}", "Raid melden",
+        InteractionCallback.Modal(new ModalProperties($"raid-report-modal:{targetUserId}:{location}", Msg.Bridge.RaidModalTitle(Lang),
         [
-            new LabelProperties("Standort",
-                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = "System eingeben", Required = true }),
-            new LabelProperties("Angreifer",
-                new TextInputProperties("attacker", TextInputStyle.Short) { Value = attacker, Placeholder = "Optional Spieler oder Allianz eingeben", Required = false }),
+            new LabelProperties(Msg.Bridge.LocationLabel(Lang),
+                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = Msg.Bridge.SystemPlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Bridge.AttackerLabel(Lang),
+                new TextInputProperties("attacker", TextInputStyle.Short) { Value = attacker, Placeholder = Msg.Bridge.AttackerPlaceholder(Lang), Required = false }),
         ]));
 
     [ComponentInteraction("shield-reminder-setup")]
@@ -78,12 +83,12 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     }
 
     private static InteractionCallbackProperties<ModalProperties> ShieldReminderModal(string? duration = null, string? system = null) =>
-        InteractionCallback.Modal(new ModalProperties("shield-reminder-setup-modal", "Schilderinnerung einrichten",
+        InteractionCallback.Modal(new ModalProperties("shield-reminder-setup-modal", Msg.Bridge.ShieldModalTitle(Lang),
         [
-            new LabelProperties("Schildlaufzeit (z.B. 2d 3h 45m)",
-                new TextInputProperties("duration", TextInputStyle.Short) { Value = duration, Placeholder = "z.B. 2d 3h 45m", Required = true }),
-            new LabelProperties("Standort",
-                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = "System eingeben", Required = true }),
+            new LabelProperties(Msg.Bridge.ShieldDurationLabel(Lang),
+                new TextInputProperties("duration", TextInputStyle.Short) { Value = duration, Placeholder = Msg.Bridge.ShieldDurationPlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Bridge.LocationLabel(Lang),
+                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = Msg.Bridge.SystemPlaceholder(Lang), Required = true }),
         ]));
 
     // Message and Modal callbacks share only this non-generic base — used here so one
@@ -96,7 +101,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     {
         var pending = await pendingModalInputService.GetAsync(pendingId, Context.User.Id);
         if (pending is null)
-            return InteractionCallback.ModifyMessage(m => { m.Content = "Entwurf nicht gefunden (evtl. abgelaufen). Bitte den Vorgang neu starten."; m.Embeds = []; m.Components = []; });
+            return InteractionCallback.ModifyMessage(m => { m.Content = Msg.Bridge.DraftNotFound(Lang); m.Embeds = []; m.Components = []; });
 
         await pendingModalInputService.DeleteAsync(pendingId);
 
@@ -105,7 +110,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             PendingModalInputKind.ShieldReminder => ShieldReminderModal(pending.Field1, pending.Field2),
             PendingModalInputKind.RaidReport => RaidReportModal(
                 ulong.Parse(pending.Field1!), Enum.Parse<RaidServerLocation>(pending.Field2!), pending.Field3, pending.Field4),
-            _ => InteractionCallback.ModifyMessage(m => { m.Content = "Unbekannter Entwurfstyp."; m.Embeds = []; m.Components = []; }),
+            _ => InteractionCallback.ModifyMessage(m => { m.Content = Msg.Bridge.DraftUnknownKind(Lang); m.Embeds = []; m.Components = []; }),
         };
     }
 
@@ -113,7 +118,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task<InteractionCallbackProperties<MessageOptions>> ModalRetryCancel(int pendingId)
     {
         await pendingModalInputService.DeleteAsync(pendingId);
-        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, "Abgebrochen.");
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.Cancelled(Lang));
         return InteractionCallback.ModifyMessage(m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; });
     }
 
@@ -135,22 +140,22 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         var buttons = new List<ButtonProperties>();
         if (ticketsEnabled)
         {
-            lines.Add("- **Ticket öffnen** - damit kannst Du mit dem Führungsstab aktiv kommunizieren, Dir kann auch geantwortet werden.");
-            buttons.Add(new ButtonProperties($"ticket-open:{audience}", "Ticket öffnen", EmojiProperties.Standard("🎟️"), ButtonStyle.Primary));
+            lines.Add(Msg.Bridge.ContactTicketOption(Lang));
+            buttons.Add(new ButtonProperties($"ticket-open:{audience}", Msg.Bridge.TicketOpen(Lang), EmojiProperties.Standard("🎟️"), ButtonStyle.Primary));
         }
         if (anonymousEnabled)
         {
-            lines.Add("- **Anonyme Nachricht** - Deine Nachricht wird dem Führungsstab anonym weitergeleitet, der Führungsstab kann Dir nicht antworten.");
-            buttons.Add(new ButtonProperties($"anonymous-message:{audience}", "Anonyme Nachricht", EmojiProperties.Standard("📮"), ButtonStyle.Primary));
+            lines.Add(Msg.Bridge.ContactAnonymousOption(Lang));
+            buttons.Add(new ButtonProperties($"anonymous-message:{audience}", Msg.Bridge.AnonymousMessage(Lang), EmojiProperties.Standard("📮"), ButtonStyle.Primary));
         }
 
         if (buttons.Count == 0)
-            return await EphemeralEmbedAsync("Diese Funktion ist auf diesem Server deaktiviert.");
+            return await EphemeralEmbedAsync(Msg.Bridge.FeatureDisabledHere(Lang));
 
         return await EphemeralEmbedAsync(
-            CommanderName.Greeting(Context.User) + "Du hast verschiedene Möglichkeiten, eine Nachricht an den Führungsstab zu senden:\n\n" + string.Join('\n', lines),
+            Msg.Bridge.ContactIntro(Lang, CommanderName.Of(Context.User), string.Join('\n', lines)),
             [new ActionRowProperties(buttons)],
-            title: "Führungsstab kontaktieren");
+            title: Msg.Bridge.ContactTitle(Lang));
     }
 
     [ComponentInteraction("ticket-open")]
@@ -160,10 +165,10 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets, parsedAudience, guildAllianceId))
             return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Tickets)));
 
-        return InteractionCallback.Modal(new ModalProperties($"ticket-open-modal:{audience}", "Ticket öffnen",
+        return InteractionCallback.Modal(new ModalProperties($"ticket-open-modal:{audience}", Msg.Bridge.TicketOpen(Lang),
         [
-            new LabelProperties("Betreff",
-                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = "Kurzen Betreff eingeben", MaxLength = 50, Required = true }),
+            new LabelProperties(Msg.Bridge.SubjectLabel(Lang),
+                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = Msg.Bridge.SubjectPlaceholder(Lang), MaxLength = 50, Required = true }),
         ]));
     }
 
@@ -208,7 +213,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
             if (unread.Count == 0)
             {
-                var doneEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Address(Context.User, "Du hast alle Ankündigungen gelesen. 🎉"), title: "Ungelesene Ankündigungen");
+                var doneEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsAllRead(Lang, CommanderName.Of(Context.User)), title: Msg.Bridge.AnnouncementsUnreadTitle(Lang));
                 return m => { m.Embeds = [doneEmbed]; m.Components = []; };
             }
 
@@ -223,7 +228,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             var lines = unread.Select(a =>
                 $"{SeverityEmoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
 
-            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, CommanderName.Greeting(Context.User) + "Deine ungelesenen Ankündigungen:\n" + string.Join('\n', lines), title: "Ungelesene Ankündigungen");
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsUnreadIntro(Lang, CommanderName.Of(Context.User), string.Join('\n', lines)), title: Msg.Bridge.AnnouncementsUnreadTitle(Lang));
             return m => { m.Embeds = [finalEmbed]; m.Components = rows; };
         });
     }
@@ -243,17 +248,17 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
         var buttons = new List<ButtonProperties>
         {
-            new("roe-violation-to", "An mir", ButtonStyle.Primary),
-            new("roe-violation-from", "Von mir", ButtonStyle.Primary),
+            new("roe-violation-to", Msg.Bridge.RoeToMe(Lang), ButtonStyle.Primary),
+            new("roe-violation-from", Msg.Bridge.RoeFromMe(Lang), ButtonStyle.Primary),
         };
 
         if (await roeViolationService.IsCommandStaffAsync(Context.Guild!.Id, Context.User.Id))
-            buttons.Add(new ButtonProperties("roe-violation-other", "Von eigenem Spieler", ButtonStyle.Secondary));
+            buttons.Add(new ButtonProperties("roe-violation-other", Msg.Bridge.RoeByOwnPlayer(Lang), ButtonStyle.Secondary));
 
         return await EphemeralEmbedAsync(
-            CommanderName.Address(Context.User, "wurde der Verstoss an Dir oder von Dir begangen?"),
+            Msg.Bridge.RoePromptBody(Lang, CommanderName.Of(Context.User)),
             [new ActionRowProperties(buttons)],
-            title: "RoE-Verstoss melden");
+            title: Msg.Roe.ModalTitle(Lang));
     }
 
     [ComponentInteraction("roe-violation-to")]
@@ -266,7 +271,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
     [ComponentInteraction("roe-violation-other")]
     public Task<InteractionCallbackProperties<MessageOptions>> ReportRoeViolationOtherPrompt() =>
-        EphemeralEmbedModifyAsync(CommanderName.Address(Context.User, "wähle den Commander, der den Verstoss begangen hat."), [new UserMenuProperties("roe-violation-other-target")]);
+        EphemeralEmbedModifyAsync(Msg.Bridge.RoeOtherPrompt(Lang, CommanderName.Of(Context.User)), [new UserMenuProperties("roe-violation-other-target")]);
 
     [ComponentInteraction("anonymous-message")]
     public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)
@@ -275,12 +280,12 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId))
             return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging)));
 
-        return InteractionCallback.Modal(new ModalProperties($"anonymous-message-modal:{audience}", "Anonyme Nachricht",
+        return InteractionCallback.Modal(new ModalProperties($"anonymous-message-modal:{audience}", Msg.Bridge.AnonymousMessage(Lang),
         [
-            new LabelProperties("Betreff",
-                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = "Kurzen Betreff eingeben", MaxLength = 100, Required = true }),
-            new LabelProperties("Nachricht",
-                new TextInputProperties("message", TextInputStyle.Paragraph) { Placeholder = "Deine Nachricht", Required = true }),
+            new LabelProperties(Msg.Bridge.SubjectLabel(Lang),
+                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = Msg.Bridge.SubjectPlaceholder(Lang), MaxLength = 100, Required = true }),
+            new LabelProperties(Msg.Bridge.MessageLabel(Lang),
+                new TextInputProperties("message", TextInputStyle.Paragraph) { Placeholder = Msg.Bridge.MessagePlaceholder(Lang), Required = true }),
         ]));
     }
 
@@ -288,7 +293,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task<InteractionMessageProperties> AlertsManagePrompt()
     {
         var (description, components) = await BuildAlertsManageAsync();
-        return await EphemeralEmbedAsync(description, components, title: "Benachrichtigungen verwalten");
+        return await EphemeralEmbedAsync(description, components, title: Msg.Bridge.AlertsTitle(Lang));
     }
 
     // Always a button within alerts-manage's own ephemeral message — ModifyMessage is safe.
@@ -297,7 +302,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     {
         await alertService.ToggleOptInRoleAsync(Context.Guild!.Id, Context.User.Id, key);
         var (description, components) = await BuildAlertsManageAsync();
-        return await EphemeralEmbedModifyAsync(description, components, title: "Benachrichtigungen verwalten");
+        return await EphemeralEmbedModifyAsync(description, components, title: Msg.Bridge.AlertsTitle(Lang));
     }
 
     // The opt-in status list: the alerts role plus the four ClientRelease platform roles that are
@@ -307,11 +312,10 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     {
         var roles = await alertService.GetOptInRolesAsync(Context.Guild!.Id, Context.User.Id);
         if (roles.Count == 0)
-            return ("Es sind aktuell keine Opt-In-Rollen konfiguriert (siehe Guild-Einstellungen).", []);
+            return (Msg.Bridge.AlertsNoRoles(Lang), []);
 
-        var lines = roles.Select(r => $"- **{r.Label}**: {(r.HasRole ? "EIN ✅" : "AUS ❌")}");
-        var description = "Wähle, welche Benachrichtigungen Du erhalten möchtest — tippe auf eine Rolle, um sie umzuschalten:\n\n"
-            + string.Join("\n", lines);
+        var lines = roles.Select(r => $"- **{r.Label}**: {(r.HasRole ? Msg.Bridge.AlertsOn(Lang) : Msg.Bridge.AlertsOff(Lang))}");
+        var description = Msg.Bridge.AlertsIntro(Lang, string.Join("\n", lines));
 
         var buttons = roles
             .Select(r => new ButtonProperties($"alerts-toggle:{r.Key}", r.Label, r.HasRole ? ButtonStyle.Success : ButtonStyle.Secondary))
