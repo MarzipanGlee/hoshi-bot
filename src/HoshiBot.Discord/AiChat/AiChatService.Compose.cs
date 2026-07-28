@@ -1,5 +1,6 @@
 using System.Text;
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using Microsoft.Extensions.Logging;
 
 namespace HoshiBot.Discord.AiChat;
@@ -83,7 +84,9 @@ public partial class AiChatService
 
         if (string.IsNullOrWhiteSpace(text))
             return null;
-        text = text.Trim();
+
+        // Posted as a plain message, where Discord shows "[text](url)" markdown verbatim.
+        text = DiscordMarkdown.NormalizeForPlainMessage(text.Trim());
 
         // Guarantee the ping even if the model dropped or garbled the exact mention token.
         if (mentionToken is not null && !text.Contains(mentionToken, StringComparison.Ordinal))

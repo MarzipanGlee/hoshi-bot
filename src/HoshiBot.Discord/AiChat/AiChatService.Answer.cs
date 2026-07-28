@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using HoshiBot.Domain;
 using NetCord.Rest;
 
 namespace HoshiBot.Discord.AiChat;
@@ -39,7 +40,7 @@ public partial class AiChatService
         if (!botSpokeBefore && !answer.StartsWith("Commander", StringComparison.OrdinalIgnoreCase))
             answer = CommanderName.Greeting(author) + answer;
 
-        return Truncate(answer);
+        return Truncate(DiscordMarkdown.NormalizeForPlainMessage(answer));
     }
 
     // Removes a leading "<bot name>:" (the full display name or its first token, optional space
@@ -158,7 +159,10 @@ public partial class AiChatService
         if (!botSpokeBefore && !text.StartsWith("Commander", StringComparison.OrdinalIgnoreCase))
             text = CommanderName.Greeting(author) + text;
 
-        return Truncate(text);
+        // Normalise here too, not just in FinalizeAnswer — otherwise the live edits would show raw
+        // "[text](url)" markdown that the final edit then silently rewrites. A half-streamed link
+        // doesn't match yet and gets normalised on a later pass.
+        return Truncate(DiscordMarkdown.NormalizeForPlainMessage(text));
     }
 
     private static string Truncate(string text) =>

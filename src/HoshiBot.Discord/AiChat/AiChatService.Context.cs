@@ -19,6 +19,11 @@ public partial class AiChatService
         sb.AppendLine(HoshiPersona.Describe(botName));
         sb.AppendLine("Antworte auf Deutsch, freundlich und knapp. Nutze zum Beantworten in erster Linie die unten angegebenen verlässlichen Fakten, Wissensquellen und den bisherigen Chatverlauf.");
         sb.AppendLine("Bei Sachfragen (Spielmechaniken, Crews, Aufstellungen, Zahlen, Daten, Ereignisse) sind allein die Wissensquellen, die verlässlichen Fakten und die offiziellen Ankündigungen maßgeblich — sie haben Vorrang vor deinen Erinnerungen und vor allgemeinem Wissen. Wenn diese Quellen eine Sachfrage nicht abdecken, rate nicht und stütze dich nicht auf Erinnerungen, sondern sag ehrlich, dass du es nicht sicher weißt.");
+        // The rule has to sit in the base rules, not in the knowledge block: the context blocks below
+        // (Ankündigungen, Wissensquellen) all prefix their lines with "[<#ID>]", and a bracketed token
+        // looks exactly like markdown link text — a model that never got this rule "completes" it into
+        // a [Text](URL) link, which Discord shows raw in a plain message.
+        sb.AppendLine("Formatierung von Kanal-Verweisen: Wenn du auf einen Kanal verweist, verwende exakt die Discord-Syntax <#ID> mit einer ID aus den Kontextblöcken unten (dort steht sie in eckigen Klammern vor jeder Zeile); Discord macht daraus einen klickbaren Kanal. Schreibe niemals eine discord.com/channels-URL, niemals [#Name] oder #Name als reinen Text und erfinde keine IDs. Verwende außerdem nie die Markdown-Linksyntax [Text](URL) — deine Nachricht ist eine normale Chat-Nachricht, in der Discord das unverändert als Text anzeigt; nenne eine URL einfach direkt.");
 
         sb.AppendLine();
         sb.Append(await BuildEnvironmentContextAsync(guildId, _settingsScope.AllianceId, model, providerKind));
@@ -92,7 +97,6 @@ public partial class AiChatService
             sb.AppendLine("Wissensquellen (relevante Auszüge; der Herkunftskanal steht als Link <#ID> in eckigen Klammern voran):");
             sb.Append(knowledge);
             sb.AppendLine();
-            sb.AppendLine("Wenn du auf einen Kanal verweist, verwende exakt die Discord-Link-Syntax <#ID> mit einer ID aus den Wissensquellen (Discord macht daraus einen klickbaren Link). Schreibe niemals [#Name] oder #Name als reinen Text und erfinde keine IDs.");
             sb.AppendLine("Jede Zeile in den Wissensquellen ist eine eigenständige Information aus einer einzelnen Nachricht. Verknüpfe keine getrennten Zeilen oder Aufzählungspunkte zu einer neuen Behauptung, die so nirgends steht, auch wenn sie plausibel klingt. Wenn die Wissensquellen eine Frage nicht eindeutig und direkt beantworten, sag ehrlich, dass du es nicht sicher weißt, statt Fakten zu kombinieren oder zu raten.");
         }
 
