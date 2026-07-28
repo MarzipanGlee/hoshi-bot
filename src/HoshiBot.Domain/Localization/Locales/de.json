@@ -38,6 +38,11 @@
   "Bridge.AlertsOff": "AUS ❌",
   "Bridge.AlertsIntro": "Wähle, welche Benachrichtigungen Du erhalten möchtest — tippe auf eine Rolle, um sie umzuschalten:\n\n{list}",
 
+  "Interview.DeclineButton": "Nein danke",
+  "Interview.Opener": "🖖 Hi! Ich bin {botName} und möchte dich gern besser kennenlernen, damit ich ein echtes Mitglied unserer Community sein kann. Magst du mir ein bisschen was über dich erzählen? Zum Beispiel: Wie soll ich dich nennen? Was machst du so – im Spiel und sonst? Und hast du vielleicht ein paar lustige Geschichten über andere Spieler? 😄\n\nAlles völlig freiwillig – wenn du gerade keine Lust hast, klick einfach unten auf den Nein-danke-Knopf, dann lasse ich dich in Ruhe.",
+  "Interview.OptOutClose": "Alles klar, kein Problem! Falls du es dir später anders überlegst, schreib mir einfach. 🖖",
+  "Interview.DeclineClose": "Kein Problem, ich lasse dich in Ruhe! Falls du mir doch mal etwas erzählen magst, schreib mir einfach. 🖖",
+
   "Roe.Title": "RoE-Verstoss",
   "Roe.VictimSteps": "1. Überprüfe den entstandenen Verlust genau.\n2. War es mit Sicherheit keine Zero-Node? Öffne den Chat des Angreifers, um dies zu verifizieren.\n3. Kontaktiere den Angreifer direkt und bitte um Aufklärung. Gib ihm ein paar Stunden Zeit, um reagieren zu können.\n4. Wird keine Einigung erzielt, poste hier Screenshots mit allen relevanten Informationen. Dazu gehören Kampf, Kampfprotokoll und Kommunikation mit dem Spieler.",
   "Roe.OffenderSteps": "1. Kontaktiere die betroffene Partei direkt und kläre den Vorfall in gegenseitigem Einvernehmen.\n2. Wird keine Einigung erzielt, poste hier Screenshots mit allen relevanten Informationen. Dazu gehören Kampf, Kampfprotokoll und Kommunikation mit dem Spieler.",

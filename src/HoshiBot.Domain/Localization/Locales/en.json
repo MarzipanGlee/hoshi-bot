@@ -38,6 +38,11 @@
   "Bridge.AlertsOff": "OFF ❌",
   "Bridge.AlertsIntro": "Choose which notifications you want to receive — tap a role to toggle it:\n\n{list}",
 
+  "Interview.DeclineButton": "No thanks",
+  "Interview.Opener": "🖖 Hi! I'm {botName} and I'd love to get to know you better so I can be a real member of our community. Would you like to tell me a bit about yourself? For example: What should I call you? What do you get up to – in the game and beyond? And do you have any funny stories about other players? 😄\n\nCompletely optional – if you're not in the mood right now, just click the No-thanks button below and I'll leave you alone.",
+  "Interview.OptOutClose": "Alright, no problem! If you change your mind later, just message me. 🖖",
+  "Interview.DeclineClose": "No problem, I'll leave you alone! If you ever feel like telling me something after all, just message me. 🖖",
+
   "Roe.Title": "RoE Violation",
   "Roe.VictimSteps": "1. Review the loss you suffered carefully.\n2. Are you certain it wasn't a zero node? Open the attacker's chat to verify this.\n3. Contact the attacker directly and ask for clarification. Give them a few hours to respond.\n4. If no agreement is reached, post screenshots with all relevant information here. This includes the battle, the battle log and your communication with the player.",
   "Roe.OffenderSteps": "1. Contact the affected party directly and settle the incident by mutual agreement.\n2. If no agreement is reached, post screenshots with all relevant information here. This includes the battle, the battle log and your communication with the player.",

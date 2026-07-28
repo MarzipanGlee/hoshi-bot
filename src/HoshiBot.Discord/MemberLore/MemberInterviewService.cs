@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.AiChat;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -25,6 +26,11 @@ public class MemberInterviewService(
 {
     public const string DeclineButtonId = "member-interview-decline";
 
+    // The fixed DM messages come from the message catalog (Msg.Interview); rendering is pinned
+    // to German until sub-phase 6e wires up per-user language resolution. The interview
+    // conversation itself mirrors the member's language via the LLM prompt below.
+    private const Language Lang = Language.De;
+
     // The model appends this on its own line when it has learned enough; stripped before sending.
     private const string DoneSentinel = "[INTERVIEW_DONE]";
 
@@ -40,8 +46,8 @@ public class MemberInterviewService(
             return false;
 
         var botName = await embedBranding.GetBotDisplayNameAsync(guildId);
-        var opener = BuildOpener(botName);
-        var declineButton = new ButtonProperties(DeclineButtonId, "Nein danke", ButtonStyle.Secondary);
+        var opener = Msg.Interview.Opener(Lang, botName);
+        var declineButton = new ButtonProperties(DeclineButtonId, Msg.Interview.DeclineButton(Lang), ButtonStyle.Secondary);
 
         var now = DateTimeOffset.UtcNow;
         var messageId = await notificationDispatcher.SendDirectMessageAsync(userId, opener, declineButton);
@@ -97,7 +103,7 @@ public class MemberInterviewService(
         if (IsOptOut(content))
         {
             await CloseAsync(interview, MemberInterviewStatus.Declined,
-                "Alles klar, kein Problem! Falls du es dir später anders überlegst, schreib mir einfach. 🖖", cancellationToken);
+                Msg.Interview.OptOutClose(Lang), cancellationToken);
             return;
         }
 
@@ -182,7 +188,7 @@ public class MemberInterviewService(
             return;
 
         await CloseAsync(interview, MemberInterviewStatus.Declined,
-            "Kein Problem, ich lasse dich in Ruhe! Falls du mir doch mal etwas erzählen magst, schreib mir einfach. 🖖", cancellationToken);
+            Msg.Interview.DeclineClose(Lang), cancellationToken);
     }
 
     private async Task CloseAsync(MemberInterview interview, MemberInterviewStatus status, string closingMessage, CancellationToken cancellationToken)
@@ -206,12 +212,6 @@ public class MemberInterviewService(
         var c = content.Trim().ToLowerInvariant();
         return c is "nein danke" or "nein, danke" or "stop" or "stopp" or "no thanks" or "kein interesse";
     }
-
-    private static string BuildOpener(string botName) =>
-        $"🖖 Hi! Ich bin {botName} und möchte dich gern besser kennenlernen, damit ich ein echtes Mitglied unserer " +
-        "Community sein kann. Magst du mir ein bisschen was über dich erzählen? Zum Beispiel: Wie soll ich dich nennen? " +
-        "Was machst du so – im Spiel und sonst? Und hast du vielleicht ein paar lustige Geschichten über andere Spieler? 😄\n\n" +
-        "Alles völlig freiwillig – wenn du gerade keine Lust hast, klick einfach unten auf den Nein-danke-Knopf, dann lasse ich dich in Ruhe.";
 
     private static string BuildInterviewPrompt(string botName, bool forceWrapUp)
     {
