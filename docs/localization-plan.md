@@ -170,15 +170,22 @@ command **names stay English** in all locales — only descriptions are localize
   DI in both roots; `UserLocaleSyncHandler`.
 - **6c — Web selectors**: `LanguagePicker` + the four placements. Visual → screenshot
   sign-off before commit.
-- **6d — German catalog extraction** (behavior-identical, many small commits):
-  `Msg` scaffolds per feature; extract in descending size (RoeViolationService 33 →
-  CommandBridgeButtonModule 29 → MemberInterviewService 23 → AbsenceService 21 →
-  TicketService/AlertService 18 → the tail of 38 files); call sites pass
-  `Language.De` hardcoded → byte-identical output; full-sentence salutation
-  templates replace `CommanderName.Greeting` concatenation; Data-layer labels +
-  CommandBridgeCatalog keys; en.json is authored in the same commit as each
-  extraction (the parity test enforces it); currently-English features get authored
-  German; AlertService's mixed languages are normalized.
+- **6d — German catalog extraction** — **DONE 2026-07-28** (commits `3e04666..e9cff92`,
+  ~280 catalog keys across 17 feature prefixes): all user-facing strings in
+  HoshiBot.Discord and the Data-layer labels moved into `Msg.*` + de/en.json; call
+  sites pass a pinned `Lang = Language.De` const → German output byte-identical
+  (verified programmatically per commit); full-sentence salutation templates replace
+  the `CommanderName.Greeting` concatenations (helpers still exist, deleted in 6e);
+  currently-English features (AlertService's English half, `/absence`, the
+  admin/notify jobs, Player/Alliance modules, StfcNews, warning jobs) got authored
+  German and now render German. `CommandBridgeCatalog.LabelDe` → `LabelKey`;
+  `GuildFeatureService.FeatureLabel/AudienceLabel/DisabledMessage/EnsureEnabledAsync`
+  take a `Language`; new scoped `WebRequestLanguage` (user choice → Accept-Language →
+  En) renders catalog content in the Web admin. Still hardcoded, on purpose:
+  AiChat/HoshiPersona strings and all LLM prompts (6e), slash-command metadata
+  incl. hoshi-say's German parameter names (6g), `AnnouncementTranslator` (own
+  mechanism). The TC weekly digest title keeps its ambient-culture month names
+  (production = invariant/English today) — its proper per-language form lands in 6e.
 - **6e — Rendering switch** (feature-by-feature; every intermediate deploy safe):
   dispatcher factory overloads + internal strings; replace hardcoded `Language.De`
   with resolved languages (ephemeral → `ForUserAsync` with the interaction locale;
