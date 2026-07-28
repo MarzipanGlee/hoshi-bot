@@ -115,5 +115,109 @@ public static partial class Msg
 
         public static string AlertsIntro(Language lang, string list) =>
             MessageCatalog.Format(lang, "Bridge.AlertsIntro", ("list", list));
+
+        // /post-command-bridge results (CommandBridgeAdminModule).
+        public static string NoAllianceLinked(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.NoAllianceLinked");
+
+        public static string HubUpdated(Language lang, string tag, string kind) =>
+            MessageCatalog.Format(lang, "Bridge.HubUpdated", ("tag", tag), ("kind", kind));
+
+        public static string HubPosted(Language lang, string tag, string kind) =>
+            MessageCatalog.Format(lang, "Bridge.HubPosted", ("tag", tag), ("kind", kind));
+
+        public static string HubNoChannel(Language lang, string tag, string kind) =>
+            MessageCatalog.Format(lang, "Bridge.HubNoChannel", ("tag", tag), ("kind", kind));
+
+        public static string KindUser(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.KindUser");
+
+        public static string KindStaff(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.KindStaff");
+
+        public static string KindFriends(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.KindFriends");
+
+        // The hub message itself (CommandBridgeHubService).
+        public static string HubDescription(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.HubDescription");
+
+        public static string HubTitleUser(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.HubTitleUser");
+
+        public static string HubTitleStaff(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.HubTitleStaff");
+
+        public static string HubTitleFriends(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.HubTitleFriends");
+
+        // The multi-audience variant of the contact-staff hub button; the single-audience
+        // variant reuses ContactTitle (same wording).
+        public static string ContactStaffAudience(Language lang, string audience) =>
+            MessageCatalog.Format(lang, "Bridge.ContactStaffAudience", ("audience", audience));
+
+        // The modal-retry step (CommandBridgeModalModule + PendingModalInputService buttons).
+        public static string InvalidInputTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.InvalidInputTitle");
+
+        public static string ShieldDurationParseError(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.ShieldDurationParseError");
+
+        public static string BackButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BackButton");
+
+        public static string CancelButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.CancelButton");
+
+        // Staff bridge: beta-tester self-service toggle (CommandBridgeStaffBetaModule).
+        public static string BetaTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaTitle");
+
+        public static string BetaRoleNotConfigured(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaRoleNotConfigured");
+
+        public static string BetaStatus(Language lang, string status) =>
+            MessageCatalog.Format(lang, "Bridge.BetaStatus", ("status", status));
+
+        public static string BetaOn(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaOn");
+
+        public static string BetaOff(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaOff");
+
+        public static string BetaEnableButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaEnableButton");
+
+        public static string BetaDisableButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaDisableButton");
+
+        // Staff bridge: shield-loss report and mute management
+        // (CommandBridgeStaffButtonModule + CommandBridgeStaffMenuModule).
+        public static string StaffShieldTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffShieldTitle");
+
+        public static string StaffShieldTargetPrompt(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffShieldTargetPrompt");
+
+        public static string StaffMuteTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffMuteTitle");
+
+        public static string StaffMuteTargetPrompt(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffMuteTargetPrompt");
+
+        public static string StaffMuteStatus(Language lang, string user, string status) =>
+            MessageCatalog.Format(lang, "Bridge.StaffMuteStatus", ("user", user), ("status", status));
+
+        public static string StaffMuteStateOn(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffMuteStateOn");
+
+        public static string StaffMuteStateOff(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffMuteStateOff");
+
+        public static string StaffMuteEnableButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffMuteEnableButton");
+
+        public static string StaffMuteDisableButton(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.StaffMuteDisableButton");
     }
 }

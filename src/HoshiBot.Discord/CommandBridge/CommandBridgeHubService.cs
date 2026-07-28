@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -31,8 +32,9 @@ public class CommandBridgeHubService(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService)
 {
-    private const string HubDescription =
-        "Commander, ich stehe zu Deinen Diensten! Wähle die gewünschte Aktion mit Hilfe der Schaltflächen.\n\nWie lautet Dein Befehl, Commander?";
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
 
     public async Task<CommandBridgePublishResult> PublishAsync(ulong guildId, int guildAllianceId, CommandBridgeKind bridge)
     {
@@ -45,7 +47,7 @@ public class CommandBridgeHubService(
         if (alliance is null || alliance.GuildId != guildId || ChannelId(alliance, bridge) is not { } channelId)
             return CommandBridgePublishResult.NoChannel;
 
-        var embed = await embedBranding.BuildBrandedAsync(guildId, HubDescription, title: Title(bridge));
+        var embed = await embedBranding.BuildBrandedAsync(guildId, Msg.Bridge.HubDescription(Lang), title: Title(bridge));
 
         var components = await BuildComponentsAsync(guildId, guildAllianceId, bridge);
 
@@ -136,17 +138,18 @@ public class CommandBridgeHubService(
                 configured.Add(audience);
         }
 
+        // The single-audience label doubles as the contact step's title — same wording, one key.
         return configured.Select(audience => new ButtonProperties(
             $"contact-command-staff:{audience}",
-            configured.Count > 1 ? $"Führungsstab kontaktieren ({GuildFeatureService.AudienceLabel(audience)})" : "Führungsstab kontaktieren",
+            configured.Count > 1 ? Msg.Bridge.ContactStaffAudience(Lang, GuildFeatureService.AudienceLabel(audience)) : Msg.Bridge.ContactTitle(Lang),
             EmojiProperties.Standard("📮"), ButtonStyle.Primary)).ToList();
     }
 
     private static string Title(CommandBridgeKind bridge) => bridge switch
     {
-        CommandBridgeKind.Staff => "Kommandobrücke Führungsstab",
-        CommandBridgeKind.Friends => "Kommandobrücke Freunde",
-        _ => "Kommandobrücke",
+        CommandBridgeKind.Staff => Msg.Bridge.HubTitleStaff(Lang),
+        CommandBridgeKind.Friends => Msg.Bridge.HubTitleFriends(Lang),
+        _ => Msg.Bridge.HubTitleUser(Lang),
     };
 
     private static ulong? ChannelId(GuildAlliance a, CommandBridgeKind bridge) => bridge switch

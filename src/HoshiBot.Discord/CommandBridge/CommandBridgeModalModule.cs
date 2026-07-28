@@ -1,6 +1,7 @@
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -10,6 +11,10 @@ namespace HoshiBot.Discord.CommandBridge;
 public class CommandBridgeModalModule(AlertService alertService, PendingModalInputService pendingModalInputService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ModalInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // The "invalid input, try again" edit (retry/cancel buttons). Applied to whichever response
     // the caller acked: Raid edits its own ephemeral wizard message in place (ModifyDelayed),
     // while Shield Reminder — opened directly from the shared hub — acks a NEW ephemeral
@@ -18,7 +23,7 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
     // pre-filled) / Abbrechen pair so a typo doesn't force restarting the whole flow.
     private async Task<Action<MessageOptions>> RetryEditAsync(string description, int pendingId)
     {
-        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: "Ungültige Eingabe");
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: Msg.Bridge.InvalidInputTitle(Lang));
         return m =>
         {
             // Clear the "⏳ Processing..." placeholder — otherwise it lingers as plain text above the
@@ -54,7 +59,7 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
             {
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.RaidReport,
                     targetUserId.ToString(), location, system, attacker);
-                return await RetryEditAsync($"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.", pendingId);
+                return await RetryEditAsync(Msg.Alert.UnknownSystem(Lang, system), pendingId);
             }
 
             var serverLocation = Enum.Parse<RaidServerLocation>(location);
@@ -77,7 +82,7 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
             {
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.ShieldReminder,
                     duration, system);
-                return await RetryEditAsync("Konnte die Schildlaufzeit nicht lesen. Format z.B. \"2d3h45m\".", pendingId);
+                return await RetryEditAsync(Msg.Bridge.ShieldDurationParseError(Lang), pendingId);
             }
 
             var stfcSystem = await alertService.FindSystemByNameAsync(system);
@@ -85,7 +90,7 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
             {
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.ShieldReminder,
                     duration, system);
-                return await RetryEditAsync($"Unbekanntes System \"{system}\". Bitte die Schreibweise prüfen.", pendingId);
+                return await RetryEditAsync(Msg.Alert.UnknownSystem(Lang, system), pendingId);
             }
 
             // A shield can only be parked in a housing system — a valid name without housing (e.g. Tezera

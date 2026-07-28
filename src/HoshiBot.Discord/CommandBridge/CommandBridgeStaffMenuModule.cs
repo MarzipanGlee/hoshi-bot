@@ -1,5 +1,6 @@
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -12,16 +13,20 @@ namespace HoshiBot.Discord.CommandBridge;
 public class CommandBridgeStaffMenuModule(AlertService alertService, EmbedBranding embedBranding)
     : ComponentInteractionModule<UserMenuInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Shield report: member chosen → ask for the station system in a modal, carrying the
     // target + variant in the modal custom id.
     [ComponentInteraction("staff-shield-target")]
     public InteractionCallbackProperties<ModalProperties> ShieldReportTarget(string variant)
     {
         var target = Context.SelectedValues[0];
-        return InteractionCallback.Modal(new ModalProperties($"staff-shield-modal:{target.Id}:{variant}", "Schildverlust melden",
+        return InteractionCallback.Modal(new ModalProperties($"staff-shield-modal:{target.Id}:{variant}", Msg.Bridge.StaffShieldTitle(Lang),
         [
-            new LabelProperties("Standort",
-                new TextInputProperties("system", TextInputStyle.Short) { Placeholder = "System eingeben", Required = true }),
+            new LabelProperties(Msg.Bridge.LocationLabel(Lang),
+                new TextInputProperties("system", TextInputStyle.Short) { Placeholder = Msg.Bridge.SystemPlaceholder(Lang), Required = true }),
         ]));
     }
 
@@ -34,12 +39,12 @@ public class CommandBridgeStaffMenuModule(AlertService alertService, EmbedBrandi
             var muted = await alertService.GetShieldMutedAsync(Context.Guild!.Id, target.Id);
 
             var status = muted
-                ? "EIN — öffentliche Benachrichtigungen bei Schildablauf deaktiviert"
-                : "AUS — öffentliche Benachrichtigungen bei Schildablauf aktiviert";
+                ? Msg.Bridge.StaffMuteStateOn(Lang)
+                : Msg.Bridge.StaffMuteStateOff(Lang);
 
             var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id,
-                $"Die Stummschaltung der Schildablaufwarnungen für <@{target.Id}> ist aktuell:\n\n- **{status}**",
-                title: "Öffentliche Schildablaufwarnungen verwalten");
+                Msg.Bridge.StaffMuteStatus(Lang, $"<@{target.Id}>", status),
+                title: Msg.Bridge.StaffMuteTitle(Lang));
 
             return m =>
             {
@@ -48,8 +53,8 @@ public class CommandBridgeStaffMenuModule(AlertService alertService, EmbedBrandi
                 [
                     new ActionRowProperties(
                     [
-                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:on", "Stummschaltung aktivieren", EmojiProperties.Standard("🔕"), ButtonStyle.Primary) { Disabled = muted },
-                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:off", "Stummschaltung deaktivieren", EmojiProperties.Standard("🔔"), ButtonStyle.Secondary) { Disabled = !muted },
+                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:on", Msg.Bridge.StaffMuteEnableButton(Lang), EmojiProperties.Standard("🔕"), ButtonStyle.Primary) { Disabled = muted },
+                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:off", Msg.Bridge.StaffMuteDisableButton(Lang), EmojiProperties.Standard("🔔"), ButtonStyle.Secondary) { Disabled = !muted },
                     ]),
                 ];
             };

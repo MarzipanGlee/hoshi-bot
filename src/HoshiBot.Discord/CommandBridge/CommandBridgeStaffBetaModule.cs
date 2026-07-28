@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -9,16 +10,20 @@ namespace HoshiBot.Discord.CommandBridge;
 public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [ComponentInteraction("staff-beta-tests")]
     public async Task<InteractionMessageProperties> Prompt()
     {
         var (configured, hasRole) = await betaTesterService.GetStatusAsync(Context.Guild!.Id, Context.User.Id);
         if (!configured)
-            return EphemeralReply.Of("Es ist keine Beta-Tester-Rolle konfiguriert (siehe Guild-Einstellungen).");
+            return EphemeralReply.Of(Msg.Bridge.BetaRoleNotConfigured(Lang));
 
         var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id,
-            $"Die Beta-Tests sind für Dich aktuell:\n\n- **{(hasRole ? "EIN" : "AUS")}**",
-            title: "Beta-Tests verwalten");
+            Msg.Bridge.BetaStatus(Lang, hasRole ? Msg.Bridge.BetaOn(Lang) : Msg.Bridge.BetaOff(Lang)),
+            title: Msg.Bridge.BetaTitle(Lang));
 
         return new InteractionMessageProperties
         {
@@ -28,8 +33,8 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties("staff-beta-tests-set:on", "Beta-Tests einschalten", EmojiProperties.Standard("▶️"), ButtonStyle.Primary) { Disabled = hasRole },
-                    new ButtonProperties("staff-beta-tests-set:off", "Beta-Tests ausschalten", EmojiProperties.Standard("⏹️"), ButtonStyle.Secondary) { Disabled = !hasRole },
+                    new ButtonProperties("staff-beta-tests-set:on", Msg.Bridge.BetaEnableButton(Lang), EmojiProperties.Standard("▶️"), ButtonStyle.Primary) { Disabled = hasRole },
+                    new ButtonProperties("staff-beta-tests-set:off", Msg.Bridge.BetaDisableButton(Lang), EmojiProperties.Standard("⏹️"), ButtonStyle.Secondary) { Disabled = !hasRole },
                 ]),
             ],
         };
@@ -41,7 +46,7 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
             var result = await betaTesterService.SetAsync(Context.Guild!.Id, Context.User.Id, action == "on");
-            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: "Beta-Tests verwalten");
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.BetaTitle(Lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 }

@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
@@ -24,6 +25,10 @@ public enum CommandBridgeChoice
 public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildAllianceService allianceService, EmbedBranding embedBranding)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [SlashCommand("post-command-bridge", "Post or refresh the Command Bridge hub message(s)",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
     public Task PostCommandBridge(CommandBridgeChoice bridge = CommandBridgeChoice.All) =>
@@ -42,7 +47,7 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildA
             // Command Bridges are per-alliance — (re)post each linked alliance's hub(s).
             var links = await allianceService.GetLinksAsync(guildId);
             if (links.Count == 0)
-                return "⚠️ Diesem Server ist keine Allianz zugeordnet — verlinke zuerst eine Allianz.";
+                return Msg.Bridge.NoAllianceLinked(Lang);
 
             var lines = new List<string>();
             foreach (var link in links)
@@ -53,9 +58,9 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildA
                     var result = await hubService.PublishAsync(guildId, link.Id, target);
                     lines.Add(result switch
                     {
-                        CommandBridgePublishResult.Updated => $"✅ [{tag}] {Label(target)}: hub message updated.",
-                        CommandBridgePublishResult.Posted => $"✅ [{tag}] {Label(target)}: hub message posted.",
-                        _ => $"⚠️ [{tag}] {Label(target)}: no channel set — configure it on the Command Bridge admin page first.",
+                        CommandBridgePublishResult.Updated => Msg.Bridge.HubUpdated(Lang, tag, Label(target)),
+                        CommandBridgePublishResult.Posted => Msg.Bridge.HubPosted(Lang, tag, Label(target)),
+                        _ => Msg.Bridge.HubNoChannel(Lang, tag, Label(target)),
                     });
                 }
             }
@@ -65,8 +70,8 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildA
 
     private static string Label(CommandBridgeKind bridge) => bridge switch
     {
-        CommandBridgeKind.Staff => "Staff",
-        CommandBridgeKind.Friends => "Friends",
-        _ => "User",
+        CommandBridgeKind.Staff => Msg.Bridge.KindStaff(Lang),
+        CommandBridgeKind.Friends => Msg.Bridge.KindFriends(Lang),
+        _ => Msg.Bridge.KindUser(Lang),
     };
 }

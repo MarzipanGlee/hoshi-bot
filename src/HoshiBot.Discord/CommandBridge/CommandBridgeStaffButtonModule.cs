@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -17,6 +18,10 @@ public class CommandBridgeStaffButtonModule(
     EmbedBranding embedBranding)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     [ComponentInteraction("staff-shield-report")]
     public Task<InteractionMessageProperties> ReportManual() => ShieldReportPromptAsync(ShieldLossVariant.Manual);
 
@@ -32,9 +37,9 @@ public class CommandBridgeStaffButtonModule(
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
-            "Wähle den Commander, dessen Schildverlust gemeldet werden soll.",
+            Msg.Bridge.StaffShieldTargetPrompt(Lang),
             [new UserMenuProperties($"staff-shield-target:{variant}")],
-            title: "Schildverlust melden");
+            title: Msg.Bridge.StaffShieldTitle(Lang));
     }
 
     [ComponentInteraction("staff-shield-mute")]
@@ -44,9 +49,9 @@ public class CommandBridgeStaffButtonModule(
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
-            "Wähle den Commander, dessen Stummschaltung der öffentlichen Schildablaufwarnungen geändert werden soll.",
+            Msg.Bridge.StaffMuteTargetPrompt(Lang),
             [new UserMenuProperties("staff-shield-mute-target")],
-            title: "Öffentliche Schildablaufwarnungen verwalten");
+            title: Msg.Bridge.StaffMuteTitle(Lang));
     }
 
     // Enable/disable buttons live on this module's own ephemeral wizard message (posted by the
@@ -57,7 +62,7 @@ public class CommandBridgeStaffButtonModule(
         {
             var muted = action == "on";
             var result = await alertService.SetShieldMutedAsync(Context.Guild!.Id, targetUserId, muted);
-            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: "Öffentliche Schildablaufwarnungen verwalten");
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffMuteTitle(Lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 
