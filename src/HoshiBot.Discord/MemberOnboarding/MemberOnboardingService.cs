@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -20,14 +21,15 @@ public class MemberOnboardingService(
     PlayerLinkService playerLinkService,
     ILogger<MemberOnboardingService> logger)
 {
+    // All strings come from the message catalog (Msg.Onboarding); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // Custom-ID prefixes; NetCord parses the ":"-separated tail into the handler method's parameters.
     public const string ConfirmButtonId = "player-link-confirm";      // player-link-confirm:{reviewId}:{playerId}
     public const string NameButtonId = "player-link-name";            // player-link-name:{reviewId}
     public const string NameModalId = "player-link-name-modal";       // player-link-name-modal:{reviewId}
     public const string NameInputId = "ingame-name";
-
-    private const string LinkedTemplate =
-        "✅ Super, ich habe dich mit **{0}** verknüpft. Deine Rollen werden in Kürze automatisch gesetzt. 🖖";
 
     // Sends the outreach DM for one Unresolved review and records the result on the row. Called by the
     // MemberOnboardingSyncJob (which shares this scope's DbContext, so the row it passes is tracked here).
@@ -52,28 +54,24 @@ public class MemberOnboardingService(
         List<ActionRowProperties> rows;
         if (best is not null)
         {
-            content =
-                "🖖 Hi! Damit ich dir automatisch die richtigen Rollen geben kann, würde ich dich gern deinem " +
-                $"Spieler zuordnen. Ich glaube, du bist **{best.Name}**. Stimmt das?";
+            content = Msg.Onboarding.OutreachGuess(Lang, best.Name);
             rows =
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"{ConfirmButtonId}:{review.Id}:{best.Id}", "Ja, das bin ich ✅", ButtonStyle.Success),
-                    new ButtonProperties($"{NameButtonId}:{review.Id}", "Nein, anderer Spieler ✏️", ButtonStyle.Secondary),
+                    new ButtonProperties($"{ConfirmButtonId}:{review.Id}:{best.Id}", Msg.Onboarding.ConfirmButton(Lang), ButtonStyle.Success),
+                    new ButtonProperties($"{NameButtonId}:{review.Id}", Msg.Onboarding.OtherPlayerButton(Lang), ButtonStyle.Secondary),
                 ]),
             ];
         }
         else
         {
-            content =
-                "🖖 Hi! Damit ich dir automatisch die richtigen Rollen geben kann, würde ich dich gern deinem " +
-                "Spieler zuordnen. Wie heißt du im Spiel?";
+            content = Msg.Onboarding.OutreachAsk(Lang);
             rows =
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"{NameButtonId}:{review.Id}", "Namen eingeben ✏️", ButtonStyle.Primary),
+                    new ButtonProperties($"{NameButtonId}:{review.Id}", Msg.Onboarding.EnterNameButton(Lang), ButtonStyle.Primary),
                 ]),
             ];
         }
@@ -94,11 +92,11 @@ public class MemberOnboardingService(
     {
         var player = await db.StfcPlayers.FindAsync(playerId);
         if (player is null)
-            return "Hoppla — diesen Spieler gibt es nicht mehr. Bitte wende dich an einen Admin.";
+            return Msg.Onboarding.PlayerGone(Lang);
 
         await playerLinkService.LinkAsync(userId, playerId);
         await playerLinkService.MarkUserResolvedAsync(userId);
-        return string.Format(LinkedTemplate, player.Name);
+        return Msg.Onboarding.Linked(Lang, player.Name);
     }
 
     // The member typed an in-game name → resolve it against the catalog and link if unique.
@@ -106,18 +104,17 @@ public class MemberOnboardingService(
     {
         var review = await db.PlayerLinkReviews.FirstOrDefaultAsync(r => r.Id == reviewId, cancellationToken);
         if (review is null)
-            return "Diese Anfrage ist nicht mehr aktuell.";
+            return Msg.Onboarding.RequestStale(Lang);
 
         var name = typedName.Trim();
         var candidates = await playerLinkService.ResolveCandidatesAsync(review.GuildId, name);
         if (candidates.Count == 0)
-            return $"Ich konnte keinen Spieler namens **{name}** finden. " +
-                   "Bitte prüfe die Schreibweise oder wende dich an einen Admin.";
+            return Msg.Onboarding.NameNotFound(Lang, name);
         if (candidates.Count > 1)
-            return $"Es gibt mehrere Spieler namens **{name}** — bitte wende dich an einen Admin, damit er dich richtig zuordnet.";
+            return Msg.Onboarding.NameAmbiguous(Lang, name);
 
         await playerLinkService.LinkAsync(userId, candidates[0].Id);
         await playerLinkService.MarkUserResolvedAsync(userId);
-        return string.Format(LinkedTemplate, candidates[0].Name);
+        return Msg.Onboarding.Linked(Lang, candidates[0].Name);
     }
 }

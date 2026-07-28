@@ -191,6 +191,21 @@ public static partial class Msg
         public static string BetaDisableButton(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.BetaDisableButton");
 
+        public static string BetaEnabled(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaEnabled");
+
+        public static string BetaDisabled(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaDisabled");
+
+        public static string BetaToggleFailed(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaToggleFailed");
+
+        public static string BetaActionAdjustRole(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaActionAdjustRole");
+
+        public static string BetaHintManageRoles(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BetaHintManageRoles");
+
         // Staff bridge: shield-loss report and mute management
         // (CommandBridgeStaffButtonModule + CommandBridgeStaffMenuModule).
         public static string StaffShieldTitle(Language lang) =>

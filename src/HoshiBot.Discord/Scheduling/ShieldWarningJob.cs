@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -15,6 +16,10 @@ namespace HoshiBot.Discord.Scheduling;
 // reminder intervals, minus the Infinite Incursions/Territory Reset overrides.
 public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding, GuildFeatureService featureService) : IJob
 {
+    // All strings come from the message catalog (Msg.Alert); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     private static readonly TimeSpan LookAhead = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan CloseThreshold = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan CloseInterval = TimeSpan.FromMinutes(5);
@@ -43,7 +48,7 @@ public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispa
             {
                 await SendUserReminderIfDueAsync(reminder, now,
                     remaining <= CloseThreshold ? CloseInterval : NormalInterval,
-                    $"Commander, your shield in **{reminder.StfcSystem?.Name}** expires <t:{reminder.ShieldExpiration.ToUnixTimeSeconds()}:R>!");
+                    Msg.Alert.ShieldExpiring(Lang, reminder.StfcSystem?.Name ?? "", reminder.ShieldExpiration.ToUnixTimeSeconds()));
                 continue;
             }
 
@@ -51,7 +56,7 @@ public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispa
             // DM reminders below still go out.
             if (!reminder.Muted && reminder.Notifications.All(n => n.Kind != NotificationKind.Public))
             {
-                var content = $"Commander, <@{reminder.DiscordUserId}>'s shield has expired in **{reminder.StfcSystem?.Name}**! Please assist.";
+                var content = Msg.Alert.ShieldExpiredPublic(Lang, $"<@{reminder.DiscordUserId}>", reminder.StfcSystem?.Name ?? "");
                 var publicEmbed = await embedBranding.BuildBrandedAsync(reminder.GuildId, content, EmbedBranding.DangerColor);
                 var publicResults = await dispatcher.SendPublicAsync(reminder.GuildId, GuildAlertChannelKind.Shield, content, embed: publicEmbed);
                 foreach (var (channelId, messageId) in publicResults)
@@ -67,7 +72,7 @@ public class ShieldWarningJob(HoshiBotDbContext db, NotificationDispatcher dispa
             }
 
             await SendUserReminderIfDueAsync(reminder, now, CloseInterval,
-                $"Commander, your shield in **{reminder.StfcSystem?.Name}** has expired! Renew with /shield-reminder or dismiss with /shield-reminder-remove.");
+                Msg.Alert.ShieldExpiredDm(Lang, reminder.StfcSystem?.Name ?? ""));
         }
 
         await db.SaveChangesAsync();

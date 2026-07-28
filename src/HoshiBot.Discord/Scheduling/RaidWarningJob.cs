@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -14,6 +15,10 @@ namespace HoshiBot.Discord.Scheduling;
 // terminate-raid-warnings.yag, now automatic instead of an admin-run command.
 public class RaidWarningJob(HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding, GuildFeatureService featureService) : IJob
 {
+    // All strings come from the message catalog (Msg.Alert); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     private static readonly TimeSpan AutoTerminateAfter = TimeSpan.FromHours(24);
     private static readonly TimeSpan ReminderInterval = TimeSpan.FromMinutes(15);
 
@@ -46,7 +51,7 @@ public class RaidWarningJob(HoshiBotDbContext db, NotificationDispatcher dispatc
                 continue;
 
             var embed = await embedBranding.BuildBrandedAsync(alert.GuildId,
-                $"Commander, you're still being raided in **{alert.StfcSystem?.Name}**! Use the button below or /raid-terminate once it's resolved.",
+                Msg.Alert.RaidReminderDm(Lang, alert.StfcSystem?.Name ?? ""),
                 EmbedBranding.DangerColor);
             var messageId = await dispatcher.SendDirectMessageAsync(alert.TargetDiscordUserId, "",
                 AlertService.RaidTerminateButton(alert.GuildId, alert.TargetDiscordUserId), embed);

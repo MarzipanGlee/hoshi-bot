@@ -124,5 +124,18 @@ public static partial class Msg
 
         public static string RoleDisabled(Language lang, string label) =>
             MessageCatalog.Format(lang, "Alert.RoleDisabled", ("label", label));
+
+        // Scheduled reminder jobs (RaidWarningJob / ShieldWarningJob).
+        public static string RaidReminderDm(Language lang, string system) =>
+            MessageCatalog.Format(lang, "Alert.RaidReminderDm", ("system", system));
+
+        public static string ShieldExpiring(Language lang, string system, long time) =>
+            MessageCatalog.Format(lang, "Alert.ShieldExpiring", ("system", system), ("time", time));
+
+        public static string ShieldExpiredPublic(Language lang, string target, string system) =>
+            MessageCatalog.Format(lang, "Alert.ShieldExpiredPublic", ("target", target), ("system", system));
+
+        public static string ShieldExpiredDm(Language lang, string system) =>
+            MessageCatalog.Format(lang, "Alert.ShieldExpiredDm", ("system", system));
     }
 }

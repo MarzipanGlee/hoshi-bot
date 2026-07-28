@@ -1,6 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -12,6 +13,10 @@ namespace HoshiBot.Discord;
 // lives here rather than in the interaction module, per the repo's service-layer convention.
 public class BetaTesterService(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher)
 {
+    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     private async Task<ulong?> GetRoleIdAsync(ulong guildId) =>
         await db.GuildSettings.Where(s => s.GuildId == guildId).Select(s => s.BetaTesterRoleId).FirstOrDefaultAsync();
 
@@ -28,7 +33,7 @@ public class BetaTesterService(HoshiBotDbContext db, GatewayClient gatewayClient
     public async Task<string> SetAsync(ulong guildId, ulong userId, bool on)
     {
         if (await GetRoleIdAsync(guildId) is not { } roleId)
-            return "Es ist keine Beta-Tester-Rolle konfiguriert (siehe Guild-Einstellungen).";
+            return Msg.Bridge.BetaRoleNotConfigured(Lang);
 
         try
         {
@@ -39,10 +44,10 @@ public class BetaTesterService(HoshiBotDbContext db, GatewayClient gatewayClient
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, "die Beta-Tester-Rolle anpassen", "fehlende Berechtigung (Rolle verwalten)?");
-            return "Die Rolle konnte nicht angepasst werden — ein Admin wurde informiert.";
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Bridge.BetaActionAdjustRole(Lang), Msg.Bridge.BetaHintManageRoles(Lang));
+            return Msg.Bridge.BetaToggleFailed(Lang);
         }
 
-        return on ? "Die Beta-Tests wurden aktiviert." : "Die Beta-Tests wurden deaktiviert.";
+        return on ? Msg.Bridge.BetaEnabled(Lang) : Msg.Bridge.BetaDisabled(Lang);
     }
 }
