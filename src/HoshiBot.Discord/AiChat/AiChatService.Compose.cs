@@ -69,6 +69,18 @@ public partial class AiChatService
         var request = new AiChatCompletionRequest(model, system.ToString(), turns, apiKey);
 
         var text = await provider.GenerateAsync(request, cancellationToken);
+
+        // Resilience: the main model can transiently fail (e.g. gemini-3.5-flash "experiencing high
+        // demand"). Mirror the chat path's fallback and retry once on the lighter model before giving
+        // up, so /hoshi-say isn't blocked by a momentary spike on the premium model.
+        if (string.IsNullOrWhiteSpace(text)
+            && provider.DefaultGateModel is { } fallbackModel
+            && !string.Equals(model, fallbackModel, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("ComposeMessageAsync for guild {GuildId}: main model {Model} returned nothing; retrying on {Fallback}.", guildId, model, fallbackModel);
+            text = await provider.GenerateAsync(request with { Model = fallbackModel }, cancellationToken);
+        }
+
         if (string.IsNullOrWhiteSpace(text))
             return null;
         text = text.Trim();
