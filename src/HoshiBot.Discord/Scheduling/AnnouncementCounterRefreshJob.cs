@@ -3,6 +3,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord.Gateway;
@@ -22,6 +23,10 @@ public class AnnouncementCounterRefreshJob(
     GuildFeatureService featureService,
     ILogger<AnnouncementCounterRefreshJob> logger) : IJob
 {
+    // All strings come from the message catalog (Msg.Announce); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     private static readonly TimeSpan MaxAge = TimeSpan.FromDays(30);
 
     public async Task Execute(IJobExecutionContext context)
@@ -50,8 +55,8 @@ public class AnnouncementCounterRefreshJob(
             {
                 logger.LogWarning("Could not refresh read-count button for announcement {AnnouncementId}: {StatusCode}",
                     announcement.Id, ex.StatusCode);
-                await dispatcher.NotifyAdminOfPermissionIssueAsync(announcement.GuildId, "eine Ankündigung aktualisieren",
-                    $"fehlende Berechtigung in <#{announcement.ChannelId}>?");
+                await dispatcher.NotifyAdminOfPermissionIssueAsync(announcement.GuildId, Msg.Announce.ActionUpdate(Lang),
+                    Msg.Announce.HintChannelPermission(Lang, $"<#{announcement.ChannelId}>"));
             }
 
             announcement.LastKnownReadCount = count;

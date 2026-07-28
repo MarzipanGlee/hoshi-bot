@@ -3,6 +3,7 @@ using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Discord.AiChat;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -30,6 +31,10 @@ public class AnnouncementForwarderService(
     EmbedBranding embedBranding,
     ILogger<AnnouncementForwarderService> logger)
 {
+    // All strings come from the message catalog (Msg.Announce); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     private const GuildAudience Audience = GuildAudience.Guild;
 
     // Called for a live MESSAGE_CREATE and by the catch-up job re-scanning recent source-channel
@@ -167,14 +172,14 @@ public class AnnouncementForwarderService(
 
     private async Task<EmbedProperties> BuildEmbedAsync(ulong guildId, string translation, string jumpLink, bool updated)
     {
-        var fields = new List<EmbedFieldProperties> { new() { Name = "Original", Value = $"[Zur ursprünglichen Ankündigung]({jumpLink})" } };
+        var fields = new List<EmbedFieldProperties> { new() { Name = Msg.Announce.ForwardFieldOriginal(Lang), Value = Msg.Announce.ForwardOriginalLink(Lang, jumpLink) } };
         if (updated)
-            fields.Add(new EmbedFieldProperties { Name = "Aktualisiert", Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>" });
+            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.ForwardFieldUpdated(Lang), Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>" });
 
         // No Timestamp: Discord renders it as a "• <time>" stamp appended right after the footer
         // text, which read as noise here — the "Aktualisiert" field already carries the when-edited
         // info when relevant.
-        var embed = await embedBranding.BuildBrandedAsync(guildId, translation, EmbedBranding.InformationColor, "🌐 Automatische Übersetzung");
+        var embed = await embedBranding.BuildBrandedAsync(guildId, translation, EmbedBranding.InformationColor, Msg.Announce.ForwardTitle(Lang));
         embed.Fields = fields;
         return embed;
     }

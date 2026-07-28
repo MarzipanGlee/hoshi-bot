@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Gateway;
@@ -12,8 +13,12 @@ namespace HoshiBot.Discord.Announcements;
 // attachments/length/template-reuse, not a modal (see the Phase 7 plan section for why).
 public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService)
 {
+    // All strings come from the message catalog (Msg.Announce); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     public static ButtonProperties ReadButton(int announcementId, int count) =>
-        new($"announcement-read:{announcementId}", $"Lesebestätigung ({count})", EmojiProperties.Standard("✅"), ButtonStyle.Secondary);
+        new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(Lang, count), EmojiProperties.Standard("✅"), ButtonStyle.Secondary);
 
     // First line of the draft = title, remainder = body — matches legacy's exact convention.
     public static (string Title, string Body) ParseDraft(string content)
@@ -31,7 +36,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
 
         var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.Channel);
         if (channelId is not { } channelIdValue)
-            return "Set the Announcements channel first (via the guild settings page).";
+            return Msg.Announce.ChannelNotConfigured(Lang);
 
         var (title, body) = ParseDraft(draft.Content);
         var attachmentUrls = draft.Attachments.Select(a => a.Url).ToArray();
@@ -57,10 +62,10 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
 
         var fields = new List<EmbedFieldProperties>
         {
-            new() { Name = "Alarmstufe", Value = SeverityLabel(severity), Inline = true },
+            new() { Name = Msg.Announce.FieldSeverity(Lang), Value = SeverityLabel(severity), Inline = true },
         };
         if (severity != AnnouncementSeverity.Direct)
-            fields.Add(new EmbedFieldProperties { Name = "Im Auftrag von", Value = attribution, Inline = true });
+            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldOnBehalfOf(Lang), Value = attribution, Inline = true });
 
         // Matches legacy's exact palette (reaction-handler.yag:47-60) — Information/
         // Warning/Danger/Bot, not approximated Bootstrap colors.
@@ -84,8 +89,8 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         {
             embed.Fields = embed.Fields.Append(new EmbedFieldProperties
             {
-                Name = "Anhänge",
-                Value = string.Join('\n', attachmentUrls.Select((url, i) => $"[Anhang {i + 1}]({url})")),
+                Name = Msg.Announce.FieldAttachments(Lang),
+                Value = string.Join('\n', attachmentUrls.Select((url, i) => Msg.Announce.AttachmentLink(Lang, i + 1, url))),
             });
         }
 
@@ -121,7 +126,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
             m => m.Components = [new ActionRowProperties([ReadButton(announcement.Id, 0)])]);
 
-        return $"Announcement published to <#{channelIdValue}>.";
+        return Msg.Announce.Published(Lang, $"<#{channelIdValue}>");
     }
 
     public async Task<(bool WasNew, int Count)> MarkReadAsync(int announcementId, ulong guildId, ulong userId)
@@ -165,23 +170,23 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
     private async Task<string> ResolveAttributionAsync(ulong guildId, ulong? commandStaffRoleId)
     {
         if (commandStaffRoleId is not { } roleId)
-            return "Führungsstab";
+            return Msg.Announce.AttributionFallback(Lang);
 
         try
         {
             var roles = await gatewayClient.Rest.GetGuildRolesAsync(guildId);
-            return roles.FirstOrDefault(r => r.Id == roleId)?.Name ?? "Führungsstab";
+            return roles.FirstOrDefault(r => r.Id == roleId)?.Name ?? Msg.Announce.AttributionFallback(Lang);
         }
         catch (RestException)
         {
-            return "Führungsstab";
+            return Msg.Announce.AttributionFallback(Lang);
         }
     }
 
     private static string SeverityLabel(AnnouncementSeverity severity) => severity switch
     {
-        AnnouncementSeverity.Elevated => "Erhöht",
-        AnnouncementSeverity.High => "Hoch",
-        _ => "Normal",
+        AnnouncementSeverity.Elevated => Msg.Announce.SeverityElevated(Lang),
+        AnnouncementSeverity.High => Msg.Announce.SeverityHigh(Lang),
+        _ => Msg.Announce.SeverityNormal(Lang),
     };
 }

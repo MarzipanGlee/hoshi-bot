@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -10,6 +11,10 @@ namespace HoshiBot.Discord.Announcements;
 public class AnnouncementButtonModule(AnnouncementService announcementService, GatewayClient gatewayClient, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // All strings come from the message catalog (Msg.Announce); rendering is pinned to German
+    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    private const Language Lang = Language.De;
+
     // All four Publish buttons and Cancel live on AnnouncementMessageCommandModule.Preview's
     // own ephemeral message, so ModifyMessage is safe here — never the public hub.
     [ComponentInteraction("announcement-publish-normal")]
@@ -31,7 +36,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     [ComponentInteraction("announcement-cancel")]
     public async Task<InteractionCallbackProperties<MessageOptions>> Cancel()
     {
-        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, "Verworfen.");
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Announce.Discarded(Lang));
         return InteractionCallback.ModifyMessage(m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; });
     }
 
@@ -58,7 +63,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
                 // edit fails (e.g. transient rate limit) — not worth failing the interaction for.
             }
 
-            return wasNew ? "Danke, deine Lesebestätigung wurde erfasst." : "Du hast diese Ankündigung bereits bestätigt.";
+            return wasNew ? Msg.Announce.ReadRecorded(Lang) : Msg.Announce.AlreadyRead(Lang);
         });
 
     private async Task<Action<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity)
@@ -88,14 +93,14 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
 
         return new InteractionMessageProperties
         {
-            Content = "Für welche Zielgruppe ist diese Ankündigung?",
+            Content = Msg.Announce.AudiencePrompt(Lang),
             Embeds = [BuildPreviewEmbed(title, body, draft)],
             Flags = MessageFlags.Ephemeral,
             Components =
             [
                 new ActionRowProperties(GuildFeatureAudiences.EnumerateFlags(GuildFeatureAudiences.RelevantAudiences(GuildFeature.Announcements))
                     .Select(a => new ButtonProperties($"announcement-pick-audience:{idPart}:{a}", GuildFeatureService.AudienceLabel(a), ButtonStyle.Primary))
-                    .Append(new ButtonProperties("announcement-cancel", "Abbrechen", ButtonStyle.Secondary))),
+                    .Append(new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(Lang), ButtonStyle.Secondary))),
             ],
         };
     }
@@ -107,7 +112,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
 
         return new InteractionMessageProperties
         {
-            Content = "Vorschau — wähle die Alarmstufe zum Veröffentlichen, oder brich ab.",
+            Content = Msg.Announce.SeverityPrompt(Lang),
             Embeds = [BuildPreviewEmbed(title, body, draft)],
             Flags = MessageFlags.Ephemeral,
             Components = [BuildSeverityButtonRow(idPart)],
@@ -119,25 +124,25 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     // ModifyMessage's action just needs to replace the button row, not rebuild the embed.
     private static Action<MessageOptions> BuildSeverityPromptModifier(ulong channelId, ulong messageId, GuildAudience audience) => m =>
     {
-        m.Content = "Vorschau — wähle die Alarmstufe zum Veröffentlichen, oder brich ab.";
+        m.Content = Msg.Announce.SeverityPrompt(Lang);
         m.Components = [BuildSeverityButtonRow($"{channelId}:{messageId}:{audience}")];
     };
 
     private static ActionRowProperties BuildSeverityButtonRow(string idPart) => new(
     [
-        new ButtonProperties($"announcement-publish-normal:{idPart}", "Normal", EmojiProperties.Standard("🟩"), ButtonStyle.Success),
-        new ButtonProperties($"announcement-publish-elevated:{idPart}", "Erhöht", EmojiProperties.Standard("🟨"), ButtonStyle.Primary),
-        new ButtonProperties($"announcement-publish-high:{idPart}", "Hoch", EmojiProperties.Standard("🟥"), ButtonStyle.Danger),
-        new ButtonProperties($"announcement-publish-direct:{idPart}", "Direkt", EmojiProperties.Standard("🟦"), ButtonStyle.Primary),
-        new ButtonProperties("announcement-cancel", "Abbrechen", ButtonStyle.Secondary),
+        new ButtonProperties($"announcement-publish-normal:{idPart}", Msg.Announce.SeverityNormal(Lang), EmojiProperties.Standard("🟩"), ButtonStyle.Success),
+        new ButtonProperties($"announcement-publish-elevated:{idPart}", Msg.Announce.SeverityElevated(Lang), EmojiProperties.Standard("🟨"), ButtonStyle.Primary),
+        new ButtonProperties($"announcement-publish-high:{idPart}", Msg.Announce.SeverityHigh(Lang), EmojiProperties.Standard("🟥"), ButtonStyle.Danger),
+        new ButtonProperties($"announcement-publish-direct:{idPart}", Msg.Announce.SeverityDirect(Lang), EmojiProperties.Standard("🟦"), ButtonStyle.Primary),
+        new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(Lang), ButtonStyle.Secondary),
     ]);
 
     private static EmbedProperties BuildPreviewEmbed(string title, string body, RestMessage draft) => new()
     {
-        Title = string.IsNullOrWhiteSpace(title) ? "*(kein Titel)*" : title,
-        Description = string.IsNullOrWhiteSpace(body) ? "*(kein Text)*" : body,
+        Title = string.IsNullOrWhiteSpace(title) ? Msg.Announce.NoTitle(Lang) : title,
+        Description = string.IsNullOrWhiteSpace(body) ? Msg.Announce.NoBody(Lang) : body,
         Footer = draft.Attachments.Count > 0
-            ? new EmbedFooterProperties { Text = $"{draft.Attachments.Count} Anhang/Anhänge" }
+            ? new EmbedFooterProperties { Text = Msg.Announce.AttachmentCount(Lang, draft.Attachments.Count) }
             : null,
     };
 }
