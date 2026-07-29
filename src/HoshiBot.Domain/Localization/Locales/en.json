@@ -314,6 +314,13 @@
   "Onboarding.NameInputLabel": "Your in-game name",
   "Onboarding.NameInputPlaceholder": "e.g. Riker",
 
+  "Persona.Busy1": "🖖 Sorry, Commander – subspace is full of static right now and my link to the database keeps dropping. Ask me again in a moment and I'll be right there for you!",
+  "Persona.Busy2": "Phew, my universal translator is glowing – too much traffic in subspace. Give me a short moment and then try again.",
+  "Persona.Busy3": "My sensors are showing nothing but static at the moment … my databases are briefly overloaded. A little patience and I'll be up and running again!",
+  "Persona.Busy4": "Brief subspace interference on all channels – I can't get a clean connection to my data right now. Try again in a moment, Commander!",
+  "Persona.CannotAnswer": "I'm afraid I can't answer that for you.",
+  "Persona.CannotAnswerGreeting": "Commander {name}, I'm afraid I can't answer that for you.",
+
   "Player.ServerNotFound": "No server named \"{server}\" found. Ask an admin to add it first (via the web admin).",
   "Player.Linked": "Linked your Discord account to **{player}** on {server}.",
   "Player.NoLinkedPlayer": "You haven't linked a player yet. Use /link-player first.",

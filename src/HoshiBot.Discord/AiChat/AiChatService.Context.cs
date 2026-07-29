@@ -1,8 +1,8 @@
-using System.Globalization;
 using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.Extensions.Logging;
 
 namespace HoshiBot.Discord.AiChat;
@@ -17,7 +17,10 @@ public partial class AiChatService
     {
         var sb = new StringBuilder();
         sb.AppendLine(HoshiPersona.Describe(botName));
-        sb.AppendLine("Antworte auf Deutsch, freundlich und knapp. Nutze zum Beantworten in erster Linie die unten angegebenen verlässlichen Fakten, Wissensquellen und den bisherigen Chatverlauf.");
+        // The answer-language instruction is the one dynamic part of the prompt: the reply speaks
+        // the channel scope's resolved language (_replyLanguage). The instruction itself is English
+        // for every language — model-facing text is not catalog material and stays in code.
+        sb.AppendLine($"Answer in {Languages.EnglishName(_replyLanguage)}. Antworte freundlich und knapp. Nutze zum Beantworten in erster Linie die unten angegebenen verlässlichen Fakten, Wissensquellen und den bisherigen Chatverlauf.");
         sb.AppendLine("Bei Sachfragen (Spielmechaniken, Crews, Aufstellungen, Zahlen, Daten, Ereignisse) sind allein die Wissensquellen, die verlässlichen Fakten und die offiziellen Ankündigungen maßgeblich — sie haben Vorrang vor deinen Erinnerungen und vor allgemeinem Wissen. Wenn diese Quellen eine Sachfrage nicht abdecken, rate nicht und stütze dich nicht auf Erinnerungen, sondern sag ehrlich, dass du es nicht sicher weißt.");
         // The rule has to sit in the base rules, not in the knowledge block: the context blocks below
         // (Ankündigungen, Wissensquellen) all prefix their lines with "[<#ID>]", and a bracketed token
@@ -26,7 +29,7 @@ public partial class AiChatService
         sb.AppendLine("Formatierung von Kanal-Verweisen: Wenn du auf einen Kanal verweist, verwende exakt die Discord-Syntax <#ID> mit einer ID aus den Kontextblöcken unten (dort steht sie in eckigen Klammern vor jeder Zeile); Discord macht daraus einen klickbaren Kanal. Schreibe niemals eine discord.com/channels-URL, niemals [#Name] oder #Name als reinen Text und erfinde keine IDs. Verwende außerdem nie die Markdown-Linksyntax [Text](URL) — deine Nachricht ist eine normale Chat-Nachricht, in der Discord das unverändert als Text anzeigt; nenne eine URL einfach direkt.");
 
         sb.AppendLine();
-        sb.Append(await BuildEnvironmentContextAsync(guildId, _settingsScope.AllianceId, model, providerKind));
+        sb.Append(await BuildEnvironmentContextAsync(guildId, _settingsScope.AllianceId, model, providerKind, _replyLanguage));
 
         if (!string.IsNullOrWhiteSpace(systemExtra))
         {
@@ -116,20 +119,22 @@ public partial class AiChatService
     // allianceId is the message's resolved alliance (from _settingsScope) for the chat path, or null
     // for the admin-compose path — in which case the timezone falls back to the guild's primary
     // alliance. Timezone is an alliance-only setting (unlike language); Server/Community scopes and
-    // the compose path use the primary alliance's zone.
-    private async Task<string> BuildEnvironmentContextAsync(ulong guildId, int? allianceId, string model, AiProvider providerKind)
+    // the compose path use the primary alliance's zone. lang is the reply's resolved language and
+    // drives the date/weekday rendering (same per-language pattern split as the TC digest's date).
+    private async Task<string> BuildEnvironmentContextAsync(ulong guildId, int? allianceId, string model, AiProvider providerKind, Language lang)
     {
         var alliance = allianceId is { } id
             ? await allianceService.FindByIdAsync(guildId, id)
             : await allianceService.GetPrimaryAsync(guildId);
         var tz = GuildAlliance.ResolveTimeZone(alliance?.TimeZoneId);
         var localNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz);
-        var german = CultureInfo.GetCultureInfo("de-DE");
+        var culture = Languages.ToCulture(lang);
+        var nowText = localNow.ToString(lang == Language.En ? "dddd, MMMM d, yyyy, HH:mm" : "dddd, d. MMMM yyyy, HH:mm 'Uhr'", culture);
         var providerName = providerKind == AiProvider.Ollama ? "Ollama, lokal" : "Google Gemini";
 
         var sb = new StringBuilder();
         sb.AppendLine("Verlässliche Angaben über deine aktuelle Umgebung (du darfst sie bei Bedarf nennen):");
-        sb.AppendLine($"- Aktuelles Datum und Uhrzeit: {localNow.ToString("dddd, d. MMMM yyyy, HH:mm 'Uhr'", german)} (Zeitzone {tz.Id}). Nutze dieses Datum, um relative Zeitangaben („in X Tagen“, „nächstes Turnier“, „übermorgen“) korrekt zu berechnen, statt zu raten.");
+        sb.AppendLine($"- Aktuelles Datum und Uhrzeit: {nowText} (Zeitzone {tz.Id}). Nutze dieses Datum, um relative Zeitangaben („in X Tagen“, „nächstes Turnier“, „übermorgen“) korrekt zu berechnen, statt zu raten.");
         if (gatewayClient.Cache.Guilds.GetValueOrDefault(guildId)?.Name is { Length: > 0 } guildName)
             sb.AppendLine($"- Du bist gerade in der Community „{guildName}“.");
         sb.AppendLine($"- Du läufst aktuell auf dem KI-Modell {model} ({providerName}).");
@@ -427,7 +432,7 @@ public partial class AiChatService
             return "";
 
         var weekStart = TerritoryCaptureScheduler.GetWeekStart(DateTimeOffset.UtcNow);
-        var german = CultureInfo.GetCultureInfo("de-DE");
+        var culture = Languages.ToCulture(_replyLanguage);
         var sb = new StringBuilder();
 
         foreach (var link in links)
@@ -439,7 +444,7 @@ public partial class AiChatService
             sb.AppendLine($"Gebietsübernahmen dieser Woche für die Allianz [{link.StfcAlliance.Tag}]:");
             foreach (var (_, territory, start, end) in slots)
             {
-                var day = start.ToString("dddd", german);
+                var day = start.ToString("dddd", culture);
                 sb.AppendLine($"- {territory.Name} (Tier {territory.Tier}): {day}, <t:{start.ToUnixTimeSeconds()}:t>–<t:{end.ToUnixTimeSeconds()}:t>");
             }
         }

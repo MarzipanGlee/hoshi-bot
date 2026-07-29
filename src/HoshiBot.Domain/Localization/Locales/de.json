@@ -314,6 +314,13 @@
   "Onboarding.NameInputLabel": "Dein In-Game-Name",
   "Onboarding.NameInputPlaceholder": "z. B. Riker",
 
+  "Persona.Busy1": "🖖 Verzeih, Commander – gerade rauscht der Subraum und meine Verbindung zur Datenbank hakt. Frag mich gleich noch mal, dann bin ich wieder für dich da!",
+  "Persona.Busy2": "Uff, mein Universalübersetzer glüht gerade – zu viel Datenverkehr im Subraum. Gib mir einen kurzen Moment und versuch es dann noch einmal.",
+  "Persona.Busy3": "Meine Sensoren zeigen im Augenblick nur statisches Rauschen … meine Datenbanken sind kurz überlastet. Einen Moment Geduld, dann läuft's wieder!",
+  "Persona.Busy4": "Kurze Subraum-Interferenz auf allen Kanälen – ich bekomme gerade keine saubere Verbindung zu meinen Daten. Versuch es gleich noch einmal, Commander!",
+  "Persona.CannotAnswer": "Das kann ich dir leider nicht beantworten.",
+  "Persona.CannotAnswerGreeting": "Commander {name}, das kann ich dir leider nicht beantworten.",
+
   "Player.ServerNotFound": "Kein Server namens \"{server}\" gefunden. Bitte einen Admin, ihn zuerst hinzuzufügen (über das Web-Admin).",
   "Player.Linked": "Dein Discord-Konto wurde mit **{player}** auf {server} verknüpft.",
   "Player.NoLinkedPlayer": "Du hast noch keinen Spieler verknüpft. Nutze zuerst /link-player.",

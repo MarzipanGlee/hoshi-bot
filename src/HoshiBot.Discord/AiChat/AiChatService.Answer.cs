@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using HoshiBot.Domain;
+using HoshiBot.Domain.Localization;
 using NetCord.Rest;
 
 namespace HoshiBot.Discord.AiChat;
@@ -65,12 +66,12 @@ public partial class AiChatService
     }
 
     // When the bot is addressed directly it must always say something, even if it has no real
-    // answer — greet on the first turn just like a real reply.
-    private static string PolitelyUnsure(bool botSpokeBefore, NetCord.User author)
-    {
-        const string body = "das kann ich dir leider nicht beantworten.";
-        return botSpokeBefore ? char.ToUpper(body[0]) + body[1..] : CommanderName.Greeting(author) + body;
-    }
+    // answer — greet on the first turn just like a real reply. Catalog full-sentence templates
+    // (with/without the salutation), rendered in the reply's channel-scope language.
+    private string PolitelyUnsure(bool botSpokeBefore, NetCord.User author) =>
+        botSpokeBefore
+            ? Msg.Persona.CannotAnswer(_replyLanguage)
+            : Msg.Persona.CannotAnswerGreeting(_replyLanguage, CommanderName.Of(author));
 
     // Re-triggers the typing indicator every ~8s (it expires after ~10s) until cancelled, so it
     // stays visible across a slow generation. Cancelled by the caller as soon as the answer is in.

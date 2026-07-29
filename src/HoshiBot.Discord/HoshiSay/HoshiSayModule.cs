@@ -58,7 +58,7 @@ public class HoshiSayModule(
                 return Msg.Say.RoleRequired(lang, $"<@&{roleId}>");
 
             var text = await aiChat.ComposeMessageAsync(
-                guildId, instruction, mitglied?.Id, mitglied is null ? null : CommanderName.Of(mitglied), CancellationToken.None);
+                guildId, Context.Channel.Id, instruction, mitglied?.Id, mitglied is null ? null : CommanderName.Of(mitglied), CancellationToken.None);
             if (text is null)
                 return Msg.Say.ComposeFailed(lang);
 

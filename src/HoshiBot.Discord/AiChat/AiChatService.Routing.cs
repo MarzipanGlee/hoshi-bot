@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using HoshiBot.Data;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.Extensions.Logging;
 
 namespace HoshiBot.Discord.AiChat;
@@ -80,6 +81,17 @@ public partial class AiChatService
         var allianceId = resolved == GuildAudience.Alliance ? await allianceService.GetPrimaryIdAsync(guildId) : null;
         return new SettingsScope(resolved, allianceId);
     }
+
+    // The language a reply into this channel speaks — the channel's OWNING scope's language, not the
+    // message author's (the whole channel reads a public answer): the alliance's language for an
+    // Alliance-audience channel, the audience's for the other audiences, and the guild's when no
+    // enabled audience matched (or the Alliance audience has no resolvable alliance).
+    private async Task<Language> ResolveReplyLanguageAsync(ulong guildId, SettingsScope scope) => scope switch
+    {
+        { Audience: GuildAudience.Alliance, AllianceId: { } allianceId } => await languageResolver.ForAllianceAsync(allianceId),
+        { Audience: GuildAudience.Server or GuildAudience.VeilGroup or GuildAudience.Community } => await languageResolver.ForAudienceAsync(guildId, scope.Audience),
+        _ => await languageResolver.ForGuildAsync(guildId),
+    };
 
     // Outcome of the passive-listening gate. Only No suppresses; the rest fall through to the main
     // model (Failed = the gate call errored/returned nothing, so we degrade to today's behaviour).

@@ -1,3 +1,5 @@
+using HoshiBot.Domain.Localization;
+
 namespace HoshiBot.Discord;
 
 // The bot's canonical identity — Hoshi Sato from Star Trek: Enterprise — so its answers and its
@@ -18,15 +20,11 @@ public static class HoshiPersona
 
     // In-character "temporarily unavailable" replies for when the AI backend is overloaded/timing out
     // (both the main model and the flash-lite failover came up empty). Friendlier than a flat "kann
-    // ich leider nicht beantworten", stays in Hoshi's voice, and invites a retry.
-    private static readonly string[] BusyReplies =
-    [
-        "🖖 Verzeih, Commander – gerade rauscht der Subraum und meine Verbindung zur Datenbank hakt. Frag mich gleich noch mal, dann bin ich wieder für dich da!",
-        "Uff, mein Universalübersetzer glüht gerade – zu viel Datenverkehr im Subraum. Gib mir einen kurzen Moment und versuch es dann noch einmal.",
-        "Meine Sensoren zeigen im Augenblick nur statisches Rauschen … meine Datenbanken sind kurz überlastet. Einen Moment Geduld, dann läuft's wieder!",
-        "Kurze Subraum-Interferenz auf allen Kanälen – ich bekomme gerade keine saubere Verbindung zu meinen Daten. Versuch es gleich noch einmal, Commander!",
-    ];
+    // ich leider nicht beantworten", stays in Hoshi's voice, and invites a retry. The texts live in
+    // the message catalog (Persona.Busy1–4) and render in the reply's resolved language.
+    private static readonly Func<Language, string>[] BusyReplies =
+        [Msg.Persona.Busy1, Msg.Persona.Busy2, Msg.Persona.Busy3, Msg.Persona.Busy4];
 
     // A random busy reply (see BusyReplies).
-    public static string BusyReply() => BusyReplies[Random.Shared.Next(BusyReplies.Length)];
+    public static string BusyReply(Language lang) => BusyReplies[Random.Shared.Next(BusyReplies.Length)](lang);
 }

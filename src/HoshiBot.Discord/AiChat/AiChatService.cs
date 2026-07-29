@@ -4,6 +4,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.TerritoryCapture;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.Extensions.Logging;
 using NetCord;
 using NetCord.Gateway;
@@ -40,6 +41,7 @@ public partial class AiChatService(
     AiChatEmbeddingService embeddingService,
     GuildAllianceService allianceService,
     AiChatHealthService healthService,
+    LanguageResolver languageResolver,
     ILogger<AiChatService> logger)
 {
     private const string NoAnswerSentinel = "[NO_ANSWER]";
@@ -61,6 +63,13 @@ public partial class AiChatService(
     // AiChatService is instantiated per message (see AiChatMessageHandler's per-message scope).
     private readonly record struct SettingsScope(GuildAudience Audience, int? AllianceId);
     private SettingsScope _settingsScope;
+
+    // The language a public AiChat reply speaks: the CHANNEL's owning scope's language (not the
+    // message author's — the whole channel reads the answer), resolved from _settingsScope via
+    // ResolveReplyLanguageAsync. Drives the prompt's answer-language instruction, the prompt's
+    // date/weekday rendering and the canned Persona replies. Same per-message instance-field
+    // pattern as _settingsScope.
+    private Language _replyLanguage;
 
     // Serializes AI answers per channel: only one generation runs at a time (a burst can't fire
     // overlapping, billable / CPU-thrashing generations), but a message that arrives while the
@@ -125,6 +134,7 @@ public partial class AiChatService(
         // language, memory, streaming) come from for this message. Backend settings are guild-wide
         // and don't use this. Set once here, before any behavioral-setting read below.
         _settingsScope = await ResolveSettingsScopeAsync(guildId, message.ChannelId);
+        _replyLanguage = await ResolveReplyLanguageAsync(guildId, _settingsScope);
 
         var provider = await ResolveProviderAsync(guildId);
         var apiKey = await settingsService.GetSecretAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.ApiKey);
@@ -317,7 +327,7 @@ public partial class AiChatService(
                 // overload/timeout (not a genuine "no answer") → give a friendly in-character "busy"
                 // reply that invites a retry, instead of the flat "kann ich leider nicht beantworten".
                 var replyText = answer is null && addressed && overloaded
-                    ? HoshiPersona.BusyReply()
+                    ? HoshiPersona.BusyReply(_replyLanguage)
                     : FinalizeAnswer(answer, addressed, botSpokeBefore, message.Author, botName);
 
                 // One line per handled message so a "why did it stay silent / only give the fallback"

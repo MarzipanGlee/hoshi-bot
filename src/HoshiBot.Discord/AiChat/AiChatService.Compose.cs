@@ -1,6 +1,7 @@
 using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Domain;
+using HoshiBot.Domain.Localization;
 using Microsoft.Extensions.Logging;
 
 namespace HoshiBot.Discord.AiChat;
@@ -15,11 +16,13 @@ namespace HoshiBot.Discord.AiChat;
 // posting an empty message.
 public partial class AiChatService
 {
+    // channelId: the channel the composed message will be posted into — it decides the language the
+    // message is written in (the channel's owning scope's language, same resolution as a chat reply).
     // instruction: the admin's "what to convey". mentionUserId/mentionName (both optional, supplied
     // together): a member the message should be addressed to and *ping* — Hoshi is told to open with
     // the raw <@id> mention token, and the caller must allow that user in AllowedMentions for the ping
     // to fire. Without them she addresses people by name only and pings no one.
-    public async Task<string?> ComposeMessageAsync(ulong guildId, string instruction, ulong? mentionUserId, string? mentionName, CancellationToken cancellationToken)
+    public async Task<string?> ComposeMessageAsync(ulong guildId, ulong channelId, string instruction, ulong? mentionUserId, string? mentionName, CancellationToken cancellationToken)
     {
         var provider = await ResolveProviderAsync(guildId);
         var apiKey = await settingsService.GetSecretAsync(guildId, BackendFeature, BackendScope, null, AiBackendSettingKeys.ApiKey);
@@ -36,13 +39,18 @@ public partial class AiChatService
 
         var botName = await embedBranding.GetBotDisplayNameAsync(guildId);
 
+        // The composed message posts publicly into channelId, so it speaks that channel's owning
+        // scope's language — the same resolution a chat reply in that channel uses.
+        var lang = await ResolveReplyLanguageAsync(guildId, await ResolveSettingsScopeAsync(guildId, channelId));
+
         var system = new StringBuilder();
         system.AppendLine(HoshiPersona.Describe(botName));
+        system.AppendLine($"Answer in {Languages.EnglishName(lang)}.");
         system.AppendLine();
         // Give the composer the same current-date/environment awareness as a chat reply (no message
         // audience here, so the timezone falls back to the guild's primary alliance) — so an
         // admin-composed announcement uses the real date instead of inventing one.
-        system.Append(await BuildEnvironmentContextAsync(guildId, allianceId: null, model, provider.Kind));
+        system.Append(await BuildEnvironmentContextAsync(guildId, allianceId: null, model, provider.Kind, lang));
         system.AppendLine();
         system.AppendLine(
             "Ein Administrator bittet dich, eine Nachricht in einen Chat-Kanal der Community zu schreiben. " +
