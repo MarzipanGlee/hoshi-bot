@@ -238,9 +238,55 @@ command **names stay English** in all locales — only descriptions are localize
    `FormatLongDate` special-case German (`dd.MM.yyyy` / `d. MMMM yyyy`) and default
    everything else to ISO/English patterns — add a branch if the new language needs
    its own convention.
-5. Translate `docs/`-independent Web bits only if the Web admin is being localized
-   too (out of scope so far — the Web UI is English; `WebRequestLanguage` already
-   picks up the new language for catalog-rendered content automatically).
+5. `src/HoshiBot.Domain/Localization/Locales/Web/xx.json` — the Web admin UI's
+   catalog file (see Phase 7); same parity enforcement as the bot pair.
+
+## Phase 7 — Web UI localization (EN + DE)
+
+Localize the Web admin UI (~1,150 distinct hardcoded English strings across 187
+razor components) with the same catalog infrastructure, rendered per request via
+`WebRequestLanguage` (explicit `DiscordUser.Language` → `Accept-Language` → En).
+
+**Scope** — in: the /manage Guild area (feature editors, SetupWizard,
+PermissionCheck + PermissionAuditService, Alliance/Audience pages, Settings),
+`Components/Shared`, layout/nav/breadcrumbs, /me, landing-page marketing,
+Error/NotFound, the page registries + `IFeatureModule` titles/descriptions,
+in-scope PageTitles. Out (stays English): `Manage/Database`, `Manage/Bot` and
+`Manage/Stfc` (all GlobalAdmin-only operator areas), the legal footer disclaimer,
+BootstrapBlazor built-in text (ships no `de` locale) and QuickGrid's paginator
+(no localization hook) — the last two live in docs/backlog.md.
+
+### Phase 7 design
+
+- Second embedded locale pair `Locales/Web/{en,de}.json`, all keys `Web.`-prefixed;
+  `MessageCatalog.Load` merges both resources per locale. Tests enforce bot/web key
+  disjointness and the `Web.` prefix discipline on top of the existing parity suite.
+- Typed `Msg.Web*` accessors per area, plus enum/slug-driven helpers:
+  `Msg.WebFeature.Title/Description(lang, feature)`, `Msg.WebAudience`, and
+  `Msg.WebEditor.Label/Usage/CardTitle(lang, feature, settingKey)` keyed by the
+  existing `*SettingKeys` constants.
+- Language delivery: each layout resolves `WebRequestLanguage` once in
+  `OnInitializedAsync` and wraps its markup in `<CascadingValue Value="lang"
+  IsFixed="true">`, rendering only after resolution (prerender is off);
+  components consume `[CascadingParameter] Language Lang`. `AdminPage` carries
+  keys + `Label(Language)`; excluded registries keep literal English in the key
+  slot (raw-key fallback renders it verbatim). `IFeatureModule.Title/Description`
+  are default interface methods over `Msg.WebFeature`.
+- **Rule: never place localized strings into shared `IMemoryCache` entries** —
+  cached values cross circuits/users; localize render-side instead.
+- A `/me` language change forces a full reload (`forceLoad: true`) — the new
+  circuit resolves the new language.
+- Plural sites use `FormatCount`; admin-grid ISO timestamps and the
+  TerritoryCapture time-input round-trip stay invariant; `<html lang>` derives
+  from `Accept-Language` only (static SSR, no DB).
+
+**Batches**: 0 foundation (loader/tests/reshapes/cascades, ~80 keys) → 1 shared +
+nav chrome → 2 guild pages + audit → 3 feature editors A–I → 4 feature editors
+M–T + extra pages → 5 alliance + /me → 6 landing + PageTitles → 7 docs. Each
+batch lands green (build 0 warnings, tests incl. parity, format) with German
+authored in the same commit. Known German-in-English-UI bugs ("⚠ Unbekannt",
+"Ganze Kategorie", TerritoryCapture's German usage text) are fixed as their
+batches touch them.
 
 ## Verification
 
