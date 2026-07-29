@@ -49,6 +49,46 @@ public partial class MessageCatalogTests
         }
     }
 
+    // The catalog merges two embedded files per locale (bot + Web); reads one raw
+    // (unmerged) file's key set directly off the assembly.
+    private static HashSet<string> RawKeys(string resourceSuffix)
+    {
+        using var stream = typeof(MessageCatalog).Assembly
+            .GetManifestResourceStream($"HoshiBot.Domain.Localization.Locales.{resourceSuffix}");
+        Assert.NotNull(stream);
+        using var reader = new StreamReader(stream);
+        return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(reader.ReadToEnd())!
+            .Keys.ToHashSet();
+    }
+
+    // The bot and Web catalogs merge into one lookup, so a shared key would mean one
+    // silently overwrites the other.
+    [Fact]
+    public void Bot_and_web_catalogs_do_not_share_keys()
+    {
+        foreach (var language in Languages.Enabled)
+        {
+            var code = Languages.ToCode(language);
+            var shared = RawKeys($"{code}.json").Intersect(RawKeys($"Web.{code}.json")).ToList();
+            Assert.True(shared.Count == 0, $"{code}: keys in both bot and Web catalogs: [{string.Join(", ", shared)}]");
+        }
+    }
+
+    // Namespace discipline that keeps the merge collision-free forever: Web keys carry
+    // the "Web." prefix, bot keys never do.
+    [Fact]
+    public void Web_catalog_keys_use_the_web_prefix()
+    {
+        foreach (var language in Languages.Enabled)
+        {
+            var code = Languages.ToCode(language);
+            var botViolations = RawKeys($"{code}.json").Where(k => k.StartsWith("Web.")).ToList();
+            var webViolations = RawKeys($"Web.{code}.json").Where(k => !k.StartsWith("Web.")).ToList();
+            Assert.True(botViolations.Count == 0, $"{code}.json has Web.-prefixed keys: [{string.Join(", ", botViolations)}]");
+            Assert.True(webViolations.Count == 0, $"Web.{code}.json has un-prefixed keys: [{string.Join(", ", webViolations)}]");
+        }
+    }
+
     [Fact]
     public void Format_substitutes_named_placeholders()
     {

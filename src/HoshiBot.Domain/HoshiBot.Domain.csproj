@@ -4,6 +4,7 @@
     <!-- Per-locale message templates for MessageCatalog (Localization/) — embedded like
          Data's seed JSON so deployment stays a single assembly per project. -->
     <EmbeddedResource Include="Localization\Locales\*.json" />
+    <EmbeddedResource Include="Localization\Locales\Web\*.json" />
   </ItemGroup>
 
   <ItemGroup>

@@ -79,15 +79,26 @@ public static partial class MessageCatalog
         return key;
     }
 
+    // A locale is split across two embedded files: the bot-facing catalog
+    // (Locales/{code}.json) and the Web admin's (Locales/Web/{code}.json, all keys
+    // "Web."-prefixed). Merged into one lookup here; MessageCatalogTests enforces that
+    // the two never share a key, so merge order can't matter.
     private static FrozenDictionary<string, string> Load(Language language)
     {
-        var resource = $"HoshiBot.Domain.Localization.Locales.{Languages.ToCode(language)}.json";
-        using var stream = typeof(MessageCatalog).Assembly.GetManifestResourceStream(resource);
-        if (stream is null)
-            return FrozenDictionary<string, string>.Empty;
+        var code = Languages.ToCode(language);
+        var entries = new Dictionary<string, string>();
+        foreach (var resource in new[] { $"Locales.{code}.json", $"Locales.Web.{code}.json" })
+        {
+            using var stream = typeof(MessageCatalog).Assembly
+                .GetManifestResourceStream($"HoshiBot.Domain.Localization.{resource}");
+            if (stream is null)
+                continue;
 
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        var entries = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.ReadToEnd());
-        return entries?.ToFrozenDictionary() ?? FrozenDictionary<string, string>.Empty;
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            foreach (var (key, template) in JsonSerializer.Deserialize<Dictionary<string, string>>(reader.ReadToEnd()) ?? [])
+                entries[key] = template;
+        }
+
+        return entries.ToFrozenDictionary();
     }
 }
