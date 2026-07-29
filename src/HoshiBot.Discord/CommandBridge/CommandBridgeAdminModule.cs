@@ -22,19 +22,20 @@ public enum CommandBridgeChoice
 // commands. Re-run after adding buttons or toggling a feature so a hub reflects the current
 // set. The actual building lives in CommandBridgeHubService (shared with the Web-triggered
 // republish job).
-public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildAllianceService allianceService, EmbedBranding embedBranding)
+public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildAllianceService allianceService, EmbedBranding embedBranding,
+    LanguageResolver languageResolver)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
-    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     [SlashCommand("post-command-bridge", "Post or refresh the Command Bridge hub message(s)",
         DefaultGuildPermissions = Permissions.ManageGuild, Contexts = [InteractionContextType.Guild])]
     public Task PostCommandBridge(CommandBridgeChoice bridge = CommandBridgeChoice.All) =>
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var guildId = Context.Guild!.Id;
+
+            // The result lines are an ephemeral reply to the invoking admin — their language;
+            // the hub messages themselves render in each alliance's own language (hubService).
+            var lang = await languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, guildId);
 
             var bridges = bridge switch
             {
@@ -47,7 +48,7 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildA
             // Command Bridges are per-alliance — (re)post each linked alliance's hub(s).
             var links = await allianceService.GetLinksAsync(guildId);
             if (links.Count == 0)
-                return Msg.Bridge.NoAllianceLinked(Lang);
+                return Msg.Bridge.NoAllianceLinked(lang);
 
             var lines = new List<string>();
             foreach (var link in links)
@@ -58,9 +59,9 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildA
                     var result = await hubService.PublishAsync(guildId, link.Id, target);
                     lines.Add(result switch
                     {
-                        CommandBridgePublishResult.Updated => Msg.Bridge.HubUpdated(Lang, tag, Label(target)),
-                        CommandBridgePublishResult.Posted => Msg.Bridge.HubPosted(Lang, tag, Label(target)),
-                        _ => Msg.Bridge.HubNoChannel(Lang, tag, Label(target)),
+                        CommandBridgePublishResult.Updated => Msg.Bridge.HubUpdated(lang, tag, Label(target, lang)),
+                        CommandBridgePublishResult.Posted => Msg.Bridge.HubPosted(lang, tag, Label(target, lang)),
+                        _ => Msg.Bridge.HubNoChannel(lang, tag, Label(target, lang)),
                     });
                 }
             }
@@ -68,10 +69,10 @@ public class CommandBridgeAdminModule(CommandBridgeHubService hubService, GuildA
             return string.Join('\n', lines);
         });
 
-    private static string Label(CommandBridgeKind bridge) => bridge switch
+    private static string Label(CommandBridgeKind bridge, Language lang) => bridge switch
     {
-        CommandBridgeKind.Staff => Msg.Bridge.KindStaff(Lang),
-        CommandBridgeKind.Friends => Msg.Bridge.KindFriends(Lang),
-        _ => Msg.Bridge.KindUser(Lang),
+        CommandBridgeKind.Staff => Msg.Bridge.KindStaff(lang),
+        CommandBridgeKind.Friends => Msg.Bridge.KindFriends(lang),
+        _ => Msg.Bridge.KindUser(lang),
     };
 }

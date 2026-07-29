@@ -12,20 +12,17 @@ namespace HoshiBot.Discord;
 // row instead of custom-id-encoded state.
 public class PendingModalInputService(HoshiBotDbContext db)
 {
-    // All strings come from the message catalog (Msg.Bridge — the retry step surfaces in the
-    // Command Bridge modal flows); rendering is pinned to German until sub-phase 6e wires up
-    // per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(15);
 
+    // The retry message these buttons sit on is ephemeral to the user whose modal input
+    // failed — callers pass that acting user's resolved language.
     // ↩️ rather than 🔙 — the "BACK" glyph renders as small dark text that washes out on the grey
     // secondary button; a plain return arrow reads clearly.
-    public static ButtonProperties BackButton(int id) =>
-        new($"modal-retry-back:{id}", Msg.Bridge.BackButton(Lang), EmojiProperties.Standard("↩️"), ButtonStyle.Secondary);
+    public static ButtonProperties BackButton(int id, Language lang) =>
+        new($"modal-retry-back:{id}", Msg.Bridge.BackButton(lang), EmojiProperties.Standard("↩️"), ButtonStyle.Secondary);
 
-    public static ButtonProperties CancelButton(int id) =>
-        new($"modal-retry-cancel:{id}", Msg.Bridge.CancelButton(Lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
+    public static ButtonProperties CancelButton(int id, Language lang) =>
+        new($"modal-retry-cancel:{id}", Msg.Bridge.CancelButton(lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
 
     public async Task<int> CreateAsync(ulong guildId, ulong userId, PendingModalInputKind kind,
         string? field1 = null, string? field2 = null, string? field3 = null, string? field4 = null)

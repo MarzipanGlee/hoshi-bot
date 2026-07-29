@@ -15,12 +15,14 @@ namespace HoshiBot.Discord.CommandBridge;
 public class CommandBridgeStaffButtonModule(
     AlertService alertService,
     GuildFeatureService featureService,
-    EmbedBranding embedBranding)
+    EmbedBranding embedBranding,
+    LanguageResolver languageResolver)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
-    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // Every step of these staff wizards is ephemeral to the clicking staff member — their
+    // language. (The member the report is about hears from AlertService later, separately.)
+    private Task<Language> ActingUserLanguageAsync() =>
+        languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
 
     [ComponentInteraction("staff-shield-report")]
     public Task<InteractionMessageProperties> ReportManual() => ShieldReportPromptAsync(ShieldLossVariant.Manual);
@@ -33,25 +35,27 @@ public class CommandBridgeStaffButtonModule(
 
     private async Task<InteractionMessageProperties> ShieldReportPromptAsync(ShieldLossVariant variant)
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, Lang) is { } msg)
+        var lang = await ActingUserLanguageAsync();
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
-            Msg.Bridge.StaffShieldTargetPrompt(Lang),
+            Msg.Bridge.StaffShieldTargetPrompt(lang),
             [new UserMenuProperties($"staff-shield-target:{variant}")],
-            title: Msg.Bridge.StaffShieldTitle(Lang));
+            title: Msg.Bridge.StaffShieldTitle(lang));
     }
 
     [ComponentInteraction("staff-shield-mute")]
     public async Task<InteractionMessageProperties> MutePrompt()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, Lang) is { } msg)
+        var lang = await ActingUserLanguageAsync();
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
-            Msg.Bridge.StaffMuteTargetPrompt(Lang),
+            Msg.Bridge.StaffMuteTargetPrompt(lang),
             [new UserMenuProperties("staff-shield-mute-target")],
-            title: Msg.Bridge.StaffMuteTitle(Lang));
+            title: Msg.Bridge.StaffMuteTitle(lang));
     }
 
     // Enable/disable buttons live on this module's own ephemeral wizard message (posted by the
@@ -60,9 +64,10 @@ public class CommandBridgeStaffButtonModule(
     public Task SetMute(ulong targetUserId, string action) =>
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
+            var lang = await ActingUserLanguageAsync();
             var muted = action == "on";
             var result = await alertService.SetShieldMutedAsync(Context.Guild!.Id, targetUserId, muted);
-            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffMuteTitle(Lang));
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffMuteTitle(lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 

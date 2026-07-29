@@ -15,11 +15,6 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     LanguageResolver languageResolver)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
-    // All strings come from the message catalog (Msg.Bridge); the roe-violation-* handlers
-    // below already render in the acting user's resolved language (sub-phase 6e), the rest
-    // is still pinned to German until their own 6e batch (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     // Ephemeral prompts and modals follow the acting user's language.
     private Task<Language> ActingUserLanguageAsync() =>
         languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
@@ -53,48 +48,52 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("raid-report")]
     public async Task<InteractionMessageProperties> ReportRaidPrompt()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts, Lang) is { } msg)
+        var lang = await ActingUserLanguageAsync();
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RaidAlerts, lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         return await EphemeralEmbedAsync(
-            Msg.Bridge.RaidTargetPrompt(Lang),
+            Msg.Bridge.RaidTargetPrompt(lang),
             [new UserMenuProperties("raid-report-target")]);
     }
 
+    // Async so the modal renders in the acting user's language — modals can't be deferred,
+    // but the cached resolver lookup is well within Discord's 3s window.
     [ComponentInteraction("raid-report-location-home")]
-    public InteractionCallbackProperties<ModalProperties> ReportRaidLocationHome(ulong targetUserId) =>
-        RaidReportModal(targetUserId, RaidServerLocation.Home);
+    public async Task<InteractionCallbackProperties<ModalProperties>> ReportRaidLocationHome(ulong targetUserId) =>
+        RaidReportModal(targetUserId, RaidServerLocation.Home, await ActingUserLanguageAsync());
 
     [ComponentInteraction("raid-report-location-enemy")]
-    public InteractionCallbackProperties<ModalProperties> ReportRaidLocationEnemy(ulong targetUserId) =>
-        RaidReportModal(targetUserId, RaidServerLocation.Enemy);
+    public async Task<InteractionCallbackProperties<ModalProperties>> ReportRaidLocationEnemy(ulong targetUserId) =>
+        RaidReportModal(targetUserId, RaidServerLocation.Enemy, await ActingUserLanguageAsync());
 
     private static InteractionCallbackProperties<ModalProperties> RaidReportModal(ulong targetUserId, RaidServerLocation location,
-        string? system = null, string? attacker = null) =>
-        InteractionCallback.Modal(new ModalProperties($"raid-report-modal:{targetUserId}:{location}", Msg.Bridge.RaidModalTitle(Lang),
+        Language lang, string? system = null, string? attacker = null) =>
+        InteractionCallback.Modal(new ModalProperties($"raid-report-modal:{targetUserId}:{location}", Msg.Bridge.RaidModalTitle(lang),
         [
-            new LabelProperties(Msg.Bridge.LocationLabel(Lang),
-                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = Msg.Bridge.SystemPlaceholder(Lang), Required = true }),
-            new LabelProperties(Msg.Bridge.AttackerLabel(Lang),
-                new TextInputProperties("attacker", TextInputStyle.Short) { Value = attacker, Placeholder = Msg.Bridge.AttackerPlaceholder(Lang), Required = false }),
+            new LabelProperties(Msg.Bridge.LocationLabel(lang),
+                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = Msg.Bridge.SystemPlaceholder(lang), Required = true }),
+            new LabelProperties(Msg.Bridge.AttackerLabel(lang),
+                new TextInputProperties("attacker", TextInputStyle.Short) { Value = attacker, Placeholder = Msg.Bridge.AttackerPlaceholder(lang), Required = false }),
         ]));
 
     [ComponentInteraction("shield-reminder-setup")]
     public async Task<InteractionCallbackProperties> ShieldReminderSetup()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, Lang) is { } msg)
+        var lang = await ActingUserLanguageAsync();
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.ShieldReminders, lang) is { } msg)
             return InteractionCallback.Message(await EphemeralEmbedAsync(msg));
 
-        return ShieldReminderModal();
+        return ShieldReminderModal(lang);
     }
 
-    private static InteractionCallbackProperties<ModalProperties> ShieldReminderModal(string? duration = null, string? system = null) =>
-        InteractionCallback.Modal(new ModalProperties("shield-reminder-setup-modal", Msg.Bridge.ShieldModalTitle(Lang),
+    private static InteractionCallbackProperties<ModalProperties> ShieldReminderModal(Language lang, string? duration = null, string? system = null) =>
+        InteractionCallback.Modal(new ModalProperties("shield-reminder-setup-modal", Msg.Bridge.ShieldModalTitle(lang),
         [
-            new LabelProperties(Msg.Bridge.ShieldDurationLabel(Lang),
-                new TextInputProperties("duration", TextInputStyle.Short) { Value = duration, Placeholder = Msg.Bridge.ShieldDurationPlaceholder(Lang), Required = true }),
-            new LabelProperties(Msg.Bridge.LocationLabel(Lang),
-                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = Msg.Bridge.SystemPlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Bridge.ShieldDurationLabel(lang),
+                new TextInputProperties("duration", TextInputStyle.Short) { Value = duration, Placeholder = Msg.Bridge.ShieldDurationPlaceholder(lang), Required = true }),
+            new LabelProperties(Msg.Bridge.LocationLabel(lang),
+                new TextInputProperties("system", TextInputStyle.Short) { Value = system, Placeholder = Msg.Bridge.SystemPlaceholder(lang), Required = true }),
         ]));
 
     // Message and Modal callbacks share only this non-generic base — used here so one
@@ -105,18 +104,19 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("modal-retry-back")]
     public async Task<InteractionCallbackProperties> ModalRetryBack(int pendingId)
     {
+        var lang = await ActingUserLanguageAsync();
         var pending = await pendingModalInputService.GetAsync(pendingId, Context.User.Id);
         if (pending is null)
-            return InteractionCallback.ModifyMessage(m => { m.Content = Msg.Bridge.DraftNotFound(Lang); m.Embeds = []; m.Components = []; });
+            return InteractionCallback.ModifyMessage(m => { m.Content = Msg.Bridge.DraftNotFound(lang); m.Embeds = []; m.Components = []; });
 
         await pendingModalInputService.DeleteAsync(pendingId);
 
         return pending.Kind switch
         {
-            PendingModalInputKind.ShieldReminder => ShieldReminderModal(pending.Field1, pending.Field2),
+            PendingModalInputKind.ShieldReminder => ShieldReminderModal(lang, pending.Field1, pending.Field2),
             PendingModalInputKind.RaidReport => RaidReportModal(
-                ulong.Parse(pending.Field1!), Enum.Parse<RaidServerLocation>(pending.Field2!), pending.Field3, pending.Field4),
-            _ => InteractionCallback.ModifyMessage(m => { m.Content = Msg.Bridge.DraftUnknownKind(Lang); m.Embeds = []; m.Components = []; }),
+                ulong.Parse(pending.Field1!), Enum.Parse<RaidServerLocation>(pending.Field2!), lang, pending.Field3, pending.Field4),
+            _ => InteractionCallback.ModifyMessage(m => { m.Content = Msg.Bridge.DraftUnknownKind(lang); m.Embeds = []; m.Components = []; }),
         };
     }
 
@@ -124,7 +124,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task<InteractionCallbackProperties<MessageOptions>> ModalRetryCancel(int pendingId)
     {
         await pendingModalInputService.DeleteAsync(pendingId);
-        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.Cancelled(Lang));
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.Cancelled(await ActingUserLanguageAsync()));
         return InteractionCallback.ModifyMessage(m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; });
     }
 
@@ -138,6 +138,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task<InteractionMessageProperties> ContactCommandStaffPrompt(string audience)
     {
         var guildId = Context.Guild!.Id;
+        var lang = await ActingUserLanguageAsync();
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(guildId, audience);
         var ticketsEnabled = !scopeMissing && await featureService.IsEnabledAsync(guildId, GuildFeature.Tickets, parsedAudience, guildAllianceId);
         var anonymousEnabled = !scopeMissing && await featureService.IsEnabledAsync(guildId, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId);
@@ -146,35 +147,36 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         var buttons = new List<ButtonProperties>();
         if (ticketsEnabled)
         {
-            lines.Add(Msg.Bridge.ContactTicketOption(Lang));
-            buttons.Add(new ButtonProperties($"ticket-open:{audience}", Msg.Bridge.TicketOpen(Lang), EmojiProperties.Standard("🎟️"), ButtonStyle.Primary));
+            lines.Add(Msg.Bridge.ContactTicketOption(lang));
+            buttons.Add(new ButtonProperties($"ticket-open:{audience}", Msg.Bridge.TicketOpen(lang), EmojiProperties.Standard("🎟️"), ButtonStyle.Primary));
         }
         if (anonymousEnabled)
         {
-            lines.Add(Msg.Bridge.ContactAnonymousOption(Lang));
-            buttons.Add(new ButtonProperties($"anonymous-message:{audience}", Msg.Bridge.AnonymousMessage(Lang), EmojiProperties.Standard("📮"), ButtonStyle.Primary));
+            lines.Add(Msg.Bridge.ContactAnonymousOption(lang));
+            buttons.Add(new ButtonProperties($"anonymous-message:{audience}", Msg.Bridge.AnonymousMessage(lang), EmojiProperties.Standard("📮"), ButtonStyle.Primary));
         }
 
         if (buttons.Count == 0)
-            return await EphemeralEmbedAsync(Msg.Bridge.FeatureDisabledHere(Lang));
+            return await EphemeralEmbedAsync(Msg.Bridge.FeatureDisabledHere(lang));
 
         return await EphemeralEmbedAsync(
-            Msg.Bridge.ContactIntro(Lang, CommanderName.Of(Context.User), string.Join('\n', lines)),
+            Msg.Bridge.ContactIntro(lang, CommanderName.Of(Context.User), string.Join('\n', lines)),
             [new ActionRowProperties(buttons)],
-            title: Msg.Bridge.ContactTitle(Lang));
+            title: Msg.Bridge.ContactTitle(lang));
     }
 
     [ComponentInteraction("ticket-open")]
     public async Task<InteractionCallbackProperties> OpenTicketPrompt(string audience)
     {
+        var lang = await ActingUserLanguageAsync();
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Tickets, parsedAudience, guildAllianceId))
-            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Tickets, Lang)));
+            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Tickets, lang)));
 
-        return InteractionCallback.Modal(new ModalProperties($"ticket-open-modal:{audience}", Msg.Bridge.TicketOpen(Lang),
+        return InteractionCallback.Modal(new ModalProperties($"ticket-open-modal:{audience}", Msg.Bridge.TicketOpen(lang),
         [
-            new LabelProperties(Msg.Bridge.SubjectLabel(Lang),
-                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = Msg.Bridge.SubjectPlaceholder(Lang), MaxLength = 50, Required = true }),
+            new LabelProperties(Msg.Bridge.SubjectLabel(lang),
+                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = Msg.Bridge.SubjectPlaceholder(lang), MaxLength = 50, Required = true }),
         ]));
     }
 
@@ -207,9 +209,10 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     public async Task ShowUnreadAnnouncements()
     {
         var guildId = Context.Guild!.Id;
+        var lang = await ActingUserLanguageAsync();
         if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Announcements))
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Announcements, Lang))));
+            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Announcements, lang))));
             return;
         }
 
@@ -219,7 +222,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
             if (unread.Count == 0)
             {
-                var doneEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsAllRead(Lang, CommanderName.Of(Context.User)), title: Msg.Bridge.AnnouncementsUnreadTitle(Lang));
+                var doneEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsAllRead(lang, CommanderName.Of(Context.User)), title: Msg.Bridge.AnnouncementsUnreadTitle(lang));
                 return m => { m.Embeds = [doneEmbed]; m.Components = []; };
             }
 
@@ -234,7 +237,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             var lines = unread.Select(a =>
                 $"{SeverityEmoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
 
-            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsUnreadIntro(Lang, CommanderName.Of(Context.User), string.Join('\n', lines)), title: Msg.Bridge.AnnouncementsUnreadTitle(Lang));
+            var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsUnreadIntro(lang, CommanderName.Of(Context.User), string.Join('\n', lines)), title: Msg.Bridge.AnnouncementsUnreadTitle(lang));
             return m => { m.Embeds = [finalEmbed]; m.Components = rows; };
         });
     }
@@ -285,46 +288,49 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("anonymous-message")]
     public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)
     {
+        var lang = await ActingUserLanguageAsync();
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.AnonymousMessaging, parsedAudience, guildAllianceId))
-            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging, Lang)));
+            return InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.AnonymousMessaging, lang)));
 
-        return InteractionCallback.Modal(new ModalProperties($"anonymous-message-modal:{audience}", Msg.Bridge.AnonymousMessage(Lang),
+        return InteractionCallback.Modal(new ModalProperties($"anonymous-message-modal:{audience}", Msg.Bridge.AnonymousMessage(lang),
         [
-            new LabelProperties(Msg.Bridge.SubjectLabel(Lang),
-                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = Msg.Bridge.SubjectPlaceholder(Lang), MaxLength = 100, Required = true }),
-            new LabelProperties(Msg.Bridge.MessageLabel(Lang),
-                new TextInputProperties("message", TextInputStyle.Paragraph) { Placeholder = Msg.Bridge.MessagePlaceholder(Lang), Required = true }),
+            new LabelProperties(Msg.Bridge.SubjectLabel(lang),
+                new TextInputProperties("subject", TextInputStyle.Short) { Placeholder = Msg.Bridge.SubjectPlaceholder(lang), MaxLength = 100, Required = true }),
+            new LabelProperties(Msg.Bridge.MessageLabel(lang),
+                new TextInputProperties("message", TextInputStyle.Paragraph) { Placeholder = Msg.Bridge.MessagePlaceholder(lang), Required = true }),
         ]));
     }
 
     [ComponentInteraction("alerts-manage")]
     public async Task<InteractionMessageProperties> AlertsManagePrompt()
     {
-        var (description, components) = await BuildAlertsManageAsync();
-        return await EphemeralEmbedAsync(description, components, title: Msg.Bridge.AlertsTitle(Lang));
+        var lang = await ActingUserLanguageAsync();
+        var (description, components) = await BuildAlertsManageAsync(lang);
+        return await EphemeralEmbedAsync(description, components, title: Msg.Bridge.AlertsTitle(lang));
     }
 
     // Always a button within alerts-manage's own ephemeral message — ModifyMessage is safe.
     [ComponentInteraction("alerts-toggle")]
     public async Task<InteractionCallbackProperties<MessageOptions>> ToggleAlerts(string key)
     {
+        var lang = await ActingUserLanguageAsync();
         await alertService.ToggleOptInRoleAsync(Context.Guild!.Id, Context.User.Id, key);
-        var (description, components) = await BuildAlertsManageAsync();
-        return await EphemeralEmbedModifyAsync(description, components, title: Msg.Bridge.AlertsTitle(Lang));
+        var (description, components) = await BuildAlertsManageAsync(lang);
+        return await EphemeralEmbedModifyAsync(description, components, title: Msg.Bridge.AlertsTitle(lang));
     }
 
     // The opt-in status list: the alerts role plus the four ClientRelease platform roles that are
     // configured and enabled, each with a toggle button reflecting the member's current state
     // (up to five buttons — Discord allows five per action row).
-    private async Task<(string Description, IReadOnlyList<IMessageComponentProperties> Components)> BuildAlertsManageAsync()
+    private async Task<(string Description, IReadOnlyList<IMessageComponentProperties> Components)> BuildAlertsManageAsync(Language lang)
     {
         var roles = await alertService.GetOptInRolesAsync(Context.Guild!.Id, Context.User.Id);
         if (roles.Count == 0)
-            return (Msg.Bridge.AlertsNoRoles(Lang), []);
+            return (Msg.Bridge.AlertsNoRoles(lang), []);
 
-        var lines = roles.Select(r => $"- **{r.Label}**: {(r.HasRole ? Msg.Bridge.AlertsOn(Lang) : Msg.Bridge.AlertsOff(Lang))}");
-        var description = Msg.Bridge.AlertsIntro(Lang, string.Join("\n", lines));
+        var lines = roles.Select(r => $"- **{r.Label}**: {(r.HasRole ? Msg.Bridge.AlertsOn(lang) : Msg.Bridge.AlertsOff(lang))}");
+        var description = Msg.Bridge.AlertsIntro(lang, string.Join("\n", lines));
 
         var buttons = roles
             .Select(r => new ButtonProperties($"alerts-toggle:{r.Key}", r.Label, r.HasRole ? ButtonStyle.Success : ButtonStyle.Secondary))

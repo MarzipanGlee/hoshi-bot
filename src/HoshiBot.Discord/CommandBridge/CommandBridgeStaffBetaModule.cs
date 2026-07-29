@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
@@ -7,23 +8,24 @@ namespace HoshiBot.Discord.CommandBridge;
 
 // Staff bridge "Beta-Tests verwalten": self-service toggle of the caller's own beta-tester
 // role. Not gated by a GuildFeature (it only ever affects the clicking user's own role).
-public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, EmbedBranding embedBranding)
+public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, EmbedBranding embedBranding, LanguageResolver languageResolver)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
-    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // Everything here is ephemeral to the clicking staff member — their language.
+    private Task<Language> ActingUserLanguageAsync() =>
+        languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
 
     [ComponentInteraction("staff-beta-tests")]
     public async Task<InteractionMessageProperties> Prompt()
     {
+        var lang = await ActingUserLanguageAsync();
         var (configured, hasRole) = await betaTesterService.GetStatusAsync(Context.Guild!.Id, Context.User.Id);
         if (!configured)
-            return EphemeralReply.Of(Msg.Bridge.BetaRoleNotConfigured(Lang));
+            return EphemeralReply.Of(Msg.Bridge.BetaRoleNotConfigured(lang));
 
         var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id,
-            Msg.Bridge.BetaStatus(Lang, hasRole ? Msg.Bridge.BetaOn(Lang) : Msg.Bridge.BetaOff(Lang)),
-            title: Msg.Bridge.BetaTitle(Lang));
+            Msg.Bridge.BetaStatus(lang, hasRole ? Msg.Bridge.BetaOn(lang) : Msg.Bridge.BetaOff(lang)),
+            title: Msg.Bridge.BetaTitle(lang));
 
         return new InteractionMessageProperties
         {
@@ -33,8 +35,8 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties("staff-beta-tests-set:on", Msg.Bridge.BetaEnableButton(Lang), EmojiProperties.Standard("▶️"), ButtonStyle.Primary) { Disabled = hasRole },
-                    new ButtonProperties("staff-beta-tests-set:off", Msg.Bridge.BetaDisableButton(Lang), EmojiProperties.Standard("⏹️"), ButtonStyle.Secondary) { Disabled = !hasRole },
+                    new ButtonProperties("staff-beta-tests-set:on", Msg.Bridge.BetaEnableButton(lang), EmojiProperties.Standard("▶️"), ButtonStyle.Primary) { Disabled = hasRole },
+                    new ButtonProperties("staff-beta-tests-set:off", Msg.Bridge.BetaDisableButton(lang), EmojiProperties.Standard("⏹️"), ButtonStyle.Secondary) { Disabled = !hasRole },
                 ]),
             ],
         };
@@ -45,8 +47,9 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
     public Task Set(string action) =>
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
-            var result = await betaTesterService.SetAsync(Context.Guild!.Id, Context.User.Id, action == "on");
-            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.BetaTitle(Lang));
+            var lang = await ActingUserLanguageAsync();
+            var result = await betaTesterService.SetAsync(Context.Guild!.Id, Context.User.Id, action == "on", lang);
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.BetaTitle(lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 }

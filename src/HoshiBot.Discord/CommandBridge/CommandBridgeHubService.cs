@@ -30,12 +30,9 @@ public class CommandBridgeHubService(
     GatewayClient gatewayClient,
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
-    GuildFeatureSettingsService settingsService)
+    GuildFeatureSettingsService settingsService,
+    LanguageResolver languageResolver)
 {
-    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     public async Task<CommandBridgePublishResult> PublishAsync(ulong guildId, int guildAllianceId, CommandBridgeKind bridge)
     {
         // Command Bridge is a per-alliance feature — a disabled one isn't (re)posted (this gates
@@ -47,9 +44,14 @@ public class CommandBridgeHubService(
         if (alliance is null || alliance.GuildId != guildId || ChannelId(alliance, bridge) is not { } channelId)
             return CommandBridgePublishResult.NoChannel;
 
-        var embed = await embedBranding.BuildBrandedAsync(guildId, Msg.Bridge.HubDescription(Lang), title: Title(bridge));
+        // The hub is one public per-alliance message — everything on it (title, description,
+        // buttons, including the audience-scoped contact buttons) renders in this alliance's
+        // language. Each member's follow-up steps are ephemeral and switch to their own.
+        var lang = await languageResolver.ForAllianceAsync(guildAllianceId);
 
-        var components = await BuildComponentsAsync(guildId, guildAllianceId, bridge);
+        var embed = await embedBranding.BuildBrandedAsync(guildId, Msg.Bridge.HubDescription(lang), title: Title(bridge, lang));
+
+        var components = await BuildComponentsAsync(guildId, guildAllianceId, bridge, lang);
 
         if (MessageId(alliance, bridge) is { } messageId)
         {
@@ -80,7 +82,7 @@ public class CommandBridgeHubService(
         return CommandBridgePublishResult.Posted;
     }
 
-    private async Task<IMessageComponentProperties[]> BuildComponentsAsync(ulong guildId, int guildAllianceId, CommandBridgeKind bridge)
+    private async Task<IMessageComponentProperties[]> BuildComponentsAsync(ulong guildId, int guildAllianceId, CommandBridgeKind bridge, Language lang)
     {
         // Per-alliance gating: a feature button shows on this alliance's hub if the feature is
         // enabled for this specific alliance (Alliance audience + this alliance id), or for any
@@ -99,14 +101,14 @@ public class CommandBridgeHubService(
             {
                 if (entry.Kind == CommandBridgeButtonKind.ContactStaff)
                 {
-                    buttons.AddRange(await BuildContactStaffButtonsAsync(guildId, guildAllianceId));
+                    buttons.AddRange(await BuildContactStaffButtonsAsync(guildId, guildAllianceId, lang));
                     continue;
                 }
 
                 if (entry.Feature is { } feature && !IsEnabledForHub(feature))
                     continue;
 
-                buttons.Add(new ButtonProperties(entry.CustomId, MessageCatalog.Format(Lang, entry.LabelKey), EmojiProperties.Standard(entry.Emoji), ButtonStyle.Primary));
+                buttons.Add(new ButtonProperties(entry.CustomId, MessageCatalog.Format(lang, entry.LabelKey), EmojiProperties.Standard(entry.Emoji), ButtonStyle.Primary));
             }
 
             if (buttons.Count > 0)
@@ -120,7 +122,7 @@ public class CommandBridgeHubService(
     // guild with 2+ audiences gets one button per configured audience instead of one generic
     // button, so members pick the right one directly rather than being asked again in
     // ContactCommandStaffPrompt. The Alliance audience uses this hub's own alliance.
-    private async Task<List<ButtonProperties>> BuildContactStaffButtonsAsync(ulong guildId, int guildAllianceId)
+    private async Task<List<ButtonProperties>> BuildContactStaffButtonsAsync(ulong guildId, int guildAllianceId, Language lang)
     {
         var relevant = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Tickets); // same set as AnonymousMessaging
         var configured = new List<GuildAudience>();
@@ -141,15 +143,15 @@ public class CommandBridgeHubService(
         // The single-audience label doubles as the contact step's title — same wording, one key.
         return configured.Select(audience => new ButtonProperties(
             $"contact-command-staff:{audience}",
-            configured.Count > 1 ? Msg.Bridge.ContactStaffAudience(Lang, GuildFeatureService.AudienceLabel(audience, Lang)) : Msg.Bridge.ContactTitle(Lang),
+            configured.Count > 1 ? Msg.Bridge.ContactStaffAudience(lang, GuildFeatureService.AudienceLabel(audience, lang)) : Msg.Bridge.ContactTitle(lang),
             EmojiProperties.Standard("📮"), ButtonStyle.Primary)).ToList();
     }
 
-    private static string Title(CommandBridgeKind bridge) => bridge switch
+    private static string Title(CommandBridgeKind bridge, Language lang) => bridge switch
     {
-        CommandBridgeKind.Staff => Msg.Bridge.HubTitleStaff(Lang),
-        CommandBridgeKind.Friends => Msg.Bridge.HubTitleFriends(Lang),
-        _ => Msg.Bridge.HubTitleUser(Lang),
+        CommandBridgeKind.Staff => Msg.Bridge.HubTitleStaff(lang),
+        CommandBridgeKind.Friends => Msg.Bridge.HubTitleFriends(lang),
+        _ => Msg.Bridge.HubTitleUser(lang),
     };
 
     private static ulong? ChannelId(GuildAlliance a, CommandBridgeKind bridge) => bridge switch

@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -10,23 +11,21 @@ namespace HoshiBot.Discord.CommandBridge;
 // with an expiration derived from the reported variant. The modal was opened from the
 // user-select menu on this flow's own ephemeral wizard message, so the result edits that
 // message in place (never the shared hub).
-public class CommandBridgeStaffModalModule(AlertService alertService, EmbedBranding embedBranding)
+public class CommandBridgeStaffModalModule(AlertService alertService, EmbedBranding embedBranding, LanguageResolver languageResolver)
     : ComponentInteractionModule<ModalInteractionContext>
 {
-    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     [ComponentInteraction("staff-shield-modal")]
     public Task SubmitShieldReport(ulong targetUserId, string variant) =>
         Context.Interaction.ModifyDelayedResponseAsync(async () =>
         {
+            // The result edit is ephemeral to the reporting staff member — their language.
+            var lang = await languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
             var system = TextInputValues().GetValueOrDefault("system") ?? "";
             var parsedVariant = Enum.TryParse<ShieldLossVariant>(variant, out var v) ? v : ShieldLossVariant.Manual;
 
             var result = await alertService.ReportStaffShieldLossAsync(Context.Guild!.Id, targetUserId, system, parsedVariant);
 
-            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffShieldTitle(Lang));
+            var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffShieldTitle(lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
         });
 

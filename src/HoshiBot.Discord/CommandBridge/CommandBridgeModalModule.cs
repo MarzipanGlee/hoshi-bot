@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
@@ -8,12 +9,13 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.CommandBridge;
 
-public class CommandBridgeModalModule(AlertService alertService, PendingModalInputService pendingModalInputService, EmbedBranding embedBranding)
+public class CommandBridgeModalModule(AlertService alertService, PendingModalInputService pendingModalInputService, EmbedBranding embedBranding,
+    LanguageResolver languageResolver)
     : ComponentInteractionModule<ModalInteractionContext>
 {
-    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // The retry step is ephemeral to whoever submitted the modal — their language.
+    private Task<Language> ActingUserLanguageAsync() =>
+        languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
 
     // The "invalid input, try again" edit (retry/cancel buttons). Applied to whichever response
     // the caller acked: Raid edits its own ephemeral wizard message in place (ModifyDelayed),
@@ -21,16 +23,16 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
     // (SendDelayedEdit) so this private prompt never lands on the public hub message. The embed
     // uses the same branded style as every real bot message, with a Zurück (reopen the modal,
     // pre-filled) / Abbrechen pair so a typo doesn't force restarting the whole flow.
-    private async Task<Action<MessageOptions>> RetryEditAsync(string description, int pendingId)
+    private async Task<Action<MessageOptions>> RetryEditAsync(string description, int pendingId, Language lang)
     {
-        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: Msg.Bridge.InvalidInputTitle(Lang));
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, description, title: Msg.Bridge.InvalidInputTitle(lang));
         return m =>
         {
             // Clear the "⏳ Processing..." placeholder — otherwise it lingers as plain text above the
             // error embed (the ack was content-only; without this the edit only adds the embed).
             m.Content = "";
             m.Embeds = [embed];
-            m.Components = [new ActionRowProperties([PendingModalInputService.BackButton(pendingId), PendingModalInputService.CancelButton(pendingId)])];
+            m.Components = [new ActionRowProperties([PendingModalInputService.BackButton(pendingId, lang), PendingModalInputService.CancelButton(pendingId, lang)])];
         };
     }
 
@@ -57,9 +59,10 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
             // (checked inside ReportRaidAsync) isn't something going back and retyping fixes.
             if (await alertService.FindSystemByNameAsync(system) is null)
             {
+                var lang = await ActingUserLanguageAsync();
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.RaidReport,
                     targetUserId.ToString(), location, system, attacker);
-                return await RetryEditAsync(Msg.Alert.UnknownSystem(Lang, system), pendingId);
+                return await RetryEditAsync(Msg.Alert.UnknownSystem(lang, system), pendingId, lang);
             }
 
             var serverLocation = Enum.Parse<RaidServerLocation>(location);
@@ -80,26 +83,29 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
 
             if (DurationParser.Parse(duration) is null)
             {
+                var lang = await ActingUserLanguageAsync();
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.ShieldReminder,
                     duration, system);
-                return await RetryEditAsync(Msg.Bridge.ShieldDurationParseError(Lang), pendingId);
+                return await RetryEditAsync(Msg.Bridge.ShieldDurationParseError(lang), pendingId, lang);
             }
 
             var stfcSystem = await alertService.FindSystemByNameAsync(system);
             if (stfcSystem is null)
             {
+                var lang = await ActingUserLanguageAsync();
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.ShieldReminder,
                     duration, system);
-                return await RetryEditAsync(Msg.Alert.UnknownSystem(Lang, system), pendingId);
+                return await RetryEditAsync(Msg.Alert.UnknownSystem(lang, system), pendingId, lang);
             }
 
             // A shield can only be parked in a housing system — a valid name without housing (e.g. Tezera
             // Beta) still can't hold one, so reject it with the same Zurück/Abbrechen retry.
             if (!stfcSystem.HasStationHousing)
             {
+                var lang = await ActingUserLanguageAsync();
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.ShieldReminder,
                     duration, system);
-                return await RetryEditAsync(AlertService.NoStationHousingMessage(stfcSystem.Name), pendingId);
+                return await RetryEditAsync(AlertService.NoStationHousingMessage(stfcSystem.Name), pendingId, lang);
             }
 
             var result = await alertService.SetShieldReminderAsync(Context.Guild!.Id, Context.User.Id, duration, system);
