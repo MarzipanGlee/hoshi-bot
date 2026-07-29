@@ -61,14 +61,25 @@ File placement rules:
 
 ## Language policy
 
-- **Discord-facing text** (embeds, button labels, error messages) is currently
-  **German**. This is temporary: the plan is full localization — English as the base
-  language plus translations for the languages STFC itself supports, with the current
-  German preserved as one locale (see refactoring plan, "Localization" phase). Until
-  that lands, new Discord-facing text stays German.
-- **Everything else is English**: code, comments, commit messages, docs, and the entire
-  Web admin UI. Some Web pages still contain leftover German — when you touch such a
-  page, translate the German bits as you go; never add new German to the Web UI.
+- **Discord-facing text is localized via the message catalog** — never hardcode a
+  user-facing string. Every message/embed/button/modal string lives as a key in
+  `src/HoshiBot.Domain/Localization/Locales/{en,de}.json` with a typed accessor in
+  the matching `Msg.<Feature>.cs`; add every enabled locale in the same commit (the
+  `MessageCatalogTests` parity suite fails otherwise). Render with a **resolved**
+  `Language`, never a literal: ephemeral/modals → the acting user
+  (`LanguageResolver.ForUserAsync` with the interaction locale), public posts → the
+  owning scope (`ForAlliance/ForAudience/ForGuildAsync`; `GuildAlertChannel`
+  fan-outs via `NotificationDispatcher`'s `Func<Language,…>` overloads), DMs and
+  user-dedicated threads → the addressee, admin notifications → the guild language.
+  See [docs/localization-plan.md](docs/localization-plan.md) for the full rules and
+  the add-a-locale recipe.
+- **LLM prompt text is not catalog material** — prompts stay in code (English or
+  German as the feature requires) and carry a dynamic "Answer in {language}."
+  instruction where the reply is user-facing.
+- **Everything else is English**: code, comments, commit messages, docs, slash-command
+  canonical names/descriptions, and the entire Web admin UI. Some Web pages still
+  contain leftover German — when you touch such a page, translate the German bits as
+  you go; never add new German to the Web UI.
 
 ## Coding conventions
 
