@@ -24,11 +24,12 @@ public partial class TerritoryCaptureDigestService(
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
+    LanguageResolver languageResolver,
     ILogger<TerritoryCaptureDigestService> logger)
 {
-    // All strings come from the message catalog (Msg.Tc); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // Digests and reminders are per-alliance public posts into each alliance's own configured
+    // channels, so everything here renders in that alliance's resolved language
+    // (ForAllianceAsync), dates/weekday names included via Languages.ToCulture.
 
     // Discord's hard limit on a single embed field's Value; exceeding it makes the whole
     // SendMessageAsync throw a 400 RestException (hit for real — the neighbour-tag list once
@@ -55,12 +56,6 @@ public partial class TerritoryCaptureDigestService(
 
             var links = await GetTcEnabledLinksAsync(guildId);
             var weekEnd = weekStart.AddDays(6);
-            // The month-name format deliberately stays on the ambient culture (as the previous
-            // interpolated ToString did), NOT Languages.ToCulture(Lang) — switching would flip the
-            // month names on an invariant-culture host. Sub-phase 6e decides its per-language form.
-            var baseTitle = Msg.Tc.WeeklyTitle(Lang,
-                weekStart.ToDateTime(TimeOnly.MinValue).ToString("MMMM d, yyyy", CultureInfo.CurrentCulture),
-                weekEnd.ToDateTime(TimeOnly.MinValue).ToString("MMMM d, yyyy", CultureInfo.CurrentCulture));
 
             // One digest per TC-enabled alliance, each to its own configured digest channel;
             // the alliance tag is appended to the title only when the guild runs several.
@@ -68,6 +63,15 @@ public partial class TerritoryCaptureDigestService(
             {
                 if (onlyGuildAllianceId is { } onlyAlliance && link.Id != onlyAlliance)
                     continue;
+
+                var lang = await languageResolver.ForAllianceAsync(link.Id);
+
+                // The title's dates render with the alliance's own language's month names and
+                // ordering (this ends 6d's ambient-culture interim — the month names used to
+                // follow the host culture, i.e. invariant/English in production).
+                var baseTitle = Msg.Tc.WeeklyTitle(lang,
+                    FormatLongDate(weekStart, lang),
+                    FormatLongDate(weekEnd, lang));
 
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
@@ -99,8 +103,8 @@ public partial class TerritoryCaptureDigestService(
                     ? new List<ulong> { roleId }
                     : new List<ulong>();
 
-                var title = links.Count > 1 ? Msg.Tc.TitleWithTag(Lang, baseTitle, link.StfcAlliance.Tag) : baseTitle;
-                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true);
+                var title = links.Count > 1 ? Msg.Tc.TitleWithTag(lang, baseTitle, link.StfcAlliance.Tag) : baseTitle;
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true, lang);
 
                 // Retention +7 days: no capture-free day anymore, so the pinned digest must live the
                 // whole week until the next Monday's digest replaces it. The sweep's delete also drops
@@ -163,11 +167,12 @@ public partial class TerritoryCaptureDigestService(
                         mentionRoleIds.Add(rid);
                 }
 
+                var lang = await languageResolver.ForAllianceAsync(link.Id);
                 var title = links.Count > 1
-                    ? Msg.Tc.TitleWithTag(Lang, Msg.Tc.DailyTitle(Lang), link.StfcAlliance.Tag)
-                    : Msg.Tc.DailyTitle(Lang);
+                    ? Msg.Tc.TitleWithTag(lang, Msg.Tc.DailyTitle(lang), link.StfcAlliance.Tag)
+                    : Msg.Tc.DailyTitle(lang);
                 var known = tomorrowSlots.Select(s => (s.SlotIndex, s.Territory, s.Start, s.End)).ToList();
-                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false);
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false, lang);
 
                 // Retention +1 day: yesterday's "tomorrow's zones" preview is stale once its day arrives.
                 if (messageId is { } dailyMessageId)
@@ -277,37 +282,38 @@ public partial class TerritoryCaptureDigestService(
 
     // Returns the posted message id, or null if the send failed (caught RestException). Callers use
     // the id to record a TerritoryCaptureSentMessage so the sweep can clean the message up later.
+    // lang: the owning alliance's resolved language — the digest is that alliance's public post.
     private async Task<ulong?> SendDigestAsync(ulong guildId, ulong channelId, GuildAlliance link, string title,
         List<(int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
-        IReadOnlyList<ulong> mentionRoleIds, bool pin)
+        IReadOnlyList<ulong> mentionRoleIds, bool pin, Language lang)
     {
         // Each row is its OWN inline-code span, with the time appended as real Discord timestamps
         // (<t:unix:t>) OUTSIDE the span. Discord won't render a timestamp inside a code fence, so
         // the legacy design keeps only the aligned columns fenced and lets the time show in each
         // reader's local timezone — the whole reason this isn't one big ``` block.
-        var lines = new List<string> { Msg.Tc.ScheduleHeader(Lang) };
+        var lines = new List<string> { Msg.Tc.ScheduleHeader(lang) };
         foreach (var (slotIndex, territory, start, end) in known)
         {
             var neighbours = await GetNeighbourOwnerTagsAsync(territory.Id, link.StfcAlliance.ServerId, link.StfcAlliance.Tag);
-            var day = start.ToString("ddd", Languages.ToCulture(Lang));
+            var day = start.ToString("ddd", Languages.ToCulture(lang));
             // The column padding stays here (the catalog's placeholders carry no alignment).
-            lines.Add(Msg.Tc.ScheduleRow(Lang, slotIndex, $"{territory.Name,-9}", territory.Tier,
+            lines.Add(Msg.Tc.ScheduleRow(lang, slotIndex, $"{territory.Name,-9}", territory.Tier,
                 $"{string.Join(", ", neighbours),-22}", day, start.ToUnixTimeSeconds(), end.ToUnixTimeSeconds()));
         }
 
         if (unknown.Count > 0)
         {
-            lines.Add(Msg.Tc.TimesUnknown(Lang, string.Join(", ", unknown.Select(t => t.Name))));
+            lines.Add(Msg.Tc.TimesUnknown(lang, string.Join(", ", unknown.Select(t => t.Name))));
         }
 
-        var bridgeMention = link.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : Msg.Tc.BridgeFallback(Lang);
+        var bridgeMention = link.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : Msg.Tc.BridgeFallback(lang);
 
         var embed = await embedBranding.BuildBrandedAsync(guildId,
-            Msg.Tc.DigestIntro(Lang, bridgeMention),
+            Msg.Tc.DigestIntro(lang, bridgeMention),
             title: title);
         embed.Fields =
         [
-            new EmbedFieldProperties { Name = Msg.Tc.FieldSchedule(Lang), Value = Clamp(string.Join("\n", lines)) },
+            new EmbedFieldProperties { Name = Msg.Tc.FieldSchedule(lang), Value = Clamp(string.Join("\n", lines)) },
         ];
 
         var instructions = await settingsService.GetTextAsync(
@@ -316,7 +322,7 @@ public partial class TerritoryCaptureDigestService(
         {
             embed.Fields = embed.Fields.Append(new EmbedFieldProperties
             {
-                Name = Msg.Tc.FieldInstructions(Lang, link.StfcAlliance.Tag),
+                Name = Msg.Tc.FieldInstructions(lang, link.StfcAlliance.Tag),
                 Value = Clamp(instructions),
             });
         }
@@ -324,7 +330,7 @@ public partial class TerritoryCaptureDigestService(
         var buttons = known
             .Select(z => new ButtonProperties(
                 $"territory-capture-unsubscribe:{z.Territory.Id}:{z.Start.ToUnixTimeSeconds()}:{z.End.ToUnixTimeSeconds()}",
-                Msg.Tc.UnsubscribeButton(Lang, z.Territory.Name), EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
+                Msg.Tc.UnsubscribeButton(lang, z.Territory.Name), EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
             .ToList();
 
         var content = mentionRoleIds.Count > 0
@@ -410,6 +416,13 @@ public partial class TerritoryCaptureDigestService(
     // to a truncated field instead of a hard 400 that fails (and silently hides) the whole send.
     private static string Clamp(string value) =>
         value.Length <= MaxEmbedFieldLength ? value : value[..(MaxEmbedFieldLength - 1)] + "…";
+
+    // Full month-name date for the weekly title, in the language's own convention: German (and
+    // the other day-first locales this may grow into) puts the day first, English month-first —
+    // the same De-special-casing DateInput applies to modal input.
+    private static string FormatLongDate(DateOnly date, Language lang) =>
+        date.ToDateTime(TimeOnly.MinValue)
+            .ToString(lang == Language.En ? "MMMM d, yyyy" : "d. MMMM yyyy", Languages.ToCulture(lang));
 
     // Owning-alliance tags of a zone's neighbours, scoped to the alliance's own server. Without
     // the ServerId filter this returned every alliance owning a same-ID territory across ALL ~100

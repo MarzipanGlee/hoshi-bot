@@ -16,10 +16,6 @@ public class AllianceTournamentNotifyJob(
     HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding)
     : DiffNotifyJobBase<StfcEventStatus>(db, dispatcher, embedBranding)
 {
-    // All strings come from the message catalog (Msg.Event); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     // The string value ("alliance_tournaments") is a real persisted lookup key
     // (StfcEventStatus.EventGroup) — do not change the value, only the constant's own name
     // is cosmetic.
@@ -42,8 +38,8 @@ public class AllianceTournamentNotifyJob(
     protected override Task<List<ulong>> ResolveGuildIdsAsync(StfcEventStatus row) =>
         Db.GuildServers.Select(g => g.GuildId).Distinct().ToListAsync();
 
-    protected override (string Content, NetCord.Color Color) BuildAnnouncement(StfcEventStatus row) =>
-        (Msg.Event.TournamentScheduled(Lang, row.EventStart.ToUnixTimeSeconds()),
+    protected override (string Content, NetCord.Color Color) BuildAnnouncement(StfcEventStatus row, Language lang) =>
+        (Msg.Event.TournamentScheduled(lang, row.EventStart.ToUnixTimeSeconds()),
             EmbedBranding.WarningColor);
 
     protected override void MarkNotified(StfcEventStatus row) => row.NotifiedEventStart = row.EventStart;

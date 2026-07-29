@@ -1,6 +1,5 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
-using HoshiBot.Domain.Localization;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
@@ -9,19 +8,20 @@ namespace HoshiBot.Discord.Announcements;
 // MessageCommandContext is a sibling of ApplicationCommandContext (both just implement
 // IApplicationCommandContext), not a subtype — needs its own module base, confirmed via
 // reflection against the installed NetCord package before writing this.
-public class AnnouncementMessageCommandModule(GuildFeatureService featureService, GuildFeatureSettingsService settingsService, EmbedBranding embedBranding)
+public class AnnouncementMessageCommandModule(GuildFeatureService featureService, GuildFeatureSettingsService settingsService, EmbedBranding embedBranding,
+    LanguageResolver languageResolver)
     : ApplicationCommandModule<MessageCommandContext>
 {
-    // Catalog-rendered strings (the feature-disabled guard) are pinned to German until
-    // sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     [MessageCommand("Vorschau erstellen")]
     public async Task<InteractionMessageProperties> Preview()
     {
         var guildId = Context.Guild!.Id;
+
+        // Everything this returns (disabled guard, audience/severity prompts) is an ephemeral
+        // wizard message for the invoking staff member — their language.
+        var lang = await languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, guildId);
         if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Announcements))
-            return await embedBranding.EphemeralAsync(guildId, GuildFeatureService.DisabledMessage(GuildFeature.Announcements, Lang));
+            return await embedBranding.EphemeralAsync(guildId, GuildFeatureService.DisabledMessage(GuildFeature.Announcements, lang));
 
         var draft = Context.Target;
 
@@ -35,7 +35,7 @@ public class AnnouncementMessageCommandModule(GuildFeatureService featureService
         var scopes = await settingsService.FindScopesByValueAsync(guildId, GuildFeature.Announcements, AnnouncementsSettingKeys.DraftChannel, draft.ChannelId);
         var audiences = scopes.Select(s => s.Audience).Distinct().ToList();
         return audiences.Count == 1
-            ? AnnouncementButtonModule.BuildSeverityPrompt(draft, audiences[0])
-            : AnnouncementButtonModule.BuildAudiencePrompt(draft);
+            ? AnnouncementButtonModule.BuildSeverityPrompt(draft, audiences[0], lang)
+            : AnnouncementButtonModule.BuildAudiencePrompt(draft, lang);
     }
 }

@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -16,7 +17,7 @@ public enum StfcNewsActionOutcome { NotFound, AlreadyResolved, CannotConfirmOwnS
 // outcome returned here — it is never the same message as the shared post embed, so updating
 // the shared message (via RefreshAllGuildMessagesAsync, below) can always go through a plain
 // direct REST edit with no risk of conflicting with the interaction's own response.
-public class StfcNewsService(HoshiBotDbContext db, GatewayClient gatewayClient)
+public class StfcNewsService(HoshiBotDbContext db, GatewayClient gatewayClient, LanguageResolver languageResolver)
 {
     public async Task<StfcNewsActionOutcome> SubmitDateAsync(int postId, DateOnly date, ulong submitterId)
     {
@@ -138,10 +139,18 @@ public class StfcNewsService(HoshiBotDbContext db, GatewayClient gatewayClient)
     public async Task RefreshAllGuildMessagesAsync(StfcNewsPost post)
     {
         var count = await db.StfcEventDateConfirmations.CountAsync(c => c.StfcNewsPostId == post.Id);
-        var (embed, buttons) = StfcNewsMessageBuilder.Build(post, count);
+
+        // Each guild's copy of the shared message renders in that guild's language (the post
+        // goes to the guild-scoped AdminChannelId) — built once per distinct language.
+        var rendered = new Dictionary<Language, (EmbedProperties Embed, IReadOnlyList<ButtonProperties>? Buttons)>();
 
         foreach (var guildMessage in post.GuildMessages)
         {
+            var lang = await languageResolver.ForGuildAsync(guildMessage.GuildId);
+            if (!rendered.TryGetValue(lang, out var r))
+                rendered[lang] = r = StfcNewsMessageBuilder.Build(post, count, lang);
+            var (embed, buttons) = r;
+
             try
             {
                 await gatewayClient.Rest.ModifyMessageAsync(guildMessage.ChannelId, guildMessage.MessageId, m =>

@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
@@ -5,12 +6,8 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.StfcNews;
 
-public class StfcNewsModalModule(StfcNewsService service, EmbedBranding embedBranding) : ComponentInteractionModule<ModalInteractionContext>
+public class StfcNewsModalModule(StfcNewsService service, EmbedBranding embedBranding, LanguageResolver languageResolver) : ComponentInteractionModule<ModalInteractionContext>
 {
-    // All strings come from the message catalog (Msg.News); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     // Personal ephemeral reply, not an edit to the shared message — see StfcNewsButtonModule.
     // Confirm for why (an immediate ack, then edited with the real outcome once
     // SubmitDateAsync's DB work completes, kept fully independent of the shared message's own
@@ -18,11 +15,17 @@ public class StfcNewsModalModule(StfcNewsService service, EmbedBranding embedBra
     [ComponentInteraction("stfc-news-date-modal")]
     public async Task SubmitDate(int postId)
     {
+        // Everything rendered here (parse error and outcome alike) is ephemeral to the
+        // submitting admin — their language.
+        var lang = await languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
+
+        // Permissive per-language parsing (DateInput): the resolved language's convention plus
+        // the German dd.MM.yyyy and ISO fallbacks — same chain the Absences modals use.
         var dateText = TextInputValues().GetValueOrDefault("event-date");
-        if (!DateOnly.TryParseExact(dateText?.Trim(), "dd.MM.yyyy", out var date))
+        if (!DateInput.TryParseDate(dateText, lang, out var date))
         {
             await Context.Interaction.SendResponseAsync(InteractionCallback.Message(
-                EphemeralReply.Of(Msg.News.DateParseError(Lang))));
+                EphemeralReply.Of(Msg.News.DateParseError(lang))));
             return;
         }
 
@@ -31,9 +34,9 @@ public class StfcNewsModalModule(StfcNewsService service, EmbedBranding embedBra
             var outcome = await service.SubmitDateAsync(postId, date, Context.User.Id);
             return outcome switch
             {
-                StfcNewsActionOutcome.NotFound => Msg.News.PostNotFound(Lang),
-                StfcNewsActionOutcome.AlreadyResolved => Msg.News.AlreadyConfirmed(Lang),
-                _ => Msg.News.DateSubmitted(Lang, date),
+                StfcNewsActionOutcome.NotFound => Msg.News.PostNotFound(lang),
+                StfcNewsActionOutcome.AlreadyResolved => Msg.News.AlreadyConfirmed(lang),
+                _ => Msg.News.DateSubmitted(lang, date),
             };
         });
     }

@@ -35,6 +35,7 @@ public class StfcNewsNotifyJob(
     NotificationDispatcher dispatcher,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
+    LanguageResolver languageResolver,
     ILogger<StfcNewsNotifyJob> logger) : IJob
 {
     private const string FeedUrl = "https://startrekfleetcommand.com/feed/";
@@ -112,10 +113,11 @@ public class StfcNewsNotifyJob(
                 continue;
 
             var confirmationCount = await db.StfcEventDateConfirmations.CountAsync(c => c.StfcNewsPostId == post.Id, ct);
-            var (embed, buttons) = StfcNewsMessageBuilder.Build(post, confirmationCount);
 
             foreach (var guildId in missingGuildIds)
             {
+                // The message lands in the guild-scoped AdminChannelId — that guild's language.
+                var (embed, buttons) = StfcNewsMessageBuilder.Build(post, confirmationCount, await languageResolver.ForGuildAsync(guildId));
                 var sent = await dispatcher.SendToAdminChannelAsync(guildId, embed: embed, buttons: buttons);
                 if (sent is not { } message)
                     continue;
@@ -162,7 +164,8 @@ public class StfcNewsNotifyJob(
 
         foreach (var guildId in enabledGuildIds)
         {
-            var (embed, buttons) = StfcNewsMessageBuilder.Build(newsPost, confirmationCount: 0);
+            // The message lands in the guild-scoped AdminChannelId — that guild's language.
+            var (embed, buttons) = StfcNewsMessageBuilder.Build(newsPost, confirmationCount: 0, await languageResolver.ForGuildAsync(guildId));
             var sent = await dispatcher.SendToAdminChannelAsync(guildId, embed: embed, buttons: buttons);
             if (sent is not { } message)
                 continue;

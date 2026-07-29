@@ -25,13 +25,10 @@ public class HoshiSayModule(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     GatewayClient gatewayClient,
-    EmbedBranding embedBranding)
+    EmbedBranding embedBranding,
+    LanguageResolver languageResolver)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
-    // All strings come from the message catalog (Msg.Say); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     [SlashCommand("hoshi-say", "Lass Hoshi eine Nachricht in diesen Kanal schreiben (nur mit der berechtigten Rolle)",
         Contexts = [InteractionContextType.Guild])]
     public Task Say(
@@ -43,21 +40,27 @@ public class HoshiSayModule(
         {
             var guildId = Context.Guild!.Id;
 
+            // Every catalog string here — gates, failure, the Posted confirmation quoting the
+            // composed text — is the ephemeral reply to the invoking admin, so it all follows
+            // the acting user's language. The message Hoshi posts publicly is the LLM-composed
+            // text itself, which never goes through the catalog.
+            var lang = await languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, guildId);
+
             // Feature gate (Discord can send stale interactions from an unrefreshed command list).
-            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.HoshiSay, Lang) is { } disabled)
+            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.HoshiSay, lang) is { } disabled)
                 return disabled;
 
             // Role gate: only members holding the configured allowed role may run the command.
             var allowedRole = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.HoshiSay, GuildAudience.Guild, null, HoshiSaySettingKeys.AllowedRole);
             if (allowedRole is not { } roleId)
-                return Msg.Say.NoRoleConfigured(Lang);
+                return Msg.Say.NoRoleConfigured(lang);
             if (Context.User is not GuildUser member || !member.RoleIds.Contains(roleId))
-                return Msg.Say.RoleRequired(Lang, $"<@&{roleId}>");
+                return Msg.Say.RoleRequired(lang, $"<@&{roleId}>");
 
             var text = await aiChat.ComposeMessageAsync(
                 guildId, instruction, mitglied?.Id, mitglied is null ? null : CommanderName.Of(mitglied), CancellationToken.None);
             if (text is null)
-                return Msg.Say.ComposeFailed(Lang);
+                return Msg.Say.ComposeFailed(lang);
 
             // Post into the channel the command was used in, as a plain chat message (no embed) so it
             // reads like a natural Hoshi line. Only the explicitly-picked member may be pinged;
@@ -70,6 +73,6 @@ public class HoshiSayModule(
                     : AllowedMentionsProperties.None,
             });
 
-            return Msg.Say.Posted(Lang, text);
+            return Msg.Say.Posted(lang, text);
         });
 }

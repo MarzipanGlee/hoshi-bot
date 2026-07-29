@@ -35,12 +35,9 @@ public class StfcClientReleaseNotifyJob(
     GuildFeatureChannelService featureChannelService,
     GuildFeatureSettingsService settingsService,
     EmbedBranding embedBranding,
+    LanguageResolver languageResolver,
     ILogger<StfcClientReleaseNotifyJob> logger) : IJob
 {
-    // All strings come from the message catalog (Msg.Client); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     private const string XsollaUpdatesUrl = "https://gus.xsolla.com/updates?project_id=152033&platform={0}";
     private const string PlayStoreUrl = "https://play.google.com/store/apps/details?id=com.scopely.startrek";
     private const string ITunesLookupUrl = "https://itunes.apple.com/lookup?id=1427744264";
@@ -89,8 +86,6 @@ public class StfcClientReleaseNotifyJob(
             if (roleKey is null)
                 continue;
 
-            var content = BuildContent(platform, version);
-
             // Every guild that has configured at least one ClientRelease announcement channel.
             var guildIds = await db.GuildFeatureChannels
                 .Where(c => c.Feature == GuildFeature.ClientRelease)
@@ -106,8 +101,22 @@ public class StfcClientReleaseNotifyJob(
 
                 var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.ClientRelease, GuildAudience.None, null, roleKey);
 
-                var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.InformationColor, Msg.Client.NewVersionTitle(Lang, DisplayName(platform)));
-                await dispatcher.SendToChannelIdsAsync(guildId, channelIds, roleId, content, embed);
+                // GuildFeatureChannel rows are audience-scoped (never per-alliance), so each
+                // channel renders in its audience's language — grouped so a language's content/
+                // embed is built once and sent to all its channels in one dispatcher call.
+                var channelsByLanguage = new Dictionary<Language, List<ulong>>();
+                foreach (var channelId in channelIds)
+                {
+                    var lang = await ResolveChannelLanguageAsync(guildId, channelId, context.CancellationToken);
+                    (channelsByLanguage.TryGetValue(lang, out var list) ? list : channelsByLanguage[lang] = []).Add(channelId);
+                }
+
+                foreach (var (lang, langChannelIds) in channelsByLanguage)
+                {
+                    var content = BuildContent(platform, version, lang);
+                    var embed = await embedBranding.BuildBrandedAsync(guildId, content, EmbedBranding.InformationColor, Msg.Client.NewVersionTitle(lang, DisplayName(platform)));
+                    await dispatcher.SendToChannelIdsAsync(guildId, langChannelIds, roleId, content, embed);
+                }
             }
 
             row.NotifiedVersion = row.Version;
@@ -116,12 +125,28 @@ public class StfcClientReleaseNotifyJob(
         await db.SaveChangesAsync(context.CancellationToken);
     }
 
-    private static string BuildContent(StfcClientPlatform platform, string version) => platform switch
+    // The language a feature channel's announcement renders in — the same audience rule the
+    // dispatcher's alert-channel fan-out applies: Alliance rows carry no alliance id (see
+    // GuildFeatureChannel), so Alliance/Guild/None resolve to the guild language, the rest per
+    // audience. Falls back to the guild language if the row vanished mid-run.
+    private async Task<Language> ResolveChannelLanguageAsync(ulong guildId, ulong channelId, CancellationToken ct)
+    {
+        var audience = await db.GuildFeatureChannels
+            .Where(c => c.GuildId == guildId && c.Feature == GuildFeature.ClientRelease && c.ChannelId == channelId)
+            .Select(c => (GuildAudience?)c.Audience)
+            .FirstOrDefaultAsync(ct);
+
+        return audience is null or GuildAudience.Alliance or GuildAudience.Guild or GuildAudience.None
+            ? await languageResolver.ForGuildAsync(guildId)
+            : await languageResolver.ForAudienceAsync(guildId, audience.Value);
+    }
+
+    private static string BuildContent(StfcClientPlatform platform, string version, Language lang) => platform switch
     {
         // Store names are proper nouns and stay code-side arguments.
-        StfcClientPlatform.Android => Msg.Client.ReleasedOnStore(Lang, version, "Google Play Store"),
-        StfcClientPlatform.IOS => Msg.Client.ReleasedOnStore(Lang, version, "Apple App Store"),
-        _ => Msg.Client.Released(Lang, version),
+        StfcClientPlatform.Android => Msg.Client.ReleasedOnStore(lang, version, "Google Play Store"),
+        StfcClientPlatform.IOS => Msg.Client.ReleasedOnStore(lang, version, "Apple App Store"),
+        _ => Msg.Client.Released(lang, version),
     };
 
     private static string DisplayName(StfcClientPlatform platform) => platform switch

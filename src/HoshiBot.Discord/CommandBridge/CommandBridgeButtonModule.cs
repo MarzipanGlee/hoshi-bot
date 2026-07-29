@@ -231,7 +231,7 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
             // GetUnreadAsync's query — a small staleness window (up to ~15 min) is an
             // acceptable trade-off already established for this same count elsewhere.
             var rows = unread
-                .Select(a => new ActionRowProperties([AnnouncementService.ReadButton(a.Id, a.LastKnownReadCount)]))
+                .Select(a => new ActionRowProperties([AnnouncementService.ReadButton(a.Id, a.LastKnownReadCount, lang)]))
                 .ToList();
 
             var lines = unread.Select(a =>

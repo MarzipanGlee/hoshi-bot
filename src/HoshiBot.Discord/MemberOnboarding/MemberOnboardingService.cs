@@ -19,11 +19,12 @@ public class MemberOnboardingService(
     HoshiBotDbContext db,
     NotificationDispatcher notificationDispatcher,
     PlayerLinkService playerLinkService,
+    LanguageResolver languageResolver,
     ILogger<MemberOnboardingService> logger)
 {
-    // All strings come from the message catalog (Msg.Onboarding); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // Everything here is DM'd to (or replies within the DM of) the targeted member — their
+    // resolved language throughout; the acting user of the button/modal follow-ups is that
+    // same member.
 
     // Custom-ID prefixes; NetCord parses the ":"-separated tail into the handler method's parameters.
     public const string ConfirmButtonId = "player-link-confirm";      // player-link-confirm:{reviewId}:{playerId}
@@ -45,6 +46,8 @@ public class MemberOnboardingService(
             return false;
         }
 
+        var lang = await languageResolver.ForUserAsync(review.DiscordUserId, scopeGuildId: review.GuildId);
+
         var candidates = await playerLinkService.ResolveCandidatesAsync(review.GuildId, review.Nickname);
         var best = review.CandidateStfcPlayerId is { } cid
             ? candidates.FirstOrDefault(p => p.Id == cid)
@@ -54,24 +57,24 @@ public class MemberOnboardingService(
         List<ActionRowProperties> rows;
         if (best is not null)
         {
-            content = Msg.Onboarding.OutreachGuess(Lang, best.Name);
+            content = Msg.Onboarding.OutreachGuess(lang, best.Name);
             rows =
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"{ConfirmButtonId}:{review.Id}:{best.Id}", Msg.Onboarding.ConfirmButton(Lang), ButtonStyle.Success),
-                    new ButtonProperties($"{NameButtonId}:{review.Id}", Msg.Onboarding.OtherPlayerButton(Lang), ButtonStyle.Secondary),
+                    new ButtonProperties($"{ConfirmButtonId}:{review.Id}:{best.Id}", Msg.Onboarding.ConfirmButton(lang), ButtonStyle.Success),
+                    new ButtonProperties($"{NameButtonId}:{review.Id}", Msg.Onboarding.OtherPlayerButton(lang), ButtonStyle.Secondary),
                 ]),
             ];
         }
         else
         {
-            content = Msg.Onboarding.OutreachAsk(Lang);
+            content = Msg.Onboarding.OutreachAsk(lang);
             rows =
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"{NameButtonId}:{review.Id}", Msg.Onboarding.EnterNameButton(Lang), ButtonStyle.Primary),
+                    new ButtonProperties($"{NameButtonId}:{review.Id}", Msg.Onboarding.EnterNameButton(lang), ButtonStyle.Primary),
                 ]),
             ];
         }
@@ -90,13 +93,18 @@ public class MemberOnboardingService(
     // The member confirmed the bot's guess → link + resolve. Returns the DM reply text.
     public async Task<string> ConfirmAsync(int reviewId, int playerId, ulong userId, CancellationToken cancellationToken)
     {
+        // The reply edits the member's own DM — their language. No guild scope here: the
+        // review row isn't loaded on this path, and a member who got this far has a
+        // DiscordUser row (locale/preference) to resolve from anyway.
+        var lang = await languageResolver.ForUserAsync(userId);
+
         var player = await db.StfcPlayers.FindAsync(playerId);
         if (player is null)
-            return Msg.Onboarding.PlayerGone(Lang);
+            return Msg.Onboarding.PlayerGone(lang);
 
         await playerLinkService.LinkAsync(userId, playerId);
         await playerLinkService.MarkUserResolvedAsync(userId);
-        return Msg.Onboarding.Linked(Lang, player.Name);
+        return Msg.Onboarding.Linked(lang, player.Name);
     }
 
     // The member typed an in-game name → resolve it against the catalog and link if unique.
@@ -104,17 +112,19 @@ public class MemberOnboardingService(
     {
         var review = await db.PlayerLinkReviews.FirstOrDefaultAsync(r => r.Id == reviewId, cancellationToken);
         if (review is null)
-            return Msg.Onboarding.RequestStale(Lang);
+            return Msg.Onboarding.RequestStale(await languageResolver.ForUserAsync(userId));
+
+        var lang = await languageResolver.ForUserAsync(userId, scopeGuildId: review.GuildId);
 
         var name = typedName.Trim();
         var candidates = await playerLinkService.ResolveCandidatesAsync(review.GuildId, name);
         if (candidates.Count == 0)
-            return Msg.Onboarding.NameNotFound(Lang, name);
+            return Msg.Onboarding.NameNotFound(lang, name);
         if (candidates.Count > 1)
-            return Msg.Onboarding.NameAmbiguous(Lang, name);
+            return Msg.Onboarding.NameAmbiguous(lang, name);
 
         await playerLinkService.LinkAsync(userId, candidates[0].Id);
         await playerLinkService.MarkUserResolvedAsync(userId);
-        return Msg.Onboarding.Linked(Lang, candidates[0].Name);
+        return Msg.Onboarding.Linked(lang, candidates[0].Name);
     }
 }

@@ -41,6 +41,9 @@ public partial class TerritoryCaptureDigestService
             var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
             foreach (var link in await GetTcEnabledLinksAsync(guildId))
             {
+                // Both reminder kinds are this alliance's own public posts — its language.
+                var lang = await languageResolver.ForAllianceAsync(link.Id);
+
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
                 if (channelId is not { } channelIdValue)
@@ -58,7 +61,7 @@ public partial class TerritoryCaptureDigestService
                     if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
                         continue;
 
-                    var messageId = await SendCaptureReminderAsync(guildId, channelIdValue, link, slot);
+                    var messageId = await SendCaptureReminderAsync(guildId, channelIdValue, link, slot, lang);
                     if (messageId is { } mid)
                         await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Single, dedupKey, channelIdValue, mid, now, slot.End);
                 }
@@ -83,7 +86,7 @@ public partial class TerritoryCaptureDigestService
                     if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
                         continue;
 
-                    var messageId = await SendServicesReminderAsync(guildId, servicesChannelIdValue, link, slot);
+                    var messageId = await SendServicesReminderAsync(guildId, servicesChannelIdValue, link, slot, lang);
                     if (messageId is { } mid)
                         await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Services, dedupKey, servicesChannelIdValue, mid, now, slot.End + ServicesRetention);
                 }
@@ -94,7 +97,7 @@ public partial class TerritoryCaptureDigestService
     }
 
     private async Task<ulong?> SendCaptureReminderAsync(ulong guildId, ulong channelId, GuildAlliance link,
-        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot)
+        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot, Language lang)
     {
         var startUnix = slot.Start.ToUnixTimeSeconds();
         var endUnix = slot.End.ToUnixTimeSeconds();
@@ -103,12 +106,12 @@ public partial class TerritoryCaptureDigestService
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slot.SlotIndex));
 
         var embed = await embedBranding.BuildBrandedAsync(guildId,
-            Msg.Tc.ReminderBody(Lang, startUnix, endUnix),
-            title: Msg.Tc.ReminderTitle(Lang, slot.Territory.Name));
+            Msg.Tc.ReminderBody(lang, startUnix, endUnix),
+            title: Msg.Tc.ReminderTitle(lang, slot.Territory.Name));
 
         var button = new ButtonProperties(
             $"territory-capture-unsubscribe:{slot.Territory.Id}:{startUnix}:{endUnix}",
-            Msg.Tc.UnsubscribeButton(Lang, slot.Territory.Name), EmojiProperties.Standard(DigitEmoji(slot.SlotIndex)), ButtonStyle.Primary);
+            Msg.Tc.UnsubscribeButton(lang, slot.Territory.Name), EmojiProperties.Standard(DigitEmoji(slot.SlotIndex)), ButtonStyle.Primary);
 
         try
         {
@@ -136,15 +139,15 @@ public partial class TerritoryCaptureDigestService
     // pinging the alliance's configured services role. No unsubscribe/ack button (unlike the
     // pre-capture reminder); it's an after-the-fact officer nudge.
     private async Task<ulong?> SendServicesReminderAsync(ulong guildId, ulong channelId, GuildAlliance link,
-        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot)
+        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot, Language lang)
     {
         var roleId = await settingsService.GetSnowflakeAsync(
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesRole);
 
-        var description = await BuildServicesDescriptionAsync(link, slot.Territory);
+        var description = await BuildServicesDescriptionAsync(link, slot.Territory, lang);
 
         var embed = await embedBranding.BuildBrandedAsync(guildId, description,
-            title: Msg.Tc.ServicesTitle(Lang, slot.Territory.Name));
+            title: Msg.Tc.ServicesTitle(lang, slot.Territory.Name));
 
         try
         {
@@ -170,8 +173,9 @@ public partial class TerritoryCaptureDigestService
     // Builds the Services reminder body for a zone. If the alliance has curated a Service Selection
     // for this zone, renders two ordered groups (obligatorisch / optional). Otherwise falls back to
     // the full list of the zone's services (all in canonical slot order), or a generic nudge when
-    // even that is empty (server not synced). Service names are English game terms; framing German.
-    private async Task<string> BuildServicesDescriptionAsync(GuildAlliance link, StfcTerritory territory)
+    // even that is empty (server not synced). Service names stay English game terms; the framing
+    // renders in the alliance's language.
+    private async Task<string> BuildServicesDescriptionAsync(GuildAlliance link, StfcTerritory territory, Language lang)
     {
         var slots = await db.StfcTerritoryServiceSlots
             .Where(s => s.ServerId == link.StfcAlliance.ServerId && s.TerritoryId == territory.Id)
@@ -180,7 +184,7 @@ public partial class TerritoryCaptureDigestService
             .ToListAsync();
 
         if (slots.Count == 0)
-            return Msg.Tc.ServicesGenericNudge(Lang, territory.Name);
+            return Msg.Tc.ServicesGenericNudge(lang, territory.Name);
 
         var priorityByService = await db.TerritoryServiceSelections
             .Where(x => x.GuildAllianceId == link.Id && x.TerritoryId == territory.Id)
@@ -196,13 +200,13 @@ public partial class TerritoryCaptureDigestService
 
         // No curation (or every curated service has since dropped off the zone) → list all, game order.
         if (mustHave.Count == 0 && niceToHave.Count == 0)
-            return Clamp(Msg.Tc.ServicesAllInOrder(Lang, territory.Name, Numbered(slots.Select(s => s.Name))));
+            return Clamp(Msg.Tc.ServicesAllInOrder(lang, territory.Name, Numbered(slots.Select(s => s.Name))));
 
-        var parts = new List<string> { Msg.Tc.ServicesEnded(Lang, territory.Name) };
+        var parts = new List<string> { Msg.Tc.ServicesEnded(lang, territory.Name) };
         if (mustHave.Count > 0)
-            parts.Add(Msg.Tc.ServicesMustHave(Lang, Numbered(mustHave)));
+            parts.Add(Msg.Tc.ServicesMustHave(lang, Numbered(mustHave)));
         if (niceToHave.Count > 0)
-            parts.Add(Msg.Tc.ServicesNiceToHave(Lang, Numbered(niceToHave)));
+            parts.Add(Msg.Tc.ServicesNiceToHave(lang, Numbered(niceToHave)));
 
         return Clamp(string.Join("\n\n", parts));
     }

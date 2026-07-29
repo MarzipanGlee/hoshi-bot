@@ -8,11 +8,11 @@ using NetCord.Services.ApplicationCommands;
 
 namespace HoshiBot.Discord.Players;
 
-public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkService, EmbedBranding embedBranding) : ApplicationCommandModule<ApplicationCommandContext>
+public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkService, EmbedBranding embedBranding, LanguageResolver languageResolver) : ApplicationCommandModule<ApplicationCommandContext>
 {
-    // All strings come from the message catalog (Msg.Player); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // Both commands only ever reply ephemerally to the invoking member — their language.
+    private Task<Language> ActingUserLanguageAsync() =>
+        languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
 
     [SlashCommand("link-player", "Link your Discord account to your STFC in-game player name",
         Contexts = [InteractionContextType.Guild])]
@@ -20,10 +20,11 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var userId = Context.User.Id;
+            var lang = await ActingUserLanguageAsync();
 
             var server = await db.StfcServers.FirstOrDefaultAsync(s => s.Name == serverName);
             if (server is null)
-                return Msg.Player.ServerNotFound(Lang, serverName);
+                return Msg.Player.ServerNotFound(lang, serverName);
 
             var player = await db.StfcPlayers.FirstOrDefaultAsync(p => p.ServerId == server.Id && p.Name == playerName);
             if (player is null)
@@ -41,7 +42,7 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
                 await playerLinkService.EnsureGuildMemberAsync(guild.Id, userId);
             await playerLinkService.LinkAsync(userId, player.Id);
 
-            return Msg.Player.Linked(Lang, playerName, server.Name);
+            return Msg.Player.Linked(lang, playerName, server.Name);
         });
 
     [SlashCommand("set-my-alliance", "Set the alliance for the player representing you in this server",
@@ -50,20 +51,21 @@ public class PlayerModule(HoshiBotDbContext db, PlayerLinkService playerLinkServ
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var userId = Context.User.Id;
+            var lang = await ActingUserLanguageAsync();
 
             var playerId = await playerLinkService.GetGuildPrimaryPlayerIdAsync(Context.Guild!.Id, userId);
             var player = playerId is null ? null : await db.StfcPlayers.FindAsync(playerId);
             if (player is null)
-                return Msg.Player.NoLinkedPlayer(Lang);
+                return Msg.Player.NoLinkedPlayer(lang);
 
             var alliance = await db.StfcAlliances.FirstOrDefaultAsync(a =>
                 a.ServerId == player.ServerId && a.Tag == allianceTag);
             if (alliance is null)
-                return Msg.Player.AllianceNotFound(Lang, allianceTag);
+                return Msg.Player.AllianceNotFound(lang, allianceTag);
 
             player.AllianceId = alliance.Id;
             await db.SaveChangesAsync();
 
-            return Msg.Player.AllianceSet(Lang, alliance.Name, alliance.Tag);
+            return Msg.Player.AllianceSet(lang, alliance.Name, alliance.Tag);
         });
 }

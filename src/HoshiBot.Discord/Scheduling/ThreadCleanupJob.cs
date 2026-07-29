@@ -13,12 +13,8 @@ namespace HoshiBot.Discord.Scheduling;
 // Processes the thread-removal queue one request at a time (rate-limit-conscious,
 // matching the original bot's behavior) once a request's grace period has elapsed —
 // gives requesters a window to reconsider before the thread is actually deleted.
-public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher, ILogger<ThreadCleanupJob> logger) : IJob
+public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher, LanguageResolver languageResolver, ILogger<ThreadCleanupJob> logger) : IJob
 {
-    // All strings come from the message catalog (Msg.Cleanup); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     private static readonly TimeSpan GracePeriod = TimeSpan.FromMinutes(5);
 
     public async Task Execute(IJobExecutionContext context)
@@ -52,8 +48,10 @@ public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient,
             logger.LogWarning(ex,
                 "Failed to remove thread {ThreadId} requested by {RequestedBy}; will retry next run",
                 request.ThreadId, request.RequestedByDiscordUserId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(request.GuildId, Msg.Cleanup.ActionRemoveThread(Lang),
-                Msg.Cleanup.HintManageThreads(Lang, $"<#{request.ThreadId}>"));
+            // Admin notification — guild language, resolved only on this rare failure path.
+            var lang = await languageResolver.ForGuildAsync(request.GuildId);
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(request.GuildId, Msg.Cleanup.ActionRemoveThread(lang),
+                Msg.Cleanup.HintManageThreads(lang, $"<#{request.ThreadId}>"));
             return;
         }
 

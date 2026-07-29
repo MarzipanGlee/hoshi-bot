@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
@@ -8,11 +9,13 @@ namespace HoshiBot.Discord.Scheduling;
 // Shared diff-and-notify scaffold for the alert-channel notify jobs (ServerStatus,
 // InfiniteIncursions, AllianceTournament): load the rows whose observed state no longer
 // matches what was last announced, resolve the guilds each row concerns, post one branded
-// embed per guild via the audience-gated dispatcher path, then write the Notified* marks
-// back in a single SaveChangesAsync. StfcClientReleaseNotifyJob deliberately does NOT use
-// this base — it fetches external HTTP sources per platform, inserts a baseline row on
-// first detection (hence its [DisallowConcurrentExecution]), and dispatches to
-// GuildFeatureChannel ids with a per-platform role instead of GuildAlertChannel rows.
+// embed per guild via the audience-gated dispatcher path — each GuildAlertChannel row
+// rendered in its audience's language via the dispatcher's factory overloads — then write
+// the Notified* marks back in a single SaveChangesAsync. StfcClientReleaseNotifyJob
+// deliberately does NOT use this base — it fetches external HTTP sources per platform,
+// inserts a baseline row on first detection (hence its [DisallowConcurrentExecution]), and
+// dispatches to GuildFeatureChannel ids with a per-platform role instead of
+// GuildAlertChannel rows.
 public abstract class DiffNotifyJobBase<TRow>(
     HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding) : IJob
 {
@@ -23,7 +26,7 @@ public abstract class DiffNotifyJobBase<TRow>(
     protected abstract GuildFeature Feature { get; }
 
     // Embed title shared by every announcement a job sends; null (the default) omits it.
-    protected virtual string? Title => null;
+    protected virtual string? Title(Language lang) => null;
 
     // Only the rows that actually need announcing — the per-job Notified*-vs-observed diff
     // (plus any job-specific filters, e.g. "event start still in the future") lives here.
@@ -32,7 +35,7 @@ public abstract class DiffNotifyJobBase<TRow>(
     // The guilds a given row concerns (e.g. via their GuildServer tracking rows).
     protected abstract Task<List<ulong>> ResolveGuildIdsAsync(TRow row);
 
-    protected abstract (string Content, NetCord.Color Color) BuildAnnouncement(TRow row);
+    protected abstract (string Content, NetCord.Color Color) BuildAnnouncement(TRow row, Language lang);
 
     // Copy the observed state into the row's Notified* column(s); the base persists it.
     protected abstract void MarkNotified(TRow row);
@@ -41,14 +44,18 @@ public abstract class DiffNotifyJobBase<TRow>(
     {
         foreach (var row in await LoadPendingRowsAsync())
         {
-            var guildIds = await ResolveGuildIdsAsync(row);
-            var (content, color) = BuildAnnouncement(row);
-
-            foreach (var guildId in guildIds)
+            foreach (var guildId in await ResolveGuildIdsAsync(row))
             {
-                var embed = await embedBranding.BuildBrandedAsync(guildId, content, color, Title);
+                // Factory overloads: the dispatcher resolves each alert-channel row's language
+                // and invokes these per distinct language (memoized on its side).
                 await dispatcher.SendPublicToEnabledAudiencesAsync(
-                    guildId, ChannelKind, Feature, content, embed: embed);
+                    guildId, ChannelKind, Feature,
+                    lang => BuildAnnouncement(row, lang).Content,
+                    embed: async lang =>
+                    {
+                        var (content, color) = BuildAnnouncement(row, lang);
+                        return await embedBranding.BuildBrandedAsync(guildId, content, color, Title(lang));
+                    });
             }
 
             MarkNotified(row);

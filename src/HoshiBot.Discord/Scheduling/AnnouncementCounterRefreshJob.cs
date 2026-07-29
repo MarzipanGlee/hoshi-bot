@@ -21,12 +21,10 @@ public class AnnouncementCounterRefreshJob(
     GatewayClient gatewayClient,
     NotificationDispatcher dispatcher,
     GuildFeatureService featureService,
+    AnnouncementService announcementService,
+    LanguageResolver languageResolver,
     ILogger<AnnouncementCounterRefreshJob> logger) : IJob
 {
-    // All strings come from the message catalog (Msg.Announce); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     private static readonly TimeSpan MaxAge = TimeSpan.FromDays(30);
 
     public async Task Execute(IJobExecutionContext context)
@@ -48,15 +46,19 @@ public class AnnouncementCounterRefreshJob(
 
             try
             {
+                // The refreshed label re-renders in the same scope language the published post
+                // used (PostLanguageAsync re-derives it from the row's audience/channel).
+                var postLang = await announcementService.PostLanguageAsync(announcement);
                 await gatewayClient.Rest.ModifyMessageAsync(announcement.ChannelId, announcement.MessageId,
-                    m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcement.Id, count)])]);
+                    m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcement.Id, count, postLang)])]);
             }
             catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 logger.LogWarning("Could not refresh read-count button for announcement {AnnouncementId}: {StatusCode}",
                     announcement.Id, ex.StatusCode);
-                await dispatcher.NotifyAdminOfPermissionIssueAsync(announcement.GuildId, Msg.Announce.ActionUpdate(Lang),
-                    Msg.Announce.HintChannelPermission(Lang, $"<#{announcement.ChannelId}>"));
+                var guildLang = await languageResolver.ForGuildAsync(announcement.GuildId);
+                await dispatcher.NotifyAdminOfPermissionIssueAsync(announcement.GuildId, Msg.Announce.ActionUpdate(guildLang),
+                    Msg.Announce.HintChannelPermission(guildLang, $"<#{announcement.ChannelId}>"));
             }
 
             announcement.LastKnownReadCount = count;

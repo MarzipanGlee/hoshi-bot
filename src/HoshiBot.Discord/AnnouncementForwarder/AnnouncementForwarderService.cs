@@ -29,12 +29,9 @@ public class AnnouncementForwarderService(
     AiChatModelResolver modelResolver,
     AnnouncementTranslator translator,
     EmbedBranding embedBranding,
+    LanguageResolver languageResolver,
     ILogger<AnnouncementForwarderService> logger)
 {
-    // All strings come from the message catalog (Msg.Announce); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     private const GuildAudience Audience = GuildAudience.Guild;
 
     // Called for a live MESSAGE_CREATE and by the catch-up job re-scanning recent source-channel
@@ -172,14 +169,20 @@ public class AnnouncementForwarderService(
 
     private async Task<EmbedProperties> BuildEmbedAsync(ulong guildId, string translation, string jumpLink, bool updated)
     {
-        var fields = new List<EmbedFieldProperties> { new() { Name = Msg.Announce.ForwardFieldOriginal(Lang), Value = Msg.Announce.ForwardOriginalLink(Lang, jumpLink) } };
+        // The forward's fixed labels render in the destination channel's owning scope's
+        // language: the channel is a guild-level setting (Audience = Guild, no alliance id),
+        // so that scope is the guild. Independent of ResolveTargetLanguageAsync — the
+        // translation's own language is a free-text FTS setting, not necessarily a UI language.
+        var lang = await languageResolver.ForGuildAsync(guildId);
+
+        var fields = new List<EmbedFieldProperties> { new() { Name = Msg.Announce.ForwardFieldOriginal(lang), Value = Msg.Announce.ForwardOriginalLink(lang, jumpLink) } };
         if (updated)
-            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.ForwardFieldUpdated(Lang), Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>" });
+            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.ForwardFieldUpdated(lang), Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>" });
 
         // No Timestamp: Discord renders it as a "• <time>" stamp appended right after the footer
         // text, which read as noise here — the "Aktualisiert" field already carries the when-edited
         // info when relevant.
-        var embed = await embedBranding.BuildBrandedAsync(guildId, translation, EmbedBranding.InformationColor, Msg.Announce.ForwardTitle(Lang));
+        var embed = await embedBranding.BuildBrandedAsync(guildId, translation, EmbedBranding.InformationColor, Msg.Announce.ForwardTitle(lang));
         embed.Fields = fields;
         return embed;
     }

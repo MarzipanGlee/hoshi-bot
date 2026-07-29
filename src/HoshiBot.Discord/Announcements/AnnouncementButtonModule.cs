@@ -8,12 +8,15 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.Announcements;
 
-public class AnnouncementButtonModule(AnnouncementService announcementService, GatewayClient gatewayClient, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding)
+public class AnnouncementButtonModule(AnnouncementService announcementService, GatewayClient gatewayClient, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding,
+    LanguageResolver languageResolver)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
-    // All strings come from the message catalog (Msg.Announce); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // Every wizard step (audience/severity prompts, cancel, publish result) is ephemeral to
+    // the publishing staff member — their language. Only the published post and its Read
+    // button render in the target channel's owning scope (resolved inside the service).
+    private Task<Language> ActingUserLanguageAsync() =>
+        languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
 
     // All four Publish buttons and Cancel live on AnnouncementMessageCommandModule.Preview's
     // own ephemeral message, so ModifyMessage is safe here — never the public hub.
@@ -36,26 +39,29 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     [ComponentInteraction("announcement-cancel")]
     public async Task<InteractionCallbackProperties<MessageOptions>> Cancel()
     {
-        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Announce.Discarded(Lang));
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Announce.Discarded(await ActingUserLanguageAsync()));
         return InteractionCallback.ModifyMessage(m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; });
     }
 
     [ComponentInteraction("announcement-pick-audience")]
-    public InteractionCallbackProperties<MessageOptions> PickAudience(ulong channelId, ulong messageId, string audience) =>
-        InteractionCallback.ModifyMessage(BuildSeverityPromptModifier(channelId, messageId, Enum.Parse<GuildAudience>(audience)));
+    public async Task<InteractionCallbackProperties<MessageOptions>> PickAudience(ulong channelId, ulong messageId, string audience) =>
+        InteractionCallback.ModifyMessage(BuildSeverityPromptModifier(channelId, messageId, Enum.Parse<GuildAudience>(audience), await ActingUserLanguageAsync()));
 
     [ComponentInteraction("announcement-read")]
     public Task MarkRead(int announcementId) =>
         Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
+            var lang = await ActingUserLanguageAsync();
             var (wasNew, count) = await announcementService.MarkReadAsync(announcementId, Context.Guild!.Id, Context.User.Id);
 
             try
             {
                 // The shared announcement message (public) is edited via a separate direct REST
-                // call, kept independent of this personal ephemeral ack.
+                // call, kept independent of this personal ephemeral ack — its Read button keeps
+                // the post's own scope language, not the clicking user's.
+                var postLang = await announcementService.PostLanguageAsync(announcementId, Context.Guild!.Id);
                 await gatewayClient.Rest.ModifyMessageAsync(Context.Channel.Id, Context.Message.Id,
-                    m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcementId, count)])]);
+                    m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcementId, count, postLang)])]);
             }
             catch (RestException)
             {
@@ -63,7 +69,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
                 // edit fails (e.g. transient rate limit) — not worth failing the interaction for.
             }
 
-            return wasNew ? Msg.Announce.ReadRecorded(Lang) : Msg.Announce.AlreadyRead(Lang);
+            return wasNew ? Msg.Announce.ReadRecorded(lang) : Msg.Announce.AlreadyRead(lang);
         });
 
     private async Task<Action<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity)
@@ -71,7 +77,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
         {
-            var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements, Lang);
+            var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements, await ActingUserLanguageAsync());
             return await embedBranding.BrandedEditAsync(Context.Guild!.Id, disabledMessage);
         }
 
@@ -86,63 +92,63 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     // Shared with AnnouncementMessageCommandModule.Preview, which needs the same prompts
     // but isn't itself a ComponentInteractionModule (a different NetCord module base), so
     // can't host the "announcement-pick-audience"/publish button handlers.
-    internal static InteractionMessageProperties BuildAudiencePrompt(RestMessage draft)
+    internal static InteractionMessageProperties BuildAudiencePrompt(RestMessage draft, Language lang)
     {
         var idPart = $"{draft.ChannelId}:{draft.Id}";
         var (title, body) = AnnouncementService.ParseDraft(draft.Content);
 
         return new InteractionMessageProperties
         {
-            Content = Msg.Announce.AudiencePrompt(Lang),
-            Embeds = [BuildPreviewEmbed(title, body, draft)],
+            Content = Msg.Announce.AudiencePrompt(lang),
+            Embeds = [BuildPreviewEmbed(title, body, draft, lang)],
             Flags = MessageFlags.Ephemeral,
             Components =
             [
                 new ActionRowProperties(GuildFeatureAudiences.EnumerateFlags(GuildFeatureAudiences.RelevantAudiences(GuildFeature.Announcements))
-                    .Select(a => new ButtonProperties($"announcement-pick-audience:{idPart}:{a}", GuildFeatureService.AudienceLabel(a, Lang), ButtonStyle.Primary))
-                    .Append(new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(Lang), ButtonStyle.Secondary))),
+                    .Select(a => new ButtonProperties($"announcement-pick-audience:{idPart}:{a}", GuildFeatureService.AudienceLabel(a, lang), ButtonStyle.Primary))
+                    .Append(new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(lang), ButtonStyle.Secondary))),
             ],
         };
     }
 
-    internal static InteractionMessageProperties BuildSeverityPrompt(RestMessage draft, GuildAudience audience)
+    internal static InteractionMessageProperties BuildSeverityPrompt(RestMessage draft, GuildAudience audience, Language lang)
     {
         var idPart = $"{draft.ChannelId}:{draft.Id}:{audience}";
         var (title, body) = AnnouncementService.ParseDraft(draft.Content);
 
         return new InteractionMessageProperties
         {
-            Content = Msg.Announce.SeverityPrompt(Lang),
-            Embeds = [BuildPreviewEmbed(title, body, draft)],
+            Content = Msg.Announce.SeverityPrompt(lang),
+            Embeds = [BuildPreviewEmbed(title, body, draft, lang)],
             Flags = MessageFlags.Ephemeral,
-            Components = [BuildSeverityButtonRow(idPart)],
+            Components = [BuildSeverityButtonRow(idPart, lang)],
         };
     }
 
     // PickAudience only has channelId/messageId (from its own custom-id), not the
     // RestMessage draft BuildSeverityPrompt wants — re-fetching isn't worth it here since
     // ModifyMessage's action just needs to replace the button row, not rebuild the embed.
-    private static Action<MessageOptions> BuildSeverityPromptModifier(ulong channelId, ulong messageId, GuildAudience audience) => m =>
+    private static Action<MessageOptions> BuildSeverityPromptModifier(ulong channelId, ulong messageId, GuildAudience audience, Language lang) => m =>
     {
-        m.Content = Msg.Announce.SeverityPrompt(Lang);
-        m.Components = [BuildSeverityButtonRow($"{channelId}:{messageId}:{audience}")];
+        m.Content = Msg.Announce.SeverityPrompt(lang);
+        m.Components = [BuildSeverityButtonRow($"{channelId}:{messageId}:{audience}", lang)];
     };
 
-    private static ActionRowProperties BuildSeverityButtonRow(string idPart) => new(
+    private static ActionRowProperties BuildSeverityButtonRow(string idPart, Language lang) => new(
     [
-        new ButtonProperties($"announcement-publish-normal:{idPart}", Msg.Announce.SeverityNormal(Lang), EmojiProperties.Standard("🟩"), ButtonStyle.Success),
-        new ButtonProperties($"announcement-publish-elevated:{idPart}", Msg.Announce.SeverityElevated(Lang), EmojiProperties.Standard("🟨"), ButtonStyle.Primary),
-        new ButtonProperties($"announcement-publish-high:{idPart}", Msg.Announce.SeverityHigh(Lang), EmojiProperties.Standard("🟥"), ButtonStyle.Danger),
-        new ButtonProperties($"announcement-publish-direct:{idPart}", Msg.Announce.SeverityDirect(Lang), EmojiProperties.Standard("🟦"), ButtonStyle.Primary),
-        new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(Lang), ButtonStyle.Secondary),
+        new ButtonProperties($"announcement-publish-normal:{idPart}", Msg.Announce.SeverityNormal(lang), EmojiProperties.Standard("🟩"), ButtonStyle.Success),
+        new ButtonProperties($"announcement-publish-elevated:{idPart}", Msg.Announce.SeverityElevated(lang), EmojiProperties.Standard("🟨"), ButtonStyle.Primary),
+        new ButtonProperties($"announcement-publish-high:{idPart}", Msg.Announce.SeverityHigh(lang), EmojiProperties.Standard("🟥"), ButtonStyle.Danger),
+        new ButtonProperties($"announcement-publish-direct:{idPart}", Msg.Announce.SeverityDirect(lang), EmojiProperties.Standard("🟦"), ButtonStyle.Primary),
+        new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(lang), ButtonStyle.Secondary),
     ]);
 
-    private static EmbedProperties BuildPreviewEmbed(string title, string body, RestMessage draft) => new()
+    private static EmbedProperties BuildPreviewEmbed(string title, string body, RestMessage draft, Language lang) => new()
     {
-        Title = string.IsNullOrWhiteSpace(title) ? Msg.Announce.NoTitle(Lang) : title,
-        Description = string.IsNullOrWhiteSpace(body) ? Msg.Announce.NoBody(Lang) : body,
+        Title = string.IsNullOrWhiteSpace(title) ? Msg.Announce.NoTitle(lang) : title,
+        Description = string.IsNullOrWhiteSpace(body) ? Msg.Announce.NoBody(lang) : body,
         Footer = draft.Attachments.Count > 0
-            ? new EmbedFooterProperties { Text = Msg.Announce.AttachmentCount(Lang, draft.Attachments.Count) }
+            ? new EmbedFooterProperties { Text = Msg.Announce.AttachmentCount(lang, draft.Attachments.Count) }
             : null,
     };
 }

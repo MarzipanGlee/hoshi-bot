@@ -22,14 +22,14 @@ public class MemberInterviewService(
     NotificationDispatcher notificationDispatcher,
     GuildFeatureSettingsService settingsService,
     EmbedBranding embedBranding,
+    LanguageResolver languageResolver,
     ILogger<MemberInterviewService> logger)
 {
     public const string DeclineButtonId = "member-interview-decline";
 
-    // The fixed DM messages come from the message catalog (Msg.Interview); rendering is pinned
-    // to German until sub-phase 6e wires up per-user language resolution. The interview
-    // conversation itself mirrors the member's language via the LLM prompt below.
-    private const Language Lang = Language.De;
+    // The fixed DM messages (opener, decline button, closers) render in the interviewee's
+    // resolved language; the interview conversation itself mirrors the member's language via
+    // the LLM prompt below.
 
     // The model appends this on its own line when it has learned enough; stripped before sending.
     private const string DoneSentinel = "[INTERVIEW_DONE]";
@@ -45,9 +45,10 @@ public class MemberInterviewService(
         if (await db.MemberInterviews.AnyAsync(i => i.GuildId == guildId && i.DiscordUserId == userId, cancellationToken))
             return false;
 
+        var lang = await languageResolver.ForUserAsync(userId, scopeGuildId: guildId);
         var botName = await embedBranding.GetBotDisplayNameAsync(guildId);
-        var opener = Msg.Interview.Opener(Lang, botName);
-        var declineButton = new ButtonProperties(DeclineButtonId, Msg.Interview.DeclineButton(Lang), ButtonStyle.Secondary);
+        var opener = Msg.Interview.Opener(lang, botName);
+        var declineButton = new ButtonProperties(DeclineButtonId, Msg.Interview.DeclineButton(lang), ButtonStyle.Secondary);
 
         var now = DateTimeOffset.UtcNow;
         var messageId = await notificationDispatcher.SendDirectMessageAsync(userId, opener, declineButton);
@@ -103,7 +104,7 @@ public class MemberInterviewService(
         if (IsOptOut(content))
         {
             await CloseAsync(interview, MemberInterviewStatus.Declined,
-                Msg.Interview.OptOutClose(Lang), cancellationToken);
+                Msg.Interview.OptOutClose(await languageResolver.ForUserAsync(userId, scopeGuildId: interview.GuildId)), cancellationToken);
             return;
         }
 
@@ -188,7 +189,7 @@ public class MemberInterviewService(
             return;
 
         await CloseAsync(interview, MemberInterviewStatus.Declined,
-            Msg.Interview.DeclineClose(Lang), cancellationToken);
+            Msg.Interview.DeclineClose(await languageResolver.ForUserAsync(userId, scopeGuildId: interview.GuildId)), cancellationToken);
     }
 
     private async Task CloseAsync(MemberInterview interview, MemberInterviewStatus status, string closingMessage, CancellationToken cancellationToken)
