@@ -8,6 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Command-metadata localizations for NetCord's JsonLocalizationsProvider (see Program.cs).
+         Plain copied files (not embedded): the provider reads them from disk next to the app, and
+         `dotnet publish` carries CopyToOutputDirectory items into the publish output, so the
+         Docker image (docker/Dockerfile.host) picks them up without extra steps. -->
+    <None Update="Localizations\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="NetCord.Hosting" />

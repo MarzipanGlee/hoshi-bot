@@ -1,0 +1,100 @@
+{
+  "$comment": "German localizations for Discord application-command metadata (NetCord JsonLocalizationsProvider; wired in Program.cs). Keys under 'commands' are the canonical English command names; 'parameters' keys are the canonical option names (snake_case). Command NAMES stay English in every locale — descriptions, option names/descriptions and enum choices are localized. ONE exception: the 'Create preview' message command gets a localized NAME ('Vorschau erstellen'), because a context-menu entry's name is its only visible text. hoshi-say keeps its original German wording (formerly the canonical text) byte-identically.",
+  "commands": {
+    "ping": {
+      "description": "Antwortet mit Pong"
+    },
+    "hoshi-say": {
+      "description": "Lass Hoshi eine Nachricht in diesen Kanal schreiben (nur mit der berechtigten Rolle)",
+      "parameters": {
+        "task": {
+          "name": "auftrag",
+          "description": "Was Hoshi vermitteln soll, z. B. tröste Speed, er hat seine Nodes verloren"
+        },
+        "member": {
+          "name": "mitglied",
+          "description": "Optional: Mitglied, das erwähnt/gepingt werden soll"
+        }
+      }
+    },
+    "link-player": {
+      "description": "Verknüpfe Deinen Discord-Account mit Deinem STFC-Spielernamen",
+      "parameters": {
+        "player_name": { "name": "spielername" },
+        "server_name": { "name": "servername" }
+      }
+    },
+    "set-my-alliance": {
+      "description": "Setze die Allianz des Spielers, der Dich auf diesem Server repräsentiert",
+      "parameters": {
+        "alliance_tag": { "name": "allianz_tag" }
+      }
+    },
+    "post-command-bridge": {
+      "description": "Postet oder aktualisiert die Hub-Nachricht(en) der Kommandobrücke",
+      "parameters": {
+        "bridge": { "name": "brücke" }
+      }
+    },
+    "raid": {
+      "description": "Melde einen Raid auf die Station eines Commanders (Tipp: wähle Dich selbst für einen Testlauf)",
+      "parameters": {
+        "target": { "name": "ziel" },
+        "attacker": { "name": "angreifer" }
+      }
+    },
+    "raid-terminate": {
+      "description": "Beende einen aktiven Raid-Alarm",
+      "parameters": {
+        "target": { "name": "ziel" }
+      }
+    },
+    "shield-reminder": {
+      "description": "Richte eine Erinnerung für den Ablauf Deines Schilds ein",
+      "parameters": {
+        "duration": { "name": "dauer" }
+      }
+    },
+    "shield-reminder-remove": {
+      "description": "Entferne Deine Schilderinnerung"
+    },
+    "shield-reminder-disable": {
+      "description": "Deaktiviere Schilderinnerungen für Dich dauerhaft"
+    },
+    "set-diplomacy": {
+      "description": "Setze den diplomatischen Status einer hier verwalteten Allianz gegenüber einer anderen Allianz",
+      "parameters": {
+        "our_alliance_tag": { "name": "unser_allianz_tag" },
+        "target_alliance_tag": { "name": "ziel_allianz_tag" }
+      }
+    },
+    "absence": {
+      "description": "Melde Dich für eine bestimmte Anzahl Stunden abwesend",
+      "parameters": {
+        "hours": { "name": "stunden" },
+        "reason": { "name": "grund" },
+        "suppress_notifications": { "name": "benachrichtigungen_unterdrücken" },
+        "visibility": { "name": "sichtbarkeit" }
+      }
+    },
+    "Create preview": {
+      "name": "Vorschau erstellen"
+    }
+  },
+  "enums": {
+    "HoshiBot.Domain.Entities.AbsenceVisibility": {
+      "Public": "Öffentlich",
+      "StaffOnly": "Führungsstab"
+    },
+    "HoshiBot.Domain.Entities.RaidServerLocation": {
+      "Home": "Home Server",
+      "Enemy": "Enemy Server"
+    },
+    "HoshiBot.Discord.CommandBridge.CommandBridgeChoice": {
+      "All": "Alle",
+      "User": "Mitglieder",
+      "Staff": "Führungsstab",
+      "Friends": "Freunde"
+    }
+  }
+}

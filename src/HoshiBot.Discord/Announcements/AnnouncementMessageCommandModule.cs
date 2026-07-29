@@ -7,12 +7,20 @@ namespace HoshiBot.Discord.Announcements;
 
 // MessageCommandContext is a sibling of ApplicationCommandContext (both just implement
 // IApplicationCommandContext), not a subtype — needs its own module base, confirmed via
-// reflection against the installed NetCord package before writing this.
+// reflection against the installed NetCord package before writing this. It also needs its own
+// application-command service: Host Program.cs registers a dedicated
+// AddApplicationCommands<MessageCommandInteraction, MessageCommandContext>() — the default
+// ApplicationCommandContext service never picks this module up (verified against the package:
+// without the extra service the bot registered only the 12 slash commands and this command
+// silently didn't exist on Discord).
 public class AnnouncementMessageCommandModule(GuildFeatureService featureService, GuildFeatureSettingsService settingsService, EmbedBranding embedBranding,
     LanguageResolver languageResolver)
     : ApplicationCommandModule<MessageCommandContext>
 {
-    [MessageCommand("Vorschau erstellen")]
+    // Canonical name is English; the German name ("Vorschau erstellen") is a localization in
+    // HoshiBot.Host/Localizations/de.json — the ONE place a command NAME is localized, because a
+    // context-menu entry's name is its only visible text (there is no description line under it).
+    [MessageCommand("Create preview")]
     public async Task<InteractionMessageProperties> Preview()
     {
         var guildId = Context.Guild!.Id;

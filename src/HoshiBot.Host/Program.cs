@@ -24,11 +24,17 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
+using NetCord.Services.ApplicationCommands;
 using NetCord.Services.ComponentInteractions;
 using Quartz;
 using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+var commandLocalizations = new JsonLocalizationsProvider(new()
+{
+    DirectoryPath = Path.Combine(AppContext.BaseDirectory, "Localizations"),
+});
 
 // ClearProviders so the default console provider doesn't also write (Serilog's own
 // console sink below replaces it) — otherwise every log line would be printed twice.
@@ -57,7 +63,27 @@ builder.Services
         // DirectMessages: receive MESSAGE_CREATE for DMs (member-lore interview replies). Not a
         // privileged intent (no portal toggle); DM content always arrives without MessageContent.
         | GatewayIntents.DirectMessages)
-    .AddApplicationCommands()
+    // Two application-command services, one per interaction kind (NetCord's "multiple services"
+    // pattern): the plain AddApplicationCommands() only ever collects ApplicationCommandContext
+    // modules, so AnnouncementMessageCommandModule (MessageCommandContext — a sibling context, not
+    // a subtype) was silently never registered — the startup log said "12 command(s) registered",
+    // i.e. the 12 slash commands without the "Create preview" context-menu command. The TInteraction
+    // arguments are narrowed (SlashCommandInteraction/MessageCommandInteraction) so each handler
+    // only picks up its own interactions — with the broad default, the slash service would also
+    // receive message-command interactions, fail the lookup, and race an error response against the
+    // real one.
+    //
+    // LocalizationsProvider (shared instance, so the JSON files are only loaded once): localizes
+    // command metadata (descriptions, option names/descriptions, enum choices — names stay English
+    // except "Create preview", see Localizations/de.json) from Localizations/{locale}.json, anchored
+    // to the app directory so it works regardless of the process working directory. The files load
+    // lazily on the first localization lookup during startup command registration: a malformed file
+    // or a missing directory throws there and fails startup, but a mistyped command/parameter key is
+    // silently ignored (the provider only looks up keys the registered commands actually have).
+    .AddApplicationCommands<SlashCommandInteraction, ApplicationCommandContext, AutocompleteInteractionContext>(
+        options => options.LocalizationsProvider = commandLocalizations)
+    .AddApplicationCommands<MessageCommandInteraction, MessageCommandContext>(
+        options => options.LocalizationsProvider = commandLocalizations)
     .AddComponentInteractions<ButtonInteraction, ButtonInteractionContext>()
     .AddComponentInteractions<UserMenuInteraction, UserMenuInteractionContext>()
     .AddComponentInteractions<StringMenuInteraction, StringMenuInteractionContext>()

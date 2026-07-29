@@ -29,13 +29,16 @@ public class HoshiSayModule(
     LanguageResolver languageResolver)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
-    [SlashCommand("hoshi-say", "Lass Hoshi eine Nachricht in diesen Kanal schreiben (nur mit der berechtigten Rolle)",
+    // Canonical metadata is English (like every other command); the German names/descriptions —
+    // including the original "auftrag"/"mitglied" option names — live on as localizations in
+    // HoshiBot.Host/Localizations/de.json.
+    [SlashCommand("hoshi-say", "Let Hoshi post a message in this channel (requires the authorized role)",
         Contexts = [InteractionContextType.Guild])]
     public Task Say(
-        [SlashCommandParameter(Name = "auftrag", Description = "Was Hoshi vermitteln soll, z. B. tröste Speed, er hat seine Nodes verloren")]
+        [SlashCommandParameter(Name = "task", Description = "What Hoshi should convey, e.g. comfort Speed, he lost his nodes")]
         string instruction,
-        [SlashCommandParameter(Name = "mitglied", Description = "Optional: Mitglied, das erwähnt/gepingt werden soll")]
-        User? mitglied = null)
+        [SlashCommandParameter(Name = "member", Description = "Optional: member to mention/ping")]
+        User? member = null)
         => Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
             var guildId = Context.Guild!.Id;
@@ -58,7 +61,7 @@ public class HoshiSayModule(
                 return Msg.Say.RoleRequired(lang, $"<@&{roleId}>");
 
             var text = await aiChat.ComposeMessageAsync(
-                guildId, Context.Channel.Id, instruction, mitglied?.Id, mitglied is null ? null : CommanderName.Of(mitglied), CancellationToken.None);
+                guildId, Context.Channel.Id, instruction, member?.Id, member is null ? null : CommanderName.Of(member), CancellationToken.None);
             if (text is null)
                 return Msg.Say.ComposeFailed(lang);
 
@@ -68,7 +71,7 @@ public class HoshiSayModule(
             await gatewayClient.Rest.SendMessageAsync(Context.Channel.Id, new MessageProperties
             {
                 Content = text,
-                AllowedMentions = mitglied is { } m
+                AllowedMentions = member is { } m
                     ? new AllowedMentionsProperties { Everyone = false, ReplyMention = false, AllowedRoles = [], AllowedUsers = [m.Id] }
                     : AllowedMentionsProperties.None,
             });
