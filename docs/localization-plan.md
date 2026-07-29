@@ -186,12 +186,22 @@ command **names stay English** in all locales — only descriptions are localize
   incl. hoshi-say's German parameter names (6g), `AnnouncementTranslator` (own
   mechanism). The TC weekly digest title keeps its ambient-culture month names
   (production = invariant/English today) — its proper per-language form lands in 6e.
-- **6e — Rendering switch** (feature-by-feature; every intermediate deploy safe):
-  dispatcher factory overloads + internal strings; replace hardcoded `Language.De`
-  with resolved languages (ephemeral → `ForUserAsync` with the interaction locale;
-  public → `ForAlliance/ForAudience/ForGuildAsync`; RoE/Ticket threads + the six DM
-  sites → the addressee's `ForUserAsync`); placeholder localization; LLM prompt
-  swap; delete `CommanderName.Greeting/Address`.
+- **6e — Rendering switch** — **DONE 2026-07-29** (commits `388bcc3..5ff533b`): every
+  pinned `Language.De` in HoshiBot.Discord replaced with resolved languages —
+  ephemeral/modals → the acting user's `ForUserAsync` (with the interaction locale in
+  modules); public posts → the owning scope (`ForAlliance/ForAudience/ForGuildAsync`;
+  GuildAlertChannel fan-outs via the dispatcher's new `Func<Language,…>` factory
+  overloads, memoized per language, Alliance rows → guild language); RoE forum
+  posts/Ticket threads and all DMs → the addressee's `ForUserAsync`; admin
+  notifications → guild language. The "⏳ Processing…" ack localizes synchronously
+  from `Interaction.UserLocale` (U2). AiChat replies carry an "Answer in {X}."
+  instruction from the channel's scope language (U3) and its date/weekday context
+  renders per language; HoshiPersona's busy/cannot-answer replies moved to the
+  catalog. Absence/StfcNews date input parses language-aware (`DateInput`, tested:
+  culture short date → `dd.MM.yyyy` → ISO) and the TC digest dates render per
+  language. `CommanderName.Address` deleted; `Greeting` survives solely for
+  prefixing AiChat's dynamic LLM text ("Commander" is language-neutral in-game
+  address).
 - **6f — Defaults live**: no seeding; verify the test guild renders per its Discord
   locale and set Lost Falcons' guild selector explicitly if they want German
   regardless of `preferred_locale`. Update [CONTRIBUTING.md](../CONTRIBUTING.md)'s

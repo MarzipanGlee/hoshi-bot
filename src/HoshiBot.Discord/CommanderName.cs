@@ -20,15 +20,10 @@ public static partial class CommanderName
         return TagPattern().Replace(name, "");
     }
 
-    // The shared "Commander {name}, " opening every personal, user-addressed message uses, so it's
-    // written the same way everywhere instead of hand-rolled per handler. Greeting returns just the
-    // prefix (for concatenating a longer body); Address prepends it to a message. The string
-    // overloads are for service-layer code that only has a resolved name, not a User object.
-    public static string Greeting(User user) => Greeting(Of(user));
-
-    public static string Greeting(string name) => $"Commander {name}, ";
-
-    public static string Address(User user, string message) => Greeting(user) + message;
-
-    public static string Address(string name, string message) => Greeting(name) + message;
+    // The "Commander {name}, " salutation prefix. Catalog messages carry the salutation inside
+    // their own full-sentence templates (localization sub-phase 6d dissolved the old
+    // Greeting/Address concatenations); this survives only for prefixing DYNAMIC text that has
+    // no template — AiChat's LLM-composed answers. "Commander" is the in-game address in every
+    // supported language, so the prefix itself needs no catalog entry.
+    public static string Greeting(User user) => $"Commander {Of(user)}, ";
 }
