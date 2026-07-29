@@ -66,7 +66,7 @@ public class CommandBridgeStaffButtonModule(
         {
             var lang = await ActingUserLanguageAsync();
             var muted = action == "on";
-            var result = await alertService.SetShieldMutedAsync(Context.Guild!.Id, targetUserId, muted);
+            var result = await alertService.SetShieldMutedAsync(Context.Guild!.Id, targetUserId, muted, lang);
             var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffMuteTitle(lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
         });

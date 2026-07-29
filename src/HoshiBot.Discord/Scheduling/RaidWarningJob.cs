@@ -13,12 +13,8 @@ namespace HoshiBot.Discord.Scheduling;
 // Re-pings the target of each active raid alert via DM every 15 minutes, and
 // auto-terminates alerts older than 24h — the safety-net behavior ported from
 // terminate-raid-warnings.yag, now automatic instead of an admin-run command.
-public class RaidWarningJob(HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding, GuildFeatureService featureService) : IJob
+public class RaidWarningJob(HoshiBotDbContext db, NotificationDispatcher dispatcher, EmbedBranding embedBranding, GuildFeatureService featureService, LanguageResolver languageResolver) : IJob
 {
-    // All strings come from the message catalog (Msg.Alert); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
-
     private static readonly TimeSpan AutoTerminateAfter = TimeSpan.FromHours(24);
     private static readonly TimeSpan ReminderInterval = TimeSpan.FromMinutes(15);
 
@@ -50,11 +46,13 @@ public class RaidWarningJob(HoshiBotDbContext db, NotificationDispatcher dispatc
             if (lastUserNotification is not null && now - lastUserNotification.SentAt < ReminderInterval)
                 continue;
 
+            // The reminder is a DM to the raided commander — their language.
+            var targetLang = await languageResolver.ForUserAsync(alert.TargetDiscordUserId, scopeGuildId: alert.GuildId);
             var embed = await embedBranding.BuildBrandedAsync(alert.GuildId,
-                Msg.Alert.RaidReminderDm(Lang, alert.StfcSystem?.Name ?? ""),
+                Msg.Alert.RaidReminderDm(targetLang, alert.StfcSystem?.Name ?? ""),
                 EmbedBranding.DangerColor);
             var messageId = await dispatcher.SendDirectMessageAsync(alert.TargetDiscordUserId, "",
-                AlertService.RaidTerminateButton(alert.GuildId, alert.TargetDiscordUserId), embed);
+                AlertService.RaidTerminateButton(alert.GuildId, alert.TargetDiscordUserId, targetLang), embed);
 
             alert.Notifications.Add(new AlertNotification
             {

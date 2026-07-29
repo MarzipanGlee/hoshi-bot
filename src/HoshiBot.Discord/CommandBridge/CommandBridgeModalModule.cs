@@ -105,7 +105,7 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
                 var lang = await ActingUserLanguageAsync();
                 var pendingId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.ShieldReminder,
                     duration, system);
-                return await RetryEditAsync(AlertService.NoStationHousingMessage(stfcSystem.Name), pendingId, lang);
+                return await RetryEditAsync(AlertService.NoStationHousingMessage(lang, stfcSystem.Name), pendingId, lang);
             }
 
             var result = await alertService.SetShieldReminderAsync(Context.Guild!.Id, Context.User.Id, duration, system);

@@ -23,7 +23,7 @@ public class CommandBridgeStaffModalModule(AlertService alertService, EmbedBrand
             var system = TextInputValues().GetValueOrDefault("system") ?? "";
             var parsedVariant = Enum.TryParse<ShieldLossVariant>(variant, out var v) ? v : ShieldLossVariant.Manual;
 
-            var result = await alertService.ReportStaffShieldLossAsync(Context.Guild!.Id, targetUserId, system, parsedVariant);
+            var result = await alertService.ReportStaffShieldLossAsync(Context.Guild!.Id, targetUserId, system, parsedVariant, lang);
 
             var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, result, title: Msg.Bridge.StaffShieldTitle(lang));
             return m => { m.Embeds = [embed]; m.Components = []; };
