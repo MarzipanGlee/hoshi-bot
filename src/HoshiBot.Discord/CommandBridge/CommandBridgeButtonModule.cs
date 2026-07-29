@@ -11,12 +11,18 @@ using NetCord.Services.ComponentInteractions;
 namespace HoshiBot.Discord.CommandBridge;
 
 public class CommandBridgeButtonModule(AlertService alertService, AnnouncementService announcementService, RoeViolationService roeViolationService,
-    PendingModalInputService pendingModalInputService, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding)
+    PendingModalInputService pendingModalInputService, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding,
+    LanguageResolver languageResolver)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
-    // All strings come from the message catalog (Msg.Bridge); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
+    // All strings come from the message catalog (Msg.Bridge); the roe-violation-* handlers
+    // below already render in the acting user's resolved language (sub-phase 6e), the rest
+    // is still pinned to German until their own 6e batch (docs/localization-plan.md).
     private const Language Lang = Language.De;
+
+    // Ephemeral prompts and modals follow the acting user's language.
+    private Task<Language> ActingUserLanguageAsync() =>
+        languageResolver.ForUserAsync(Context.User.Id, Context.Interaction.UserLocale, Context.Guild!.Id);
 
     // Shared shape for every ephemeral prompt in this module — same branded style as
     // every real bot message, just also used for these interactive in-between steps.
@@ -243,35 +249,38 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     [ComponentInteraction("roe-violation-report")]
     public async Task<InteractionMessageProperties> ReportRoeViolationPrompt()
     {
-        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RoeViolationReports, Lang) is { } msg)
+        var lang = await ActingUserLanguageAsync();
+        if (await featureService.EnsureEnabledAsync(Context.Guild!.Id, GuildFeature.RoeViolationReports, lang) is { } msg)
             return await EphemeralEmbedAsync(msg);
 
         var buttons = new List<ButtonProperties>
         {
-            new("roe-violation-to", Msg.Bridge.RoeToMe(Lang), ButtonStyle.Primary),
-            new("roe-violation-from", Msg.Bridge.RoeFromMe(Lang), ButtonStyle.Primary),
+            new("roe-violation-to", Msg.Bridge.RoeToMe(lang), ButtonStyle.Primary),
+            new("roe-violation-from", Msg.Bridge.RoeFromMe(lang), ButtonStyle.Primary),
         };
 
         if (await roeViolationService.IsCommandStaffAsync(Context.Guild!.Id, Context.User.Id))
-            buttons.Add(new ButtonProperties("roe-violation-other", Msg.Bridge.RoeByOwnPlayer(Lang), ButtonStyle.Secondary));
+            buttons.Add(new ButtonProperties("roe-violation-other", Msg.Bridge.RoeByOwnPlayer(lang), ButtonStyle.Secondary));
 
         return await EphemeralEmbedAsync(
-            Msg.Bridge.RoePromptBody(Lang, CommanderName.Of(Context.User)),
+            Msg.Bridge.RoePromptBody(lang, CommanderName.Of(Context.User)),
             [new ActionRowProperties(buttons)],
-            title: Msg.Roe.ModalTitle(Lang));
+            title: Msg.Roe.ModalTitle(lang));
     }
 
+    // Async so the modal renders in the acting user's language — modals can't be deferred,
+    // but the cached resolver lookup is well within Discord's 3s window.
     [ComponentInteraction("roe-violation-to")]
-    public InteractionCallbackProperties<ModalProperties> ReportRoeViolationTo() =>
-        InteractionCallback.Modal(RoeViolationService.Modal("to", 0));
+    public async Task<InteractionCallbackProperties<ModalProperties>> ReportRoeViolationTo() =>
+        InteractionCallback.Modal(RoeViolationService.Modal("to", 0, await ActingUserLanguageAsync()));
 
     [ComponentInteraction("roe-violation-from")]
-    public InteractionCallbackProperties<ModalProperties> ReportRoeViolationFrom() =>
-        InteractionCallback.Modal(RoeViolationService.Modal("from", 0));
+    public async Task<InteractionCallbackProperties<ModalProperties>> ReportRoeViolationFrom() =>
+        InteractionCallback.Modal(RoeViolationService.Modal("from", 0, await ActingUserLanguageAsync()));
 
     [ComponentInteraction("roe-violation-other")]
-    public Task<InteractionCallbackProperties<MessageOptions>> ReportRoeViolationOtherPrompt() =>
-        EphemeralEmbedModifyAsync(Msg.Bridge.RoeOtherPrompt(Lang, CommanderName.Of(Context.User)), [new UserMenuProperties("roe-violation-other-target")]);
+    public async Task<InteractionCallbackProperties<MessageOptions>> ReportRoeViolationOtherPrompt() =>
+        await EphemeralEmbedModifyAsync(Msg.Bridge.RoeOtherPrompt(await ActingUserLanguageAsync(), CommanderName.Of(Context.User)), [new UserMenuProperties("roe-violation-other-target")]);
 
     [ComponentInteraction("anonymous-message")]
     public async Task<InteractionCallbackProperties> AnonymousMessagePrompt(string audience)

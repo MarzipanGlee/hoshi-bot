@@ -1,3 +1,4 @@
+using HoshiBot.Data;
 using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
@@ -5,7 +6,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.RoeViolations;
 
-public class RoeViolationModalModule(RoeViolationService roeViolationService) : ComponentInteractionModule<ModalInteractionContext>
+public class RoeViolationModalModule(RoeViolationService roeViolationService, LanguageResolver languageResolver) : ComponentInteractionModule<ModalInteractionContext>
 {
     // Always reached via the roe-violation-report ephemeral wizard message (either
     // directly, or through roe-violation-other's UserMenu step), so ModifyMessage is
@@ -52,8 +53,11 @@ public class RoeViolationModalModule(RoeViolationService roeViolationService) : 
                         break;
                     }
                 default:
-                    embed = await roeViolationService.ResultEmbedAsync(guildId, Msg.Roe.Title(Language.De), Msg.Roe.UnknownReportType(Language.De));
-                    break;
+                    {
+                        var lang = await languageResolver.ForUserAsync(reporterId, Context.Interaction.UserLocale, guildId);
+                        embed = await roeViolationService.ResultEmbedAsync(guildId, Msg.Roe.Title(lang), Msg.Roe.UnknownReportType(lang));
+                        break;
+                    }
             }
 
             return m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; };

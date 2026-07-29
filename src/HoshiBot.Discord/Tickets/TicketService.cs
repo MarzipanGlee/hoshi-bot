@@ -18,23 +18,25 @@ public class TicketService(
     GatewayClient gatewayClient,
     NotificationDispatcher dispatcher,
     EmbedBranding embedBranding,
-    GuildFeatureSettingsService settingsService)
+    GuildFeatureSettingsService settingsService,
+    LanguageResolver languageResolver)
 {
-    // All strings come from the message catalog (Msg.Ticket); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    public static ButtonProperties CloseButton(int ticketId, Language lang) =>
+        new($"ticket-close:{ticketId}", Msg.Ticket.CloseButton(lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
 
-    public static ButtonProperties CloseButton(int ticketId) =>
-        new($"ticket-close:{ticketId}", Msg.Ticket.CloseButton(Lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
-
-    public static UserMenuProperties AddCommanderMenu(int ticketId) =>
-        new($"ticket-add-commander:{ticketId}") { Placeholder = Msg.Ticket.AddCommanderMenu(Lang) };
+    public static UserMenuProperties AddCommanderMenu(int ticketId, Language lang) =>
+        new($"ticket-add-commander:{ticketId}") { Placeholder = Msg.Ticket.AddCommanderMenu(lang) };
 
     public async Task<string> OpenTicketAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, ulong openedByUserId, string openerName, string subject)
     {
+        // The opener is both the acting user (ephemeral result) and the person the private
+        // thread is dedicated to, so one resolved language covers the welcome message, its
+        // components and the status strings; admin notifications use the guild language.
+        var lang = await languageResolver.ForUserAsync(openedByUserId, scopeGuildId: guildId);
+
         var channelIdResult = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Tickets, audience, guildAllianceId, TicketsSettingKeys.Channel);
         if (channelIdResult is not { } channelId)
-            return Msg.Ticket.ChannelNotConfigured(Lang);
+            return Msg.Ticket.ChannelNotConfigured(lang);
 
         var ticket = new Ticket
         {
@@ -62,8 +64,9 @@ public class TicketService(
         {
             db.Tickets.Remove(ticket);
             await db.SaveChangesAsync();
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionCreate(Lang), Msg.Ticket.HintCreateThreads(Lang, $"<#{channelId}>"));
-            return Msg.Ticket.Misconfigured(Lang);
+            var guildLang = await languageResolver.ForGuildAsync(guildId);
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionCreate(guildLang), Msg.Ticket.HintCreateThreads(guildLang, $"<#{channelId}>"));
+            return Msg.Ticket.Misconfigured(lang);
         }
 
         ticket.ThreadId = thread.Id;
@@ -73,29 +76,34 @@ public class TicketService(
         {
             await gatewayClient.Rest.AddGuildThreadUserAsync(thread.Id, openedByUserId);
 
-            var embed = await embedBranding.BuildBrandedAsync(guildId, Msg.Ticket.Welcome(Lang, openerName));
+            var embed = await embedBranding.BuildBrandedAsync(guildId, Msg.Ticket.Welcome(lang, openerName));
 
             await gatewayClient.Rest.SendMessageAsync(thread.Id, new MessageProperties
             {
                 Embeds = [embed],
-                Components = [AddCommanderMenu(ticket.Id), new ActionRowProperties([CloseButton(ticket.Id)])],
+                Components = [AddCommanderMenu(ticket.Id, lang), new ActionRowProperties([CloseButton(ticket.Id, lang)])],
             });
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             // The thread exists even if this part fails — staff with channel permissions
             // can still see/use it, so there's nothing to roll back, just report it.
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionSendWelcome(Lang), Msg.Ticket.HintThreadPermission(Lang, $"<#{thread.Id}>"));
+            var guildLang = await languageResolver.ForGuildAsync(guildId);
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionSendWelcome(guildLang), Msg.Ticket.HintThreadPermission(guildLang, $"<#{thread.Id}>"));
         }
 
-        return Msg.Ticket.Created(Lang, $"<#{thread.Id}>");
+        return Msg.Ticket.Created(lang, $"<#{thread.Id}>");
     }
 
-    public async Task<string> AddCommanderAsync(int ticketId, ulong userId)
+    // callerLanguage: the acting user's resolved language — the status strings go back
+    // ephemerally to whoever picked the commander, not to the added user. A Language
+    // parameter (rather than a callerId) because the user-menu handler calls this in a
+    // loop over the selection and resolves once.
+    public async Task<string> AddCommanderAsync(int ticketId, ulong userId, Language callerLanguage)
     {
         var ticket = await db.Tickets.FindAsync(ticketId);
         if (ticket is null)
-            return Msg.Ticket.NotFound(Lang);
+            return Msg.Ticket.NotFound(callerLanguage);
 
         try
         {
@@ -103,20 +111,25 @@ public class TicketService(
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionAddCommander(Lang), Msg.Ticket.HintThreadPermission(Lang, $"<#{ticket.ThreadId}>"));
-            return Msg.Ticket.AddFailed(Lang);
+            var guildLang = await languageResolver.ForGuildAsync(ticket.GuildId);
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionAddCommander(guildLang), Msg.Ticket.HintThreadPermission(guildLang, $"<#{ticket.ThreadId}>"));
+            return Msg.Ticket.AddFailed(callerLanguage);
         }
 
-        return Msg.Ticket.CommanderAdded(Lang, $"<@{userId}>");
+        return Msg.Ticket.CommanderAdded(callerLanguage, $"<@{userId}>");
     }
 
     public async Task<string> CloseTicketAsync(int ticketId, ulong closedByUserId)
     {
         var ticket = await db.Tickets.FindAsync(ticketId);
         if (ticket is null)
-            return Msg.Ticket.NotFound(Lang);
+            return Msg.Ticket.NotFound(await languageResolver.ForUserAsync(closedByUserId));
+
+        // Everything rendered here is the ephemeral status back to the closing user —
+        // archiving the thread posts nothing into it.
+        var callerLang = await languageResolver.ForUserAsync(closedByUserId, scopeGuildId: ticket.GuildId);
         if (ticket.Status == TicketStatus.Closed)
-            return Msg.Ticket.AlreadyClosed(Lang);
+            return Msg.Ticket.AlreadyClosed(callerLang);
 
         try
         {
@@ -128,8 +141,9 @@ public class TicketService(
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionClose(Lang), Msg.Ticket.HintManageThreads(Lang, $"<#{ticket.ThreadId}>"));
-            return Msg.Ticket.CloseFailed(Lang);
+            var guildLang = await languageResolver.ForGuildAsync(ticket.GuildId);
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionClose(guildLang), Msg.Ticket.HintManageThreads(guildLang, $"<#{ticket.ThreadId}>"));
+            return Msg.Ticket.CloseFailed(callerLang);
         }
 
         ticket.Status = TicketStatus.Closed;
@@ -137,7 +151,7 @@ public class TicketService(
         ticket.ClosedByDiscordUserId = closedByUserId;
         await db.SaveChangesAsync();
 
-        return Msg.Ticket.Closed(Lang);
+        return Msg.Ticket.Closed(callerLang);
     }
 
     private static string Slugify(string value)
