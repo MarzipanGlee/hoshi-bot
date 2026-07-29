@@ -202,14 +202,45 @@ command **names stay English** in all locales — only descriptions are localize
   language. `CommanderName.Address` deleted; `Greeting` survives solely for
   prefixing AiChat's dynamic LLM text ("Commander" is language-neutral in-game
   address).
-- **6f — Defaults live**: no seeding; verify the test guild renders per its Discord
-  locale and set Lost Falcons' guild selector explicitly if they want German
-  regardless of `preferred_locale`. Update [CONTRIBUTING.md](../CONTRIBUTING.md)'s
-  language policy: user-facing strings go into the catalog (all enabled locales),
-  never hardcoded; the German-is-temporary wording goes away.
-- **6g — Slash-command localization** + document the add-a-locale recipe (one
-  `Locales/xx.json`, one `Localizations/xx.json`, one `Enabled` entry — the
-  completeness test enforces the rest) for the remaining 7 languages.
+- **6f — Defaults live** — **DONE 2026-07-29**: no seeding; the test guild (en-US
+  `preferred_locale`, no selector) verified live — AiChat and public posts render
+  English, per the defaults. Lost Falcons' `preferred_locale` is `de`, so production
+  stays German with no action; set its guild selector only if they want German pinned
+  regardless of a future Discord-locale change. CONTRIBUTING's language policy
+  rewritten: catalog-only strings, resolved languages, German-is-temporary wording
+  removed.
+- **6g — Slash-command localization** — **DONE 2026-07-29** (commit `3626c0f`):
+  canonical command metadata is English everywhere (hoshi-say's `auftrag`/`mitglied`
+  → `task`/`member`); German lives in
+  `src/HoshiBot.Host/Localizations/de.json` served by NetCord's
+  `JsonLocalizationsProvider` (descriptions, option-name/description localizations,
+  enum choice names — command names stay English in every locale, with one
+  documented exception: the "Create preview" message command's name is localized,
+  a context-menu entry's name being its only visible text). Along the way this
+  fixed a pre-existing bug: the message command was never registered at all (the
+  default hosting service only collects slash modules) — Host now registers two
+  narrowed application-command services; expect "13 application command(s)
+  registered" after deploy.
+
+### Add-a-locale recipe (per additional language)
+
+1. `src/HoshiBot.Domain/Localization/Locales/xx.json` — translate every key
+   (copy `en.json` as the template).
+2. Add the language to `Languages.Enabled` in
+   `src/HoshiBot.Domain/Localization/Language.cs` — the enum member, code, culture
+   and names already exist for all 9 STFC languages. The `MessageCatalogTests`
+   parity suite then enforces key/placeholder completeness for the new locale, and
+   every selector (guild/audience/alliance/user) offers it automatically.
+3. `src/HoshiBot.Host/Localizations/xx.json` — slash-command descriptions (and
+   option localizations) for the new locale; silently optional per key, but do the
+   full file.
+4. Check the special-cased formats: `DateInput.DateFormat` and the TC digest's
+   `FormatLongDate` special-case German (`dd.MM.yyyy` / `d. MMMM yyyy`) and default
+   everything else to ISO/English patterns — add a branch if the new language needs
+   its own convention.
+5. Translate `docs/`-independent Web bits only if the Web admin is being localized
+   too (out of scope so far — the Web UI is English; `WebRequestLanguage` already
+   picks up the new language for catalog-rendered content automatically).
 
 ## Verification
 
