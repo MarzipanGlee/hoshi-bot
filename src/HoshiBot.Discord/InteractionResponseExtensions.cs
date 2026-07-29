@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
 
@@ -17,14 +18,18 @@ namespace HoshiBot.Discord;
 //               already-ephemeral wizard message; never a shared/persistent one.
 public static class InteractionResponseExtensions
 {
-    private const string Placeholder = "⏳ Processing...";
+    // The ack must go out within Discord's ~3s window, so the placeholder language comes
+    // synchronously from the interaction's own client locale — no resolver/DB round-trip
+    // here (plan decision U2). Unknown locales fall back to English.
+    private static string Placeholder(Interaction interaction) =>
+        Msg.Common.Processing(Languages.FromDiscordLocale(interaction.UserLocale) ?? Language.En);
 
     // Same new-ephemeral ack, but the final edit is an arbitrary MessageOptions mutation
     // (embeds/components) rather than plain content. Distinct name (not an overload) so the
     // returned `m => {…}` lambda target-types cleanly.
     public static async Task SendDelayedEditAsync(this Interaction interaction, Func<Task<Action<MessageOptions>>> work)
     {
-        await interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of(Placeholder)));
+        await interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of(Placeholder(interaction))));
         var edit = await work();
         await interaction.ModifyResponseAsync(edit);
     }
@@ -33,7 +38,7 @@ public static class InteractionResponseExtensions
     // content — the default for a user-facing "action done" confirmation.
     public static async Task SendDelayedEmbedAsync(this Interaction interaction, EmbedBranding branding, ulong guildId, Func<Task<string>> work)
     {
-        await interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of(Placeholder)));
+        await interaction.SendResponseAsync(InteractionCallback.Message(EphemeralReply.Of(Placeholder(interaction))));
         var text = await work();
         await interaction.ModifyResponseAsync(await branding.BrandedEditAsync(guildId, text));
     }
@@ -44,7 +49,7 @@ public static class InteractionResponseExtensions
     {
         await interaction.SendResponseAsync(InteractionCallback.ModifyMessage(m =>
         {
-            m.Content = Placeholder;
+            m.Content = Placeholder(interaction);
             m.Embeds = [];
             m.Components = [];
         }));

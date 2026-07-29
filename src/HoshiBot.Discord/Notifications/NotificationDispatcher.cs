@@ -17,14 +17,22 @@ public class NotificationDispatcher(
     GatewayClient gatewayClient,
     ILogger<NotificationDispatcher> logger,
     EmbedBranding embedBranding,
-    GuildFeatureService featureService)
+    GuildFeatureService featureService,
+    LanguageResolver languageResolver)
 {
-    // All strings come from the message catalog (Msg.Notify); rendering is pinned to German
-    // until sub-phase 6e wires up per-scope language resolution (docs/localization-plan.md).
-    private const Language Lang = Language.De;
+    // Plain-string overload for callers whose content is language-independent or already
+    // rendered; the factory overload below is the localized path.
+    public Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicAsync(ulong guildId, GuildAlertChannelKind kind, string content,
+        ButtonProperties? terminateButton = null, EmbedProperties? embed = null) =>
+        SendPublicAsync(guildId, kind, _ => content,
+            terminateButton is null ? null : _ => terminateButton,
+            embed is null ? null : _ => Task.FromResult<EmbedProperties?>(embed));
 
-    public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicAsync(ulong guildId, GuildAlertChannelKind kind, string content,
-        ButtonProperties? terminateButton = null, EmbedProperties? embed = null)
+    // Localized fan-out: each GuildAlertChannel row renders in its own audience's language
+    // (factories are memoized per distinct language, so a single-language guild builds once).
+    public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicAsync(ulong guildId, GuildAlertChannelKind kind,
+        Func<Language, string> content, Func<Language, ButtonProperties?>? terminateButton = null,
+        Func<Language, Task<EmbedProperties?>>? embed = null)
     {
         var channels = await db.GuildAlertChannels
             .Where(c => c.GuildId == guildId && c.Kind == kind)
@@ -38,9 +46,16 @@ public class NotificationDispatcher(
     // ServerStatus/InfiniteIncursions, whose GuildAlertChannel rows can span multiple audiences for
     // the same guild — disabling the feature for one audience must not silence channels
     // tagged for a different audience the guild also serves.
-    public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicToEnabledAudiencesAsync(
+    public Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicToEnabledAudiencesAsync(
         ulong guildId, GuildAlertChannelKind kind, GuildFeature feature, string content,
-        ButtonProperties? terminateButton = null, EmbedProperties? embed = null)
+        ButtonProperties? terminateButton = null, EmbedProperties? embed = null) =>
+        SendPublicToEnabledAudiencesAsync(guildId, kind, feature, _ => content,
+            terminateButton is null ? null : _ => terminateButton,
+            embed is null ? null : _ => Task.FromResult<EmbedProperties?>(embed));
+
+    public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicToEnabledAudiencesAsync(
+        ulong guildId, GuildAlertChannelKind kind, GuildFeature feature, Func<Language, string> content,
+        Func<Language, ButtonProperties?>? terminateButton = null, Func<Language, Task<EmbedProperties?>>? embed = null)
     {
         var channels = await db.GuildAlertChannels
             .Where(c => c.GuildId == guildId && c.Kind == kind)
@@ -53,17 +68,33 @@ public class NotificationDispatcher(
     }
 
     private async Task<List<(ulong ChannelId, ulong? MessageId)>> SendToChannelsAsync(
-        ulong guildId, List<GuildAlertChannel> channels, string content,
-        ButtonProperties? terminateButton, EmbedProperties? embed)
+        ulong guildId, List<GuildAlertChannel> channels, Func<Language, string> content,
+        Func<Language, ButtonProperties?>? terminateButton, Func<Language, Task<EmbedProperties?>>? embed)
     {
         var results = new List<(ulong, ulong?)>();
+        var rendered = new Dictionary<Language, (string Content, ButtonProperties? Button, EmbedProperties? Embed)>();
 
         foreach (var channel in channels)
+        {
+            var lang = await ResolveChannelLanguageAsync(guildId, channel.Audience);
+            if (!rendered.TryGetValue(lang, out var r))
+                rendered[lang] = r = (content(lang), terminateButton?.Invoke(lang), embed is null ? null : await embed(lang));
+
             results.Add((channel.ChannelId, await TrySendToChannelAsync(guildId, channel.ChannelId,
-                $"<@&{channel.RoleId}> {content}", terminateButton, embed, "alert")));
+                $"<@&{channel.RoleId}> {r.Content}", r.Button, r.Embed, "alert")));
+        }
 
         return results;
     }
+
+    // GuildAlertChannel rows are audience-tagged but not alliance-tagged, so an
+    // Alliance-audience row can't resolve a specific alliance's language — it gets the
+    // guild language instead (documented edge in docs/localization-plan.md). Guild/None
+    // rows are guild-scoped by definition.
+    private Task<Language> ResolveChannelLanguageAsync(ulong guildId, GuildAudience audience) =>
+        audience is GuildAudience.Alliance or GuildAudience.Guild or GuildAudience.None
+            ? languageResolver.ForGuildAsync(guildId)
+            : languageResolver.ForAudienceAsync(guildId, audience);
 
     // One channel send plus the shared undeliverable handling (warn log, activity-log entry,
     // throttled admin ping) used by both SendToChannelsAsync and SendToChannelIdsAsync — the two
@@ -87,9 +118,12 @@ public class NotificationDispatcher(
         {
             logger.LogWarning("Skipped {ChannelKind} channel {ChannelId} for guild {GuildId}: {StatusCode}",
                 channelKind, channelId, guildId, ex.StatusCode);
-            await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode);
-            await NotifyAdminOfPermissionIssueAsync(guildId, Msg.Notify.ActionSendAlert(Lang),
-                Msg.Notify.HintChannelPermission(Lang, $"<#{channelId}>"));
+            // Admin-facing follow-ups render in the guild language (the resolver caches, so
+            // this rare failure path stays cheap).
+            var lang = await languageResolver.ForGuildAsync(guildId);
+            await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode, lang);
+            await NotifyAdminOfPermissionIssueAsync(guildId, Msg.Notify.ActionSendAlert(lang),
+                Msg.Notify.HintChannelPermission(lang, $"<#{channelId}>"));
             return null;
         }
     }
@@ -190,20 +224,20 @@ public class NotificationDispatcher(
     // where. No-op when no LogChannelId is configured, and a Forbidden/NotFound on the log
     // channel itself is swallowed (it's very likely the same guild-wide permission gap that
     // caused the original skip).
-    private async Task LogSkippedChannelAsync(ulong guildId, ulong channelId, HttpStatusCode statusCode)
+    private async Task LogSkippedChannelAsync(ulong guildId, ulong channelId, HttpStatusCode statusCode, Language lang)
     {
         var settings = await db.GuildSettings.FindAsync(guildId);
         if (settings?.LogChannelId is not { } logChannelId)
             return;
 
         var reason = statusCode == HttpStatusCode.Forbidden
-            ? Msg.Notify.SkipReasonForbidden(Lang)
-            : Msg.Notify.SkipReasonNotFound(Lang);
+            ? Msg.Notify.SkipReasonForbidden(lang)
+            : Msg.Notify.SkipReasonNotFound(lang);
 
         try
         {
             var embed = await embedBranding.BuildBrandedAsync(guildId,
-                Msg.Notify.SkippedChannelLog(Lang, $"<#{channelId}>", reason),
+                Msg.Notify.SkippedChannelLog(lang, $"<#{channelId}>", reason),
                 EmbedBranding.DangerColor);
             await gatewayClient.Rest.SendMessageAsync(logChannelId, new MessageProperties { Embeds = [embed] });
         }
@@ -247,8 +281,9 @@ public class NotificationDispatcher(
 
         try
         {
+            var lang = await languageResolver.ForGuildAsync(guildId);
             var embed = await embedBranding.BuildBrandedAsync(guildId,
-                Msg.Notify.PermissionIssue(Lang, context, missingPermissionHint),
+                Msg.Notify.PermissionIssue(lang, context, missingPermissionHint),
                 EmbedBranding.DangerColor);
             await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties { Embeds = [embed] });
         }
