@@ -7,22 +7,24 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Announcements" Usage="Where published announcements are posted."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.Channel)"
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <ChannelPicker CardTitle="Announcements Reminders" Usage="A second channel that gets reminder pings for unread announcements."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.RemindersChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.RemindersChannel)"
             @bind-Value="remindersChannelInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
 
-    <ChannelPicker CardTitle="Announcements Draft" Usage="Where staff post announcement drafts (plain message, attachments allowed) before publishing them."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.DraftChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.DraftChannel)"
             @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
 
     @if (ResolvedAudience == GuildAudience.Alliance)
     {
-        <RolePicker CardTitle="Notification Role" Usage="Pinged when an Elevated-severity announcement is published — the default members ping (High severity pings the Warnings Role instead). This is the alliance's absence-clean notification role, shared with the Absences and Territory Capture pages."
+        @* Keyed under Announcements (this editor's wording), even though the value is stored
+           under the Absences feature — the Absences page carries its own wording for it. *@
+        <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AbsencesSettingKeys.NotificationRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AbsencesSettingKeys.NotificationRole)"
                 @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
     }
 
-    <RolePicker CardTitle="Warnings Role" Usage="Pinged when a High-severity announcement is published."
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)"
             @bind-Value="warningsRoleInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
 
     <CommandStaffRoleCard GuildId="GuildId" />

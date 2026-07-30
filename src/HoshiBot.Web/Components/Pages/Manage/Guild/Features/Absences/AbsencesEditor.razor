@@ -6,13 +6,13 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Absences Report" Usage="Where the public, kept-updated absence report is posted. Each entry respects the member's chosen privacy setting."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AbsencesSettingKeys.ReportChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AbsencesSettingKeys.ReportChannel)"
             @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
 
-    <ChannelPicker CardTitle="Absences Report (Staff)" Usage="A staff-only copy of the report that always shows every absence in full, ignoring members' privacy settings."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AbsencesSettingKeys.ReportStaffChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AbsencesSettingKeys.ReportStaffChannel)"
             @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
 
-    <RolePicker CardTitle="Notification Role" Usage="The role members opt into to be pinged for alliance activity (the Territory Capture weekly digest and Elevated announcements). Kept absence-clean automatically: a member with an active absence that suppresses notifications is removed from it until the absence ends. Also editable on the Territory Capture page — it's the same setting."
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AbsencesSettingKeys.NotificationRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AbsencesSettingKeys.NotificationRole)"
             @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
 </div>
 

@@ -7,44 +7,40 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <p class="text-muted">
-    Each Command Bridge is a persistent hub message with action buttons, scoped to this alliance.
-    Pick a channel per bridge and click <strong>Publish</strong> to (re)post it — the bot posts it
-    shortly after. Which buttons appear is controlled by enabling/disabling the underlying features
-    (for this alliance) on this Features page. While the Command Bridge is disabled its hubs are not
-    (re)posted.
+    @((MarkupString)Msg.WebCommandBridge.Intro(Lang))
 </p>
 
 <div class="card-grid mt-1">
     @foreach (var bridge in bridges)
     {
-        <SettingsCard Title="@bridge.Heading">
-            <p class="text-muted small mb-0">@bridge.Subtitle</p>
+        <SettingsCard Title="@Heading(bridge)">
+            <p class="text-muted small mb-0">@Subtitle(bridge)</p>
 
-            <ChannelPicker Label="Channel" ShowLabel="false"
-                           Usage="Where this Command Bridge hub message is posted."
-                           Value="@channelInputs[bridge.Kind]"
-                           ValueChanged="v => OnChannelChangedAsync(bridge.Kind, v)"
+            <ChannelPicker Label="@Msg.WebCommon.Channel(Lang)" ShowLabel="false"
+                           Usage="@Msg.WebCommandBridge.ChannelUsage(Lang)"
+                           Value="@channelInputs[bridge]"
+                           ValueChanged="v => OnChannelChangedAsync(bridge, v)"
                            Channels="channels" />
 
             <div>
-                <button class="btn btn-primary btn-sm" @onclick="() => PublishAsync(bridge.Kind)"
-                        disabled="@(!Enabled || ParseId(channelInputs[bridge.Kind]) is null || IsBusy(bridge.Kind))">
-                    Publish
+                <button class="btn btn-primary btn-sm" @onclick="() => PublishAsync(bridge)"
+                        disabled="@(!Enabled || ParseId(channelInputs[bridge]) is null || IsBusy(bridge))">
+                    @Msg.WebCommandBridge.Publish(Lang)
                 </button>
-                @if (statuses.TryGetValue(bridge.Kind, out var status))
+                @if (statuses.TryGetValue(bridge, out var status))
                 {
                     <span class="ms-2 @(status.Done ? "text-success" : "text-muted")">@status.Text</span>
                 }
             </div>
 
             <div>
-                <h3 class="h6 mb-1">Buttons on this bridge</h3>
+                <h3 class="h6 mb-1">@Msg.WebCommandBridge.ButtonsHeading(Lang)</h3>
                 @{
-                    var items = OverviewFor(bridge.Kind);
+                    var items = OverviewFor(bridge);
                 }
                 @if (items.Count == 0)
                 {
-                    <p class="text-muted mb-0">No buttons are assigned to this bridge.</p>
+                    <p class="text-muted mb-0">@Msg.WebCommandBridge.NoButtons(Lang)</p>
                 }
                 else
                 {
@@ -55,7 +51,7 @@
                         }
                         @foreach (var item in items.Where(i => !i.Shown))
                         {
-                            <li class="text-muted">🚫 @Link(item) <span class="small">(hidden)</span></li>
+                            <li class="text-muted">🚫 @Link(item) <span class="small">@Msg.WebCommandBridge.Hidden(Lang)</span></li>
                         }
                     </ul>
                 }
@@ -70,16 +66,28 @@
     // the guild-side language resolution.
     protected override GuildFeature Feature => GuildFeature.CommandBridge;
 
-    private record BridgeInfo(CommandBridgeKind Kind, string Heading, string Subtitle);
-
     private record OverviewItem(string Label, bool Shown, string? Slug);
 
-    private static readonly BridgeInfo[] bridges =
+    private static readonly CommandBridgeKind[] bridges =
     [
-        new(CommandBridgeKind.User, "User bridge", "\"Kommandobrücke\" — the member-facing hub."),
-        new(CommandBridgeKind.Staff, "Staff bridge", "\"Kommandobrücke Führungsstab\" — post this to a staff-only channel."),
-        new(CommandBridgeKind.Friends, "Friends bridge", "\"Kommandobrücke Freunde\" — a trimmed hub for allied/friend guilds."),
+        CommandBridgeKind.User,
+        CommandBridgeKind.Staff,
+        CommandBridgeKind.Friends,
     ];
+
+    private string Heading(CommandBridgeKind bridge) => bridge switch
+    {
+        CommandBridgeKind.Staff => Msg.WebCommandBridge.StaffBridgeHeading(Lang),
+        CommandBridgeKind.Friends => Msg.WebCommandBridge.FriendsBridgeHeading(Lang),
+        _ => Msg.WebCommandBridge.UserBridgeHeading(Lang),
+    };
+
+    private string Subtitle(CommandBridgeKind bridge) => bridge switch
+    {
+        CommandBridgeKind.Staff => Msg.WebCommandBridge.StaffBridgeSubtitle(Lang),
+        CommandBridgeKind.Friends => Msg.WebCommandBridge.FriendsBridgeSubtitle(Lang),
+        _ => Msg.WebCommandBridge.UserBridgeSubtitle(Lang),
+    };
 
     private record PublishStatus(string Text, bool Done);
 
@@ -168,7 +176,7 @@
             requestId = request.Id;
         }
 
-        statuses[bridge] = new PublishStatus("Queued — waiting for the bot…", false);
+        statuses[bridge] = new PublishStatus(Msg.WebCommandBridge.StatusQueued(Lang), false);
         StateHasChanged();
 
         // Poll until the bot drains the request (up to ~40s; the job runs every 15s).
@@ -182,12 +190,12 @@
 
             if (!stillPending)
             {
-                statuses[bridge] = new PublishStatus("✅ Posted.", true);
+                statuses[bridge] = new PublishStatus(Msg.WebCommandBridge.StatusPosted(Lang), true);
                 return;
             }
         }
 
-        statuses[bridge] = new PublishStatus("Still queued — is the bot running?", true);
+        statuses[bridge] = new PublishStatus(Msg.WebCommandBridge.StatusStillQueued(Lang), true);
     }
 
     private List<OverviewItem> OverviewFor(CommandBridgeKind bridge)

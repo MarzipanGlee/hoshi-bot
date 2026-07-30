@@ -6,7 +6,7 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Anonymous Messages" Usage="Where anonymous messages submitted via the hub button are posted."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnonymousMessagingSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnonymousMessagingSettingKeys.Channel)"
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 </div>
 

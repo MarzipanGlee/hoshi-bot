@@ -175,5 +175,30 @@ public static partial class Msg
 
         public static string Configure(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.Configure");
+
+        // FeatureSettings.razor — the shell around every per-feature editor.
+        public static string FeatureSettingsTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.FeatureSettingsTitle");
+
+        public static string UnknownFeature(Language lang, string slug) =>
+            MessageCatalog.Format(lang, "Web.Guild.UnknownFeature", ("slug", slug));
+
+        public static string Redirecting(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.Redirecting");
+
+        public static string RequiresOtherFeatures(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.RequiresOtherFeatures");
+
+        public static string NeedsOtherFeatures(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.NeedsOtherFeatures");
+
+        public static string DependencyEnabled(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.DependencyEnabled");
+
+        public static string DependencyNotConfigured(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.DependencyNotConfigured");
+
+        public static string DependencyNotEnabled(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.DependencyNotEnabled");
     }
 }

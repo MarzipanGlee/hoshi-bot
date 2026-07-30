@@ -9,17 +9,17 @@
 
 <div class="card-grid mt-1">
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AnnouncementForwarder" Audience="ResolvedAudience"
-        Title="Source channels" Usage="Channels to watch for official announcements (e.g. the crossposted Scopely news channel)." />
+        Title="@Msg.WebAnnouncementForwarder.SourcesTitle(Lang)" Usage="@Msg.WebAnnouncementForwarder.SourcesUsage(Lang)" />
 
-    <ChannelPicker CardTitle="Destination channel" Usage="Where the translated announcement is posted."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementForwarderSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementForwarderSettingKeys.Channel)"
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <SettingsCard Title="Target language (optional)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementForwarderSettingKeys.TargetLanguage)">
         <label for="forwarderLanguage" class="form-label">
-            Language to translate into. Leave empty to use the server's Discord language.
+            @Msg.WebEditor.Label(Lang, Feature, AnnouncementForwarderSettingKeys.TargetLanguage)
         </label>
         <select id="forwarderLanguage" class="form-select" @bind="targetLanguageInput" @bind:after="SaveTargetLanguageAsync">
-            <option value="">— server language —</option>
+            <option value="">@Msg.WebAnnouncementForwarder.ServerLanguageOption(Lang)</option>
             @foreach (var lang in FtsLanguage.SupportedConfigs.Where(l => l != FtsLanguage.Default))
             {
                 <option value="@lang">@lang</option>
@@ -27,12 +27,9 @@
         </select>
     </SettingsCard>
 
-    <SettingsCard Title="Catch-up window (optional)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementForwarderSettingKeys.CatchUpWindowHours)">
         <label for="forwarderCatchUpWindow" class="form-label">
-            How far back (in hours) to look for a missed announcement — e.g. one posted while the bot
-            was down. Only messages newer than this are ever caught up, so a long-idle source channel
-            doesn't get its whole history dumped into the destination. Leave empty for the default
-            (@AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours hours).
+            @Msg.WebEditor.Label(Lang, Feature, AnnouncementForwarderSettingKeys.CatchUpWindowHours, ("hours", AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours))
         </label>
         <input id="forwarderCatchUpWindow" type="number" min="1" class="form-control"
                placeholder="@AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours"

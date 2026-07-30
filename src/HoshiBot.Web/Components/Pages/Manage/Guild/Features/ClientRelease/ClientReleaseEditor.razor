@@ -4,12 +4,7 @@
 @inherits FeatureEditorBase
 @inject DiscordGuildDataService DiscordData
 
-<p class="form-text">
-    Announces when a new STFC game client version is released for Windows, macOS, Android, or
-    iOS. Linux has no known version-check source yet. Each announcement posts to the channels
-    below and pings only that platform's role — members opt in/out of a platform's role via the
-    hub's "manage alerts" button.
-</p>
+<p class="form-text">@Msg.WebClientRelease.Intro(Lang)</p>
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -20,12 +15,11 @@
 
 <div class="card-grid mt-1">
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.ClientRelease" Audience="ResolvedAudience"
-        Title="Announcement Channels" Usage="Every configured platform release is posted to each of these channels." />
+        Title="@Msg.WebClientRelease.ChannelsTitle(Lang)" Usage="@Msg.WebClientRelease.ChannelsUsage(Lang)" />
 
-    <SettingsCard Title="Platform Roles (guild-wide)">
+    <SettingsCard Title="@Msg.WebClientRelease.PlatformRolesTitle(Lang)">
         <p class="form-text mb-0">
-            The role pinged when each platform releases a new version — one per platform, shared
-            across all audiences. Members opt in/out via the alerts hub button.
+            @Msg.WebClientRelease.PlatformRolesUsage(Lang)
         </p>
         <RolePicker Label="Windows" CreateRoleName="Windows" @bind-Value="windowsRoleInput" @bind-Value:after="SaveWindowsRoleAsync" Roles="roles" />
         <RolePicker Label="macOS" CreateRoleName="macOS" @bind-Value="macOsRoleInput" @bind-Value:after="SaveMacOsRoleAsync" Roles="roles" />

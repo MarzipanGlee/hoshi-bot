@@ -11,7 +11,7 @@
 }
 
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="Alerts" Usage="Role members opt into via the hub's 'manage alerts' button, to receive raid/shield pings." CreateRoleName="Alerts"
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AlertsOptInSettingKeys.Role)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AlertsOptInSettingKeys.Role)" CreateRoleName="Alerts"
             @bind-Value="roleIdInput" @bind-Value:after="SaveRoleAsync" Roles="roles" />
 </div>
 

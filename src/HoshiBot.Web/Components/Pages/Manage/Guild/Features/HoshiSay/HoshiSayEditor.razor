@@ -8,8 +8,8 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="Allowed role"
-            Usage="Members with this role may run /hoshi-say. The command posts into whatever channel it's used in, so an admin just stands in the target channel and runs it — role membership is the permission gate."
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, HoshiSaySettingKeys.AllowedRole)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, HoshiSaySettingKeys.AllowedRole)"
             @bind-Value="allowedRoleInput" @bind-Value:after="SaveAllowedRoleAsync" Roles="roles" />
 </div>
 

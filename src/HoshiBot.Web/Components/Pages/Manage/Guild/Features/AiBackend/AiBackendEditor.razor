@@ -1,135 +1,113 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Web.Services
 
-<p class="form-text">
-    The guild-wide AI backend. These settings — provider, API key, and model choices — are shared by
-    every AI-powered feature (AI Chat, Member Lore, Announcement Forwarder). One AI account per guild.
-</p>
+<p class="form-text">@Msg.WebAiBackend.Intro(Lang)</p>
 
 <AiHealthBanner GuildId="GuildId" />
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="AI provider">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.Provider)">
         <label for="aiProvider" class="form-label">
-            Which language model this guild uses. <strong>Gemini</strong> (Google Cloud, needs its own
-            API key) or <strong>Ollama</strong> (local model on the shared server, no key needed).
+            @((MarkupString)Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.Provider))
         </label>
         <select id="aiProvider" class="form-select" @bind="providerInput" @bind:after="SaveProviderAsync">
-            <option value="gemini">Google Gemini</option>
-            <option value="ollama">Ollama (local)</option>
+            <option value="gemini">@Msg.WebAiBackend.ProviderOptionGemini(Lang)</option>
+            <option value="ollama">@Msg.WebAiBackend.ProviderOptionOllama(Lang)</option>
         </select>
     </SettingsCard>
 
     @if (providerInput != "ollama")
     {
-        <SettingsCard Title="Gemini API key">
+        <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.ApiKey)">
             <label class="form-label">
-                This guild's own Google Gemini API key. Used for all AI answers and stored encrypted at rest.
+                @Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.ApiKey)
             </label>
             @if (hasKey)
             {
-                <p class="form-text mb-1 text-success">A key is saved. Enter a new value to replace it.</p>
+                <p class="form-text mb-1 text-success">@Msg.WebAiBackend.KeySaved(Lang)</p>
             }
             <div class="d-flex gap-2">
                 <input type="password" class="form-control" autocomplete="off"
-                       placeholder="@(hasKey ? "•••••••• (saved)" : "Enter API key")"
+                       placeholder="@(hasKey ? Msg.WebAiBackend.KeySavedPlaceholder(Lang) : Msg.WebAiBackend.EnterKeyPlaceholder(Lang))"
                        @bind="apiKeyInput" @bind:after="SaveApiKeyAsync" />
                 @if (hasKey)
                 {
-                    <button type="button" class="btn btn-sm btn-danger" @onclick="ClearApiKeyAsync">Delete</button>
+                    <button type="button" class="btn btn-sm btn-danger" @onclick="ClearApiKeyAsync">@Msg.WebCommon.Delete(Lang)</button>
                 }
             </div>
         </SettingsCard>
     }
 
-    <SettingsCard Title="Model (optional)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.Model)">
         @if (providerInput == "ollama")
         {
             <label for="aiModel" class="form-label">
-                Ollama model. Leave empty for the server's default model.
+                @Msg.WebAiBackend.ModelLabelOllama(Lang)
             </label>
-            <input id="aiModel" class="form-control" placeholder="Server default model"
+            <input id="aiModel" class="form-control" placeholder="@Msg.WebAiBackend.ServerDefaultModelPlaceholder(Lang)"
                    @bind="modelInput" @bind:after="SaveModelAsync" />
         }
         else
         {
             <label for="aiModel" class="form-label">
-                Gemini model. Leave empty for the default (@AiBackendSettingKeys.DefaultModel).
+                @Msg.WebAiBackend.ModelLabelGemini(Lang, AiBackendSettingKeys.DefaultModel)
             </label>
             <input id="aiModel" class="form-control" placeholder="@AiBackendSettingKeys.DefaultModel"
                    @bind="modelInput" @bind:after="SaveModelAsync" />
         }
     </SettingsCard>
 
-    <SettingsCard Title="Embeddings (optional)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider)">
         <label for="aiEmbeddingProvider" class="form-label">
-            Which backend powers semantic search (paraphrase-aware knowledge lookup) and memory
-            recall. Independent of the AI provider above — you can chat with Gemini while keeping
-            Ollama embeddings, or vice versa.
+            @Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider)
         </label>
         <select id="aiEmbeddingProvider" class="form-select"
                 @bind="embeddingProviderInput" @bind:after="SaveEmbeddingProviderAsync">
-            <option value="ollama">Ollama (default, local, no key needed)</option>
-            <option value="gemini-embedding-001">Gemini Embedding 1 (text)</option>
-            <option value="gemini-embedding-2">Gemini Embedding 2 (multimodal-capable; text used here)</option>
+            <option value="ollama">@Msg.WebAiBackend.EmbeddingOptionOllama(Lang)</option>
+            <option value="gemini-embedding-001">@Msg.WebAiBackend.EmbeddingOptionGemini1(Lang)</option>
+            <option value="gemini-embedding-2">@Msg.WebAiBackend.EmbeddingOptionGemini2(Lang)</option>
         </select>
         <div class="form-text">
-            Gemini Embedding options reuse this guild's <strong>Gemini API key</strong> (set above) —
-            no separate key needed, but a Gemini choice stays disabled until a key is configured.
-            Switching doesn't need a manual re-index: existing content re-embeds automatically over
-            the next few scheduled passes (a brief window where search quietly skips not-yet-re-embedded
-            content is expected and self-corrects). Gemini Embedding 1 is text-only; Gemini Embedding 2
-            additionally supports image/video/audio/PDF input at the API level, though Hoshi doesn't
-            index those yet.
+            @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider))
         </div>
     </SettingsCard>
 
-    <SettingsCard Title="Gate model (optional)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.GateModel)">
         <label for="aiGateModel" class="form-label">
-            A small, fast model that pre-screens messages in listen channels: it decides whether a
-            message the bot wasn't directly asked is even worth a full answer, so the bot doesn't run
-            (and show "typing…" for) an expensive answer on every bit of chatter. It only ever stays
-            <em>quiet</em> on clear non-questions — anything unsure still gets a full answer. Direct
-            @@mentions always answer and skip this.
+            @((MarkupString)Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.GateModel))
         </label>
         @if (providerInput == "ollama")
         {
-            <input id="aiGateModel" class="form-control" placeholder="Server default"
+            <input id="aiGateModel" class="form-control" placeholder="@Msg.WebAiBackend.ServerDefaultPlaceholder(Lang)"
                    @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
             <div class="form-text">
-                Leave empty to use the server's default (the <code>Ollama__GateModel</code> deployment
-                setting — the gate is off only if that's unset too). Enter a pulled model to override it
-                for this guild, or <code>off</code> to disable the gate here.
+                @((MarkupString)Msg.WebAiBackend.GateUsageOllama(Lang))
             </div>
         }
         else
         {
-            <input id="aiGateModel" class="form-control" placeholder="Default (@AiBackendSettingKeys.DefaultGateModel)"
+            <input id="aiGateModel" class="form-control" placeholder="@Msg.WebAiBackend.DefaultModelPlaceholder(Lang, AiBackendSettingKeys.DefaultGateModel)"
                    @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
-            <div class="form-text">Leave empty for the default (<code>@AiBackendSettingKeys.DefaultGateModel</code>). Enter a model to override it, or <code>off</code> to disable the gate.</div>
+            <div class="form-text">@((MarkupString)Msg.WebAiBackend.GateUsageGemini(Lang, AiBackendSettingKeys.DefaultGateModel))</div>
         }
     </SettingsCard>
 
-    <SettingsCard Title="Router model (optional)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.RouterModel)">
         <label for="aiRouterModel" class="form-label">
-            A small/cheap model that answers <em>simple</em> questions and classifies each question's
-            complexity; <em>complex</em> questions escalate to the main Model above. Leave empty to
-            always use the main Model.
+            @((MarkupString)Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.RouterModel))
             @if (providerInput != "ollama")
             {
                 <span>
-                    Free-tier tip: set <code>@AiBackendSettingKeys.DefaultGateModel</code> here — it allows
-                    far more requests per day than the main flash model, so the small quota is only spent
-                    on genuinely complex questions.
+                    @((MarkupString)Msg.WebAiBackend.RouterTip(Lang, AiBackendSettingKeys.DefaultGateModel))
                 </span>
             }
         </label>
         <input id="aiRouterModel" class="form-control"
-               placeholder="@(providerInput == "ollama" ? "Off — a smaller pulled model to enable" : "Off — e.g. " + AiBackendSettingKeys.DefaultGateModel)"
+               placeholder="@(providerInput == "ollama" ? Msg.WebAiBackend.RouterOffOllamaPlaceholder(Lang) : Msg.WebAiBackend.RouterOffGeminiPlaceholder(Lang, AiBackendSettingKeys.DefaultGateModel))"
                @bind="routerModelInput" @bind:after="SaveRouterModelAsync" />
-        <div class="form-text">Leave empty (or <code>off</code>) to always use the main Model. Enter a model to enable complexity routing.</div>
+        <div class="form-text">@((MarkupString)Msg.WebEditor.Usage(Lang, Feature, AiBackendSettingKeys.RouterModel))</div>
     </SettingsCard>
 </div>
 

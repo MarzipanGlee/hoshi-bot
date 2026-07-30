@@ -11,10 +11,10 @@
 }
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Diplomacy" Usage="Where diplomacy status changes (/set-diplomacy) are announced."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.Channel)"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <RolePicker CardTitle="Diplomat" Usage="Role for members who can run /set-diplomacy for this guild's alliance." CreateRoleName="Diplomat"
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="Diplomat"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
 </div>
 

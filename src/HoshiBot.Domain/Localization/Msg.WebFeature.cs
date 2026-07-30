@@ -50,13 +50,13 @@ public static partial class Msg
     // GuildFeatureSettingsService — reusing them keeps key typos structurally unlikely.
     public static class WebEditor
     {
-        public static string Label(Language lang, GuildFeature feature, string settingKey) =>
-            MessageCatalog.Format(lang, $"Web.Editor.{feature}.{settingKey}.Label");
+        public static string Label(Language lang, GuildFeature feature, string settingKey, params (string Name, object? Value)[] args) =>
+            MessageCatalog.Format(lang, $"Web.Editor.{feature}.{settingKey}.Label", args);
 
-        public static string CardTitle(Language lang, GuildFeature feature, string settingKey) =>
-            MessageCatalog.Format(lang, $"Web.Editor.{feature}.{settingKey}.CardTitle");
+        public static string CardTitle(Language lang, GuildFeature feature, string settingKey, params (string Name, object? Value)[] args) =>
+            MessageCatalog.Format(lang, $"Web.Editor.{feature}.{settingKey}.CardTitle", args);
 
-        public static string Usage(Language lang, GuildFeature feature, string settingKey) =>
-            MessageCatalog.Format(lang, $"Web.Editor.{feature}.{settingKey}.Usage");
+        public static string Usage(Language lang, GuildFeature feature, string settingKey, params (string Name, object? Value)[] args) =>
+            MessageCatalog.Format(lang, $"Web.Editor.{feature}.{settingKey}.Usage", args);
     }
 }

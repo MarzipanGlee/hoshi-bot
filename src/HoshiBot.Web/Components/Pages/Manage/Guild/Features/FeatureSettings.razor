@@ -8,12 +8,12 @@
 @inject GuildFeatureSettingsService SettingsService
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
-<PageTitle>@(descriptor?.Title(Lang) ?? "Feature Settings")</PageTitle>
+<PageTitle>@(descriptor?.Title(Lang) ?? Msg.WebGuild.FeatureSettingsTitle(Lang))</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (descriptor is null)
     {
-        <p>Unknown feature "@FeatureSlug".</p>
+        <p>@Msg.WebGuild.UnknownFeature(Lang, FeatureSlug)</p>
     }
     else if (needsAllianceLink)
     {
@@ -22,7 +22,7 @@
     }
     else if (editorParameters is null)
     {
-        <p>Redirecting...</p>
+        <p>@Msg.WebGuild.Redirecting(Lang)</p>
     }
     else
     {
@@ -34,7 +34,7 @@
             <div class="alert @(dependencies.All(d => d.Satisfied) ? "alert-secondary" : "alert-warning")">
                 <div class="fw-semibold mb-2">
                     <span class="oi oi-link-intact" aria-hidden="true"></span>
-                    @(dependencies.All(d => d.Satisfied) ? "Requires other features" : "Needs other features to work")
+                    @(dependencies.All(d => d.Satisfied) ? Msg.WebGuild.RequiresOtherFeatures(Lang) : Msg.WebGuild.NeedsOtherFeatures(Lang))
                 </div>
                 <ul class="mb-0 ps-3">
                     @foreach (var dep in dependencies)
@@ -43,15 +43,15 @@
                             <a href="@DependencyHref(dep.Module)">@dep.Module.Title(Lang)</a>
                             @if (dep.Satisfied)
                             {
-                                <span class="badge bg-success ms-1">enabled</span>
+                                <span class="badge bg-success ms-1">@Msg.WebGuild.DependencyEnabled(Lang)</span>
                             }
                             else if (dep.Enabled)
                             {
-                                <span class="badge bg-warning text-dark ms-1">not configured</span>
+                                <span class="badge bg-warning text-dark ms-1">@Msg.WebGuild.DependencyNotConfigured(Lang)</span>
                             }
                             else
                             {
-                                <span class="badge bg-danger ms-1">not enabled</span>
+                                <span class="badge bg-danger ms-1">@Msg.WebGuild.DependencyNotEnabled(Lang)</span>
                             }
                             @if (dep.Note is { Length: > 0 })
                             {

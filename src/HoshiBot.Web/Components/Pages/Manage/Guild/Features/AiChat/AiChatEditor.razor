@@ -3,20 +3,11 @@
 @inject DiscordGuildDataService DiscordData
 
 <p class="form-text">
-    The bot listens to every message in the <strong>listen channels</strong> and answers when it has
-    a genuinely helpful reply (staying silent otherwise). It always answers when addressed by its
-    nickname or @@mention. Answers are grounded in the recent conversation plus the configured
-    <strong>knowledge channels</strong>. The language-model provider, API key and models are shared
-    across every AI feature and configured on the <strong>AI Provider</strong> page.
+    @((MarkupString)Msg.WebAiChat.Intro1(Lang))
 </p>
 
 <p class="form-text">
-    <strong>Knowledge channels</strong> (also forums, or whole categories) are the sources the bot
-    draws on to ground its answers — a forum contributes all of its posts. Their
-    <strong>priority</strong> controls which sources the answer search
-    prefers — <em>Preferred</em> is boosted, <em>Last resort</em> is only used when the higher tiers
-    have no answer. A channel belongs to exactly <em>one</em> tier (adding it to one removes it from
-    the others).
+    @((MarkupString)Msg.WebAiChat.Intro2(Lang))
 </p>
 
 <AiHealthBanner GuildId="GuildId" />
@@ -25,12 +16,12 @@
 
 <div class="mb-3">
     <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
-        FeatureSlug="ai-chat" ExtraSlug="health" Label="AI Chat health" />
+        FeatureSlug="ai-chat" ExtraSlug="health" Label="@Msg.WebAiChat.HealthLink(Lang)" />
 </div>
 
 <div class="card-grid mt-1">
     <MultiChannelPicker GuildId="GuildId" Feature="GuildFeature.AiChat" Audience="ResolvedAudience"
-        Title="Listen channels" Usage="Channels the bot reads and answers in." />
+        Title="@Msg.WebAiChat.ListenTitle(Lang)" Usage="@Msg.WebAiChat.ListenUsage(Lang)" />
 
     @* Knowledge sources are read-only, so forums are selectable too (Kind) — the indexer expands a
        forum to its threads. The listen picker above stays Normal: the listen match compares the raw
@@ -38,60 +29,56 @@
     <MultiChannelPicker @ref="preferredPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledgePreferred"
         Audience="ResolvedAudience" AllowCategories="true" Kind="ChannelKind.NormalOrForum"
         ExclusiveWith="PreferredExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
-        Title="Knowledge – preferred"
-        Usage="Curated/internal channels. Hits here are boosted in the answer search." />
+        Title="@Msg.WebAiChat.KnowledgePreferredTitle(Lang)"
+        Usage="@Msg.WebAiChat.KnowledgePreferredUsage(Lang)" />
 
     <MultiChannelPicker @ref="normalPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledge"
         Audience="ResolvedAudience" AllowCategories="true" Kind="ChannelKind.NormalOrForum"
         ExclusiveWith="NormalExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
-        Title="Knowledge – normal"
-        Usage="The bot's standard knowledge sources." />
+        Title="@Msg.WebAiChat.KnowledgeNormalTitle(Lang)"
+        Usage="@Msg.WebAiChat.KnowledgeNormalUsage(Lang)" />
 
     <MultiChannelPicker @ref="lastResortPicker" GuildId="GuildId" Feature="GuildFeature.AiChatKnowledgeLastResort"
         Audience="ResolvedAudience" AllowCategories="true" Kind="ChannelKind.NormalOrForum"
         ExclusiveWith="LastResortExclusiveWith" OnChanged="RefreshKnowledgePickersAsync"
-        Title="Knowledge – last resort"
-        Usage="E.g. external content (content creators / Scopely). Used only when the preferred/normal sources have no answer." />
+        Title="@Msg.WebAiChat.KnowledgeLastResortTitle(Lang)"
+        Usage="@Msg.WebAiChat.KnowledgeLastResortUsage(Lang)" />
 
-    <SettingsCard Title="System prompt (optional)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiChatSettingKeys.SystemPrompt)">
         <label for="aiChatSystemPrompt" class="form-label">
-            Extra personality/behaviour instruction, prepended to the default prompt.
+            @Msg.WebEditor.Label(Lang, Feature, AiChatSettingKeys.SystemPrompt)
         </label>
         <textarea id="aiChatSystemPrompt" class="form-control flex-grow-1" rows="4"
                   @bind="systemPromptInput" @bind:after="SaveSystemPromptAsync"></textarea>
     </SettingsCard>
 
-    <SettingsCard Title="Response streaming">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiChatSettingKeys.StreamResponses)">
         <div class="form-switch">
             <input type="checkbox" class="form-check-input" role="switch" id="aiChatStreaming"
                    checked="@streamResponses" @onchange="e => SaveStreamResponsesAsync((bool)e.Value!)" />
-            <label class="form-check-label" for="aiChatStreaming">Stream answers live</label>
+            <label class="form-check-label" for="aiChatStreaming">@Msg.WebEditor.Label(Lang, Feature, AiChatSettingKeys.StreamResponses)</label>
         </div>
         <div class="form-text">
-            Post an answer as a placeholder / typing indicator and edit it in place as the model writes,
-            instead of one message at the end. Nice for slow local (Ollama) models; off by default.
+            @Msg.WebEditor.Usage(Lang, Feature, AiChatSettingKeys.StreamResponses)
         </div>
     </SettingsCard>
 
-    <SettingsCard Title="Memory (experimental)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiChatSettingKeys.MemoryEnabled)">
         <div class="form-switch">
             <input type="checkbox" class="form-check-input" role="switch" id="aiChatMemory"
                    checked="@memoryEnabled" @onchange="e => SaveMemoryEnabledAsync((bool)e.Value!)" />
-            <label class="form-check-label" for="aiChatMemory">Let Hoshi remember events</label>
+            <label class="form-check-label" for="aiChatMemory">@Msg.WebEditor.Label(Lang, Feature, AiChatSettingKeys.MemoryEnabled)</label>
         </div>
         <p class="form-text mt-0">
-            Hoshi distils notable community events from chat into memories she recalls later in
-            conversation. Needs embeddings configured (see the AI Provider page). Review,
-            edit, or forget them here.
+            @Msg.WebEditor.Usage(Lang, Feature, AiChatSettingKeys.MemoryEnabled)
         </p>
         <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
-            FeatureSlug="ai-chat" ExtraSlug="memories" Label="Open memories" />
+            FeatureSlug="ai-chat" ExtraSlug="memories" Label="@Msg.WebAiChat.OpenMemoriesLink(Lang)" />
     </SettingsCard>
 
-    <SettingsCard Title="Search language">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiChatSettingKeys.SearchLanguage)">
         <label for="aiChatSearchLanguage" class="form-label">
-            Language for the full-text search over the knowledge sources (controls word-stemming).
-            Prefilled from the server language.
+            @Msg.WebEditor.Label(Lang, Feature, AiChatSettingKeys.SearchLanguage)
         </label>
         <select id="aiChatSearchLanguage" class="form-select" @bind="searchLanguageInput" @bind:after="SaveSearchLanguageAsync">
             @foreach (var lang in FtsLanguage.SupportedConfigs)
