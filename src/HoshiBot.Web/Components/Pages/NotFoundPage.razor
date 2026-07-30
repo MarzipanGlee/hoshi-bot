@@ -1,6 +1,10 @@
 @page "/not-found"
 @layout LandingLayout
 
-<PageTitle>Not found</PageTitle>
+<PageTitle>@Msg.WebCommon.NotFoundTitle(Lang)</PageTitle>
 
 <NotFoundContent />
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+}

@@ -3,14 +3,14 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-<h2>Channels</h2>
+<h2>@Msg.WebCommon.Channels(Lang)</h2>
 <div class="card-grid mt-1">
     <ChannelPicker CardTitle="Log" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
     <ChannelPicker CardTitle="Admin" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
     <ChannelPicker CardTitle="User Log" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
 </div>
 
-<h2>Roles</h2>
+<h2>@Msg.WebCommon.Roles(Lang)</h2>
 @if (createError is not null)
 {
     <p class="text-danger">@createError</p>
@@ -21,7 +21,7 @@
     <RolePicker CardTitle="Hoshi Tester" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
 </div>
 
-<h2>Regional</h2>
+<h2>@Msg.WebCommon.Regional(Lang)</h2>
 <div class="card-grid mt-1">
     <LanguagePicker CardTitle="Language"
                     Usage="The bot's language for public posts in this guild. Audiences and alliances inherit it unless they set their own; members' ephemeral replies follow their personal language."
@@ -30,6 +30,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
     private GuildSettings settings = new();

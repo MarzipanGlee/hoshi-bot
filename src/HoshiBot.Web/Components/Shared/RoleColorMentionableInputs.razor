@@ -1,8 +1,8 @@
 <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
     <button type="button" class="btn btn-sm @(ColorValue is null ? "btn-primary active" : "btn-outline-primary")"
             aria-pressed="@(ColorValue is null ? "true" : "false")"
-            title="Default (no custom color)" @onclick="SelectDefaultAsync">
-        Default
+            title="@Msg.WebCommon.DefaultColorTitle(Lang)" @onclick="SelectDefaultAsync">
+        @Msg.WebCommon.Default(Lang)
     </button>
 
     @if (ShowColor)
@@ -15,12 +15,14 @@
         <div class="form-switch mb-0 w-100">
             <input type="checkbox" class="form-check-input" role="switch" checked="@MentionableValue"
                    @onchange="e => MentionableValueChanged.InvokeAsync((bool)e.Value!)" />
-            <label class="form-check-label">Allow anyone to @@mention this role</label>
+            <label class="form-check-label">@Msg.WebCommon.AllowMention(Lang)</label>
         </div>
     }
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // null = Discord's own "Default" (no custom color, raw value 0) — distinct from any real
     // hex string, including "#000000" (real black), so it can't be confused with a literal
     // color choice.

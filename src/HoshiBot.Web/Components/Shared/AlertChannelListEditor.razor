@@ -5,16 +5,15 @@
 @inject DiscordGuildDataService DiscordData
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="Alert Channels">
+    <SettingsCard Title="@Msg.WebCommon.AlertChannels(Lang)">
         <p class="form-text mb-0">
-            Each channel+role pair below gets a copy of every alert for this feature — add one per
-            channel you want notified (e.g. one for officers, one for the general server).
+            @Msg.WebCommon.AlertChannelsUsage(Lang)
         </p>
         <table class="table">
             <thead>
                 <tr>
-                    <th>Channel</th>
-                    <th>Role</th>
+                    <th>@Msg.WebCommon.Channel(Lang)</th>
+                    <th>@Msg.WebCommon.Role(Lang)</th>
                     <th></th>
                 </tr>
             </thead>
@@ -24,14 +23,14 @@
                     <tr>
                         <td>@ChannelName(alertChannel.ChannelId)</td>
                         <td>@RoleName(alertChannel.RoleId)</td>
-                        <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">Delete</button></td>
+                        <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">@Msg.WebCommon.Delete(Lang)</button></td>
                     </tr>
                 }
             </tbody>
         </table>
         <EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync" class="d-flex flex-column gap-2">
             <select class="form-select" @bind="newChannelIdInput">
-                <option value="">— select channel —</option>
+                <option value="">@Msg.WebCommon.SelectChannelOption(Lang)</option>
                 @foreach (var group in NormalChannelGroups)
                 {
                     @if (group.Category is not null)
@@ -53,18 +52,20 @@
                 }
             </select>
             <select class="form-select" @bind="newRoleIdInput">
-                <option value="">— select role —</option>
+                <option value="">@Msg.WebCommon.SelectRoleOption(Lang)</option>
                 @foreach (var role in roles)
                 {
                     <option value="@role.Id">@role.Name</option>
                 }
             </select>
-            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="submit" class="btn btn-primary">@Msg.WebCommon.Add(Lang)</button>
         </EditForm>
     </SettingsCard>
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildAlertChannelKind Kind { get; set; }
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
@@ -132,10 +133,10 @@
             .ToList();
 
     private string ChannelName(ulong id) =>
-        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : Msg.WebCommon.Unknown(Lang, id);
 
     private string RoleName(ulong id) =>
-        roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+        roles.FirstOrDefault(r => r.Id == id)?.Name ?? Msg.WebCommon.Unknown(Lang, id);
 
     private static string ChannelLabel(IGuildChannel channel) => channel switch
     {

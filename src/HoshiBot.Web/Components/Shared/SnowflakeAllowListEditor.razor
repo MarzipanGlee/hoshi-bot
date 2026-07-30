@@ -8,7 +8,7 @@
 <table class="table">
     <thead>
         <tr>
-            <th>Discord User ID</th>
+            <th>@Msg.WebCommon.DiscordUserId(Lang)</th>
             @if (ExtraColumnHeader is not null)
             {
                 <th>@ExtraColumnHeader</th>
@@ -25,19 +25,21 @@
                 {
                     <td>@ExtraColumn(item)</td>
                 }
-                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAsync(item)">Delete</button></td>
+                <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAsync(item)">@Msg.WebCommon.Delete(Lang)</button></td>
             </tr>
         }
     </tbody>
 </table>
 
 <EditForm Model="this" FormName="@FormName" OnValidSubmit="AddAsync">
-    <input type="text" class="form-control d-inline-block w-auto" @bind="newDiscordUserIdInput" placeholder="Discord user ID" />
+    <input type="text" class="form-control d-inline-block w-auto" @bind="newDiscordUserIdInput" placeholder="@Msg.WebCommon.DiscordUserIdPlaceholder(Lang)" />
     @ExtraInputs
-    <button type="submit" class="btn btn-primary">Add</button>
+    <button type="submit" class="btn btn-primary">@Msg.WebCommon.Add(Lang)</button>
 </EditForm>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // Must stay unique per page — Blazor identifies posted forms by it.
     [Parameter, EditorRequired] public string FormName { get; set; } = "";
     [Parameter, EditorRequired] public Func<HoshiBotDbContext, DbSet<TItem>> Items { get; set; } = default!;

@@ -1,19 +1,21 @@
 @page "/Error"
 @using System.Diagnostics
 
-<PageTitle>Error</PageTitle>
+<PageTitle>@Msg.WebCommon.ErrorPageTitle(Lang)</PageTitle>
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<h1 class="text-danger">@Msg.WebCommon.ErrorHeading(Lang)</h1>
+<h2 class="text-danger">@Msg.WebCommon.ErrorMessage(Lang)</h2>
 
 @if (ShowRequestId)
 {
     <p>
-        <strong>Request ID:</strong> <code>@RequestId</code>
+        <strong>@Msg.WebCommon.ErrorRequestId(Lang)</strong> <code>@RequestId</code>
     </p>
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 

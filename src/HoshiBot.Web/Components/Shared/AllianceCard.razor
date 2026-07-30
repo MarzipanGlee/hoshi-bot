@@ -10,11 +10,13 @@
     </div>
 
     <div class="card-body">
-        <p class="mb-0 card-subtext">@EnabledCount/@TotalCount features enabled</p>
+        <p class="mb-0 card-subtext">@Msg.WebCommon.FeaturesEnabledCount(Lang, EnabledCount, TotalCount)</p>
     </div>
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // A guild's per-linked-alliance card on the guild Overview page — clicking selects that
     // alliance (top-bar context) and opens its Features page. Mirrors GuildCard's whole-card
     // click pattern, scaled down for the alliance's tag/name/server + enabled-feature count.

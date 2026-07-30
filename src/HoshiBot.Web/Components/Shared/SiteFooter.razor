@@ -1,6 +1,8 @@
 <footer class="site-footer text-center">
     @if (ShowDisclaimer)
     {
+        @* The legal disclaimer is deliberately English-only — out of localization scope
+           (see docs/localization-plan.md). *@
         <p class="site-footer-disclaimer">
             Hoshi Bot is an unofficial, fan-made tool and is not affiliated with, endorsed, or
             sponsored by Scopely Inc., CBS Studios Inc., or Paramount Pictures Corp. Game images,
@@ -14,8 +16,8 @@
     <div class="site-footer-meta d-flex align-items-center justify-content-center flex-wrap gap-2">
         <span>&copy; 2026 Hoshi Bot by MarzipanGlee</span>
         <span class="site-footer-sep">&bull;</span>
-        <span>Feedback or Suggestions?</span>
-        <a class="btn btn-sm site-footer-discord-btn border-0" href="https://discord.gg/ESu2c2ZCZy" target="_blank" rel="noopener">Join Discord</a>
+        <span>@Msg.WebNav.Feedback(Lang)</span>
+        <a class="btn btn-sm site-footer-discord-btn border-0" href="https://discord.gg/ESu2c2ZCZy" target="_blank" rel="noopener">@Msg.WebNav.JoinDiscord(Lang)</a>
         <span class="site-footer-sep">&bull;</span>
         <a href="https://github.com/MarzipanGlee/hoshi-bot" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub" class="site-footer-github-link d-inline-flex align-items-center">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -23,11 +25,13 @@
             </svg>
         </a>
         <span class="site-footer-sep">&bull;</span>
-        <span>Version: @Version</span>
+        <span>@Msg.WebNav.Version(Lang, Version)</span>
     </div>
 </footer>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter]
     public bool ShowDisclaimer { get; set; } = true;
 

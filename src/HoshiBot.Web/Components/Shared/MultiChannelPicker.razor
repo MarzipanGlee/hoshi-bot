@@ -7,7 +7,7 @@
    GuildFeatureChannel. The channel-only counterpart to AlertChannelListEditor — use this where
    the role to ping is decided elsewhere (e.g. ClientRelease's per-platform roles) rather than
    paired one-per-channel. *@
-<SettingsCard Title="@Title">
+<SettingsCard Title="@(Title ?? Msg.WebCommon.Channels(Lang))">
     @if (!string.IsNullOrWhiteSpace(Usage))
     {
         <p class="form-text mb-0">@Usage</p>
@@ -15,7 +15,7 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Channel</th>
+                <th>@Msg.WebCommon.Channel(Lang)</th>
                 <th></th>
             </tr>
         </thead>
@@ -24,17 +24,17 @@
             {
                 <tr>
                     <td>@ChannelName(channelId)</td>
-                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveAsync(channelId)">Delete</button></td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => RemoveAsync(channelId)">@Msg.WebCommon.Delete(Lang)</button></td>
                 </tr>
             }
         </tbody>
     </table>
     <EditForm Model="this" FormName="@($"add-feature-channel-{Feature}-{Audience}")" OnValidSubmit="AddAsync" class="d-flex flex-column gap-2">
         <select class="form-select" @bind="newChannelIdInput">
-            <option value="">— select channel —</option>
+            <option value="">@Msg.WebCommon.SelectChannelOption(Lang)</option>
             @if (AllowCategories)
             {
-                <optgroup label="Ganze Kategorie">
+                <optgroup label="@Msg.WebCommon.WholeCategory(Lang)">
                     @foreach (var category in CategoryOptions)
                     {
                         <option value="@category.Id">📁 @category.Name</option>
@@ -61,15 +61,18 @@
                 }
             }
         </select>
-        <button type="submit" class="btn btn-primary">Add</button>
+        <button type="submit" class="btn btn-primary">@Msg.WebCommon.Add(Lang)</button>
     </EditForm>
 </SettingsCard>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildFeature Feature { get; set; }
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
-    [Parameter] public string Title { get; set; } = "Channels";
+    // Null = the catalog's localized "Channels" — callers only pass Title for a bespoke wording.
+    [Parameter] public string? Title { get; set; }
     [Parameter] public string? Usage { get; set; }
 
     // When true, whole categories can also be added (stored by their category id). The consumer
@@ -148,11 +151,12 @@
             .ToList();
 
     private string ChannelName(ulong id) =>
-        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+        channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : Msg.WebCommon.Unknown(Lang, id);
 
-    private static string ChannelLabel(IGuildChannel channel) => channel switch
+    // Not static like its ChannelPicker sibling: the whole-category label localizes per viewer.
+    private string ChannelLabel(IGuildChannel channel) => channel switch
     {
-        CategoryGuildChannel => $"📁 {channel.Name} (ganze Kategorie)",
+        CategoryGuildChannel => Msg.WebCommon.WholeCategoryOption(Lang, channel.Name),
         VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
         ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
         _ => $"# {channel.Name}",

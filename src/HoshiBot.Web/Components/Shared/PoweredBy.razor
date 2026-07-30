@@ -7,7 +7,7 @@
 {
     <div class="alert alert-info powered-by" role="alert">
         <span class="oi oi-external-link me-1" aria-hidden="true"></span>
-        Powered by
+        @Msg.WebCommon.PoweredBy(Lang)
         @for (var i = 0; i < sources.Count; i++)
         {
             <a class="alert-link" href="@sources[i].Url" target="_blank" rel="noopener">@sources[i].Name</a>@((MarkupString)Separator(i))
@@ -16,6 +16,8 @@
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public Type[] For { get; set; } = [];
 
     private IReadOnlyList<PoweredBySource> sources = [];
@@ -24,5 +26,5 @@
 
     // "A", "A and B", "A, B and C".
     private string Separator(int i) =>
-        i == sources.Count - 1 ? "" : i == sources.Count - 2 ? " and " : ", ";
+        i == sources.Count - 1 ? "" : i == sources.Count - 2 ? Msg.WebCommon.ListAnd(Lang) : ", ";
 }

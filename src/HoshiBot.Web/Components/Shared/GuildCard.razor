@@ -17,7 +17,7 @@
             }
             @if (Guild.BotInstalled && !SetupComplete)
             {
-                <span class="badge bg-warning text-dark">needs setup</span>
+                <span class="badge bg-warning text-dark">@Msg.WebCommon.NeedsSetup(Lang)</span>
             }
         </div>
     </div>
@@ -25,14 +25,14 @@
     <div class="card-footer mt-auto">
         @if (!Guild.BotInstalled)
         {
-            <a class="btn btn-outline-primary btn-sm" href="invite?guildId=@Guild.Id" target="_blank" rel="noopener" @onclick:stopPropagation="true">+ Install bot</a>
+            <a class="btn btn-outline-primary btn-sm" href="invite?guildId=@Guild.Id" target="_blank" rel="noopener" @onclick:stopPropagation="true">@Msg.WebCommon.InstallBot(Lang)</a>
         }
         else
         {
             <div class="d-flex gap-2">
-                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guild/@Guild.Id/features" @onclick:stopPropagation="true">Features</a>
-                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guild/@Guild.Id/settings" @onclick:stopPropagation="true">Settings</a>
-                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guild/@Guild.Id/setup-wizard" @onclick:stopPropagation="true">Setup Wizard</a>
+                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guild/@Guild.Id/features" @onclick:stopPropagation="true">@Msg.WebNav.Features(Lang)</a>
+                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guild/@Guild.Id/settings" @onclick:stopPropagation="true">@Msg.WebNav.Settings(Lang)</a>
+                <a class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" href="manage/guild/@Guild.Id/setup-wizard" @onclick:stopPropagation="true">@Msg.WebNav.SetupWizard(Lang)</a>
             </div>
         }
     </div>

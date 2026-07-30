@@ -5,13 +5,16 @@
 <div class="form-switch mb-3">
     <input type="checkbox" class="form-check-input" role="switch"
            checked="@Enabled" @onchange="e => OnToggle.InvokeAsync((bool)e.Value!)" />
-    <label class="form-check-label">@Label</label>
+    <label class="form-check-label">@(Label ?? Msg.WebCommon.Enabled(Lang))</label>
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public bool Enabled { get; set; }
 
     [Parameter] public EventCallback<bool> OnToggle { get; set; }
 
-    [Parameter] public string Label { get; set; } = "Enabled";
+    // Null = the catalog's localized "Enabled" — callers only pass Label for a bespoke wording.
+    [Parameter] public string? Label { get; set; }
 }

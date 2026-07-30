@@ -1,7 +1,11 @@
 <div class="not-found-overlay"></div>
 <div class="not-found-wrapper">
     <div class="not-found-card" role="alert">
-        <p>Sorry, there's nothing at this address.</p>
-        <a href="/">Go back home</a>
+        <p>@Msg.WebCommon.NotFoundMessage(Lang)</p>
+        <a href="/">@Msg.WebCommon.NotFoundGoHome(Lang)</a>
     </div>
 </div>
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+}

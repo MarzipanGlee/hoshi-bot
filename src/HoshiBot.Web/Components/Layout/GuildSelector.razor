@@ -16,7 +16,7 @@
         }
         else
         {
-            <span class="guild-selector-name guild-selector-placeholder text-truncate">Select a guild…</span>
+            <span class="guild-selector-name guild-selector-placeholder text-truncate">@Msg.WebNav.SelectGuild(Lang)</span>
         }
         <span class="oi oi-chevron-bottom guild-selector-caret ms-auto flex-shrink-0" aria-hidden="true"></span>
     </button>
@@ -27,7 +27,7 @@
         <div class="guild-selector-menu position-absolute start-0 overflow-y-auto bg-white rounded-3 shadow">
             @if (installedGuilds.Count == 0 && notInstalledGuilds.Count == 0)
             {
-                <div class="guild-selector-empty">Loading…</div>
+                <div class="guild-selector-empty">@Msg.WebNav.GuildsLoading(Lang)</div>
             }
             @foreach (var guild in installedGuilds)
             {
@@ -40,7 +40,7 @@
             }
             @if (notInstalledGuilds.Count > 0)
             {
-                <div class="guild-selector-divider text-uppercase">Bot not added yet</div>
+                <div class="guild-selector-divider text-uppercase">@Msg.WebNav.BotNotAdded(Lang)</div>
                 @foreach (var guild in notInstalledGuilds)
                 {
                     <a class="guild-selector-item guild-selector-item-install w-100 border-0 text-start text-decoration-none d-flex align-items-center" href="invite?guildId=@guild.Id" target="_blank" rel="noopener">
@@ -56,6 +56,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private List<UserManagedGuild> installedGuilds = [];
     private List<UserManagedGuild> notInstalledGuilds = [];
     private UserManagedGuild? currentGuild;

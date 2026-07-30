@@ -10,6 +10,8 @@ else
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // Language selector over the enabled bot languages plus a first "Default" entry whose
     // label explains what inheriting means right now (e.g. "Discord: Deutsch" or
     // "guild language: English") — value "" saves null (= inherit).
@@ -29,7 +31,7 @@ else
 
     private List<SelectedItem> Items =>
     [
-        new("", $"Default ({InheritedLabel})"),
+        new("", Msg.WebCommon.LanguageDefault(Lang, InheritedLabel)),
         .. Languages.Enabled.Select(l => new SelectedItem(Languages.ToCode(l), Languages.NativeName(l))),
     ];
 

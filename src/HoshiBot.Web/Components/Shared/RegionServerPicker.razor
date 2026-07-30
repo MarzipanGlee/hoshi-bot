@@ -6,16 +6,18 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <div>
-    <label class="form-label">Region</label>
-    <Select TValue="string" Items="regionItems" @bind-Value="RegionId" @bind-Value:after="OnRegionChangedAsync" PlaceHolder="Select region..." />
+    <label class="form-label">@Msg.WebCommon.Region(Lang)</label>
+    <Select TValue="string" Items="regionItems" @bind-Value="RegionId" @bind-Value:after="OnRegionChangedAsync" PlaceHolder="@Msg.WebCommon.SelectRegionPlaceholder(Lang)" />
 </div>
 <div>
-    <label class="form-label">Server</label>
+    <label class="form-label">@Msg.WebCommon.Server(Lang)</label>
     <Select TValue="string" Items="serverItems" @bind-Value="ServerId" @bind-Value:after="NotifyServerChangedAsync"
-            ShowSearch="true" PlaceHolder="Select server..." IsDisabled="@(RegionId is null)" />
+            ShowSearch="true" PlaceHolder="@Msg.WebCommon.SelectServerPlaceholder(Lang)" IsDisabled="@(RegionId is null)" />
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public string? RegionId { get; set; }
 
     [Parameter] public EventCallback<string?> RegionIdChanged { get; set; }

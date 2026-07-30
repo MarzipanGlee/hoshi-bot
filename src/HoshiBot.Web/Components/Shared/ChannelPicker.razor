@@ -14,6 +14,8 @@ else
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public string Label { get; set; } = "";
 
     // When set, the picker renders itself inside a SettingsCard with this as the card title (the card
@@ -29,7 +31,8 @@ else
     // description per setting, usage must be explained" actually lands.
     [Parameter] public string? Usage { get; set; }
 
-    [Parameter] public string PlaceholderText { get; set; } = "— none —";
+    // Null = the catalog's localized "— none —" — callers only pass this for a bespoke wording.
+    [Parameter] public string? PlaceholderText { get; set; }
 
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
@@ -86,16 +89,16 @@ else
             <label>@Label</label>
         }
         <select class="form-select" value="@Value" @onchange="OnChangeAsync">
-            <option value="">@PlaceholderText</option>
+            <option value="">@(PlaceholderText ?? Msg.WebCommon.NoneOption(Lang))</option>
             @* Create action — a distinct sentinel value (not the blank option, which stays a valid
                "none"/"server root" choice), hidden once a channel/category by this exact name exists. *@
             @if (CreateChannelName is not null && !ChannelWithCreateNameExists)
             {
-                <option value="@CreateSentinel">— create "@CreateChannelName" —</option>
+                <option value="@CreateSentinel">@Msg.WebCommon.CreateChannelOption(Lang, CreateChannelName)</option>
             }
             @if (IsUnknown)
             {
-                <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
+                <option value="@Value" selected>@Msg.WebCommon.Unknown(Lang, Value)</option>
             }
             @if (CategorySelect)
             {

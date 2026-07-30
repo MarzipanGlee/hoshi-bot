@@ -4,7 +4,7 @@
    whether or not an alliance has an emblem yet. Mirrors how GuildIcon renders a guild avatar. *@
 @if (IsKnown)
 {
-    <img src="@Src" alt="Alliance emblem" title="Alliance emblem @Emblem"
+    <img src="@Src" alt="@Msg.WebCommon.AllianceEmblemAlt(Lang)" title="@Msg.WebCommon.AllianceEmblemTitle(Lang, Emblem)"
          class="alliance-emblem flex-shrink-0 @CssClass" width="@Size" height="@Size"
          style="width:@(Size)px;height:@(Size)px;" loading="lazy" />
 }
@@ -15,6 +15,8 @@ else
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // Highest emblem index shipped in wwwroot/images/emblems (emblem_000..emblem_026).
     private const int MaxEmblem = 26;
 

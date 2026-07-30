@@ -5,7 +5,7 @@
 
 @if (Audience == GuildAudience.Alliance)
 {
-    <h2>Linked Alliances</h2>
+    <h2>@Msg.WebCommon.LinkedAlliances(Lang)</h2>
     <table class="table">
         <thead>
             <tr>
@@ -56,7 +56,7 @@
 }
 else if (Audience == GuildAudience.Server)
 {
-    <h2>Linked Servers</h2>
+    <h2>@Msg.WebCommon.LinkedServers(Lang)</h2>
     <table class="table">
         <thead><tr><th>Server</th><th></th></tr></thead>
         <tbody>
@@ -82,7 +82,7 @@ else if (Audience == GuildAudience.Server)
 }
 else if (Audience == GuildAudience.VeilGroup)
 {
-    <h2>Linked Veil Groups</h2>
+    <h2>@Msg.WebCommon.LinkedVeilGroups(Lang)</h2>
     <table class="table">
         <thead><tr><th>Veil Group</th><th></th></tr></thead>
         <tbody>
@@ -114,6 +114,8 @@ else if (Audience == GuildAudience.VeilGroup)
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }

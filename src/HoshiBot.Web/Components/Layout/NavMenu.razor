@@ -10,7 +10,7 @@
             <img src="favicon.png" alt="" class="navbar-brand-icon rounded-circle object-fit-cover" />
             Hoshi Bot
         </a>
-        <button title="Navigation menu" class="navbar-toggler bg-white bg-opacity-10" @onclick="ToggleNavMenu">
+        <button title="@Msg.WebNav.NavigationMenu(Lang)" class="navbar-toggler bg-white bg-opacity-10" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
     </div>
@@ -22,14 +22,14 @@
             <Authorized>
                 <div class="nav-item-top mt-3">
                     <NavLink class="nav-link rounded-1 d-flex align-items-center gap-2 px-3 fw-semibold text-uppercase" href="manage" Match="NavLinkMatch.All">
-                        <span class="oi oi-dashboard align-text-top" aria-hidden="true"></span> Dashboard
+                        <span class="oi oi-dashboard align-text-top" aria-hidden="true"></span> @Msg.WebNav.Dashboard(Lang)
                     </NavLink>
                 </div>
 
                 @if (GuildContext.GuildId is { } guildId)
                 {
                     @* The guild's own admin pages + its guild-wide features — always shown. *@
-                    <NavMenuGroup Title="Guild" Icon="@AudienceDisplay.Icon(GuildAudience.Guild)" Active="@IsGuildGroupActive(guildId)">
+                    <NavMenuGroup Title="@Msg.WebNav.GuildGroup(Lang)" Icon="@AudienceDisplay.Icon(GuildAudience.Guild)" Active="@IsGuildGroupActive(guildId)">
                         @foreach (var p in GuildAdminPages.All)
                         {
                             <div class="nav-item">
@@ -61,10 +61,10 @@
 
                         <NavMenuGroup Title="@AudienceDisplay.Labels(Lang, audience).First()" Icon="@AudienceDisplay.Icon(audience)" Active="@IsAudienceGroupActive(audience)">
                             <div class="nav-item">
-                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceSettingsHref(guildId, audience)">Settings</NavLink>
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceSettingsHref(guildId, audience)">@Msg.WebNav.Settings(Lang)</NavLink>
                             </div>
                             <div class="nav-item">
-                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, audience)">Features</NavLink>
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceFeaturesHref(guildId, audience)">@Msg.WebNav.Features(Lang)</NavLink>
                             </div>
                         </NavMenuGroup>
                     }
@@ -72,7 +72,9 @@
 
                 @* Bot-wide admin sections (Bot settings, STFC Catalog, raw Database) are global-admin
                    only. The pages themselves already enforce the GlobalAdmin policy server-side; this
-                   also hides the whole group from regular guild admins so it isn't just a dead link. *@
+                   also hides the whole group from regular guild admins so it isn't just a dead link.
+                   Their group titles (and page labels, via the registries) stay literal English —
+                   the operator areas are out of localization scope (see docs/localization-plan.md). *@
                 <AuthorizeView Policy="GlobalAdmin" Context="adminAuth">
                     <Authorized>
                 <NavMenuGroup Title="Bot" Icon="oi-shield" Active="@IsGroupActive(BotAdminPages.All, BotAdminPages.Href)">
@@ -204,7 +206,7 @@
     private string AudienceFeaturesHref(ulong guildId, GuildAudience audience) =>
         $"{AudienceDisplay.FeatureScopePrefix(guildId, audience, null)}/features";
 
-    private string AllianceGroupTitle(GuildAlliance link) => $"Alliance — [{link.StfcAlliance.Tag}]";
+    private string AllianceGroupTitle(GuildAlliance link) => Msg.WebNav.AllianceGroup(Lang, link.StfcAlliance.Tag);
 
     // This alliance's emblem, shown in place of the group's star glyph (AllianceEmblem falls
     // back to a star when it has no emblem yet).

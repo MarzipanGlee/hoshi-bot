@@ -12,6 +12,8 @@ else
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public string Label { get; set; } = "";
 
     // When set, the picker renders itself inside a SettingsCard with this as the card title (the card
@@ -31,7 +33,8 @@ else
     // description per setting, usage must be explained" actually lands.
     [Parameter] public string? Usage { get; set; }
 
-    [Parameter] public string PlaceholderText { get; set; } = "— none —";
+    // Null = the catalog's localized "— none —" — callers only pass this for a bespoke wording.
+    [Parameter] public string? PlaceholderText { get; set; }
 
     // When set, the blank option means "create a new role named this" (an action) rather than
     // "no role assigned" (a valid end state) — so it gets its own sentinel value, separate from
@@ -75,19 +78,19 @@ else
         <select class="form-select" value="@Value" @onchange="OnChangeAsync">
             @if (CreateRoleName is not null)
             {
-                <option value="">— choose a role —</option>
+                <option value="">@Msg.WebCommon.ChooseRoleOption(Lang)</option>
                 @if (!RoleWithCreateNameExists)
                 {
-                    <option value="@CreateSentinel">— create "@CreateRoleName" role —</option>
+                    <option value="@CreateSentinel">@Msg.WebCommon.CreateRoleOption(Lang, CreateRoleName)</option>
                 }
             }
             else
             {
-                <option value="">@PlaceholderText</option>
+                <option value="">@(PlaceholderText ?? Msg.WebCommon.NoneOption(Lang))</option>
             }
             @if (IsUnknown)
             {
-                <option value="@Value" selected>⚠ Unbekannt (@Value)</option>
+                <option value="@Value" selected>@Msg.WebCommon.Unknown(Lang, Value)</option>
             }
             @foreach (var role in Roles)
             {

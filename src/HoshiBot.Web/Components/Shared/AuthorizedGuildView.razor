@@ -8,10 +8,12 @@
 }
 else
 {
-    <p>Checking access...</p>
+    <p>@Msg.WebCommon.CheckingAccess(Lang)</p>
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public bool Authorized { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }

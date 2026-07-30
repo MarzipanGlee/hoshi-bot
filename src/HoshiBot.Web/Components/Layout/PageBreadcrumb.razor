@@ -44,21 +44,24 @@
         ("event-status", "Event Status"),
     ];
 
-    private static readonly Dictionary<string, string> CrudLabels = new()
+    // Create/Edit/Delete only ever appear under the excluded Manage/Stfc operator area, so they
+    // stay literal English by design (like the STFC Catalog / Bot crumbs below); the rest are
+    // in-scope guild/alliance pages and localize per viewer.
+    private static readonly Dictionary<string, Func<Language, string>> CrudLabels = new()
     {
-        ["create"] = "Create",
-        ["edit"] = "Edit",
-        ["delete"] = "Delete",
-        ["settings"] = "Settings",
-        ["setup-wizard"] = "Setup Wizard",
-        ["features"] = "Features",
-        ["audience"] = "Audience",
-        ["permission-check"] = "Permission Check",
+        ["create"] = _ => "Create",
+        ["edit"] = _ => "Edit",
+        ["delete"] = _ => "Delete",
+        ["settings"] = Msg.WebNav.Settings,
+        ["setup-wizard"] = Msg.WebNav.SetupWizard,
+        ["features"] = Msg.WebNav.Features,
+        ["audience"] = Msg.WebNav.Audience,
+        ["permission-check"] = Msg.WebNav.PermissionCheck,
     };
 
     [CascadingParameter] public Language Lang { get; set; }
 
-    private List<(string Text, string? Href)> items = [("Home", "/")];
+    private List<(string Text, string? Href)> items = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -76,11 +79,11 @@
     {
         var path = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Split('?')[0].Trim('/');
         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var result = new List<(string, string?)> { ("Home", "/") };
+        var result = new List<(string, string?)> { (Msg.WebNav.Home(Lang), "/") };
 
         if (segments.Length >= 1 && segments[0] == "manage")
         {
-            result.Add(("Manage", "manage"));
+            result.Add((Msg.WebNav.Manage(Lang), "manage"));
 
             if (segments.Length >= 2 && segments[1] == "guild")
             {
@@ -117,7 +120,7 @@
                         }
                         else if (CrudLabels.TryGetValue(segments[3], out var pageLabel))
                         {
-                            result.Add((pageLabel, null));
+                            result.Add((pageLabel(Lang), null));
                         }
                         else if (AudienceDisplay.TryParseSlug(segments[3], out var aud) && segments.Length >= 5 && segments[4] == "features")
                         {
@@ -130,6 +133,8 @@
             }
             else if (segments.Length >= 2 && segments[1] == "stfc")
             {
+                // The STFC Catalog / Bot operator areas are out of localization scope — their
+                // crumb labels stay literal English (see docs/localization-plan.md).
                 var catalogSection = segments.Length >= 3
                     ? Array.Find(StfcCatalogSections, s => s.Segment == segments[2])
                     : default;
@@ -140,7 +145,7 @@
 
                     if (segments.Length >= 4 && CrudLabels.TryGetValue(segments[3], out var crudLabel))
                     {
-                        result.Add((crudLabel, null));
+                        result.Add((crudLabel(Lang), null));
                     }
                 }
             }
@@ -159,7 +164,7 @@
             // The member self-service area. Page labels come from MePages, so a new /me page
             // is breadcrumbed automatically with no change here.
             var hasPage = segments.Length >= 2;
-            result.Add(("My Area", hasPage ? "me" : null));
+            result.Add((Msg.WebNav.MyArea(Lang), hasPage ? "me" : null));
             if (hasPage)
             {
                 var mePage = MePages.All.FirstOrDefault(p => p.RouteSuffix == segments[1]);
@@ -178,7 +183,7 @@
     private static void AddFeatureCrumbs(Language lang, List<(string, string?)> result, string[] segments, int featuresIndex, string catalogHref)
     {
         var hasSlug = segments.Length >= featuresIndex + 2;
-        result.Add(("Features", hasSlug ? catalogHref : null));
+        result.Add((Msg.WebNav.Features(lang), hasSlug ? catalogHref : null));
         if (!hasSlug)
             return;
 
@@ -203,7 +208,7 @@
         if (page == "features")
             AddFeatureCrumbs(lang, result, segments, pageIndex, $"{allianceBase}/features");
         else if (CrudLabels.TryGetValue(page, out var label))
-            result.Add((label, null));
+            result.Add((label(lang), null));
     }
 
     public void Dispose()

@@ -3,11 +3,11 @@
    confirm handler; loading + the actual load/delete stay on the page. The EditForm's OnValidSubmit
    is an EventCallback to the page's handler — a supported static-SSR pattern (the form re-renders on
    POST and dispatches by FormName). *@
-<PageTitle>Delete @EntityName</PageTitle>
+<PageTitle>@Msg.WebCommon.DeleteTitle(Lang, EntityName)</PageTitle>
 
-<h1>Delete @EntityName</h1>
+<h1>@Msg.WebCommon.DeleteTitle(Lang, EntityName)</h1>
 
-<p>Are you sure you want to delete this?@(Warning is null ? null : $" {Warning}")</p>
+<p>@Msg.WebCommon.DeleteConfirmPrompt(Lang)@(Warning is null ? null : $" {Warning}")</p>
 <div>
     @if (Loaded)
     {
@@ -15,8 +15,8 @@
             @ChildContent
         </dl>
         <EditForm method="post" Model="model" OnValidSubmit="OnConfirm" FormName="delete" Enhance>
-            <button type="submit" class="btn btn-danger">Delete</button> |
-            <a href="@BackHref">Back to List</a>
+            <button type="submit" class="btn btn-danger">@Msg.WebCommon.Delete(Lang)</button> |
+            <a href="@BackHref">@Msg.WebCommon.BackToList(Lang)</a>
         </EditForm>
     }
     else
@@ -26,6 +26,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public string EntityName { get; set; } = "";
 
     [Parameter, EditorRequired] public string BackHref { get; set; } = "";

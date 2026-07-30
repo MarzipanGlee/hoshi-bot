@@ -31,7 +31,7 @@
                                 @* text-decoration-none only — Bootstrap's text-body is !important and would
                                    beat .topbar-user's own grey; the scoped .topbar-user rule already outranks
                                    the browser's default link colour on its own. *@
-                                <a href="me" class="topbar-user d-flex align-items-center gap-2 text-nowrap text-decoration-none" title="My area">
+                                <a href="me" class="topbar-user d-flex align-items-center gap-2 text-nowrap text-decoration-none" title="@Msg.WebNav.MyAreaTooltip(lang)">
                                     @{ var avatarUrl = DiscordAvatar.UrlFor(context.User); }
                                     @if (avatarUrl is not null)
                                     {
@@ -44,9 +44,9 @@
                                     <span class="topbar-user-name">@context.User.Identity?.Name</span>
                                 </a>
                                 <form method="post" action="logout" data-enhance="false">
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary topbar-logout-btn d-inline-flex align-items-center" aria-label="Log out">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary topbar-logout-btn d-inline-flex align-items-center" aria-label="@Msg.WebNav.LogOut(lang)">
                                         <span class="oi oi-account-logout topbar-logout-icon" aria-hidden="true"></span>
-                                        <span class="topbar-logout-text">Log out</span>
+                                        <span class="topbar-logout-text">@Msg.WebNav.LogOut(lang)</span>
                                     </button>
                                 </form>
                             </div>

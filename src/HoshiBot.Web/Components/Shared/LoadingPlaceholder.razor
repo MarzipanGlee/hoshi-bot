@@ -3,15 +3,21 @@
    the exact rendering they already had, not to invite new variants. *@
 @if (Em)
 {
-    <p><em>@Text</em></p>
+    <p><em>@ResolvedText</em></p>
 }
 else
 {
-    <p>@Text</p>
+    <p>@ResolvedText</p>
 }
 
 @code {
-    [Parameter] public string Text { get; set; } = "Loading...";
+    [CascadingParameter] public Language Lang { get; set; }
+
+    // Null = the catalog's localized "Loading..." — callers only pass Text for a bespoke wording
+    // (which they localize themselves).
+    [Parameter] public string? Text { get; set; }
 
     [Parameter] public bool Em { get; set; } = true;
+
+    private string ResolvedText => Text ?? Msg.WebCommon.Loading(Lang);
 }

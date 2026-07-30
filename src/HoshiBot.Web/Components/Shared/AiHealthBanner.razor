@@ -11,7 +11,7 @@
 {
     <div class="alert alert-warning">
         <div class="fw-semibold mb-1">
-            <span class="oi oi-warning" aria-hidden="true"></span> AI backend degraded
+            <span class="oi oi-warning" aria-hidden="true"></span> @Msg.WebCommon.AiHealthDegraded(Lang)
         </div>
         <ul class="mb-1 ps-3">
             @foreach (var line in lines)
@@ -19,11 +19,13 @@
                 <li>@line</li>
             }
         </ul>
-        <a href="manage/guild/@GuildId/features/ai-chat/health">View AI Chat health</a>
+        <a href="manage/guild/@GuildId/features/ai-chat/health">@Msg.WebCommon.AiHealthViewLink(Lang)</a>
     </div>
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
     // Don't alarm on a single transient blip: warn only when a call kind's most recent outcome was an
@@ -38,12 +40,12 @@
         foreach (var row in rows.Where(IsSustainedDegraded))
         {
             var what = row.Kind == AiChatProviderCallKind.Embed
-                ? "Embeddings are failing — semantic search is degraded (retrieval falls back to keyword-only)."
-                : "Chat generation is failing — Hoshi may be unable to answer.";
+                ? Msg.WebCommon.AiHealthEmbedFailing(Lang)
+                : Msg.WebCommon.AiHealthChatFailing(Lang);
             var lastError = row.LastErrorAt is { } e ? $"{e:yyyy-MM-dd HH:mm} UTC" : "—";
-            var lastSuccess = row.LastSuccessAt is { } s ? $"{s:yyyy-MM-dd HH:mm} UTC" : "never";
+            var lastSuccess = row.LastSuccessAt is { } s ? $"{s:yyyy-MM-dd HH:mm} UTC" : Msg.WebCommon.AiHealthNever(Lang);
             var detail = string.IsNullOrWhiteSpace(row.LastErrorMessage) ? "" : $" — {row.LastErrorMessage}";
-            lines.Add($"{what} Last error {lastError}{detail}. Last success {lastSuccess}.");
+            lines.Add(Msg.WebCommon.AiHealthLine(Lang, what, lastError, detail, lastSuccess));
         }
     }
 

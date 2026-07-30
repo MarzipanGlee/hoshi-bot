@@ -3,10 +3,12 @@
    guild has no linked alliance. Extracted so the sentence isn't copy-pasted across those four
    pages. The page keeps its own <h1>; this is just the lead paragraph. *@
 <p class="text-muted">
-    This guild has no alliance linked yet. Link one on the
-    <a href="manage/guild/@GuildId/audience">Audience</a> page first, then come back to configure it.
+    @Msg.WebCommon.NoAllianceLead(Lang)
+    <a href="manage/guild/@GuildId/audience">@Msg.WebCommon.NoAllianceLinkText(Lang)</a> @Msg.WebCommon.NoAllianceTail(Lang)
 </p>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public string GuildId { get; set; } = "";
 }
