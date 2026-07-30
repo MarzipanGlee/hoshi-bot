@@ -16,7 +16,7 @@
     <div class="card-grid">
         @foreach (var p in GuildAdminPages.All.Where(x => x.ShowOnOverviewCard))
         {
-            <NavCard Href="@GuildAdminPages.Href(ParsedGuildId, p)" Icon="@p.Icon" Title="@p.Label" Subtitle="@CardSubtitle(p)" />
+            <NavCard Href="@GuildAdminPages.Href(ParsedGuildId, p)" Icon="@p.Icon" Title="@p.Label(Lang)" Subtitle="@CardSubtitle(p)" />
         }
     </div>
 
@@ -35,6 +35,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private string? guildName;
     private string audienceSummary = "Not configured yet";
     private string botStatusSummary = "…";
@@ -67,7 +69,7 @@
         setupComplete = settings?.SetupCompletedAt is not null;
         audienceSummary = guildAudiences == GuildAudience.None
             ? "Not configured yet"
-            : string.Join(", ", AudienceDisplay.Labels(guildAudiences));
+            : string.Join(", ", AudienceDisplay.Labels(Lang, guildAudiences));
 
         // The top "Features" card links to the guild-wide features page (the bare .../features route,
         // GuildAudience.Guild), which lists exactly the Guild-audience features — so the card counts

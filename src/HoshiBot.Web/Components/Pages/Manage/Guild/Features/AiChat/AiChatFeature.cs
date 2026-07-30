@@ -8,22 +8,14 @@ public class AiChatFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.AiChat;
     public string Slug => "ai-chat";
-    public string Title => "AI Chat";
-
-    public string Description =>
-        "Lets the bot answer questions conversationally (via Google Gemini) in a configurable set of " +
-        "listen channels, grounded in a configurable set of knowledge channels. It can also build a " +
-        "genuine memory over time — notable community events, past conversations, and its own history " +
-        "with individual members — so answers feel like they come from someone who was actually there. " +
-        "Each guild uses its own Gemini API key.";
 
     public string Icon => "oi-chat";
     public Type EditorComponentType => typeof(AiChatEditor);
 
     public IReadOnlyList<FeatureExtraPage> ExtraPages =>
     [
-        new FeatureExtraPage("memories", "Memories", typeof(MemoryAdmin)),
-        new FeatureExtraPage("health", "Health", typeof(AiChatHealth)),
+        new FeatureExtraPage("memories", typeof(MemoryAdmin)),
+        new FeatureExtraPage("health", typeof(AiChatHealth)),
     ];
 
     // The AI provider/key/model now live in the guild-wide AiBackend feature (declared as a

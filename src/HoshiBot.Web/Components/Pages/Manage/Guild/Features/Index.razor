@@ -47,7 +47,7 @@
                         : configured ? "border-success"
                         : "border-warning";
                     var deps = dependencyStates.GetValueOrDefault(feature.Feature);
-                    <ToggleCard Icon="@feature.Icon" Title="@feature.Title" Description="@feature.Description"
+                    <ToggleCard Icon="@feature.Icon" Title="@feature.Title(Lang)" Description="@feature.Description(Lang)"
                                 BorderClass="@borderClass" Enabled="@enabled"
                                 EnabledChanged="e => ToggleFeatureAsync(feature.Feature, e)">
                         <Requirements>
@@ -62,7 +62,7 @@
                                     @for (var i = 0; i < deps.Count; i++)
                                     {
                                         var dep = deps[i];
-                                        <a href="@DependencyHref(dep.Module)">@dep.Module.Title</a>@(i < deps.Count - 1 ? ", " : "")
+                                        <a href="@DependencyHref(dep.Module)">@dep.Module.Title(Lang)</a>@(i < deps.Count - 1 ? ", " : "")
                                     }
                                     @if (unmet.Count > 0)
                                     {
@@ -82,6 +82,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public string? AudienceSlug { get; set; }
     [Parameter] public int? GuildAllianceIdRaw { get; set; }
 
@@ -111,7 +113,7 @@
     private string Heading() =>
         audience == GuildAudience.Alliance && AllianceLink is { } link
             ? $"Alliance — [{link.StfcAlliance.Tag}]"
-            : $"{AudienceDisplay.Labels(audience).FirstOrDefault() ?? "Guild"} Features";
+            : $"{AudienceDisplay.Labels(Lang, audience).FirstOrDefault() ?? "Guild"} Features";
 
     private GuildAlliance? AllianceLink =>
         scopeAllianceId is { } id ? AllianceContext.Alliances.FirstOrDefault(a => a.Id == id) : null;
@@ -215,7 +217,10 @@
         var snapshot = await FeatureSettingsSnapshot.LoadAsync(DbFactory, ParsedGuildId);
         var context = new FeatureModuleContext(FeatureService, SettingsService, DbFactory, snapshot);
 
-        var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience)).ToList();
+        // Catalog order isn't a display order — sort by the viewer-language title here.
+        var features = FeatureCatalog.All.Where(f => f.RelevantAudiences().HasFlag(audience))
+            .OrderBy(f => f.Title(Lang), StringComparer.OrdinalIgnoreCase)
+            .ToList();
         foreach (var feature in features)
         {
             if (!snapshot.IsEnabled(feature.Feature, audience, Scope))

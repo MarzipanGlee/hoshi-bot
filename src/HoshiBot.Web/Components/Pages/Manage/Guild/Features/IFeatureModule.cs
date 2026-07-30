@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features;
@@ -15,10 +16,14 @@ public interface IFeatureModule
 {
     GuildFeature Feature { get; }
     string Slug { get; }
-    string Title { get; }
-    string Description { get; }
     string Icon { get; }              // Open Iconic class, e.g. "oi-calendar"
     Type EditorComponentType { get; }
+
+    // Viewer-language display text, resolved from the message catalog by the Feature enum
+    // ("Web.Feature.<Feature>.Title"/".Description") — default interface methods so no module
+    // carries display strings anymore; the catalog pair is the single source of truth.
+    string Title(Language language) => Msg.WebFeature.Title(language, Feature);
+    string Description(Language language) => Msg.WebFeature.Description(language, Feature);
 
     // A feature's own auxiliary admin pages beyond its main editor (e.g. MemberLore's notes/review
     // queue, AiChat's memories) — routed generically by FeatureExtraPage.razor at
@@ -45,7 +50,13 @@ public interface IFeatureModule
 // One of a feature's auxiliary admin pages — see IFeatureModule.ExtraPages. ComponentType must inherit
 // GuildAdminPageBase (a [Parameter] string GuildId, same as any other guild-scoped page) —
 // FeatureExtraPageHost.razor is all that ever instantiates it, and only ever passes that one parameter.
-public record FeatureExtraPage(string Slug, string Title, Type ComponentType);
+// The title comes from the catalog ("Web.Feature.<Feature>.Extra.<Slug>"); the owning feature is
+// passed in by the caller (both consumers already hold the module) rather than duplicated per entry.
+public record FeatureExtraPage(string Slug, Type ComponentType)
+{
+    public string Title(Language language, GuildFeature feature) =>
+        Msg.WebFeature.ExtraTitle(language, feature, Slug);
+}
 
 // Everything a module's own checks might need, bundled so the interface members stay one
 // parameter: FeatureService for IsEnabledAsync (uniform); Settings for most

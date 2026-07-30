@@ -7,12 +7,6 @@ public class ServicesRoleSyncFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.ServicesRoleSync;
     public string Slug => "services-role-sync";
-    public string Title => "Services Role Sync";
-
-    public string Description =>
-        "Keeps the Territory Capture Services role in lock-step with the rank roles that can activate " +
-        "services (Admiral/Commodore): every alliance member holding either rank role gets the Services " +
-        "role, and anyone who no longer qualifies loses it. Needs Rank Roles and Territory Capture configured.";
 
     public string Icon => "oi-loop-circular";
     public Type EditorComponentType => typeof(ServicesRoleSyncEditor);

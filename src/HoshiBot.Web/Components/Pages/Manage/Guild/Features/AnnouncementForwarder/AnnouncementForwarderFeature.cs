@@ -7,12 +7,6 @@ public class AnnouncementForwarderFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.AnnouncementForwarder;
     public string Slug => "announcement-forwarder";
-    public string Title => "Announcement Forwarder";
-
-    public string Description =>
-        "Auto-translates official announcements (e.g. Scopely's English STFC news) posted in the source " +
-        "channels and reposts them as a branded translation in a destination channel, so members who " +
-        "don't read the source language still see them.";
 
     public string Icon => "oi-globe";
     public Type EditorComponentType => typeof(AnnouncementForwarderEditor);

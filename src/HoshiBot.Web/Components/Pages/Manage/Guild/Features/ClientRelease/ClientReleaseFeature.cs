@@ -7,11 +7,6 @@ public class ClientReleaseFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.ClientRelease;
     public string Slug => "client-release";
-    public string Title => "Client Release Announcements";
-
-    public string Description =>
-        "Announces when a new STFC game client version is released (Windows, macOS, Android, iOS) — relevant " +
-        "to any guild, not just alliances.";
 
     public string Icon => "oi-cloud-download";
     public Type EditorComponentType => typeof(ClientReleaseEditor);

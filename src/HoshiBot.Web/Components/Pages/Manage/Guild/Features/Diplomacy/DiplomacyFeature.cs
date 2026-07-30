@@ -7,10 +7,6 @@ public class DiplomacyFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.Diplomacy;
     public string Slug => "diplomacy";
-    public string Title => "Diplomacy";
-
-    public string Description =>
-        "Tracks and announces this alliance's diplomatic status toward other alliances via /set-diplomacy.";
 
     public string Icon => "oi-people";
     public Type EditorComponentType => typeof(DiplomacyEditor);

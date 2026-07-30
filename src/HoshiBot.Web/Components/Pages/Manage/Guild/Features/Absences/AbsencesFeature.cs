@@ -7,11 +7,6 @@ public class AbsencesFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.Absences;
     public string Slug => "absences";
-    public string Title => "Absences";
-
-    public string Description =>
-        "Members can report an upcoming absence; a kept-updated report of who's away posts to a public channel " +
-        "(and a staff-only copy) so leadership doesn't need to ask around.";
 
     public string Icon => "oi-calendar";
     public Type EditorComponentType => typeof(AbsencesEditor);

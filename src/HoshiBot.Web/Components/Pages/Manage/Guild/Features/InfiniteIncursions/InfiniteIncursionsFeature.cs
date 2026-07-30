@@ -7,10 +7,6 @@ public class InfiniteIncursionsFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.InfiniteIncursions;
     public string Slug => "infinite-incursions";
-    public string Title => "Infinite Incursions Announcements";
-
-    public string Description =>
-        "Advance-warning announcement when a new Infinite Incursions event is scheduled.";
 
     public string Icon => "oi-warning";
     public Type EditorComponentType => typeof(InfiniteIncursionsEditor);

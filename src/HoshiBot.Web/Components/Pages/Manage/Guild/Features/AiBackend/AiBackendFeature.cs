@@ -11,13 +11,6 @@ public class AiBackendFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.AiBackend;
     public string Slug => "ai-backend";
-    public string Title => "AI Provider";
-
-    public string Description =>
-        "The shared AI backend for this whole Discord: which language-model provider to use " +
-        "(Google Gemini or a local Ollama model), the API key, and the model choices. Every " +
-        "AI-powered feature — AI Chat, Member Lore, Announcement Forwarder — runs on this one " +
-        "configuration, so there's a single AI account per guild.";
 
     public string Icon => "oi-cog";
     public Type EditorComponentType => typeof(AiBackendEditor);

@@ -7,12 +7,6 @@ public class HoshiSayFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.HoshiSay;
     public string Slug => "hoshi-say";
-    public string Title => "Hoshi Say";
-
-    public string Description =>
-        "Lets an admin have Hoshi compose a message in her own voice (via the AI backend) and post it as " +
-        "a plain chat line into the current channel — e.g. to comfort or address a member. The /hoshi-say " +
-        "command is limited to members holding the configured allowed role, which is the permission gate.";
 
     public string Icon => "oi-comment-square";
     public Type EditorComponentType => typeof(HoshiSayEditor);

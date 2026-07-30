@@ -7,11 +7,6 @@ public class AlertsOptInFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.AlertsOptIn;
     public string Slug => "alerts-opt-in";
-    public string Title => "Alerts Opt-In";
-
-    public string Description =>
-        "Lets members opt in/out of a role that receives raid/shield alert pings, instead of everyone getting " +
-        "pinged by default.";
 
     public string Icon => "oi-bell";
     public Type EditorComponentType => typeof(AlertsOptInEditor);

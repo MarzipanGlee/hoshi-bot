@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject WebRequestLanguage RequestLanguage
 
 @* The /me area's chrome: the public site's header/footer plus a breadcrumb. Not nested inside
    LandingLayout because the two differ in the footer as well — /me drops the legal disclaimer
@@ -6,18 +7,33 @@
    a layout rather than per page so a new /me page gets both for free; the crumbs themselves are
    driven off MePages in PageBreadcrumb. The breadcrumb container's width matches the pages' own
    so the crumb line sits flush with the content below it. *@
-<PageTitle>Hoshi Bot</PageTitle>
 
-<div class="landing min-vh-100 d-flex flex-column">
-    <LandingHeader />
+@* Viewer language resolved once per circuit and cascaded (see MainLayout for the pattern);
+   nothing renders until it's resolved — prerender is off, so only the first paint waits. *@
+@if (language is { } lang)
+{
+    <CascadingValue Value="lang" IsFixed="true">
+        <PageTitle>Hoshi Bot</PageTitle>
 
-    <main class="flex-grow-1">
-        <div class="container pt-3" style="max-width:900px">
-            <PageBreadcrumb />
+        <div class="landing min-vh-100 d-flex flex-column">
+            <LandingHeader />
+
+            <main class="flex-grow-1">
+                <div class="container pt-3" style="max-width:900px">
+                    <PageBreadcrumb />
+                </div>
+
+                @Body
+            </main>
+
+            <SiteFooter ShowDisclaimer="false" />
         </div>
+    </CascadingValue>
+}
 
-        @Body
-    </main>
+@code {
+    private Language? language;
 
-    <SiteFooter ShowDisclaimer="false" />
-</div>
+    protected override async Task OnInitializedAsync() =>
+        language = await RequestLanguage.GetAsync();
+}

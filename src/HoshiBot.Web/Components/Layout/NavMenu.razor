@@ -33,7 +33,7 @@
                         @foreach (var p in GuildAdminPages.All)
                         {
                             <div class="nav-item">
-                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@GuildAdminPages.Href(guildId, p)" Match="@(p.ExactMatch ? NavLinkMatch.All : NavLinkMatch.Prefix)">@p.Label</NavLink>
+                                <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@GuildAdminPages.Href(guildId, p)" Match="@(p.ExactMatch ? NavLinkMatch.All : NavLinkMatch.Prefix)">@p.Label(Lang)</NavLink>
                             </div>
                         }
                     </NavMenuGroup>
@@ -45,7 +45,7 @@
                             @foreach (var ap in AllianceAdminPages.All)
                             {
                                 <div class="nav-item">
-                                    <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceAdminPages.Href(guildId, link.Id, ap)" Match="@(ap.ExactMatch ? NavLinkMatch.All : NavLinkMatch.Prefix)">@ap.Label</NavLink>
+                                    <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AllianceAdminPages.Href(guildId, link.Id, ap)" Match="@(ap.ExactMatch ? NavLinkMatch.All : NavLinkMatch.Prefix)">@ap.Label(Lang)</NavLink>
                                 </div>
                             }
                         </NavMenuGroup>
@@ -59,7 +59,7 @@
                         if (!guildAudiences.HasFlag(audience))
                             continue;
 
-                        <NavMenuGroup Title="@AudienceDisplay.Labels(audience).First()" Icon="@AudienceDisplay.Icon(audience)" Active="@IsAudienceGroupActive(audience)">
+                        <NavMenuGroup Title="@AudienceDisplay.Labels(Lang, audience).First()" Icon="@AudienceDisplay.Icon(audience)" Active="@IsAudienceGroupActive(audience)">
                             <div class="nav-item">
                                 <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@AudienceSettingsHref(guildId, audience)">Settings</NavLink>
                             </div>
@@ -79,7 +79,7 @@
                     @foreach (var p in BotAdminPages.All)
                     {
                         <div class="nav-item">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@BotAdminPages.Href(p)">@p.Label</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@BotAdminPages.Href(p)">@p.Label(Lang)</NavLink>
                         </div>
                     }
                 </NavMenuGroup>
@@ -88,7 +88,7 @@
                     @foreach (var p in StfcCatalogPages.All)
                     {
                         <div class="nav-item">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@StfcCatalogPages.Href(p)">@p.Label</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@StfcCatalogPages.Href(p)">@p.Label(Lang)</NavLink>
                         </div>
                     }
                 </NavMenuGroup>
@@ -97,7 +97,7 @@
                     @foreach (var p in DatabaseAdminPages.All)
                     {
                         <div class="nav-item">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@DatabaseAdminPages.Href(p)">@p.Label</NavLink>
+                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@DatabaseAdminPages.Href(p)">@p.Label(Lang)</NavLink>
                         </div>
                     }
                 </NavMenuGroup>
@@ -109,6 +109,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // Guild is always shown (its own group) and Alliance gets one group per linked alliance;
     // these are the remaining guild-selectable audiences, each rendered as its own group when
     // the guild serves it.

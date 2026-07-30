@@ -8,7 +8,7 @@
 @inject GuildFeatureSettingsService SettingsService
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
-<PageTitle>@(descriptor?.Title ?? "Feature Settings")</PageTitle>
+<PageTitle>@(descriptor?.Title(Lang) ?? "Feature Settings")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (descriptor is null)
@@ -17,7 +17,7 @@
     }
     else if (needsAllianceLink)
     {
-        <h1>@descriptor.Title</h1>
+        <h1>@descriptor.Title(Lang)</h1>
         <AllianceLinkRequiredHint GuildId="@GuildId" />
     }
     else if (editorParameters is null)
@@ -26,8 +26,8 @@
     }
     else
     {
-        <h1>@descriptor.Title</h1>
-        <p>@descriptor.Description</p>
+        <h1>@descriptor.Title(Lang)</h1>
+        <p>@descriptor.Description(Lang)</p>
 
         @if (dependencies.Count > 0)
         {
@@ -40,7 +40,7 @@
                     @foreach (var dep in dependencies)
                     {
                         <li>
-                            <a href="@DependencyHref(dep.Module)">@dep.Module.Title</a>
+                            <a href="@DependencyHref(dep.Module)">@dep.Module.Title(Lang)</a>
                             @if (dep.Satisfied)
                             {
                                 <span class="badge bg-success ms-1">enabled</span>
@@ -68,6 +68,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public string FeatureSlug { get; set; } = "";
     [Parameter] public string? AudienceSlug { get; set; }
     [Parameter] public int? GuildAllianceIdRaw { get; set; }

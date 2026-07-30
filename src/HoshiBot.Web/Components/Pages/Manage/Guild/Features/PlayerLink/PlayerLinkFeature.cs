@@ -6,18 +6,12 @@ public class PlayerLinkFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.PlayerLink;
     public string Slug => "player-link";
-    public string Title => "Player Assignment";
-
-    public string Description =>
-        "Links members to their STFC player by matching Discord nicknames against the whole player " +
-        "catalog — which drives rank/ops/nickname role sync. Confident matches link automatically; " +
-        "everyone else you assign by hand on the member page. Never messages members.";
 
     public string Icon => "oi-link-intact";
     public Type EditorComponentType => typeof(PlayerLinkEditor);
 
     public IReadOnlyList<FeatureExtraPage> ExtraPages =>
-        [new FeatureExtraPage("assignments", "Player Assignments", typeof(PlayerAssignmentsAdmin))];
+        [new FeatureExtraPage("assignments", typeof(PlayerAssignmentsAdmin))];
 
     // No required settings — auto-match works from the catalog + the guild's alliances, and manual
     // assignment is always available on the member page. Enabled ⇒ configured.

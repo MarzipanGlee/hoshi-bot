@@ -25,8 +25,8 @@
                 {
                     <NavCard Href="@AudienceSettingsHref(audience)"
                              Icon="@AudienceDisplay.Icon(audience)"
-                             Title="@($"{AudienceDisplay.Labels(audience).First()} Settings")"
-                             Subtitle="@AudienceDisplay.Description(audience)" />
+                             Title="@($"{AudienceDisplay.Labels(Lang, audience).First()} Settings")"
+                             Subtitle="@AudienceDisplay.Description(Lang, audience)" />
                 }
             </div>
         </div>
@@ -34,6 +34,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private GuildAudience audiences;
     private ScopeAccordion? scopeAccordion;
 

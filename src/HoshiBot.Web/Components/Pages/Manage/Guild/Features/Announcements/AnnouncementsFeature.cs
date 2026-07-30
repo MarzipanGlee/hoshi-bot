@@ -7,11 +7,6 @@ public class AnnouncementsFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.Announcements;
     public string Slug => "announcements";
-    public string Title => "Announcements";
-
-    public string Description =>
-        "Staff-published announcements with read tracking and unread reminders — usable by any audience, not " +
-        "alliance-specific.";
 
     public string Icon => "oi-bullhorn";
     public Type EditorComponentType => typeof(AnnouncementsEditor);

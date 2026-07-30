@@ -3,7 +3,7 @@
 @page "/manage/guild/{GuildId}/alliance/{GuildAllianceIdRaw:int}/features/{FeatureSlug}/{ExtraSlug}"
 @inherits GuildAdminPageBase
 
-<PageTitle>@(extra?.Title ?? "Not Found")</PageTitle>
+<PageTitle>@(extra is not null && module is not null ? extra.Title(Lang, module.Feature) : "Not Found")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (extra is null)
@@ -17,6 +17,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public string FeatureSlug { get; set; } = "";
     [Parameter] public string ExtraSlug { get; set; } = "";
 
@@ -28,13 +30,14 @@
     [Parameter] public string? AudienceSlug { get; set; }
     [Parameter] public int? GuildAllianceIdRaw { get; set; }
 
+    private IFeatureModule? module;
     private FeatureExtraPage? extra;
     private IDictionary<string, object> parameters = new Dictionary<string, object>();
 
     protected override Task OnAuthorizedParametersSetAsync()
     {
-        var descriptor = FeatureCatalog.FindBySlug(FeatureSlug);
-        extra = descriptor?.ExtraPages.FirstOrDefault(p => p.Slug == ExtraSlug);
+        module = FeatureCatalog.FindBySlug(FeatureSlug);
+        extra = module?.ExtraPages.FirstOrDefault(p => p.Slug == ExtraSlug);
         if (extra is null)
         {
             Nav.NotFound();

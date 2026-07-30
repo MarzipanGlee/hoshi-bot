@@ -8,9 +8,9 @@ public static class AllianceAdminPages
 {
     public static readonly IReadOnlyList<AdminPage> All =
     [
-        new("Overview", "", Icon: "oi-home", ExactMatch: true, ShowOnOverviewCard: false),
-        new("Settings", "settings", Icon: "oi-cog"),
-        new("Features", "features", Icon: "oi-puzzle-piece"),
+        new("Web.Page.Alliance.Overview", "", Icon: "oi-home", ExactMatch: true, ShowOnOverviewCard: false),
+        new("Web.Page.Alliance.Settings", "settings", Icon: "oi-cog"),
+        new("Web.Page.Alliance.Features", "features", Icon: "oi-puzzle-piece"),
     ];
 
     // The bare /alliance/{allianceId} path for Overview; every other page is that path + "/{suffix}".

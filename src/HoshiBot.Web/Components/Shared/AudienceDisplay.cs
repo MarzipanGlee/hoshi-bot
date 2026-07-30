@@ -1,33 +1,30 @@
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 
 namespace HoshiBot.Web.Components.Shared;
 
 public static class AudienceDisplay
 {
-    public static IEnumerable<string> Labels(GuildAudience audiences)
+    // One label per set flag, in the fixed Guild→Community order (Msg.WebAudience backs the
+    // catalog lookup; single-flag callers take .First()).
+    public static IEnumerable<string> Labels(Language language, GuildAudience audiences)
     {
         if (audiences.HasFlag(GuildAudience.Guild))
-            yield return "Guild";
+            yield return Msg.WebAudience.Label(language, GuildAudience.Guild);
         if (audiences.HasFlag(GuildAudience.Alliance))
-            yield return "Alliance";
+            yield return Msg.WebAudience.Label(language, GuildAudience.Alliance);
         if (audiences.HasFlag(GuildAudience.Server))
-            yield return "Server";
+            yield return Msg.WebAudience.Label(language, GuildAudience.Server);
         if (audiences.HasFlag(GuildAudience.VeilGroup))
-            yield return "Veil Group";
+            yield return Msg.WebAudience.Label(language, GuildAudience.VeilGroup);
         if (audiences.HasFlag(GuildAudience.Community))
-            yield return "Community";
+            yield return Msg.WebAudience.Label(language, GuildAudience.Community);
     }
 
     // Shared between AudienceEditor's cards and (formerly) the plain-checkbox labels it replaced.
-    public static string Description(GuildAudience audience) => audience switch
-    {
-        GuildAudience.Guild => "Guild-wide features that apply to the whole Discord, regardless of audience.",
-        GuildAudience.Alliance => "This guild is a single alliance's own Discord.",
-        GuildAudience.Server => "This guild serves a whole STFC server.",
-        GuildAudience.VeilGroup => "This guild serves a veil group (a coalition of servers).",
-        GuildAudience.Community => "A general Discord not tied to one alliance or server.",
-        _ => "",
-    };
+    // Msg.WebAudience.Description already returns "" for an audience without a catalog entry.
+    public static string Description(Language language, GuildAudience audience) =>
+        Msg.WebAudience.Description(language, audience);
 
     // Open Iconic class for a single audience flag — shared between the Features page's
     // section headers and the public landing page's audience overview cards, so both stay

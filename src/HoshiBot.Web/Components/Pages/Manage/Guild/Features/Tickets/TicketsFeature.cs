@@ -7,10 +7,6 @@ public class TicketsFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.Tickets;
     public string Slug => "tickets";
-    public string Title => "Tickets";
-
-    public string Description =>
-        "Members can open a private support thread with staff via the hub button — usable by any audience.";
 
     public string Icon => "oi-task";
     public Type EditorComponentType => typeof(TicketsEditor);

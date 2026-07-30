@@ -38,7 +38,7 @@
                 <a class="card h-100 text-decoration-none text-body text-center" href="#audience-@audience">
                     <div class="card-body">
                         <div class="feature-icon mx-auto"><span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span></div>
-                        <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.35rem;">@AudienceDisplay.Labels(audience).First()</h3>
+                        <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.35rem;">@AudienceDisplay.Labels(Lang, audience).First()</h3>
                         <p class="mb-0" style="color:#5a5a63;font-size:0.9rem;">@Tagline(audience)</p>
                     </div>
                 </a>
@@ -51,13 +51,13 @@
 {
     var cards = FeatureCatalog.All
         .Where(f => f.RelevantAudiences().HasFlag(audience))
-        .Select(f => (f.Icon, f.Title, f.Description))
+        .Select(f => (f.Icon, Title: f.Title(Lang), Description: f.Description(Lang)))
         .Concat(ExtraCards.GetValueOrDefault(audience, []))
         .OrderBy(c => c.Title, StringComparer.OrdinalIgnoreCase)
         .ToList();
 
     <section id="audience-@audience" class="features">
-        <h2>For @(AudienceDisplay.Labels(audience).First()) Discords</h2>
+        <h2>For @(AudienceDisplay.Labels(Lang, audience).First()) Discords</h2>
         <p class="features-intro">@Intro(audience)</p>
         @if (cards.Count > 0)
         {
@@ -92,8 +92,8 @@
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="feature-icon"><span class="oi @p.Icon" aria-hidden="true"></span></div>
-                        <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@p.Label</h3>
-                        <p class="mb-0 card-subtext">@p.Description</p>
+                        <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@p.Label(Lang)</h3>
+                        <p class="mb-0 card-subtext">@p.Description(Lang)</p>
                     </div>
                 </div>
             </div>
@@ -123,6 +123,8 @@
 </section>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private static readonly GuildAudience[] AudienceSections =
         [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 

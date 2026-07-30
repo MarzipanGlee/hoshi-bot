@@ -1,10 +1,8 @@
 @inherits FeatureEditorBase
-@using HoshiBot.Domain.Localization
 @using HoshiBot.Web.Services
 @using NetCord
 @using NetCord.Rest
 @inject DiscordGuildDataService DiscordData
-@inject WebRequestLanguage RequestLanguage
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -67,6 +65,10 @@
 </div>
 
 @code {
+    // The catalog's button labels render in the viewer's request language (the layout-cascaded
+    // Lang) — unlike the bot's hub rendering, which follows the guild-side language resolution.
+    [CascadingParameter] public Language Lang { get; set; }
+
     protected override GuildFeature Feature => GuildFeature.CommandBridge;
 
     private record BridgeInfo(CommandBridgeKind Kind, string Heading, string Subtitle);
@@ -98,10 +100,6 @@
     // this alliance (Alliance audience) or for any of its non-alliance (guild-scoped) audiences.
     private HashSet<GuildFeature> enabledForHub = [];
 
-    // The catalog's button labels render in the viewer's request language (WebRequestLanguage) —
-    // unlike the bot's hub rendering, which follows the guild-side language resolution.
-    private Language labelLanguage = Language.En;
-
     private bool IsBusy(CommandBridgeKind bridge) => statuses.TryGetValue(bridge, out var s) && !s.Done;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -116,7 +114,6 @@
         }
 
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        labelLanguage = await RequestLanguage.GetAsync();
 
         var enabled = await FeatureService.GetEnabledAsync(GuildId);
         enabledForHub = enabled
@@ -199,7 +196,7 @@
         var items = new List<OverviewItem>();
         foreach (var entry in CommandBridgeCatalog.ForBridge(bridge))
         {
-            var label = MessageCatalog.Format(labelLanguage, entry.LabelKey);
+            var label = MessageCatalog.Format(Lang, entry.LabelKey);
             if (entry.Kind == CommandBridgeButtonKind.ContactStaff)
             {
                 // Mirrors the hub's rule approximately: shown when Tickets OR AnonymousMessaging

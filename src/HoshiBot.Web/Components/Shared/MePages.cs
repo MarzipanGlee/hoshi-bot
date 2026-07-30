@@ -8,8 +8,8 @@ public static class MePages
 {
     public static readonly IReadOnlyList<AdminPage> All =
     [
-        new("My Profile", "lore", Icon: "oi-person",
-            Description: "What Hoshi knows about you — how she should address you, your languages and interests."),
+        new("Web.Page.Me.Lore", "lore", Icon: "oi-person",
+            DescriptionKey: "Web.Page.Me.Lore.Description"),
     ];
 
     public static string Href(AdminPage page) => page.Href("me");

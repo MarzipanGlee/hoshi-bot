@@ -7,17 +7,12 @@ public class TerritoryCaptureFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.TerritoryCapture;
     public string Slug => "territory-capture";
-    public string Title => "Territory Capture";
-
-    public string Description =>
-        "Zone-slot and rank role sync, plus the weekly/daily Territory Capture digest summarizing owned zones and " +
-        "next capture times.";
 
     public string Icon => "oi-map";
     public Type EditorComponentType => typeof(TerritoryCaptureEditor);
 
     public IReadOnlyList<FeatureExtraPage> ExtraPages =>
-        [new FeatureExtraPage("service-selection", "Service Selection", typeof(ServiceSelectionAdmin))];
+        [new FeatureExtraPage("service-selection", typeof(ServiceSelectionAdmin))];
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {

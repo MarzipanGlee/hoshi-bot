@@ -31,13 +31,13 @@ namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features;
 
 // A manually-curated registry, not reflection-discovered — matches this codebase's
 // existing "12 bespoke editors, not one generic reflection-driven one" philosophy;
-// genericity stays at this route-shell/registry layer only. Each entry's Title/
-// Description/Icon/editor type/configured-check now lives with its own editor in
-// Features/{Name}/ — this file just lists them.
+// genericity stays at this route-shell/registry layer only. Each entry's Icon/editor type/
+// configured-check lives with its own editor in Features/{Name}/ (titles/descriptions come
+// from the message catalog via IFeatureModule's default methods) — this file just lists them.
 public static class FeatureCatalog
 {
-    // Alphabetical by Title — both the Features catalog cards and the sidebar nav group just
-    // iterate this array in order, so this is the one place that controls both.
+    // Source order is NOT a display order: titles are per-language now, so display surfaces
+    // (the Features catalog cards, the landing page) sort by Title(lang) at render time.
     public static readonly IFeatureModule[] All =
     [
         new AbsencesFeature(),

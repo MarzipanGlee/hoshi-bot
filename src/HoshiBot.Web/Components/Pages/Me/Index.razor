@@ -1,5 +1,4 @@
 @page "/me"
-@using HoshiBot.Domain.Localization
 @using Microsoft.AspNetCore.Authentication
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
@@ -41,7 +40,7 @@
     <div class="card-grid">
         @foreach (var p in MePages.All)
         {
-            <NavCard Href="@MePages.Href(p)" Icon="@p.Icon" Title="@p.Label" Subtitle="@p.Description" />
+            <NavCard Href="@MePages.Href(p)" Icon="@p.Icon" Title="@p.Label(Lang)" Subtitle="@p.Description(Lang)" />
         }
     </div>
 
@@ -140,7 +139,7 @@
                         @if (audience != GuildAudience.None)
                         {
                             <div>
-                                @foreach (var label in AudienceDisplay.Labels(audience))
+                                @foreach (var label in AudienceDisplay.Labels(Lang, audience))
                                 {
                                     <span class="badge bg-secondary me-1">@label</span>
                                 }
@@ -242,6 +241,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [SupplyParameterFromQuery(Name = DiscordAccountLink.ResultQueryKey)]
     public string? Link { get; set; }
 

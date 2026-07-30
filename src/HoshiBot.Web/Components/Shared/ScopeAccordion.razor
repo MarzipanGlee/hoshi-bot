@@ -9,7 +9,7 @@
                 <CollapseItem @key="audience" Text="@audience.ToString()" IsCollapsed="@(expandedAudience != audience)">
                     <HeaderTemplate>
                         <span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span>
-                        @AudienceDisplay.Labels(audience).First()
+                        @AudienceDisplay.Labels(Lang, audience).First()
                     </HeaderTemplate>
                     <ChildContent>
                         <ScopeEditor GuildId="GuildId" Audience="audience" />
@@ -21,6 +21,8 @@
 </Collapse>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private static readonly GuildAudience[] ScopeAudiences =
         [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup];
 

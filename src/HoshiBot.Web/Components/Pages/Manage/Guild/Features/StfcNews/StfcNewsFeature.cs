@@ -7,11 +7,6 @@ public class StfcNewsFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.StfcNews;
     public string Slug => "stfc-news";
-    public string Title => "STFC News";
-
-    public string Description =>
-        "Pings this guild's Admin channel when a new Alliance Tournament or Infinite Incursions post appears on " +
-        "the official STFC blog, and lets admins confirm the event date so it feeds the relevant notify feature.";
 
     public string Icon => "oi-rss";
     public Type EditorComponentType => typeof(StfcNewsEditor);

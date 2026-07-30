@@ -10,7 +10,7 @@
             <h2 class="fs-6 fw-semibold mb-1">@Guild.Name</h2>
             @if (Audience != GuildAudience.None)
             {
-                @foreach (var label in AudienceDisplay.Labels(Audience))
+                @foreach (var label in AudienceDisplay.Labels(Lang, Audience))
                 {
                     <span class="badge bg-secondary me-1">@label</span>
                 }
@@ -39,6 +39,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // The dashboard's per-guild card — bespoke enough (conditional footer, whole-card
     // click-to-navigate, opacity for not-yet-installed) that it doesn't fit SettingsCard/
     // ToggleCard's shapes, but still gets its own component so Manage/Index.razor's markup

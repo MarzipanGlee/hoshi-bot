@@ -1,5 +1,4 @@
 @page "/manage/guild/{GuildId}/{AudienceSlug}/settings"
-@using HoshiBot.Domain.Localization
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject LanguageResolver LanguageResolver
@@ -15,7 +14,7 @@
     else
     {
         <h1>@AudienceTitle Settings</h1>
-        <p>@AudienceDisplay.Description(audience) Feature-agnostic settings for this audience — per-feature configuration lives on the <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/features")">Features</a> page.</p>
+        <p>@AudienceDisplay.Description(Lang, audience) Feature-agnostic settings for this audience — per-feature configuration lives on the <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/features")">Features</a> page.</p>
 
         <h2>Regional</h2>
         <div class="card-grid mt-1">
@@ -28,6 +27,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter] public string? AudienceSlug { get; set; }
 
     private GuildAudience audience;
@@ -35,7 +36,7 @@
     private string? languageInput;
     private string inheritedLanguageLabel = "guild language";
 
-    private string AudienceTitle => validAudience ? AudienceDisplay.Labels(audience).First() : "Audience";
+    private string AudienceTitle => validAudience ? AudienceDisplay.Labels(Lang, audience).First() : "Audience";
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {

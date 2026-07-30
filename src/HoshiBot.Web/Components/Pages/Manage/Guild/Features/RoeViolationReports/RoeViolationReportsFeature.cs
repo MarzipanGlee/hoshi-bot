@@ -7,10 +7,6 @@ public class RoeViolationReportsFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.RoeViolationReports;
     public string Slug => "roe-violation-reports";
-    public string Title => "RoE Violation Reports";
-
-    public string Description =>
-        "Members can report a suspected Rules of Engagement violation for staff to review.";
 
     public string Icon => "oi-ban";
     public Type EditorComponentType => typeof(RoeViolationReportsEditor);

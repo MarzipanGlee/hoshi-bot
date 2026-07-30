@@ -56,6 +56,8 @@
         ["permission-check"] = "Permission Check",
     };
 
+    [CascadingParameter] public Language Lang { get; set; }
+
     private List<(string Text, string? Href)> items = [("Home", "/")];
 
     protected override async Task OnInitializedAsync()
@@ -106,12 +108,12 @@
 
                             // The alliance's page (settings / command-bridge / features [+ feature slug]).
                             if (segments.Length >= 6)
-                                AddAlliancePageCrumbs(result, segments, 5, $"manage/guild/{guildId}/alliance/{allianceId}");
+                                AddAlliancePageCrumbs(Lang, result, segments, 5, $"manage/guild/{guildId}/alliance/{allianceId}");
                         }
                         else if (segments[3] == "features")
                         {
                             // Guild-wide features (the bare .../features path).
-                            AddFeatureCrumbs(result, segments, 3, $"manage/guild/{guildId}/features");
+                            AddFeatureCrumbs(Lang, result, segments, 3, $"manage/guild/{guildId}/features");
                         }
                         else if (CrudLabels.TryGetValue(segments[3], out var pageLabel))
                         {
@@ -120,8 +122,8 @@
                         else if (AudienceDisplay.TryParseSlug(segments[3], out var aud) && segments.Length >= 5 && segments[4] == "features")
                         {
                             // Audience features (.../{slug}/features[/{featureSlug}]).
-                            result.Add((AudienceDisplay.Labels(aud).FirstOrDefault() ?? segments[3], null));
-                            AddFeatureCrumbs(result, segments, 4, $"manage/guild/{guildId}/{segments[3]}/features");
+                            result.Add((AudienceDisplay.Labels(Lang, aud).FirstOrDefault() ?? segments[3], null));
+                            AddFeatureCrumbs(Lang, result, segments, 4, $"manage/guild/{guildId}/{segments[3]}/features");
                         }
                     }
                 }
@@ -161,7 +163,7 @@
             if (hasPage)
             {
                 var mePage = MePages.All.FirstOrDefault(p => p.RouteSuffix == segments[1]);
-                result.Add((mePage?.Label ?? segments[1], null));
+                result.Add((mePage?.Label(Lang) ?? segments[1], null));
             }
         }
 
@@ -173,7 +175,7 @@
     // of the "features" segment and the catalog backlink. The extra-page title is resolved from that
     // same declaration — so a feature's own auxiliary admin page (FeatureExtraPageHost.razor's route)
     // is correctly breadcrumbed automatically, with no changes needed here when a new one is added.
-    private static void AddFeatureCrumbs(List<(string, string?)> result, string[] segments, int featuresIndex, string catalogHref)
+    private static void AddFeatureCrumbs(Language lang, List<(string, string?)> result, string[] segments, int featuresIndex, string catalogHref)
     {
         var hasSlug = segments.Length >= featuresIndex + 2;
         result.Add(("Features", hasSlug ? catalogHref : null));
@@ -183,23 +185,23 @@
         var featureSlug = segments[featuresIndex + 1];
         var feature = FeatureCatalog.FindBySlug(featureSlug);
         var hasExtraSlug = segments.Length >= featuresIndex + 3;
-        result.Add((feature?.Title ?? featureSlug, hasExtraSlug ? $"{catalogHref}/{featureSlug}" : null));
+        result.Add((feature?.Title(lang) ?? featureSlug, hasExtraSlug ? $"{catalogHref}/{featureSlug}" : null));
 
         if (hasExtraSlug)
         {
             var extraSlug = segments[featuresIndex + 2];
             var extra = feature?.ExtraPages.FirstOrDefault(p => p.Slug == extraSlug);
-            result.Add((extra?.Title ?? extraSlug, null));
+            result.Add((extra?.Title(lang, feature!.Feature) ?? extraSlug, null));
         }
     }
 
     // Maps an alliance sub-page (segments[pageIndex]) to its crumb(s): settings / command-bridge
     // (a single label) or features (+ optional feature title).
-    private static void AddAlliancePageCrumbs(List<(string, string?)> result, string[] segments, int pageIndex, string allianceBase)
+    private static void AddAlliancePageCrumbs(Language lang, List<(string, string?)> result, string[] segments, int pageIndex, string allianceBase)
     {
         var page = segments[pageIndex];
         if (page == "features")
-            AddFeatureCrumbs(result, segments, pageIndex, $"{allianceBase}/features");
+            AddFeatureCrumbs(lang, result, segments, pageIndex, $"{allianceBase}/features");
         else if (CrudLabels.TryGetValue(page, out var label))
             result.Add((label, null));
     }

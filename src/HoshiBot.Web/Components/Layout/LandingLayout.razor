@@ -1,13 +1,28 @@
 @inherits LayoutComponentBase
+@inject WebRequestLanguage RequestLanguage
 
-<PageTitle>Hoshi Bot</PageTitle>
+@* Viewer language resolved once per circuit and cascaded (see MainLayout for the pattern);
+   nothing renders until it's resolved — prerender is off, so only the first paint waits. *@
+@if (language is { } lang)
+{
+    <CascadingValue Value="lang" IsFixed="true">
+        <PageTitle>Hoshi Bot</PageTitle>
 
-<div class="landing min-vh-100 d-flex flex-column">
-    <LandingHeader />
+        <div class="landing min-vh-100 d-flex flex-column">
+            <LandingHeader />
 
-    <main class="flex-grow-1">
-        @Body
-    </main>
+            <main class="flex-grow-1">
+                @Body
+            </main>
 
-    <SiteFooter />
-</div>
+            <SiteFooter />
+        </div>
+    </CascadingValue>
+}
+
+@code {
+    private Language? language;
+
+    protected override async Task OnInitializedAsync() =>
+        language = await RequestLanguage.GetAsync();
+}

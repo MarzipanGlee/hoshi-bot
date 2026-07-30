@@ -7,8 +7,8 @@
     @foreach (var audience in AudienceCards)
     {
         var enabled = audiences.HasFlag(audience);
-        <ToggleCard Icon="@AudienceDisplay.Icon(audience)" Title="@AudienceDisplay.Labels(audience).First()"
-                    Description="@AudienceDisplay.Description(audience)"
+        <ToggleCard Icon="@AudienceDisplay.Icon(audience)" Title="@AudienceDisplay.Labels(Lang, audience).First()"
+                    Description="@AudienceDisplay.Description(Lang, audience)"
                     BorderClass="@(enabled ? "border-success" : "border-danger")" Enabled="@enabled"
                     EnabledChanged="e => ToggleAsync(audience, e)">
             <FooterEnd>
@@ -22,6 +22,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // Community has no corresponding GuildXxx link entity/ScopeEditor branch — no Configure
     // button for it regardless of ShowConfigureButton.
     private static readonly GuildAudience[] AudienceCards =

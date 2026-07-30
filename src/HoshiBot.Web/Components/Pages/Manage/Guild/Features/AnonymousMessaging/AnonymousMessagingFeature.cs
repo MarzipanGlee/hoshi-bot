@@ -7,10 +7,6 @@ public class AnonymousMessagingFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.AnonymousMessaging;
     public string Slug => "anonymous-messaging";
-    public string Title => "Anonymous Messages";
-
-    public string Description =>
-        "Members can send a message to leadership without revealing who sent it — usable by any audience.";
 
     public string Icon => "oi-envelope-closed";
     public Type EditorComponentType => typeof(AnonymousMessagingEditor);

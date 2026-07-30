@@ -5,6 +5,10 @@ namespace HoshiBot.Web.Components.Shared;
 // active-href test, so a new page is a single entry here (previously each href was hand-rolled
 // twice: once as markup, once in a parallel active-test array). Sidebar items are text-only, so
 // no icons; list order is the sidebar's display order.
+//
+// These operator-only areas deliberately stay English (out of localization scope) — the entries
+// put their literal English text in AdminPage's LabelKey slot and the catalog's raw-key fallback
+// renders it verbatim; see the AdminPage record comment.
 public static class BotAdminPages
 {
     public static readonly IReadOnlyList<AdminPage> All =

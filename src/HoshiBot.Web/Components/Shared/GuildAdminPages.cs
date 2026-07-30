@@ -8,12 +8,12 @@ public static class GuildAdminPages
 {
     public static readonly IReadOnlyList<AdminPage> All =
     [
-        new("Overview", "", Icon: "oi-home", ExactMatch: true, ShowOnOverviewCard: false),
-        new("Audience", "audience", Icon: "oi-people"),
-        new("Settings", "settings", Icon: "oi-cog"),
-        new("Features", "features", Icon: "oi-puzzle-piece"),
-        new("Setup Wizard", "setup-wizard", Icon: "oi-list-rich"),
-        new("Permission Check", "permission-check", Icon: "oi-lock-locked"),
+        new("Web.Page.Guild.Overview", "", Icon: "oi-home", ExactMatch: true, ShowOnOverviewCard: false),
+        new("Web.Page.Guild.Audience", "audience", Icon: "oi-people"),
+        new("Web.Page.Guild.Settings", "settings", Icon: "oi-cog"),
+        new("Web.Page.Guild.Features", "features", Icon: "oi-puzzle-piece"),
+        new("Web.Page.Guild.SetupWizard", "setup-wizard", Icon: "oi-list-rich"),
+        new("Web.Page.Guild.PermissionCheck", "permission-check", Icon: "oi-lock-locked"),
     ];
 
     // The bare guild path for Overview; every other page is that path + "/{suffix}". Matches the

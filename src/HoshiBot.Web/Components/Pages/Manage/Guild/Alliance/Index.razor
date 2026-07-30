@@ -18,13 +18,15 @@
         <div class="card-grid">
             @foreach (var p in AllianceAdminPages.All.Where(x => x.ShowOnOverviewCard))
             {
-                <NavCard Href="@AllianceAdminPages.Href(ParsedGuildId, ResolvedAllianceId!.Value, p)" Icon="@p.Icon" Title="@p.Label" Subtitle="@CardSubtitle(p)" />
+                <NavCard Href="@AllianceAdminPages.Href(ParsedGuildId, ResolvedAllianceId!.Value, p)" Icon="@p.Icon" Title="@p.Label(Lang)" Subtitle="@CardSubtitle(p)" />
             }
         </div>
     }
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private string? allianceTag;
     private string? allianceName;
     private int enabledCount;
