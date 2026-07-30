@@ -241,7 +241,7 @@ command **names stay English** in all locales — only descriptions are localize
 5. `src/HoshiBot.Domain/Localization/Locales/Web/xx.json` — the Web admin UI's
    catalog file (see Phase 7); same parity enforcement as the bot pair.
 
-## Phase 7 — Web UI localization (EN + DE)
+## Phase 7 — Web UI localization (EN + DE) — DONE 2026-07-30
 
 Localize the Web admin UI (~1,150 distinct hardcoded English strings across 187
 razor components) with the same catalog infrastructure, rendered per request via
@@ -280,13 +280,20 @@ BootstrapBlazor built-in text (ships no `de` locale) and QuickGrid's paginator
   TerritoryCapture time-input round-trip stay invariant; `<html lang>` derives
   from `Accept-Language` only (static SSR, no DB).
 
-**Batches**: 0 foundation (loader/tests/reshapes/cascades, ~80 keys) → 1 shared +
-nav chrome → 2 guild pages + audit → 3 feature editors A–I → 4 feature editors
-M–T + extra pages → 5 alliance + /me → 6 landing + PageTitles → 7 docs. Each
-batch lands green (build 0 warnings, tests incl. parity, format) with German
-authored in the same commit. Known German-in-English-UI bugs ("⚠ Unbekannt",
-"Ganze Kategorie", TerritoryCapture's German usage text) are fixed as their
-batches touch them.
+**Batches** (commits `64e2fc1..59353c6`): 0 foundation (loader/tests/reshapes/
+cascades, 81 keys) → 1 shared + nav chrome (87 keys, incl. the "⚠ Unbekannt"/
+"Ganze Kategorie" bug fixes) → 2 guild pages + audit (143 keys, incl.
+`PermissionAuditService` taking an explicit `Language`, `DiscordGuildDataService`'s
+errors reshaped to a `DiscordCreateErrorKind` enum so nothing localized lands in
+its cache) → 3 feature editors A–I (119 keys) → 4 feature editors M–T + extra
+pages (140+ keys, incl. the TerritoryCapture usage-text and `SupportModeToggle`
+tooltip bug fixes, and `GuildFeatureDependencies.Note` moving to
+`Msg.WebGuild.DependencyNote`) → 5 alliance + `/me` (69 keys, incl. the
+staleness fix) → 6 landing + final PageTitle/full-tree sweep (65 keys, incl.
+catching two `PermissionCheck` sub-components batch 2 had wired for `Lang` but
+never actually localized). **768 Web keys total**, en/de at full parity. Every
+batch landed green (build 0 warnings, tests incl. parity, format) with German
+authored in the same commit.
 
 ## Verification
 
@@ -301,3 +308,8 @@ batches touch them.
   user's language; public post follows the scope selector; a RoE forum post and a
   Ticket thread follow the dedicated user; a shield-reminder DM follows the
   recipient.
+- Phase 7: browser `Accept-Language: de` anonymously → landing page + NotFound in
+  German; signed in → nav/breadcrumbs/feature cards/editors German; an explicit
+  `DiscordUser.Language` overrides the browser; an unsupported language (e.g. `fr`)
+  falls back to English; changing the `/me` language takes effect after its forced
+  reload; `Manage/Database`/`Manage/Bot`/`Manage/Stfc` stay English regardless.

@@ -76,10 +76,17 @@ File placement rules:
 - **LLM prompt text is not catalog material** — prompts stay in code (English or
   German as the feature requires) and carry a dynamic "Answer in {language}."
   instruction where the reply is user-facing.
-- **Everything else is English**: code, comments, commit messages, docs, slash-command
-  canonical names/descriptions, and the entire Web admin UI. Some Web pages still
-  contain leftover German — when you touch such a page, translate the German bits as
-  you go; never add new German to the Web UI.
+- **The Web admin UI is localized the same way**, for the pages guild/alliance admins
+  actually reach: keys live in
+  `src/HoshiBot.Domain/Localization/Locales/Web/{en,de}.json` (all `Web.`-prefixed,
+  merged into the same catalog — see `Msg.Web*.cs`), rendered with the
+  `[CascadingParameter] Language Lang` every layout provides via `WebRequestLanguage`
+  (the signed-in user's explicit choice, else `Accept-Language`, else English). The
+  operator-only areas (`Manage/Database`, `Manage/Bot`, `Manage/Stfc` — all
+  `GlobalAdmin`-gated) and the landing page's legal disclaimer stay English by design;
+  everything else new needs both locales in the same commit.
+- **Everything else is English**: code, comments, commit messages, docs, and
+  slash-command canonical names/descriptions.
 
 ## Coding conventions
 
