@@ -7,49 +7,48 @@
 @inject DiscordGuildDataService DiscordData
 @inject LanguageResolver LanguageResolver
 
-<PageTitle>Alliance Settings</PageTitle>
+<PageTitle>@Msg.WebAlliance.SettingsPageTitle(Lang)</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (NeedsAllianceLink)
     {
-        <h1>Alliance Settings</h1>
+        <h1>@Msg.WebAlliance.SettingsPageTitle(Lang)</h1>
         <AllianceLinkRequiredHint GuildId="@GuildId" />
     }
     else
     {
-        <h1>Alliance Settings — [@allianceTag]</h1>
-        <p>Per-alliance channels and roles. A coalition guild configures each linked alliance separately.</p>
+        <h1>@Msg.WebAlliance.SettingsHeading(Lang, allianceTag)</h1>
+        <p>@Msg.WebAlliance.SettingsLead(Lang)</p>
 
-        <h2>Channels</h2>
+        <h2>@Msg.WebCommon.Channels(Lang)</h2>
         <div class="card-grid mt-1">
-            <ChannelPicker CardTitle="Alliance Boarding" Usage="Where new-member boarding happens." @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="Reminders (Allies)" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="Rules (DE)" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesDeChannelId = ParseId(rulesDeChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="Rules (EN)" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesEnChannelId = ParseId(rulesEnChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="User Notifications" Usage="General user-facing notifications, not tied to one feature." @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.UserNotificationsChannelId = ParseId(userNotificationsChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="Bot Support" Usage="Where server admins can ask for help with the bot itself." @bind-Value="botSupportChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.BotSupportChannelId = ParseId(botSupportChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="Command Staff Jobs" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="Default Channel Category" Usage="Category new channels get auto-created under (e.g. by the Setup Wizard) when none is picked explicitly." CategorySelect="true" CreateChannelName="Hoshi Bot" @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="— server root —" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.BoardingChannelTitle(Lang)" Usage="@Msg.WebAlliance.BoardingChannelUsage(Lang)" @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput))" Channels="channels" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.RemindersAlliesTitle(Lang)" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput))" Channels="channels" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.RulesDeTitle(Lang)" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesDeChannelId = ParseId(rulesDeChannelIdInput))" Channels="channels" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.RulesEnTitle(Lang)" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesEnChannelId = ParseId(rulesEnChannelIdInput))" Channels="channels" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.UserNotificationsTitle(Lang)" Usage="@Msg.WebAlliance.UserNotificationsUsage(Lang)" @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.UserNotificationsChannelId = ParseId(userNotificationsChannelIdInput))" Channels="channels" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.BotSupportTitle(Lang)" Usage="@Msg.WebAlliance.BotSupportUsage(Lang)" @bind-Value="botSupportChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.BotSupportChannelId = ParseId(botSupportChannelIdInput))" Channels="channels" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.CommandStaffJobsTitle(Lang)" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput))" Channels="channels" />
+            <ChannelPicker CardTitle="@Msg.WebAlliance.DefaultCategoryTitle(Lang)" Usage="@Msg.WebAlliance.DefaultCategoryUsage(Lang)" CategorySelect="true" CreateChannelName="Hoshi Bot" @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="@Msg.WebAlliance.ServerRootPlaceholder(Lang)" />
         </div>
 
-        <h2>Roles</h2>
+        <h2>@Msg.WebCommon.Roles(Lang)</h2>
         @if (createError is not null)
         {
             <p class="text-danger">@createError.Value.Text(Lang)</p>
         }
         <div class="card-grid mt-1">
-            <RolePicker CardTitle="Member" Usage="This alliance's general membership role." CreateRoleName="@memberRoleName" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
-            <RolePicker CardTitle="Officer" CreateRoleName="@officerRoleName" @bind-Value="officerRoleIdInput" @bind-Value:after="SaveOfficerRoleAsync" Roles="roles" />
-            <RolePicker CardTitle="Diplomat" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
-            <RolePicker CardTitle="Boarding" CreateRoleName="@boardingRoleName" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
+            <RolePicker CardTitle="@Msg.WebAlliance.MemberRoleTitle(Lang)" Usage="@Msg.WebAlliance.MemberRoleUsage(Lang)" CreateRoleName="@memberRoleName" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+            <RolePicker CardTitle="@Msg.WebAlliance.OfficerRoleTitle(Lang)" CreateRoleName="@officerRoleName" @bind-Value="officerRoleIdInput" @bind-Value:after="SaveOfficerRoleAsync" Roles="roles" />
+            <RolePicker CardTitle="@Msg.WebAlliance.DiplomatRoleTitle(Lang)" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+            <RolePicker CardTitle="@Msg.WebAlliance.BoardingRoleTitle(Lang)" CreateRoleName="@boardingRoleName" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
         </div>
 
-        <h2>Regional</h2>
+        <h2>@Msg.WebCommon.Regional(Lang)</h2>
         <div class="card-grid mt-1">
-            <SettingsCard Title="Timezone">
+            <SettingsCard Title="@Msg.WebAlliance.TimezoneTitle(Lang)">
                 <p class="form-text mb-2">
-                    The alliance's home timezone, used to interpret scheduled local times such as the
-                    Territory Capture digest (DST-aware). Reused by other schedule-driven features.
+                    @Msg.WebAlliance.TimezoneUsage(Lang)
                 </p>
                 <Select TValue="string" ShowSearch="true" @bind-Value="timeZoneIdInput" @bind-Value:after="SaveTimeZoneAsync" Items="TimeZoneItems" />
             </SettingsCard>

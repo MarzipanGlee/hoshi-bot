@@ -7,8 +7,9 @@
 @inject PlayerLinkService PlayerLink
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject LanguageResolver LanguageResolver
+@inject NavigationManager Nav
 
-<PageTitle>My Area</PageTitle>
+<PageTitle>@Msg.WebNav.MyArea(Lang)</PageTitle>
 
 <div class="container py-4" style="max-width:900px">
 
@@ -25,9 +26,9 @@
             <span class="oi oi-person d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
                   style="width:3.5rem;height:3.5rem;background-color:#e5e5e8;color:#8a8a92;" aria-hidden="true"></span>
         }
-        <h1 class="mb-0">@(userName ?? "My Area")</h1>
+        <h1 class="mb-0">@(userName ?? Msg.WebNav.MyArea(Lang))</h1>
     </div>
-    <p class="card-subtext">Your personal Hoshi settings. Only you can change what's here.</p>
+    <p class="card-subtext">@Msg.WebMe.Lead(Lang)</p>
 
     @if (LinkResultMessage is { } linkMessage)
     {
@@ -44,21 +45,20 @@
         }
     </div>
 
-    <h2 class="mt-5 mb-2">My Player Accounts</h2>
+    <h2 class="mt-5 mb-2">@Msg.WebMe.PlayerAccountsTitle(Lang)</h2>
     <p class="card-subtext">
-        Your in-game commanders. Hoshi uses them to give you the right roles and nickname in each
-        community — pick which one represents you where under My Communities below.
+        @Msg.WebMe.PlayerAccountsLead(Lang)
     </p>
 
     @if (loading)
     {
-        <p class="card-subtext">Loading…</p>
+        <p class="card-subtext">@Msg.WebNav.GuildsLoading(Lang)</p>
     }
     else
     {
         @if (players.Count == 0)
         {
-            <p class="card-subtext">No player accounts connected yet.</p>
+            <p class="card-subtext">@Msg.WebMe.NoPlayersYet(Lang)</p>
         }
         else
         {
@@ -70,12 +70,12 @@
                             @PlayerLabel.Of(player.Name, player.ServerName, player.AllianceTag)
                             @if (player.OwnerId != currentUserId)
                             {
-                                <span class="card-subtext ms-2">via @OwnerName(player.OwnerId)</span>
+                                <span class="card-subtext ms-2">@Msg.WebMe.Via(Lang, OwnerName(player.OwnerId))</span>
                             }
                         </span>
                         @if (player.OwnerId == currentUserId)
                         {
-                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemovePlayerAsync(player.PlayerId)">Remove</button>
+                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemovePlayerAsync(player.PlayerId)">@Msg.WebCommon.Remove(Lang)</button>
                         }
                     </li>
                 }
@@ -83,8 +83,8 @@
         }
 
         <div style="max-width:26rem">
-            <label class="form-label small mb-1" for="player-search">Connect a player account</label>
-            <input id="player-search" class="form-control form-control-sm" placeholder="Search your commander name…"
+            <label class="form-label small mb-1" for="player-search">@Msg.WebMe.ConnectPlayerLabel(Lang)</label>
+            <input id="player-search" class="form-control form-control-sm" placeholder="@Msg.WebMe.SearchPlaceholder(Lang)"
                    value="@playerSearchTerm" @oninput="OnPlayerSearchAsync" />
             @if (playerSearchResults.Count > 0)
             {
@@ -105,10 +105,10 @@
         </div>
     }
 
-    <h2 class="mt-5 mb-2">My Communities</h2>
+    <h2 class="mt-5 mb-2">@Msg.WebMe.CommunitiesTitle(Lang)</h2>
     @if (loading)
     {
-        <p class="card-subtext">Loading…</p>
+        <p class="card-subtext">@Msg.WebNav.GuildsLoading(Lang)</p>
     }
     else if (sharedGuilds.Count == 0)
     {
@@ -116,8 +116,7 @@
            failed /users/@@me/guilds call to an empty list, so "none shared" and "Discord
            didn't answer" are indistinguishable here. *@
         <p class="card-subtext">
-            No communities to show — either Hoshi isn't in any of your Discord servers yet, or Discord
-            didn't answer just now. Try again in a moment.
+            @Msg.WebMe.NoCommunities(Lang)
         </p>
     }
     else
@@ -148,18 +147,18 @@
 
                         @if (players.Count == 0)
                         {
-                            <p class="mb-0 card-subtext">Connect a player account to get roles here.</p>
+                            <p class="mb-0 card-subtext">@Msg.WebMe.ConnectPlayerToGetRoles(Lang)</p>
                         }
                         else if (players.Count == 1)
                         {
-                            <p class="mb-0 card-subtext">Playing here as @players[0].Name</p>
+                            <p class="mb-0 card-subtext">@Msg.WebMe.PlayingHereAs(Lang, players[0].Name)</p>
                         }
                         else
                         {
                             @* Plain <select>, not BootstrapBlazor's — MeLayout has no BootstrapBlazorRoot,
                                and the rest of /me is plain Bootstrap too. *@
                             <div>
-                                <label class="form-label small mb-1" for="primary-@guild.Id">Playing here as</label>
+                                <label class="form-label small mb-1" for="primary-@guild.Id">@Msg.WebMe.PlayingHereAsLabel(Lang)</label>
                                 <select id="primary-@guild.Id" class="form-select form-select-sm"
                                         value="@PrimaryPlayerId(guild.Id)"
                                         @onchange="e => SetGuildPrimaryAsync(guild.Id, e.Value?.ToString())">
@@ -178,10 +177,9 @@
         </div>
     }
 
-    <h2 class="mt-5 mb-2">My Language</h2>
+    <h2 class="mt-5 mb-2">@Msg.WebMe.LanguageTitle(Lang)</h2>
     <p class="card-subtext">
-        The language Hoshi uses when talking to you personally — private replies, DMs and
-        your tickets. Public channel posts follow the community's language instead.
+        @Msg.WebMe.LanguageLead(Lang)
     </p>
 
     @if (!loading)
@@ -189,7 +187,7 @@
         @* Plain <select>, not BootstrapBlazor's — MeLayout has no BootstrapBlazorRoot,
            same constraint as the per-community primary-player selects above. *@
         <select class="form-select w-auto" @onchange="OnLanguageChangedAsync">
-            <option value="" selected="@(userLanguage is null)">Automatic (@automaticLanguageLabel)</option>
+            <option value="" selected="@(userLanguage is null)">@Msg.WebMe.Automatic(Lang, automaticLanguageLabel)</option>
             @foreach (var language in Languages.Enabled)
             {
                 <option value="@Languages.ToCode(language)" selected="@(userLanguage == Languages.ToCode(language))">
@@ -199,10 +197,9 @@
         </select>
     }
 
-    <h2 class="mt-5 mb-2">My Discord Accounts</h2>
+    <h2 class="mt-5 mb-2">@Msg.WebMe.DiscordAccountsTitle(Lang)</h2>
     <p class="card-subtext">
-        Play from more than one Discord account? Link them and Hoshi treats them as one person —
-        your player accounts, roles and lore follow you to all of them.
+        @Msg.WebMe.DiscordAccountsLead(Lang)
     </p>
 
     @if (!loading)
@@ -219,22 +216,21 @@
                         <span>@OwnerName(accountId)</span>
                         @if (accountId == currentUserId)
                         {
-                            <span class="badge bg-secondary">signed in</span>
+                            <span class="badge bg-secondary">@Msg.WebMe.SignedInBadge(Lang)</span>
                         }
                     </span>
                     @if (accountId != currentUserId)
                     {
-                        <button type="button" class="btn btn-sm btn-danger" @onclick="() => UnlinkAccountAsync(accountId)">Remove</button>
+                        <button type="button" class="btn btn-sm btn-danger" @onclick="() => UnlinkAccountAsync(accountId)">@Msg.WebCommon.Remove(Lang)</button>
                     }
                 </li>
             }
         </ul>
 
         @* A real navigation, not an @@onclick: this starts an OAuth challenge on the server. *@
-        <a class="btn btn-primary" href="@DiscordAccountLink.StartPath">Link another Discord account</a>
+        <a class="btn btn-primary" href="@DiscordAccountLink.StartPath">@Msg.WebMe.LinkAnotherAccount(Lang)</a>
         <p class="card-subtext mt-2 mb-0">
-            You'll be sent to Discord — sign in there with the <em>other</em> account (use its
-            "not you?" switcher) to prove it's yours. You stay signed in here either way.
+            @((MarkupString)Msg.WebMe.LinkAnotherAccountHint(Lang))
         </p>
     }
 
@@ -268,11 +264,11 @@
 
     private string? LinkResultMessage => Link switch
     {
-        "ok" => "Discord account linked — both accounts now share your player accounts.",
-        "already" => "Those accounts were already linked.",
-        "self" => "That's the account you're already signed in as. Sign in as the other one on Discord's page.",
-        "noplayers" => "Connect a player account first — a shared player is what links two Discord accounts.",
-        "failed" => "Linking didn't complete. Please try again.",
+        "ok" => Msg.WebMe.LinkOk(Lang),
+        "already" => Msg.WebMe.LinkAlready(Lang),
+        "self" => Msg.WebMe.LinkSelf(Lang),
+        "noplayers" => Msg.WebMe.LinkNoPlayers(Lang),
+        "failed" => Msg.WebMe.LinkFailed(Lang),
         _ => null,
     };
 
@@ -315,8 +311,8 @@
                 await LanguageResolver.RecordUserLocaleAsync(currentUserId, discordLocale);
 
             automaticLanguageLabel = Languages.FromDiscordLocale(discordLocale) is { } discordLanguage
-                ? $"Discord: {Languages.NativeName(discordLanguage)}"
-                : "your Discord language";
+                ? Msg.WebMe.DiscordLanguageLabel(Lang, Languages.NativeName(discordLanguage))
+                : Msg.WebMe.YourDiscordLanguage(Lang);
         }
 
         await ReloadPersonAsync();
@@ -340,6 +336,12 @@
         }
 
         await db.SaveChangesAsync();
+
+        // The cascaded Lang was resolved once for this circuit (WebRequestLanguage, in
+        // MeLayout.OnInitializedAsync) and stays fixed for its lifetime — a plain re-render
+        // would keep showing the page in the old language. Force a full reload so the next
+        // circuit re-resolves WebRequestLanguage against the language just saved above.
+        Nav.NavigateTo("me", forceLoad: true);
     }
 
     // The whole person, not just this account: every Discord account linked to it and every player
@@ -395,8 +397,7 @@
         var owners = await PlayerLink.GetPlayerOwnersAsync(result.Id);
         if (owners.Any(owner => !accountGroup.Contains(owner)))
         {
-            playerError = $"{result.Name} is already linked to another Discord account. If that's your " +
-                "account, link it under My Discord Accounts below and this player will show up here.";
+            playerError = Msg.WebMe.PlayerAlreadyLinked(Lang, result.Name);
             return;
         }
 

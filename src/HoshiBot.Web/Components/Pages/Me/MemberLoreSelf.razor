@@ -10,23 +10,22 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject RestClient BotRest
 
-<PageTitle>My Profile</PageTitle>
+<PageTitle>@Msg.WebMe.ProfileTitle(Lang)</PageTitle>
 
 <div class="container py-4" style="max-width:900px">
 
-<h1>My Profile in Hoshi</h1>
+<h1>@Msg.WebMe.ProfileHeading(Lang)</h1>
 <p class="text-muted">
-    Here you can see and edit what Hoshi knows about you, so she addresses you the right way and can
-    chat with you like a real community member. Only you can change your own entries.
+    @Msg.WebMe.ProfileLead(Lang)
 </p>
 
 @if (loading)
 {
-    <LoadingPlaceholder Em="false" Text="Loading…" />
+    <LoadingPlaceholder Em="false" Text="@Msg.WebNav.GuildsLoading(Lang)" />
 }
 else if (cards.Count == 0)
 {
-    <p class="text-muted">There's nothing for you to edit here right now (no matching community found).</p>
+    <p class="text-muted">@Msg.WebMe.NoCards(Lang)</p>
 }
 else
 {
@@ -38,55 +37,54 @@ else
 
                 <div class="row g-2">
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">What should Hoshi call you?</label>
+                        <label class="form-label small mb-1">@Msg.WebMe.PreferredNameLabel(Lang)</label>
                         <input class="form-control form-control-sm" @bind="c.Note.PreferredName" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Nicknames</label>
+                        <label class="form-label small mb-1">@Msg.WebMe.NicknamesLabel(Lang)</label>
                         <input class="form-control form-control-sm" @bind="c.Note.Nicknames" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Languages</label>
+                        <label class="form-label small mb-1">@Msg.WebMe.LanguagesLabel(Lang)</label>
                         <input class="form-control form-control-sm" @bind="c.Note.Languages" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Interests / hobbies</label>
+                        <label class="form-label small mb-1">@Msg.WebMe.InterestsLabel(Lang)</label>
                         <textarea class="form-control form-control-sm" rows="2" @bind="c.Note.Interests"></textarea>
                     </div>
                     <div class="col-12">
-                        <label class="form-label small mb-1">About you (whatever you'd like to share)</label>
+                        <label class="form-label small mb-1">@Msg.WebMe.BackgroundLabel(Lang)</label>
                         <textarea class="form-control form-control-sm" rows="2" @bind="c.Note.Background"></textarea>
                     </div>
                 </div>
 
                 <div class="mt-2">
-                    <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(c)">Save</button>
+                    <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(c)">@Msg.WebCommon.Save(Lang)</button>
                     @if (c.Saved)
                     {
-                        <span class="text-success small ms-2">Saved ✓</span>
+                        <span class="text-success small ms-2">@Msg.WebMe.SavedConfirmation(Lang)</span>
                     }
                 </div>
 
                 @if (c.HasPeerLore)
                 {
                     <hr />
-                    <h3 class="h6">What others have said about you</h3>
+                    <h3 class="h6">@Msg.WebMe.PeerLoreHeading(Lang)</h3>
                     <p class="form-text mt-0">
-                        Notes contributed by other members. You can't edit them, but you can hide them —
-                        then Hoshi won't use them and the team takes another look.
+                        @Msg.WebMe.PeerLoreLead(Lang)
                     </p>
                     @if (!string.IsNullOrWhiteSpace(c.Note.RunningJokes))
                     {
-                        <p class="mb-1"><span class="badge bg-secondary">Running jokes</span> @c.Note.RunningJokes</p>
+                        <p class="mb-1"><span class="badge bg-secondary">@Msg.WebMe.RunningJokesBadge(Lang)</span> @c.Note.RunningJokes</p>
                     }
                     @if (!string.IsNullOrWhiteSpace(c.Note.TeaseAbout))
                     {
-                        <p class="mb-1"><span class="badge bg-secondary">OK to tease</span> @c.Note.TeaseAbout</p>
+                        <p class="mb-1"><span class="badge bg-secondary">@Msg.WebMe.OkToTeaseBadge(Lang)</span> @c.Note.TeaseAbout</p>
                     }
                     <div class="form-switch mt-2">
                         <input type="checkbox" class="form-check-input" role="switch" id="hide-@c.GuildId"
                                checked="@c.Note.PeerLoreHidden" @onchange="e => ToggleHiddenAsync(c, (bool)e.Value!)" />
-                        <label class="form-check-label" for="hide-@c.GuildId">Hide these notes</label>
+                        <label class="form-check-label" for="hide-@c.GuildId">@Msg.WebMe.HideNotesLabel(Lang)</label>
                     </div>
                 }
             </div>
@@ -97,6 +95,8 @@ else
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private bool loading = true;
     private ulong userId;
     private List<GuildCard> cards = [];
@@ -131,7 +131,7 @@ else
                 ?? new GuildMemberNote { GuildId = guildId, DiscordUserId = userId };
 
             var guildName = await db.DiscordGuilds.Where(g => g.Id == guildId).Select(g => g.Name).FirstOrDefaultAsync();
-            cards.Add(new GuildCard { GuildId = guildId, GuildName = guildName ?? "Community", Note = note });
+            cards.Add(new GuildCard { GuildId = guildId, GuildName = guildName ?? Msg.WebMe.CommunityFallback(Lang), Note = note });
         }
 
         loading = false;

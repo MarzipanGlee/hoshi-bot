@@ -3,12 +3,12 @@
 @inherits AllianceAdminPageBase
 @inject GuildFeatureService FeatureService
 
-<PageTitle>@(allianceTag is null ? "Alliance" : $"[{allianceTag}]")</PageTitle>
+<PageTitle>@(allianceTag is null ? Msg.WebAlliance.PageTitle(Lang) : $"[{allianceTag}]")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (NeedsAllianceLink)
     {
-        <h1>Alliance</h1>
+        <h1>@Msg.WebAlliance.PageTitle(Lang)</h1>
         <AllianceLinkRequiredHint GuildId="@GuildId" />
     }
     else
@@ -56,8 +56,8 @@
     // single headline number, so it gets a static descriptor.
     private string CardSubtitle(AdminPage page) => page.RouteSuffix switch
     {
-        "features" => $"{enabledCount}/{featureTotal} enabled",
-        "settings" => "Channels & roles",
+        "features" => Msg.WebGuild.EnabledCount(Lang, enabledCount, featureTotal),
+        "settings" => Msg.WebAlliance.OverviewSettingsSubtitle(Lang),
         _ => "",
     };
 }
