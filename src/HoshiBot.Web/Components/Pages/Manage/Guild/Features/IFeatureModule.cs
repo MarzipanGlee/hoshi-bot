@@ -110,10 +110,12 @@ public record FeatureModuleContext(
     }
 }
 
-// One resolved dependency of a feature: the required feature's module, its optional Note, and
-// whether it's currently Enabled/Configured for the guild. Satisfied is the single signal the UI
-// keys off — a feature with an unsatisfied dependency is treated as "not fully configured".
-public record FeatureDependencyState(IFeatureModule Module, string? Note, bool Enabled, bool Configured)
+// One resolved dependency of a feature: the feature declaring it (OwnerFeature, needed to look up
+// the note text — see Msg.WebGuild.DependencyNote), the required feature's module, whether that
+// pairing carries a note, and whether the dependency is currently Enabled/Configured for the
+// guild. Satisfied is the single signal the UI keys off — a feature with an unsatisfied dependency
+// is treated as "not fully configured".
+public record FeatureDependencyState(GuildFeature OwnerFeature, IFeatureModule Module, bool HasNote, bool Enabled, bool Configured)
 {
     public bool Satisfied => Enabled && Configured;
 }
@@ -129,11 +131,11 @@ public static class FeatureModuleExtensions
     // The features this one needs to actually work (from the Domain single source of truth),
     // resolved to their modules. Skips any that have no IFeatureModule (storage-only
     // pseudo-features) — none of the declared dependencies are such today, but stay defensive.
-    public static IReadOnlyList<(IFeatureModule Module, string? Note)> Dependencies(this IFeatureModule module) =>
+    public static IReadOnlyList<(IFeatureModule Module, bool HasNote)> Dependencies(this IFeatureModule module) =>
         GuildFeatureDependencies.Of(module.Feature)
-            .Select(dep => (Module: FeatureCatalog.FindByFeature(dep.Feature), dep.Note))
+            .Select(dep => (Module: FeatureCatalog.FindByFeature(dep.Feature), dep.HasNote))
             .Where(x => x.Module is not null)
-            .Select(x => (x.Module!, x.Note))
+            .Select(x => (x.Module!, x.HasNote))
             .ToList();
 
     // Resolves each dependency's live Enabled/Configured state for guildId. The dependent's own
@@ -222,7 +224,7 @@ public static class FeatureModuleExtensions
                 }
             }
 
-            states.Add(new FeatureDependencyState(depModule, dep.Note, enabled, configured));
+            states.Add(new FeatureDependencyState(module.Feature, depModule, dep.HasNote, enabled, configured));
         }
 
         return states;

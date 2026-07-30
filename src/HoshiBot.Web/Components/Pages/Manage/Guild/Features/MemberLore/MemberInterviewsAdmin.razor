@@ -6,24 +6,23 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-<PageTitle>Interviews</PageTitle>
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.MemberLore, "interviews")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <LoadingPlaceholder Em="false" Text="Loading…" />
+        <LoadingPlaceholder Em="false" />
     }
     else
     {
-        <h1>Member Lore — Interviews</h1>
+        <h1>@Msg.WebMemberLoreInterviewsAdmin.Heading(Lang)</h1>
         <p class="text-muted">
-            Every member the bot has invited to (or is running) a DM interview, and where they are in it.
-            Bot-managed — status/progress come from the interview job/DM conversation, not editable here.
+            @Msg.WebMemberLoreInterviewsAdmin.Intro(Lang)
         </p>
 
         @if (interviews.Count == 0)
         {
-            <p class="text-muted">No interviews yet — enable the campaign to start inviting members.</p>
+            <p class="text-muted">@Msg.WebMemberLoreInterviewsAdmin.Empty(Lang)</p>
         }
         else
         {
@@ -31,11 +30,11 @@
                 <table class="table table-sm align-middle">
                     <thead>
                         <tr>
-                            <th>Member</th>
-                            <th>Status</th>
-                            <th>Invited</th>
-                            <th>Last activity</th>
-                            <th>Completed</th>
+                            <th>@Msg.WebMemberLoreInterviewsAdmin.ColMember(Lang)</th>
+                            <th>@Msg.WebMemberLoreInterviewsAdmin.ColStatus(Lang)</th>
+                            <th>@Msg.WebMemberLoreInterviewsAdmin.ColInvited(Lang)</th>
+                            <th>@Msg.WebMemberLoreInterviewsAdmin.ColLastActivity(Lang)</th>
+                            <th>@Msg.WebMemberLoreInterviewsAdmin.ColCompleted(Lang)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -43,7 +42,7 @@
                         {
                             <tr>
                                 <td>@members.DisplayName(i.DiscordUserId)</td>
-                                <td><span class="badge @StatusBadgeClass(i.Status)">@i.Status</span></td>
+                                <td><span class="badge @StatusBadgeClass(i.Status)">@Msg.WebMemberLoreInterviewsAdmin.Status(Lang, i.Status)</span></td>
                                 <td>@i.InvitedAt.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>@i.LastActivityAt.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>@(i.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
@@ -57,6 +56,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private bool loading = true;
     private List<MemberInterview> interviews = [];
     private MemberDirectory members = MemberDirectory.Empty;

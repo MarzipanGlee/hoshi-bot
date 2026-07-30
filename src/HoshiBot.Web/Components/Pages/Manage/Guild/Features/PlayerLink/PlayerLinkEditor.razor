@@ -6,22 +6,17 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="How it works">
+    <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
         <p class="form-text mt-0">
-            The bot matches each member's Discord nickname against the whole player catalog and links
-            confident matches automatically — a globally-unique name, or a unique match within one of your
-            alliances — with <strong>no message to the member</strong>. Everyone else (members from other
-            alliances/servers, renamed players, alts) you assign by hand on the member page.
+            @((MarkupString)Msg.WebPlayerLink.HowItWorksUsage(Lang))
         </p>
         <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
-            FeatureSlug="player-link" ExtraSlug="assignments" Label="Open player assignments" />
+            FeatureSlug="player-link" ExtraSlug="assignments" Label="@Msg.WebPlayerLink.OpenAssignmentsLink(Lang)" />
     </SettingsCard>
 
-    <SettingsCard Title="Status">
+    <SettingsCard Title="@Msg.WebPlayerLink.StatusCardTitle(Lang)">
         <p class="form-text mt-0">
-            @unresolvedCount Mitglied(er) konnten nicht automatisch zugeordnet werden und warten auf
-            manuelle Zuordnung. Zum Anpassen der Rollen selbst siehe die Features <em>Rang-Rollen</em> und
-            <em>Ops-Level-Rollen</em>.
+            @((MarkupString)Msg.WebPlayerLink.StatusUsage(Lang, unresolvedCount))
         </p>
     </SettingsCard>
 </div>

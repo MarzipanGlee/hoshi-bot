@@ -220,5 +220,16 @@ public static partial class Msg
 
         public static string CreateCategoryError(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.CreateCategoryError");
+
+        // Shared across the Phase 7 batch-4 editors that open with an identical explainer card
+        // (Player Link, Nickname Sync, Member Onboarding) — one key instead of three copies.
+        public static string HowItWorksCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.HowItWorksCardTitle");
+
+        public static string Remove(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.Remove");
+
+        public static string Save(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.Save");
     }
 }

@@ -6,25 +6,24 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-<PageTitle>Member Notes</PageTitle>
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.MemberLore, "notes")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <LoadingPlaceholder Em="false" Text="Loading…" />
+        <LoadingPlaceholder Em="false" />
     }
     else
     {
-        <h1>Member Lore — Notizen & Review</h1>
+        <h1>@Msg.WebMemberNotesAdmin.Heading(Lang)</h1>
         <p class="text-muted">
-            Aus den Interviews extrahierte Community-Notizen. Eigene Angaben der Mitglieder werden direkt
-            übernommen; Geschichten über <em>andere</em> landen hier zur Freigabe, bevor Hoshi sie nutzt.
+            @((MarkupString)Msg.WebMemberNotesAdmin.Intro(Lang))
         </p>
 
-        <h2 class="h4">Zu prüfen (@suggestions.Count)</h2>
+        <h2 class="h4">@Msg.WebMemberNotesAdmin.ToReviewHeading(Lang, suggestions.Count)</h2>
         @if (suggestions.Count == 0)
         {
-            <p class="text-muted">Keine offenen Vorschläge.</p>
+            <p class="text-muted">@Msg.WebMemberNotesAdmin.NoSuggestions(Lang)</p>
         }
         else
         {
@@ -33,14 +32,14 @@
                 <div class="card mb-2">
                     <div class="card-body">
                         <p class="mb-2">
-                            <span class="badge bg-secondary">@FieldLabel(s.Field)</span>
-                            von <strong>@s.SourceName</strong> über <strong>@s.TargetNameRaw</strong>
+                            <span class="badge bg-secondary">@Msg.WebMemberLore.NoteFieldLabel(Lang, s.Field)</span>
+                            @Msg.WebMemberNotesAdmin.FromWord(Lang) <strong>@s.SourceName</strong> @Msg.WebMemberNotesAdmin.AboutWord(Lang) <strong>@s.TargetNameRaw</strong>
                         </p>
                         <div class="row g-2 align-items-start">
                             <div class="col-md-4">
-                                <label class="form-label small mb-1">Für Mitglied</label>
+                                <label class="form-label small mb-1">@Msg.WebMemberNotesAdmin.ForMemberLabel(Lang)</label>
                                 <select class="form-select form-select-sm" @bind="s.TargetUserId">
-                                    <option value="">— wählen —</option>
+                                    <option value="">@Msg.WebMemberNotesAdmin.ChooseOption(Lang)</option>
                                     @foreach (var m in memberOptions)
                                     {
                                         <option value="@m.Id">@m.Name</option>
@@ -48,13 +47,13 @@
                                 </select>
                             </div>
                             <div class="col-md-5">
-                                <label class="form-label small mb-1">Text</label>
+                                <label class="form-label small mb-1">@Msg.WebMemberNotesAdmin.TextLabel(Lang)</label>
                                 <textarea class="form-control form-control-sm" rows="2" @bind="s.Text"></textarea>
                             </div>
                             <div class="col-md-3 d-flex gap-2 align-items-end" style="height:100%">
                                 <button class="btn btn-sm btn-success" disabled="@(s.TargetUserId is null || string.IsNullOrWhiteSpace(s.Text))"
-                                        @onclick="() => ApproveAsync(s)">Freigeben</button>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RejectAsync(s)">Ablehnen</button>
+                                        @onclick="() => ApproveAsync(s)">@Msg.WebMemberNotesAdmin.Approve(Lang)</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RejectAsync(s)">@Msg.WebMemberNotesAdmin.Reject(Lang)</button>
                             </div>
                         </div>
                     </div>
@@ -62,24 +61,24 @@
             }
         }
 
-        <h2 class="h4 mt-5">Mitglieder-Notizen</h2>
+        <h2 class="h4 mt-5">@Msg.WebMemberNotesAdmin.MembersHeading(Lang)</h2>
         <div class="d-flex gap-2 align-items-end mb-3" style="max-width:32rem">
             <div class="flex-grow-1">
-                <label class="form-label small mb-1">Notiz für Mitglied anlegen</label>
+                <label class="form-label small mb-1">@Msg.WebMemberNotesAdmin.CreateNoteLabel(Lang)</label>
                 <select class="form-select form-select-sm" @bind="addMemberId">
-                    <option value="">— wählen —</option>
+                    <option value="">@Msg.WebMemberNotesAdmin.ChooseOption(Lang)</option>
                     @foreach (var m in memberOptions.Where(m => notes.All(n => n.DiscordUserId != m.Id)))
                     {
                         <option value="@m.Id">@m.Name</option>
                     }
                 </select>
             </div>
-            <button class="btn btn-sm btn-primary" disabled="@(addMemberId is null)" @onclick="AddNoteAsync">Anlegen</button>
+            <button class="btn btn-sm btn-primary" disabled="@(addMemberId is null)" @onclick="AddNoteAsync">@Msg.WebMemberNotesAdmin.CreateButton(Lang)</button>
         </div>
 
         @if (notes.Count == 0)
         {
-            <p class="text-muted">Noch keine Notizen.</p>
+            <p class="text-muted">@Msg.WebMemberNotesAdmin.NoNotes(Lang)</p>
         }
         else
         {
@@ -92,24 +91,24 @@
                                 <span>@FullNickname(n.DiscordUserId)</span>
                                 @if (n.PeerLoreHidden)
                                 {
-                                    <span class="badge bg-warning text-dark ms-2">Peer-Lore vom Mitglied ausgeblendet</span>
+                                    <span class="badge bg-warning text-dark ms-2">@Msg.WebMemberNotesAdmin.PeerLoreHiddenBadge(Lang)</span>
                                 }
                             </HeaderTemplate>
                             <ChildContent>
                                 <div class="row g-2">
-                                    <div class="col-md-4"><NoteField Label="Bevorzugter Name" Note="n" Field="MemberNoteField.PreferredName" /></div>
-                                    <div class="col-md-4"><NoteField Label="Spitznamen" Note="n" Field="MemberNoteField.Nicknames" /></div>
-                                    <div class="col-md-4"><NoteField Label="Sprachen" Note="n" Field="MemberNoteField.Languages" /></div>
-                                    <div class="col-md-6"><NoteField Label="Interessen" Note="n" Field="MemberNoteField.Interests" Multiline="true" /></div>
-                                    <div class="col-md-6"><NoteField Label="Hintergrund" Note="n" Field="MemberNoteField.Background" Multiline="true" /></div>
-                                    <div class="col-md-6"><NoteField Label="Running Gags (Peer)" Note="n" Field="MemberNoteField.RunningJokes" Multiline="true" /></div>
-                                    <div class="col-md-6"><NoteField Label="Necken ok (Peer)" Note="n" Field="MemberNoteField.TeaseAbout" Multiline="true" /></div>
+                                    <div class="col-md-4"><NoteField Label="@Msg.WebMemberLore.NoteFieldLabel(Lang, MemberNoteField.PreferredName)" Note="n" Field="MemberNoteField.PreferredName" /></div>
+                                    <div class="col-md-4"><NoteField Label="@Msg.WebMemberLore.NoteFieldLabel(Lang, MemberNoteField.Nicknames)" Note="n" Field="MemberNoteField.Nicknames" /></div>
+                                    <div class="col-md-4"><NoteField Label="@Msg.WebMemberLore.NoteFieldLabel(Lang, MemberNoteField.Languages)" Note="n" Field="MemberNoteField.Languages" /></div>
+                                    <div class="col-md-6"><NoteField Label="@Msg.WebMemberLore.NoteFieldLabel(Lang, MemberNoteField.Interests)" Note="n" Field="MemberNoteField.Interests" Multiline="true" /></div>
+                                    <div class="col-md-6"><NoteField Label="@Msg.WebMemberLore.NoteFieldLabel(Lang, MemberNoteField.Background)" Note="n" Field="MemberNoteField.Background" Multiline="true" /></div>
+                                    <div class="col-md-6"><NoteField Label="@Msg.WebMemberLore.NoteFieldLabel(Lang, MemberNoteField.RunningJokes)" Note="n" Field="MemberNoteField.RunningJokes" Multiline="true" /></div>
+                                    <div class="col-md-6"><NoteField Label="@Msg.WebMemberLore.NoteFieldLabel(Lang, MemberNoteField.TeaseAbout)" Note="n" Field="MemberNoteField.TeaseAbout" Multiline="true" /></div>
                                 </div>
                                 <div class="mt-2 d-flex gap-2">
-                                    <button class="btn btn-sm btn-primary" @onclick="() => SaveNoteAsync(n)">Speichern</button>
+                                    <button class="btn btn-sm btn-primary" @onclick="() => SaveNoteAsync(n)">@Msg.WebCommon.Save(Lang)</button>
                                     @if (n.PeerLoreHidden)
                                     {
-                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetHiddenAsync(n, false)">Peer-Lore wieder anzeigen</button>
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetHiddenAsync(n, false)">@Msg.WebMemberNotesAdmin.UnhideButton(Lang)</button>
                                     }
                                 </div>
                             </ChildContent>
@@ -122,6 +121,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private bool loading = true;
     private List<SuggestionVm> suggestions = [];
     private List<GuildMemberNote> notes = [];
@@ -222,18 +223,6 @@
     private string FullNickname(ulong id) => memberNicknames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : members.DisplayName(id);
 
     private static string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
-
-    private static string FieldLabel(MemberNoteField field) => field switch
-    {
-        MemberNoteField.PreferredName => "Name",
-        MemberNoteField.Nicknames => "Spitznamen",
-        MemberNoteField.Interests => "Interessen",
-        MemberNoteField.Background => "Hintergrund",
-        MemberNoteField.Languages => "Sprachen",
-        MemberNoteField.RunningJokes => "Running Gag",
-        MemberNoteField.TeaseAbout => "Necken ok",
-        _ => field.ToString(),
-    };
 
     private record MemberOption(ulong Id, string Name);
 

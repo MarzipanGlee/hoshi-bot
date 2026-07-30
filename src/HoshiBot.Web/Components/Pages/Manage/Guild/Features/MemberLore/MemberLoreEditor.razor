@@ -9,54 +9,50 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="Member role" Usage="Only members holding this role are interviewed. Leave empty to fall back to the alliance's configured member role."
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, MemberLoreSettingKeys.MemberRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, MemberLoreSettingKeys.MemberRole)"
             @bind-Value="memberRoleInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
 
-    <RolePicker CardTitle="Completed role" Usage="Granted to a member once they finish their interview, e.g. an introduced/known role. Leave empty for none."
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, MemberLoreSettingKeys.CompletedRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, MemberLoreSettingKeys.CompletedRole)"
             @bind-Value="completedRoleInput" @bind-Value:after="SaveCompletedRoleAsync" Roles="roles" />
 
-    <SettingsCard Title="Interviews per day">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, MemberLoreSettingKeys.MaxInterviewsPerDay)">
         <label for="mlMaxPerDay" class="form-label">
-            How many interview DMs the bot sends per day. Paces the campaign and stays clear of
-            Discord's DM rate limits. Empty → a conservative default (10).
+            @Msg.WebEditor.Label(Lang, Feature, MemberLoreSettingKeys.MaxInterviewsPerDay)
         </label>
         <input id="mlMaxPerDay" type="number" min="1" class="form-control" placeholder="10"
                @bind="maxPerDayInput" @bind:after="SaveMaxPerDayAsync" />
     </SettingsCard>
 
-    <SettingsCard Title="Campaign">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, MemberLoreSettingKeys.CampaignActive)">
         <div class="form-switch">
             <input type="checkbox" class="form-check-input" role="switch" id="mlCampaign"
                    checked="@campaignActive" @onchange="e => SaveCampaignAsync((bool)e.Value!)" />
-            <label class="form-check-label" for="mlCampaign">Campaign active — send interview DMs</label>
+            <label class="form-check-label" for="mlCampaign">@Msg.WebMemberLore.CampaignLabel(Lang)</label>
         </div>
         <div class="form-text">
-            Post the announcement below first, then turn this on. The bot then DMs eligible members
-            (most chat-active first, up to the daily cap). New members become eligible automatically.
+            @Msg.WebMemberLore.CampaignUsage(Lang)
         </div>
         @if (progress is not null)
         {
             <p class="form-text mb-2">
-                Invited @progress.Invited · in progress @progress.InProgress · completed @progress.Completed
-                · declined @progress.Declined · undeliverable @progress.Undeliverable
+                @Msg.WebMemberLore.ProgressLine(Lang, progress.Invited, progress.InProgress, progress.Completed, progress.Declined, progress.Undeliverable)
             </p>
         }
         <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
-            FeatureSlug="member-lore" ExtraSlug="interviews" Label="View interviews" />
+            FeatureSlug="member-lore" ExtraSlug="interviews" Label="@Msg.WebMemberLore.ViewInterviewsLink(Lang)" />
     </SettingsCard>
 
-    <SettingsCard Title="Notes & review">
+    <SettingsCard Title="@Msg.WebMemberLore.NotesCardTitle(Lang)">
         <p class="form-text mt-0">
-            Interview transcripts are turned into per-member notes that Hoshi uses in chat. Review the
-            crowdsourced stories about others and edit any member's notes here.
+            @Msg.WebMemberLore.NotesUsage(Lang)
         </p>
         <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
-            FeatureSlug="member-lore" ExtraSlug="notes" Label="Open notes & review" />
+            FeatureSlug="member-lore" ExtraSlug="notes" Label="@Msg.WebMemberLore.OpenNotesLink(Lang)" />
     </SettingsCard>
 
-    <SettingsCard Title="Announcement (post this yourself)">
+    <SettingsCard Title="@Msg.WebMemberLore.AnnouncementCardTitle(Lang)">
         <label for="mlAnnouncement" class="form-label">
-            Copy this into a channel so members expect the DM. It's optional but appreciated.
+            @Msg.WebMemberLore.AnnouncementLabel(Lang)
         </label>
         <textarea id="mlAnnouncement" class="form-control" rows="6" readonly>@AnnouncementText</textarea>
     </SettingsCard>
@@ -65,6 +61,10 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.MemberLore;
 
+    // Bot-output content (a template the admin copies verbatim into a Discord channel), not Web UI
+    // text — it's deliberately German-only today and out of scope for Phase 7 (Web UI localization
+    // covers the *editor's* chrome, not the message bodies the bot itself posts). Localizing the
+    // announcement text to the guild's configured language is tracked in docs/backlog.md.
     private const string AnnouncementText =
         "🖖 Hallo zusammen! Ich bin Hoshi und möchte euch besser kennenlernen, damit ich ein echtes " +
         "Mitglied unserer Community werde. In den nächsten Tagen schreibe ich einige von euch per DM an " +

@@ -5,25 +5,23 @@
 @inject MemoryService MemoryService
 @inject DiscordGuildDataService DiscordData
 
-<PageTitle>Memories</PageTitle>
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.AiChat, "memories")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <LoadingPlaceholder Em="false" Text="Loading…" />
+        <LoadingPlaceholder Em="false" />
     }
     else
     {
-        <h1>Hoshi's Memories</h1>
+        <h1>@Msg.WebAiChatMemoryAdmin.Heading(Lang)</h1>
         <p class="text-muted">
-            What Hoshi remembers about the community — formed automatically from chat. Edit the wording,
-            re-weight importance (salience 1–5, higher = recalled more readily and resists fading), or
-            forget any memory. Low-salience, long-unused ones fade on their own over time.
+            @Msg.WebAiChatMemoryAdmin.Intro(Lang)
         </p>
 
         @if (memories.Count == 0)
         {
-            <p class="text-muted">No memories yet — Hoshi forms them as the community chats (needs the Memory toggle on).</p>
+            <p class="text-muted">@Msg.WebAiChatMemoryAdmin.Empty(Lang)</p>
         }
         else
         {
@@ -33,30 +31,31 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span>
-                                <span class="badge bg-secondary">@m.Scope</span>
+                                <span class="badge bg-secondary">@Msg.WebAiChatMemoryAdmin.Scope(Lang, m.Scope)</span>
                                 @if (m.Scope == MemoryScope.Member && m.SubjectDiscordUserId is { } subjectId)
                                 {
                                     <span class="badge bg-info text-dark ms-1">@members.DisplayName(subjectId)</span>
                                 }
                             </span>
                             <small class="text-muted">
-                                created @m.CreatedAt.ToString("yyyy-MM-dd")@(m.LastRecalledAt is { } r ? $" · last recalled {r:yyyy-MM-dd}" : " · never recalled")
+                                @Msg.WebAiChatMemoryAdmin.CreatedLine(Lang, m.CreatedAt.ToString("yyyy-MM-dd"))
+                                · @(m.LastRecalledAt is { } r ? Msg.WebAiChatMemoryAdmin.LastRecalled(Lang, r.ToString("yyyy-MM-dd")) : Msg.WebAiChatMemoryAdmin.NeverRecalled(Lang))
                             </small>
                         </div>
                         <textarea class="form-control form-control-sm mb-2" rows="2" @bind="m.Content"></textarea>
                         <div class="d-flex gap-2 align-items-center">
-                            <label class="small mb-0">Salience</label>
+                            <label class="small mb-0">@Msg.WebAiChatMemoryAdmin.SalienceLabel(Lang)</label>
                             <select class="form-select form-select-sm" style="width:auto" @bind="m.Salience">
                                 @for (var s = 1; s <= 5; s++)
                                 {
                                     <option value="@s">@s</option>
                                 }
                             </select>
-                            <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(m)">Save</button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ForgetAsync(m)">Forget</button>
+                            <button class="btn btn-sm btn-primary" @onclick="() => SaveAsync(m)">@Msg.WebCommon.Save(Lang)</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ForgetAsync(m)">@Msg.WebAiChatMemoryAdmin.ForgetButton(Lang)</button>
                             @if (savedId == m.Id)
                             {
-                                <span class="text-success small">Saved ✓</span>
+                                <span class="text-success small">@Msg.WebAiChatMemoryAdmin.SavedConfirm(Lang)</span>
                             }
                         </div>
                     </div>
@@ -67,6 +66,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private bool loading = true;
     private List<GuildMemory> memories = [];
     private MemberDirectory members = MemberDirectory.Empty;

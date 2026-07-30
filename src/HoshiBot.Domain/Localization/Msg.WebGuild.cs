@@ -1,3 +1,5 @@
+using HoshiBot.Domain.Entities;
+
 namespace HoshiBot.Domain.Localization;
 
 public static partial class Msg
@@ -200,5 +202,17 @@ public static partial class Msg
 
         public static string DependencyNotEnabled(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.DependencyNotEnabled");
+
+        // The optional nuance GuildFeatureDependencies attaches to one (owner, dependency) pair
+        // (e.g. "Player links can also be created by hand.") — enum-driven with no compile check,
+        // so an unmapped pair falls back to "" (FeatureSettings.razor only renders it when non-empty)
+        // rather than leaking a raw catalog key. feature is the one declaring the dependency,
+        // dependency the required feature it's shown next to.
+        public static string DependencyNote(Language lang, GuildFeature feature, GuildFeature dependency)
+        {
+            var key = $"Web.Guild.DependencyNote.{feature}.{dependency}";
+            var note = MessageCatalog.Format(lang, key);
+            return note == key ? "" : note;
+        }
     }
 }

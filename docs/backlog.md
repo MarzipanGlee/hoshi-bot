@@ -571,3 +571,13 @@ see the note in `PlayerModule`). Go through the modules in `HoshiBot.Discord`, d
 whether it's still the best surface for that action, and delete the ones that aren't; every command
 kept costs Discord command-registration slots and a piece of UI to keep correct. Note deletions need a
 command re-registration to actually disappear from Discord.
+
+## Member Lore: hardcoded German DM announcement template
+
+`MemberLoreEditor.razor`'s `AnnouncementText` (the "copy this into a channel" template shown on the
+Member Lore editor) is bot-*output* content — a message the admin pastes into a Discord channel for
+members to read — not Web UI chrome, so Phase 7 (Web UI localization) deliberately left it alone. It's
+hardcoded in German regardless of the guild's configured language. Worth reconsidering once bot-output
+templates generally get a localization pass (see the Phase 6 catalog work for Discord-facing strings):
+either move it into the message catalog keyed by the guild's language, or make it an editable per-guild
+setting so admins can already customize/translate it themselves.

@@ -1,11 +1,7 @@
 @inherits FeatureEditorBase
 
 <p class="form-text">
-    Watches the official STFC blog (startrekfleetcommand.com) for new posts whose title
-    mentions "Alliance Tournament" or "Infinite Incursions", and pings this guild's Admin
-    channel (see Global Settings) with the post's title and link, plus a button to enter the
-    event date once an admin has read the post. Pairing/schedule details inside the post are
-    not parsed out automatically.
+    @Msg.WebStfcNews.Intro(Lang)
 </p>
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />

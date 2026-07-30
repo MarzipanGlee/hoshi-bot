@@ -5,16 +5,12 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject GuildAllianceService AllianceService
 
-<PageTitle>Service Selection</PageTitle>
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.TerritoryCapture, "service-selection")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
-    <h1>Service Selection</h1>
+    <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.TerritoryCapture, "service-selection")</h1>
     <p>
-        Curate which of a zone's services the Territory Capture "Dienste aktivieren" reminder tells
-        officers to activate, split into two priorities — <strong>must have</strong> (obligatorische
-        Dienste) and <strong>nice to have</strong> (optionale Dienste, auf Anfrage). A zone with no
-        selection lists all its services instead. Only zones the alliance currently owns are shown;
-        available services come from the territory.lol sync.
+        @((MarkupString)Msg.WebServiceSelectionAdmin.Intro(Lang))
     </p>
 
     @if (links.Count == 0)
@@ -26,19 +22,19 @@
         <div class="card-grid mt-1">
             @if (links.Count > 1)
             {
-                <SettingsCard Title="Alliance">
-                    <Select TValue="string" Items="allianceItems" PlaceHolder="Choose an alliance…" @bind-Value="selectedAllianceKey" @bind-Value:after="SelectAllianceAsync" />
+                <SettingsCard Title="@Msg.WebServiceSelectionAdmin.AllianceCardTitle(Lang)">
+                    <Select TValue="string" Items="allianceItems" PlaceHolder="@Msg.WebServiceSelectionAdmin.ChooseAlliancePlaceholder(Lang)" @bind-Value="selectedAllianceKey" @bind-Value:after="SelectAllianceAsync" />
                 </SettingsCard>
             }
 
-            <SettingsCard Title="Zone">
+            <SettingsCard Title="@Msg.WebServiceSelectionAdmin.ZoneCardTitle(Lang)">
                 @if (zoneItems.Count == 0)
                 {
-                    <p class="form-text mb-0">This alliance owns no zones yet — nothing to configure.</p>
+                    <p class="form-text mb-0">@Msg.WebServiceSelectionAdmin.NoZones(Lang)</p>
                 }
                 else
                 {
-                    <Select TValue="string" Items="zoneItems" ShowSearch="true" PlaceHolder="Choose a zone to configure…" @bind-Value="selectedZoneKey" @bind-Value:after="SelectZoneAsync" />
+                    <Select TValue="string" Items="zoneItems" ShowSearch="true" PlaceHolder="@Msg.WebServiceSelectionAdmin.ChooseZonePlaceholder(Lang)" @bind-Value="selectedZoneKey" @bind-Value:after="SelectZoneAsync" />
                 }
             </SettingsCard>
         </div>
@@ -48,26 +44,25 @@
             @if (serviceItems.Count == 0)
             {
                 <p class="text-muted mt-3">
-                    No services synced for this zone on the alliance's server. Run the sync on
-                    <a href="manage/stfc/territory-services">Territory Services</a> first.
+                    @((MarkupString)Msg.WebServiceSelectionAdmin.NoServicesSynced(Lang))
                 </p>
             }
             else
             {
                 <div class="card-grid mt-1">
-                    <SettingsCard Title="Must have">
-                        <p class="form-text mb-0">Obligatorische Dienste — listed first, in game order.</p>
-                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true" PlaceHolder="Add must-have services…"
+                    <SettingsCard Title="@Msg.WebServiceSelectionAdmin.MustHaveCardTitle(Lang)">
+                        <p class="form-text mb-0">@Msg.WebServiceSelectionAdmin.MustHaveUsage(Lang)</p>
+                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true" PlaceHolder="@Msg.WebServiceSelectionAdmin.MustHavePlaceholder(Lang)"
                             @bind-Value="mustHaveKeys" @bind-Value:after="SaveMustHaveAsync" />
                     </SettingsCard>
 
-                    <SettingsCard Title="Nice to have">
-                        <p class="form-text mb-0">Optionale Dienste — activated on request.</p>
-                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true" PlaceHolder="Add nice-to-have services…"
+                    <SettingsCard Title="@Msg.WebServiceSelectionAdmin.NiceToHaveCardTitle(Lang)">
+                        <p class="form-text mb-0">@Msg.WebServiceSelectionAdmin.NiceToHaveUsage(Lang)</p>
+                        <MultiSelect TValue="string" Items="serviceItems" ShowSearch="true" PlaceHolder="@Msg.WebServiceSelectionAdmin.NiceToHavePlaceholder(Lang)"
                             @bind-Value="niceToHaveKeys" @bind-Value:after="SaveNiceToHaveAsync" />
                     </SettingsCard>
                 </div>
-                <p class="form-text mt-2">A service picked as must-have is automatically removed from nice-to-have, and vice versa.</p>
+                <p class="form-text mt-2">@Msg.WebServiceSelectionAdmin.MutualExclusionNote(Lang)</p>
             }
         }
 
@@ -76,6 +71,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private List<GuildAlliance> links = [];
     private List<SelectedItem> allianceItems = [];
     private string? selectedAllianceKey;

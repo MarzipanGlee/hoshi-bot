@@ -6,39 +6,33 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="How it works">
+    <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
         <p class="form-text mt-0">
-            When active, the bot DMs members that <strong>Player Assignment</strong> couldn't place
-            automatically, asking them to confirm the bot's best guess or type their in-game name. It only
-            sends buttons and a short form — never free-text chat. Once a member confirms, they're linked and
-            their roles sync automatically. Requires Player Assignment to be enabled and configured.
+            @((MarkupString)Msg.WebMemberOnboarding.HowItWorksUsage(Lang))
         </p>
     </SettingsCard>
 
-    <SettingsCard Title="DMs per day">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, MemberOnboardingSettingKeys.MaxInvitesPerDay)">
         <label for="moMaxPerDay" class="form-label">
-            How many onboarding DMs the bot sends per day. Paces the outreach and stays clear of Discord's
-            DM rate limits. Empty → a conservative default (10).
+            @Msg.WebEditor.Label(Lang, Feature, MemberOnboardingSettingKeys.MaxInvitesPerDay)
         </label>
         <input id="moMaxPerDay" type="number" min="1" class="form-control" placeholder="10"
                @bind="maxPerDayInput" @bind:after="SaveMaxPerDayAsync" />
     </SettingsCard>
 
-    <SettingsCard Title="Campaign">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, MemberOnboardingSettingKeys.CampaignActive)">
         <div class="form-switch">
             <input type="checkbox" class="form-check-input" role="switch" id="moCampaign"
                    checked="@campaignActive" @onchange="e => SaveCampaignAsync((bool)e.Value!)" />
-            <label class="form-check-label" for="moCampaign">Campaign active — send onboarding DMs</label>
+            <label class="form-check-label" for="moCampaign">@Msg.WebMemberOnboarding.CampaignLabel(Lang)</label>
         </div>
         <div class="form-text">
-            Turn this on to start DMing unresolved members (up to the daily cap). Off → the bot links only
-            confident matches silently and leaves the rest for the admin table.
+            @Msg.WebMemberOnboarding.CampaignUsage(Lang)
         </div>
         @if (progress is not null)
         {
             <p class="form-text mb-0">
-                Offen @progress.Unresolved · DM gesendet @progress.DmSent · zugeordnet @progress.Resolved
-                · abgelehnt @progress.Declined · nicht zustellbar @progress.Undeliverable
+                @Msg.WebMemberOnboarding.ProgressLine(Lang, progress.Unresolved, progress.DmSent, progress.Resolved, progress.Declined, progress.Undeliverable)
             </p>
         }
     </SettingsCard>

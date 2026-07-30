@@ -8,27 +8,24 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <SettingsCard Title="How it works">
+    <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
         <p class="form-text mt-0">
-            Each member's nickname is set to their <strong>main</strong> linked player's in-game name.
-            Add server/alliance tags below to tell foreign players apart. Members with no linked player are
-            left alone, as are members holding an excluded role. The bot can only rename members whose
-            highest role is below its own.
+            @((MarkupString)Msg.WebNicknameSync.HowItWorksUsage(Lang))
         </p>
     </SettingsCard>
 
-    <SettingsCard Title="Alliance tag">
-        <label class="form-label">Show the <code>[alliance]</code> tag…</label>
-        <Select TValue="string" Items="modeItems" @bind-Value="allianceMode" @bind-Value:after="SaveAllianceModeAsync" />
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.AllianceTagMode)">
+        <label class="form-label">@((MarkupString)Msg.WebEditor.Label(Lang, Feature, NicknameSyncSettingKeys.AllianceTagMode))</label>
+        <Select TValue="string" Items="ModeItems" @bind-Value="allianceMode" @bind-Value:after="SaveAllianceModeAsync" />
     </SettingsCard>
 
-    <SettingsCard Title="Server tag">
-        <label class="form-label">Show the <code>[server]</code> tag…</label>
-        <Select TValue="string" Items="modeItems" @bind-Value="serverMode" @bind-Value:after="SaveServerModeAsync" />
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.ServerTagMode)">
+        <label class="form-label">@((MarkupString)Msg.WebEditor.Label(Lang, Feature, NicknameSyncSettingKeys.ServerTagMode))</label>
+        <Select TValue="string" Items="ModeItems" @bind-Value="serverMode" @bind-Value:after="SaveServerModeAsync" />
     </SettingsCard>
 
-    <SettingsCard Title="Excluded roles">
-        <p class="form-text mt-0">Members holding any of these roles are never renamed.</p>
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.ExcludedRoles)">
+        <p class="form-text mt-0">@Msg.WebEditor.Usage(Lang, Feature, NicknameSyncSettingKeys.ExcludedRoles)</p>
         @if (excludedRoleIds.Count > 0)
         {
             <ul class="list-unstyled d-flex flex-wrap gap-2 mb-2">
@@ -38,13 +35,13 @@
                         <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
                             @RoleName(rid)
                             <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                    title="Remove" @onclick="() => RemoveRoleAsync(rid)">✕</button>
+                                    title="@Msg.WebCommon.Remove(Lang)" @onclick="() => RemoveRoleAsync(rid)">✕</button>
                         </span>
                     </li>
                 }
             </ul>
         }
-        <RolePicker Label="Add role" ShowLabel="false" PlaceholderText="— add role —"
+        <RolePicker Label="@Msg.WebNicknameSync.AddRoleLabel(Lang)" ShowLabel="false" PlaceholderText="@Msg.WebNicknameSync.AddRolePlaceholder(Lang)"
                     @bind-Value="addRoleInput" @bind-Value:after="AddRoleAsync" Roles="roles" />
     </SettingsCard>
 </div>
@@ -55,11 +52,14 @@
     protected override GuildFeature Feature => GuildFeature.NicknameSync;
 
     private List<Role> roles = [];
-    private List<SelectedItem> modeItems =
+
+    // A property (not a field initializer) — field initializers run in the constructor, before the
+    // cascaded Lang parameter is set, so they'd always bake in English.
+    private List<SelectedItem> ModeItems =>
     [
-        new(nameof(NicknameTagMode.Never), "Never"),
-        new(nameof(NicknameTagMode.ForeignOnly), "Foreign players only"),
-        new(nameof(NicknameTagMode.Always), "Always"),
+        new(nameof(NicknameTagMode.Never), Msg.WebNicknameSync.ModeNever(Lang)),
+        new(nameof(NicknameTagMode.ForeignOnly), Msg.WebNicknameSync.ModeForeignOnly(Lang)),
+        new(nameof(NicknameTagMode.Always), Msg.WebNicknameSync.ModeAlways(Lang)),
     ];
 
     private string allianceMode = nameof(NicknameTagMode.ForeignOnly);

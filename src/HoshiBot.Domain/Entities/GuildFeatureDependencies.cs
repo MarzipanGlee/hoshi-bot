@@ -1,10 +1,13 @@
 namespace HoshiBot.Domain.Entities;
 
-// A declared dependency of one feature on another: the required Feature plus an optional Note
-// explaining any nuance (e.g. a "soft" dependency that other paths can also satisfy). There is
-// deliberately no notion of depending on a *subset* of the required feature — every current
-// relationship is whole-feature, so the free-text Note carries any subtlety instead.
-public readonly record struct FeatureDependency(GuildFeature Feature, string? Note = null);
+// A declared dependency of one feature on another: the required Feature plus whether it carries
+// an optional Note explaining any nuance (e.g. a "soft" dependency that other paths can also
+// satisfy). The Note's actual text is catalog-driven (Msg.WebGuild.DependencyNote, keyed by the
+// (declaring feature, required feature) pair) rather than stored here, so it's authored in both
+// languages like every other Web-facing string; HasNote just tells the Web layer whether to look
+// one up. There is deliberately no notion of depending on a *subset* of the required feature —
+// every current relationship is whole-feature, so the free-text Note carries any subtlety instead.
+public readonly record struct FeatureDependency(GuildFeature Feature, bool HasNote = false);
 
 // Single source of truth for which GuildFeature(s) another feature needs to actually work —
 // a sibling of GuildFeatureAudiences (same Domain home so both HoshiBot.Web and
@@ -20,16 +23,19 @@ public static class GuildFeatureDependencies
 
         // Member Lore needs both: the AI backend to run its DM interviews + note extraction (via
         // AiChatModelResolver), and AI Chat itself — the lore it collects only does anything once
-        // AI Chat injects it into answers.
-        GuildFeature.MemberLore => [new(GuildFeature.AiBackend), new(GuildFeature.AiChat, "The collected lore is used to ground AI Chat's answers.")],
+        // AI Chat injects it into answers (note: "The collected lore is used to ground AI Chat's
+        // answers.").
+        GuildFeature.MemberLore => [new(GuildFeature.AiBackend), new(GuildFeature.AiChat, HasNote: true)],
 
         // The forwarder's translation calls reuse the guild-wide AI backend model/API key
-        // (AiChatModelResolver) — without it configured, it has no model to translate with.
-        GuildFeature.AnnouncementForwarder => [new(GuildFeature.AiBackend, "Uses the AI backend's configured model to translate.")],
+        // (AiChatModelResolver) — without it configured, it has no model to translate with (note:
+        // "Uses the AI backend's configured model to translate.").
+        GuildFeature.AnnouncementForwarder => [new(GuildFeature.AiBackend, HasNote: true)],
 
         // /hoshi-say composes its message with the guild-wide AI backend's model — without it
-        // configured, there's nothing to compose the text with.
-        GuildFeature.HoshiSay => [new(GuildFeature.AiBackend, "Hoshi composes the message with the AI backend's configured model.")],
+        // configured, there's nothing to compose the text with (note: "Hoshi composes the message
+        // with the AI backend's configured model.").
+        GuildFeature.HoshiSay => [new(GuildFeature.AiBackend, HasNote: true)],
 
         // Member Onboarding builds directly on Player Assignment's matcher (it DMs the members
         // Player Assignment couldn't place automatically).
@@ -37,25 +43,28 @@ public static class GuildFeatureDependencies
 
         // Rank/Ops roles and nickname sync all run off the member↔player links Player Assignment
         // creates. Soft: the links can also be made by hand, so this is a strong hint rather than a
-        // hard requirement.
-        GuildFeature.RankRoles => [new(GuildFeature.PlayerLink, "Player links can also be created by hand.")],
-        GuildFeature.OpsLevelRoles => [new(GuildFeature.PlayerLink, "Player links can also be created by hand.")],
-        GuildFeature.NicknameSync => [new(GuildFeature.PlayerLink, "Player links can also be created by hand.")],
+        // hard requirement (note: "Player links can also be created by hand.").
+        GuildFeature.RankRoles => [new(GuildFeature.PlayerLink, HasNote: true)],
+        GuildFeature.OpsLevelRoles => [new(GuildFeature.PlayerLink, HasNote: true)],
+        GuildFeature.NicknameSync => [new(GuildFeature.PlayerLink, HasNote: true)],
 
         // Each of these puts a button on a Command Bridge hub — that button is the member/staff
-        // entry point, so without a configured Command Bridge the feature has nowhere to be reached.
-        GuildFeature.RaidAlerts => [new(GuildFeature.CommandBridge, "Members report raids via the Command Bridge button.")],
-        GuildFeature.ShieldReminders => [new(GuildFeature.CommandBridge, "Setup + staff shield actions live on the Command Bridge.")],
-        GuildFeature.Absences => [new(GuildFeature.CommandBridge, "Members manage absences via the Command Bridge button.")],
-        GuildFeature.Announcements => [new(GuildFeature.CommandBridge, "The 'unread announcements' button lives on the Command Bridge.")],
-        GuildFeature.AlertsOptIn => [new(GuildFeature.CommandBridge, "Members manage alerts via the Command Bridge button.")],
-        GuildFeature.RoeViolationReports => [new(GuildFeature.CommandBridge, "Members report RoE violations via the Command Bridge button.")],
-        GuildFeature.Tickets => [new(GuildFeature.CommandBridge, "The 'contact staff' button lives on the Command Bridge.")],
-        GuildFeature.AnonymousMessaging => [new(GuildFeature.CommandBridge, "The 'contact staff' button lives on the Command Bridge.")],
+        // entry point, so without a configured Command Bridge the feature has nowhere to be reached
+        // (notes describe which hub button, e.g. "Members report raids via the Command Bridge
+        // button.").
+        GuildFeature.RaidAlerts => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.ShieldReminders => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.Absences => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.Announcements => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.AlertsOptIn => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.RoeViolationReports => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.Tickets => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.AnonymousMessaging => [new(GuildFeature.CommandBridge, HasNote: true)],
 
         // Assigns the Territory Capture Services role to the alliance's Admiral/Commodore members —
-        // it needs TC to own the Services role and Rank Roles to maintain the source rank roles.
-        GuildFeature.ServicesRoleSync => [new(GuildFeature.TerritoryCapture, "Provides the Services role to assign."), new(GuildFeature.RankRoles, "Mirrors the Admiral/Commodore rank roles.")],
+        // it needs TC to own the Services role ("Provides the Services role to assign.") and Rank
+        // Roles to maintain the source rank roles ("Mirrors the Admiral/Commodore rank roles.").
+        GuildFeature.ServicesRoleSync => [new(GuildFeature.TerritoryCapture, HasNote: true), new(GuildFeature.RankRoles, HasNote: true)],
 
         _ => [],
     };

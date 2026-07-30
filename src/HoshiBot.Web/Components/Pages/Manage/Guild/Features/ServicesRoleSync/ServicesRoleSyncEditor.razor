@@ -6,12 +6,7 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <p class="form-text">
-    When enabled, this alliance's Territory Capture <strong>Services role</strong> is kept in sync with the
-    rank roles that can activate services (<strong>Admiral</strong> and <strong>Commodore</strong>): every
-    alliance member holding either rank role is given the Services role, and anyone who no longer qualifies
-    has it removed. Configure the source rank roles on the <strong>Rank Roles</strong> feature. The two
-    roles below are shared with the Territory Capture and Alliance Settings pages — editing them here
-    updates them there too.
+    @((MarkupString)Msg.WebServicesRoleSync.Intro(Lang))
 </p>
 
 @if (createError is not null)
@@ -20,17 +15,23 @@
 }
 
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="Services Role"
-        Usage="The role assigned to Admiral/Commodore alliance members. Shared with the Territory Capture editor. Leave blank to create a dedicated role."
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)"
+        Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)"
         CreateRoleName="Commodore" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
 
-    <RolePicker CardTitle="Member Role"
-        Usage="This alliance's general membership role — only its holders receive the Services role. Shared with Alliance Settings."
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, MemberRoleKey)"
+        Usage="@Msg.WebEditor.Usage(Lang, Feature, MemberRoleKey)"
         CreateRoleName="@memberRoleName" @bind-Value="memberRoleInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
 </div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.ServicesRoleSync;
+
+    // Not a real stored setting (the value lives on GuildAlliance.MemberRoleId, not
+    // GuildFeatureSettings) — used only to key this card's catalog text, mirroring
+    // TerritoryCaptureSettingKeys.ServicesRole above (a real stored key, reused because this editor
+    // writes that same setting under GuildFeature.TerritoryCapture).
+    private const string MemberRoleKey = "MemberRole";
 
     private List<Role> roles = [];
     private string? servicesRoleInput;

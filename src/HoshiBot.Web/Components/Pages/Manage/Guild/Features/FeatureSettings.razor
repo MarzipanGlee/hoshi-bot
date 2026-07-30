@@ -53,9 +53,9 @@
                             {
                                 <span class="badge bg-danger ms-1">@Msg.WebGuild.DependencyNotEnabled(Lang)</span>
                             }
-                            @if (dep.Note is { Length: > 0 })
+                            @if (dep.HasNote)
                             {
-                                <span class="text-muted"> — @dep.Note</span>
+                                <span class="text-muted"> — @Msg.WebGuild.DependencyNote(Lang, dep.OwnerFeature, dep.Module.Feature)</span>
                             }
                         </li>
                     }

@@ -13,35 +13,31 @@
 }
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Digest Channel" Usage="Where this alliance's weekly/daily capture digests are posted."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.DigestChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.DigestChannel)"
             @bind-Value="digestChannelInput" @bind-Value:after="SaveDigestChannelAsync" Channels="channels" />
 
-    <ChannelPicker CardTitle="Services Channel" Usage="Where the post-capture 'activate services' reminder for officers is posted."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.ServicesChannel)"
             @bind-Value="servicesChannelInput" @bind-Value:after="SaveServicesChannelAsync" Channels="channels" />
 
-    <SettingsCard Title="Services Role">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)">
         <p class="form-text mb-0">
-            The officer role pinged by the post-capture "activate services" reminder. Leave blank to
-            create a dedicated role.
+            @Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)
         </p>
-        <RolePicker Label="Services Role" ShowLabel="false" CreateRoleName="Commodore"
+        <RolePicker Label="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)" ShowLabel="false" CreateRoleName="Commodore"
             @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
     </SettingsCard>
 
-    <SettingsCard Title="Service Selection">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ServiceSelectionKey)">
         <p class="form-text mb-2">
-            Curate each owned zone's services into must-have / nice-to-have for the "activate services"
-            reminder. Unconfigured zones list all their services.
+            @Msg.WebEditor.Usage(Lang, Feature, ServiceSelectionKey)
         </p>
         <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
-            FeatureSlug="territory-capture" ExtraSlug="service-selection" Label="Service Selection" />
+            FeatureSlug="territory-capture" ExtraSlug="service-selection" Label="@Msg.WebTerritoryCapture.ServiceSelectionLink(Lang)" />
     </SettingsCard>
 
-    <SettingsCard Title="Zone Slot Roles">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ZoneSlotRolesKey)">
         <p class="form-text mb-0">
-            One role per owned-zone-slot the alliance currently holds this week (the "Zone Slots:
-            N/5" cap shown in-game) — not days of the week. Slot N's role goes to every member with
-            an owned zone in that slot.
+            @Msg.WebEditor.Usage(Lang, Feature, ZoneSlotRolesKey)
         </p>
         <RolePicker Label="Slot 1" CreateRoleName="Slot 1" @bind-Value="zoneSlot1Input" @bind-Value:after="SaveZoneSlot1Async" Roles="roles" />
         <RolePicker Label="Slot 2" CreateRoleName="Slot 2" @bind-Value="zoneSlot2Input" @bind-Value:after="SaveZoneSlot2Async" Roles="roles" />
@@ -50,34 +46,29 @@
         <RolePicker Label="Slot 5" CreateRoleName="Slot 5" @bind-Value="zoneSlot5Input" @bind-Value:after="SaveZoneSlot5Async" Roles="roles" />
     </SettingsCard>
 
-    <SettingsCard Title="Weekly Mention Role">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, WeeklyMentionRoleKey)">
         <p class="form-text mb-0">
-            The role pinged on the <em>weekly</em> digest (the daily digest pings the specific
-            zone-slot roles for tomorrow instead). This is the alliance's absence-clean notification
-            role — the same setting as on the Absences page; editing it here updates it there too.
+            @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, WeeklyMentionRoleKey))
         </p>
-        <RolePicker Label="Notification Role" ShowLabel="false"
+        <RolePicker Label="@Msg.WebEditor.Label(Lang, Feature, AbsencesSettingKeys.NotificationRole)" ShowLabel="false"
             @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
     </SettingsCard>
 
-    <SettingsCard Title="Digest Schedule">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, DigestScheduleKey)">
         <p class="form-text mb-2">
-            When the weekly and daily digests post, as local times in this alliance's timezone
-            (<strong>@allianceTimeZoneDisplay</strong>, DST-aware — change it on
-            <a href="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")">Alliance Settings</a>).
-            Weekly posts the day before the capture week (Monday); daily posts every day. 30-minute steps.
+            @((MarkupString)Msg.WebTerritoryCapture.DigestScheduleUsage(Lang, allianceTimeZoneDisplay, $"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings"))
         </p>
-        <label for="tcWeeklyDigestTime" class="form-label">Weekly digest time</label>
+        <label for="tcWeeklyDigestTime" class="form-label">@Msg.WebTerritoryCapture.WeeklyDigestTimeLabel(Lang)</label>
         <input type="time" step="1800" id="tcWeeklyDigestTime" class="form-control mb-3"
                value="@weeklyDigestTimeInput" @onchange="OnWeeklyDigestTimeChanged" />
-        <label for="tcDailyDigestTime" class="form-label">Daily digest time</label>
+        <label for="tcDailyDigestTime" class="form-label">@Msg.WebTerritoryCapture.DailyDigestTimeLabel(Lang)</label>
         <input type="time" step="1800" id="tcDailyDigestTime" class="form-control"
                value="@dailyDigestTimeInput" @onchange="OnDailyDigestTimeChanged" />
     </SettingsCard>
 
-    <SettingsCard Title="Digest Instructions">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.Instructions)">
         <label for="territoryCaptureInstructions" class="form-label">
-            Free-text "Anweisungen von {Command Staff}" section shown on the weekly/daily digest (e.g. attendance/armada expectations).
+            @Msg.WebEditor.Label(Lang, Feature, TerritoryCaptureSettingKeys.Instructions)
         </label>
         <textarea id="territoryCaptureInstructions" class="form-control flex-grow-1" rows="4"
                   @bind="instructionsInput" @bind:after="SaveInstructionsAsync"></textarea>
@@ -88,6 +79,14 @@
 
 @code {
     protected override GuildFeature Feature => GuildFeature.TerritoryCapture;
+
+    // Not real stored setting keys (no persisted value of their own — the Service Selection card
+    // just links to an extra page, the other three group several *SettingKeys under one card) —
+    // used only to key these cards' catalog text, mirroring RaidAlerts' local ChannelKey pattern.
+    private const string ServiceSelectionKey = "ServiceSelection";
+    private const string ZoneSlotRolesKey = "ZoneSlotRoles";
+    private const string WeeklyMentionRoleKey = "WeeklyMentionRole";
+    private const string DigestScheduleKey = "DigestSchedule";
 
     private List<Role> roles = [];
     private List<IGuildChannel> channels = [];

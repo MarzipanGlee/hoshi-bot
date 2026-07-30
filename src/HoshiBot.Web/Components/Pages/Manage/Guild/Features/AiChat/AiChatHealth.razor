@@ -9,46 +9,42 @@
 @inject GuildFeatureSettingsService Settings
 @inject DiscordGuildDataService DiscordData
 
-<PageTitle>AI Chat health</PageTitle>
+<PageTitle>@Msg.WebAiChatHealth.Heading(Lang)</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <LoadingPlaceholder Em="false" Text="Loading…" />
+        <LoadingPlaceholder Em="false" />
     }
     else
     {
-        <h1>AI Chat health</h1>
+        <h1>@Msg.WebAiChatHealth.Heading(Lang)</h1>
         <p class="text-muted">
-            Read-only diagnostics for this guild's AI retrieval — so a provider outage or a coverage gap
-            is visible here instead of needing server logs. Written automatically by the bot.
+            @Msg.WebAiChatHealth.Intro(Lang)
         </p>
 
         <div class="card-grid mt-1">
-            <SettingsCard Title="Embedding coverage">
+            <SettingsCard Title="@Msg.WebAiChatHealth.EmbeddingCoverageCardTitle(Lang)">
                 <p class="mb-1">
-                    <strong>@embeddedCount</strong> of <strong>@totalCount</strong> indexed messages embedded
-                    (@coveragePercent%).
+                    @((MarkupString)Msg.WebAiChatHealth.CoverageLine(Lang, embeddedCount, totalCount, coveragePercent))
                 </p>
                 @if (totalCount > 0 && embeddedCount < totalCount)
                 {
                     <p class="form-text mb-1">
-                        @(totalCount - embeddedCount) awaiting embedding — normal right after new messages or a
-                        model switch; a persistent gap usually means the embedding backend is failing (see
-                        Provider health).
+                        @Msg.WebAiChatHealth.AwaitingEmbedding(Lang, totalCount - embeddedCount)
                     </p>
                 }
                 <div class="progress" role="progressbar" style="height:1.25rem">
                     <div class="progress-bar @(embeddedCount == totalCount ? "bg-success" : "bg-warning")"
                          style="width:@coveragePercent%">@coveragePercent%</div>
                 </div>
-                <p class="form-text mt-2 mb-0">Embedding backend: <strong>@embeddingProviderLabel</strong></p>
+                <p class="form-text mt-2 mb-0">@((MarkupString)Msg.WebAiChatHealth.EmbeddingBackendLine(Lang, embeddingProviderLabel))</p>
             </SettingsCard>
 
-            <SettingsCard Title="Provider health">
+            <SettingsCard Title="@Msg.WebAiChatHealth.ProviderHealthCardTitle(Lang)">
                 @if (healthRows.Count == 0)
                 {
-                    <p class="text-muted mb-0">No calls recorded yet — the bot writes a row the first time it runs a chat or embedding call for this guild.</p>
+                    <p class="text-muted mb-0">@Msg.WebAiChatHealth.NoCallsRecorded(Lang)</p>
                 }
                 else
                 {
@@ -57,27 +53,27 @@
                         var row = healthRows.FirstOrDefault(h => h.Kind == kind);
                         <div class="mb-3">
                             <div class="d-flex align-items-center gap-2 mb-1">
-                                <strong>@(kind == AiChatProviderCallKind.Chat ? "Chat" : "Embeddings")</strong>
+                                <strong>@(kind == AiChatProviderCallKind.Chat ? Msg.WebAiChatHealth.ChatLabel(Lang) : Msg.WebAiChatHealth.EmbeddingsLabel(Lang))</strong>
                                 @if (row is null)
                                 {
-                                    <span class="badge bg-secondary">no data</span>
+                                    <span class="badge bg-secondary">@Msg.WebAiChatHealth.NoDataBadge(Lang)</span>
                                 }
                                 else if (IsDegraded(row))
                                 {
-                                    <span class="badge bg-danger">degraded</span>
+                                    <span class="badge bg-danger">@Msg.WebAiChatHealth.DegradedBadge(Lang)</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-success">healthy</span>
+                                    <span class="badge bg-success">@Msg.WebAiChatHealth.HealthyBadge(Lang)</span>
                                 }
                             </div>
                             @if (row is not null)
                             {
                                 <ul class="list-unstyled small mb-0">
-                                    <li>Model: <code>@(row.Model ?? "—")</code></li>
-                                    <li>Last success: @Ago(row.LastSuccessAt)</li>
+                                    <li>@((MarkupString)Msg.WebAiChatHealth.ModelLine(Lang, row.Model ?? "—"))</li>
+                                    <li>@Msg.WebAiChatHealth.LastSuccessLine(Lang, Ago(row.LastSuccessAt))</li>
                                     <li>
-                                        Last error: @Ago(row.LastErrorAt)
+                                        @Msg.WebAiChatHealth.LastErrorLine(Lang, Ago(row.LastErrorAt))
                                         @if (!string.IsNullOrWhiteSpace(row.LastErrorMessage))
                                         {
                                             <div class="text-danger"><code>@row.LastErrorMessage</code></div>
@@ -90,17 +86,17 @@
                 }
             </SettingsCard>
 
-            <SettingsCard Title="Knowledge & listen channels" Class="card-span-full">
+            <SettingsCard Title="@Msg.WebAiChatHealth.KnowledgeListenChannelsCardTitle(Lang)" Class="card-span-full">
                 @if (tierRows.Count == 0)
                 {
-                    <p class="text-muted mb-0">No channels configured yet.</p>
+                    <p class="text-muted mb-0">@Msg.WebAiChatHealth.NoChannelsConfigured(Lang)</p>
                 }
                 else
                 {
                     <QuickGrid Class="table" Items="tierRows.AsQueryable()">
-                        <PropertyColumn Property="r => r.Tier" Title="Tier" Sortable="true" />
-                        <PropertyColumn Property="r => r.Channel" Title="Channel" Sortable="true" />
-                        <PropertyColumn Property="r => r.Audience" Title="Audience" Sortable="true" />
+                        <PropertyColumn Property="r => r.Tier" Title="@Msg.WebAiChatHealth.TierColumn(Lang)" Sortable="true" />
+                        <PropertyColumn Property="r => r.Channel" Title="@Msg.WebAiChatHealth.ChannelColumn(Lang)" Sortable="true" />
+                        <PropertyColumn Property="r => r.Audience" Title="@Msg.WebAiChatHealth.AudienceColumn(Lang)" Sortable="true" />
                     </QuickGrid>
                 }
             </SettingsCard>
@@ -109,6 +105,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private bool loading = true;
 
     private int totalCount;
@@ -120,13 +118,17 @@
 
     private sealed record TierRow(string Tier, string Channel, string Audience);
 
-    // Tier feature → display label, in display order (preferred → normal → last resort → listen).
-    private static readonly (GuildFeature Feature, string Label)[] Tiers =
+    // Tier features, in display order (preferred → normal → last resort → listen). The display
+    // label is resolved per-render via Msg.WebAiChatHealth.TierLabel(Lang, feature) — it can't live
+    // in this array (a `static readonly` field is initialized once at type load, long before any
+    // request's Lang is known, so a baked-in label would leak whatever language initialized it
+    // first to every guild).
+    private static readonly GuildFeature[] Tiers =
     [
-        (GuildFeature.AiChatKnowledgePreferred, "Knowledge — preferred"),
-        (GuildFeature.AiChatKnowledge, "Knowledge — normal"),
-        (GuildFeature.AiChatKnowledgeLastResort, "Knowledge — last resort"),
-        (GuildFeature.AiChat, "Listen"),
+        GuildFeature.AiChatKnowledgePreferred,
+        GuildFeature.AiChatKnowledge,
+        GuildFeature.AiChatKnowledgeLastResort,
+        GuildFeature.AiChat,
     ];
 
     protected override async Task OnAuthorizedParametersSetAsync()
@@ -138,13 +140,12 @@
         embeddedCount = await db.AiChatIndexedMessages.CountAsync(m => m.GuildId == ParsedGuildId && m.Embedding != null);
         coveragePercent = totalCount == 0 ? 100 : (int)Math.Round(100.0 * embeddedCount / totalCount);
 
-        var tierFeatures = Tiers.Select(t => t.Feature).ToArray();
         var channelRows = await db.GuildFeatureChannels
-            .Where(c => c.GuildId == ParsedGuildId && tierFeatures.Contains(c.Feature))
+            .Where(c => c.GuildId == ParsedGuildId && Tiers.Contains(c.Feature))
             .ToListAsync();
 
         var embeddingProvider = await Settings.GetTextAsync(ParsedGuildId, GuildFeature.AiBackend, GuildAudience.Guild, null, AiBackendSettingKeys.EmbeddingProvider);
-        embeddingProviderLabel = string.IsNullOrWhiteSpace(embeddingProvider) ? "Ollama (default)" : embeddingProvider;
+        embeddingProviderLabel = string.IsNullOrWhiteSpace(embeddingProvider) ? Msg.WebAiChatHealth.OllamaDefaultLabel(Lang) : embeddingProvider;
 
         healthRows = await HealthService.GetAsync(ParsedGuildId);
 
@@ -153,11 +154,11 @@
         foreach (var ch in await DiscordData.GetChannelsAsync(ParsedGuildId))
             names[ch.Id] = ch.Name ?? ch.Id.ToString();
         foreach (var cat in await DiscordData.GetCategoriesAsync(ParsedGuildId))
-            names[cat.Id] = $"{cat.Name} (category)";
+            names[cat.Id] = Msg.WebAiChatHealth.CategorySuffix(Lang, cat.Name ?? cat.Id.ToString());
 
         tierRows = (from tier in Tiers
-                    from c in channelRows.Where(c => c.Feature == tier.Feature)
-                    select new TierRow(tier.Label, names.GetValueOrDefault(c.ChannelId, c.ChannelId.ToString()), c.Audience.ToString()))
+                    from c in channelRows.Where(c => c.Feature == tier)
+                    select new TierRow(Msg.WebAiChatHealth.TierLabel(Lang, tier), names.GetValueOrDefault(c.ChannelId, c.ChannelId.ToString()), Msg.WebAudience.Label(Lang, c.Audience)))
                    .ToList();
 
         loading = false;
@@ -166,6 +167,6 @@
     private static bool IsDegraded(AiChatProviderHealth row) =>
         row.LastErrorAt is { } e && (row.LastSuccessAt is null || e > row.LastSuccessAt);
 
-    private static string Ago(DateTimeOffset? when) =>
-        when is { } w ? $"{w:yyyy-MM-dd HH:mm} UTC" : "—";
+    private string Ago(DateTimeOffset? when) =>
+        when is { } w ? $"{w:yyyy-MM-dd HH:mm} UTC" : Msg.WebCommon.AiHealthNever(Lang);
 }

@@ -4,44 +4,40 @@
 @inject DiscordGuildDataService DiscordData
 @inject PlayerLinkService PlayerLink
 
-<PageTitle>Player Assignments</PageTitle>
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.PlayerLink, "assignments")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (loading)
     {
-        <p>Loading members…</p>
+        <p>@Msg.WebPlayerAssignmentsAdmin.Loading(Lang)</p>
     }
     else
     {
-        <h1>Player Assignment</h1>
+        <h1>@Msg.WebPlayerAssignmentsAdmin.Heading(Lang)</h1>
         <p class="text-muted">
-            Assign each member to their in-game player(s). The links are <strong>global to the
-            person</strong> — they apply in every server they share with Hoshi. The ★ marks the player
-            that represents them <strong>here</strong>, which is what drives this server's automatic role
-            assignment (rank, ops level, nickname); members can also set it themselves on their own
-            profile page. A player can be linked to multiple Discord accounts (e.g. alt accounts).
+            @((MarkupString)Msg.WebPlayerAssignmentsAdmin.Intro(Lang))
         </p>
 
         <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
             <div style="max-width:22rem;flex:1 1 16rem">
-                <label class="form-label small mb-1">Search member</label>
-                <input class="form-control form-control-sm" placeholder="Name…" value="@memberFilter"
+                <label class="form-label small mb-1">@Msg.WebPlayerAssignmentsAdmin.SearchMemberLabel(Lang)</label>
+                <input class="form-control form-control-sm" placeholder="@Msg.WebPlayerAssignmentsAdmin.SearchPlaceholder(Lang)" value="@memberFilter"
                        @oninput="e => memberFilter = e.Value?.ToString() ?? string.Empty" />
             </div>
             <div class="form-switch">
                 <input class="form-check-input" type="checkbox" role="switch" id="onlyUnlinked"
                        checked="@onlyUnlinked" @onchange="e => onlyUnlinked = (bool)e.Value!" />
-                <label class="form-check-label" for="onlyUnlinked">Only unassigned</label>
+                <label class="form-check-label" for="onlyUnlinked">@Msg.WebPlayerAssignmentsAdmin.OnlyUnassigned(Lang)</label>
             </div>
-            <span class="text-muted small">@FilteredMembers.Count / @members.Count members</span>
+            <span class="text-muted small">@Msg.WebPlayerAssignmentsAdmin.MembersCount(Lang, FilteredMembers.Count, members.Count)</span>
         </div>
 
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th style="min-width:12rem">Member (Nickname)</th>
-                        <th>Assigned Players</th>
+                        <th style="min-width:12rem">@Msg.WebPlayerAssignmentsAdmin.ColMember(Lang)</th>
+                        <th>@Msg.WebPlayerAssignmentsAdmin.ColAssignedPlayers(Lang)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -56,22 +52,22 @@
                                         <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
                                             @if (link.IsGuildPrimary)
                                             {
-                                                <span title="Represents them in this server">★</span>
+                                                <span title="@Msg.WebPlayerAssignmentsAdmin.RepresentsTitle(Lang)">★</span>
                                             }
                                             <span>@PlayerLabel.Of(link.Name, link.ServerName, link.AllianceTag)</span>
                                             @if (!link.IsGuildPrimary)
                                             {
                                                 <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                        title="Use this player in this server" @onclick="() => SetGuildPrimaryAsync(m.Id, link.PlayerId)">☆</button>
+                                                        title="@Msg.WebPlayerAssignmentsAdmin.UseHereTitle(Lang)" @onclick="() => SetGuildPrimaryAsync(m.Id, link.PlayerId)">☆</button>
                                             }
                                             <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                    title="Remove" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
+                                                    title="@Msg.WebCommon.Remove(Lang)" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
                                         </span>
                                     }
                                     @if (addingForUserId == m.Id)
                                     {
                                         <div class="d-inline-flex flex-column" style="min-width:18rem">
-                                            <input class="form-control form-control-sm" placeholder="Search player…" value="@searchTerm"
+                                            <input class="form-control form-control-sm" placeholder="@Msg.WebPlayerAssignmentsAdmin.SearchPlayerPlaceholder(Lang)" value="@searchTerm"
                                                    @oninput="OnSearchInputAsync" autofocus />
                                             @if (searchResults.Count > 0)
                                             {
@@ -90,7 +86,7 @@
                                     else
                                     {
                                         <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => StartAdding(m.Id)">
-                                            + Player
+                                            @Msg.WebPlayerAssignmentsAdmin.AddPlayerButton(Lang)
                                         </button>
                                     }
                                 </div>
@@ -104,6 +100,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private bool loading = true;
     private List<MemberRow> members = [];
     private string memberFilter = "";

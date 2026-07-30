@@ -6,7 +6,7 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Tickets" Usage="Parent channel every ticket thread gets created under. Staff visibility comes from this channel's own Discord permissions (Manage Threads), not from anything the bot manages." Kind="ChannelKind.TextOnly"
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TicketsSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, TicketsSettingKeys.Channel)" Kind="ChannelKind.TextOnly"
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 </div>
 

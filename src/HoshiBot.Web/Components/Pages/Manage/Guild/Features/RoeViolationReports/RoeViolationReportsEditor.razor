@@ -11,10 +11,10 @@
 }
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="RoE Violations" Usage="Where /report-roe-violation reports are posted — must be a Forum channel." Kind="ChannelKind.Forum"
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, RoeViolationReportsSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, RoeViolationReportsSettingKeys.Channel)" Kind="ChannelKind.Forum"
             CreateChannelName="roe-verstösse" @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <RolePicker CardTitle="Diplomat" Usage="Per-alliance role pinged in the report thread once the reporter marks a case ready. This is the same Diplomat role as the Diplomacy feature." CreateRoleName="Diplomat"
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="Diplomat"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
 
     <CommandStaffRoleCard GuildId="GuildId" />

@@ -7,7 +7,7 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Raid Reports" Usage="Where /raid reports are posted."
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, ChannelKey)" Usage="@Msg.WebEditor.Usage(Lang, Feature, ChannelKey)"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
     <CommandStaffRoleCard GuildId="GuildId" />
