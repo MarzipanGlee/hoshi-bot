@@ -15,8 +15,8 @@
             @foreach (var result in Results)
             {
                 <tr class="@(result.IsMatch ? "table-success" : "table-danger")">
-                    <td>@Context.ChannelName(result.Expectation.ChannelId)</td>
-                    <td>@Context.RoleName(result.Expectation.RoleId)</td>
+                    <td>@Context.ChannelName(Lang, result.Expectation.ChannelId)</td>
+                    <td>@Context.RoleName(Lang, result.Expectation.RoleId)</td>
                     <td>@(result.IsMatch ? "✅ OK" : "🚫 Mismatch")</td>
                     <td>
                         @if (!result.IsMatch)
@@ -59,6 +59,8 @@
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired]
     public PermissionAuditContext Context { get; set; } = PermissionAuditContext.Empty;
 

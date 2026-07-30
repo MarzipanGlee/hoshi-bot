@@ -11,22 +11,21 @@
 @inject NavigationManager Nav
 @implements IDisposable
 
-<PageTitle>Dashboard</PageTitle>
+<PageTitle>@Msg.WebNav.Dashboard(Lang)</PageTitle>
 
 <AuthorizeView>
     <Authorized>
-        <h1>Welcome, @context.User.Identity?.Name</h1>
+        <h1>@Msg.WebGuild.Welcome(Lang, context.User.Identity?.Name)</h1>
 
         @if (needsSetupGuilds.Count > 0)
         {
             <div class="alert alert-warning">
-                <strong>@needsSetupGuilds.Count guild@(needsSetupGuilds.Count == 1 ? "" : "s")</strong> still
-                need@(needsSetupGuilds.Count == 1 ? "s" : "") setup:
+                <strong>@Msg.WebGuild.NeedsSetup(Lang, needsSetupGuilds.Count)</strong>
                 @string.Join(", ", needsSetupGuilds.Select(g => g.Name))
             </div>
         }
 
-        <h2>Your Guilds</h2>
+        <h2>@Msg.WebGuild.YourGuilds(Lang)</h2>
 
         @if (guilds is null)
         {
@@ -34,7 +33,7 @@
         }
         else if (guilds.Count == 0)
         {
-            <p>No guilds found where you're the owner or have the Manage Server permission.</p>
+            <p>@Msg.WebGuild.NoGuilds(Lang)</p>
         }
         else
         {
@@ -51,8 +50,8 @@
 
         @if (SupportMode.IsActive && foreignGuilds.Count > 0)
         {
-            <h2>Foreign Servers <span class="badge bg-info text-dark align-middle">Support</span></h2>
-            <p class="text-muted mb-1">Servers the bot is in that you don't personally manage — visible because support mode is on.</p>
+            <h2>@Msg.WebGuild.ForeignServers(Lang) <span class="badge bg-info text-dark align-middle">@Msg.WebGuild.SupportBadge(Lang)</span></h2>
+            <p class="text-muted mb-1">@Msg.WebGuild.ForeignServersLead(Lang)</p>
             <div class="card-grid mt-1">
                 @foreach (var guild in foreignGuilds)
                 {
@@ -78,11 +77,13 @@
         }
     </Authorized>
     <NotAuthorized>
-        <p><a href="login?returnUrl=%2Fmanage">Log in with Discord</a> to see your dashboard.</p>
+        <p><a href="login?returnUrl=%2Fmanage">@Msg.WebGuild.LogInWithDiscord(Lang)</a> @Msg.WebGuild.LogInTail(Lang)</p>
     </NotAuthorized>
 </AuthorizeView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private List<UserManagedGuild>? guilds;
     private List<UserManagedGuild> foreignGuilds = [];
     private Dictionary<ulong, GuildAudience> audiencesByGuildId = [];

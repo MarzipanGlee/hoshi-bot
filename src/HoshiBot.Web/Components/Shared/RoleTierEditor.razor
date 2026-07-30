@@ -10,7 +10,7 @@
    being duplicated per feature (RankRolesEditor + OpsLevelRolesEditor were ~90% identical). *@
 @if (saveError is not null)
 {
-    <p class="text-danger">@saveError</p>
+    <p class="text-danger">@saveError.Value.Text(Lang)</p>
 }
 
 <div class="card-grid mt-1">
@@ -31,6 +31,8 @@
 </div>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
     [Parameter, EditorRequired] public GuildFeature Feature { get; set; }
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
@@ -49,7 +51,7 @@
 
     private List<TierState> states = [];
     private List<Role> roles = [];
-    private string? saveError;
+    private DiscordCreateErrorKind? saveError;
 
     protected override async Task OnInitializedAsync()
     {

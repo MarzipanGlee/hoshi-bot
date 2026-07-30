@@ -66,9 +66,8 @@
 
 @code {
     // The catalog's button labels render in the viewer's request language (the layout-cascaded
-    // Lang) — unlike the bot's hub rendering, which follows the guild-side language resolution.
-    [CascadingParameter] public Language Lang { get; set; }
-
+    // Lang, inherited from FeatureEditorBase) — unlike the bot's hub rendering, which follows
+    // the guild-side language resolution.
     protected override GuildFeature Feature => GuildFeature.CommandBridge;
 
     private record BridgeInfo(CommandBridgeKind Kind, string Heading, string Subtitle);

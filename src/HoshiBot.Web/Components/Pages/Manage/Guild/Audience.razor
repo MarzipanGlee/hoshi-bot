@@ -2,30 +2,30 @@
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
-<PageTitle>Audience</PageTitle>
+<PageTitle>@Msg.WebNav.Audience(Lang)</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
-    <h1>Audience</h1>
-    <p>Which audience(s) this guild serves — drives the Setup Wizard's relevant steps and how the Features page groups its cards. Doesn't restrict which features can be enabled.</p>
+    <h1>@Msg.WebNav.Audience(Lang)</h1>
+    <p>@Msg.WebGuild.AudienceLead(Lang)</p>
 
     <AudienceEditor GuildId="ParsedGuildId" AudienceChanged="OnAudienceChanged" OnConfigure="OnConfigureAudienceAsync" />
 
     <div class="mt-4">
-        <h2>Configuration</h2>
+        <h2>@Msg.WebGuild.Configuration(Lang)</h2>
         <ScopeAccordion @ref="scopeAccordion" GuildId="ParsedGuildId" Audiences="audiences" />
     </div>
 
     @if (settingsAudiences.Count > 0)
     {
         <div class="mt-4">
-            <h2>Audience settings</h2>
-            <p>Feature-agnostic settings per audience, such as the posting language. The Alliance audience is configured per alliance on its own Settings page.</p>
+            <h2>@Msg.WebGuild.AudienceSettings(Lang)</h2>
+            <p>@Msg.WebGuild.AudienceSettingsLead(Lang)</p>
             <div class="card-grid mt-1">
                 @foreach (var audience in settingsAudiences)
                 {
                     <NavCard Href="@AudienceSettingsHref(audience)"
                              Icon="@AudienceDisplay.Icon(audience)"
-                             Title="@($"{AudienceDisplay.Labels(Lang, audience).First()} Settings")"
+                             Title="@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceDisplay.Labels(Lang, audience).First())"
                              Subtitle="@AudienceDisplay.Description(Lang, audience)" />
                 }
             </div>

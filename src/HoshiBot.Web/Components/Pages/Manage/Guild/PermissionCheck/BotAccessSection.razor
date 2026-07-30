@@ -53,7 +53,7 @@
                 @foreach (var result in Results)
                 {
                     <tr class="@(result.HasAccess ? "table-success" : "table-danger")">
-                        <td>@Context.ChannelName(result.ChannelId)</td>
+                        <td>@Context.ChannelName(Lang, result.ChannelId)</td>
                         <td>@result.Sources</td>
                         <td>
                             @if (result.HasAccess)
@@ -63,10 +63,10 @@
                             else
                             {
                                 <div>🚫 Missing access</div>
-                                <div class="small text-nowrap">Channel — @PermissionAuditService.PermsSummary(result.Required, result.ChannelEffective)</div>
+                                <div class="small text-nowrap">Channel — @PermissionAuditService.PermsSummary(Lang, result.Required, result.ChannelEffective)</div>
                                 @if (result.Category is { } cat)
                                 {
-                                    <div class="small text-nowrap">Category — @PermissionAuditService.PermsSummary(result.Required, cat.Effective)</div>
+                                    <div class="small text-nowrap">Category — @PermissionAuditService.PermsSummary(Lang, result.Required, cat.Effective)</div>
                                 }
                             }
                         </td>
@@ -82,7 +82,7 @@
                                     <div class="d-flex flex-wrap gap-2">
                                         @if (result.ParentCategoryId is { } categoryId && result.CanFixCategory)
                                         {
-                                            <button class="btn btn-sm btn-primary" @onclick="() => OnFix.InvokeAsync((result, categoryId, true))">Fix on category (@Context.CategoryName(categoryId))</button>
+                                            <button class="btn btn-sm btn-primary" @onclick="() => OnFix.InvokeAsync((result, categoryId, true))">Fix on category (@Context.CategoryName(Lang, categoryId))</button>
                                         }
                                         @if (result.CanFixChannel)
                                         {
@@ -116,6 +116,8 @@
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     [Parameter, EditorRequired]
     public PermissionAuditContext Context { get; set; } = PermissionAuditContext.Empty;
 

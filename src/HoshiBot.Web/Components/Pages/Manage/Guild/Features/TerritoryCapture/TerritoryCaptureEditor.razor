@@ -9,7 +9,7 @@
 
 @if (createRoleError is not null)
 {
-    <p class="text-danger">@createRoleError</p>
+    <p class="text-danger">@createRoleError.Value.Text(Lang)</p>
 }
 
 <div class="card-grid mt-1">
@@ -104,7 +104,7 @@
     private string? weeklyDigestTimeInput;
     private string? dailyDigestTimeInput;
     private string allianceTimeZoneDisplay = GuildAlliance.DefaultTimeZoneId;
-    private string? createRoleError;
+    private DiscordCreateErrorKind? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {

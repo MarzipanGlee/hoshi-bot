@@ -14,7 +14,7 @@
             <FooterEnd>
                 @if (ShowConfigureButton && enabled && audience != GuildAudience.Community)
                 {
-                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OnConfigure.InvokeAsync(audience)">Configure</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OnConfigure.InvokeAsync(audience)">@Msg.WebGuild.Configure(Lang)</button>
                 }
             </FooterEnd>
         </ToggleCard>

@@ -2,11 +2,11 @@
 @inherits GuildAdminPageBase
 @inject PermissionAuditService Audit
 
-<PageTitle>Permission Check</PageTitle>
+<PageTitle>@Msg.WebNav.PermissionCheck(Lang)</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
-    <h1>Channel Permission Check</h1>
-    <p>Define the exact permission overwrite a role should have on a channel, then audit live Discord permissions against it.</p>
+    <h1>@Msg.WebAudit.Heading(Lang)</h1>
+    <p>@Msg.WebAudit.Lead(Lang)</p>
 
     @if (discordDataError is not null)
     {
@@ -14,17 +14,13 @@
     }
 
     <div class="alert @(context.BotHasManageRoles ? "alert-info" : "alert-danger")">
-        <strong>Bot's highest role:</strong> @(context.BotTopRoleName ?? "—")
-        @(context.BotRolesAbove == 0 ? "(highest role in the server)" : $"({context.BotRolesAbove} role{(context.BotRolesAbove == 1 ? "" : "s")} above it)") ·
-        <strong>Manage Roles:</strong> @(context.BotHasManageRoles ? "Yes" : "No — Fix actions will fail entirely")
+        <strong>@Msg.WebAudit.BotTopRoleLabel(Lang)</strong> @(context.BotTopRoleName ?? "—")
+        @(context.BotRolesAbove == 0 ? Msg.WebAudit.HighestRoleInServer(Lang) : Msg.WebAudit.RolesAbove(Lang, context.BotRolesAbove)) ·
+        <strong>@Msg.WebAudit.ManageRolesLabel(Lang)</strong> @(context.BotHasManageRoles ? Msg.WebAudit.ManageRolesYes(Lang) : Msg.WebAudit.ManageRolesNo(Lang))
         @if (context.BotNonAdminRolesAbove > 0)
         {
             <div class="mt-1">
-                Tip: for Hoshi Bot to reliably manage every role's channel permissions, place its role directly
-                below your top admin/owner role in Server Settings → Roles. Any role positioned above the bot's
-                role can't be fixed here — Discord requires a bot's own role to outrank a role before it can
-                manage that role's permissions. (Roles above it that have Administrator are fine — they bypass
-                channel permissions entirely, so the bot never needs to manage them.)
+                @Msg.WebAudit.RoleTip(Lang)
             </div>
         }
     </div>
@@ -49,6 +45,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     // Composition + top-level state only — the audit/fix engines live in
     // PermissionAuditService, the three sections render in their child components.
     private PermissionAuditContext context = PermissionAuditContext.Empty;
@@ -70,7 +68,7 @@
     private async Task LoadAsync()
     {
         expectations = await Audit.GetExpectationsAsync(ParsedGuildId);
-        context = await Audit.LoadContextAsync(ParsedGuildId, context);
+        context = await Audit.LoadContextAsync(ParsedGuildId, context, Lang);
         discordDataError = context.DiscordDataError;
         await RunBotAccessCheckAsync();
     }
@@ -82,7 +80,7 @@
     private async Task ReCheckBotAccessAsync()
     {
         fixStatus.Clear();
-        context = await Audit.ReloadContextAsync(ParsedGuildId, context);
+        context = await Audit.ReloadContextAsync(ParsedGuildId, context, Lang);
         discordDataError = context.DiscordDataError;
         await RunBotAccessCheckAsync();
     }
@@ -93,7 +91,7 @@
         botAccessResults = null;
         try
         {
-            botAccessResults = await Audit.CheckBotAccessAsync(context);
+            botAccessResults = await Audit.CheckBotAccessAsync(context, Lang);
         }
         finally
         {
@@ -103,7 +101,7 @@
 
     private async Task FixBotAccessAsync((BotAccessResult Result, ulong TargetId, bool ViaCategory) fix)
     {
-        if (await Audit.FixBotAccessAsync(context, fix.Result, fix.TargetId, fix.ViaCategory) is not { } outcome)
+        if (await Audit.FixBotAccessAsync(context, fix.Result, fix.TargetId, fix.ViaCategory, Lang) is not { } outcome)
             return;
 
         fixStatus[fix.Result.ChannelId] = outcome.Status;
@@ -120,7 +118,7 @@
         auditing = true;
         try
         {
-            auditResults = Audit.AuditExpectations(context, expectations);
+            auditResults = Audit.AuditExpectations(context, expectations, Lang);
         }
         finally
         {
@@ -130,7 +128,7 @@
 
     private async Task FixExpectationAsync(PermissionAuditResult result)
     {
-        var (updated, error) = await Audit.FixExpectationAsync(context, result.Expectation);
+        var (updated, error) = await Audit.FixExpectationAsync(context, result.Expectation, Lang);
         if (error is not null)
         {
             discordDataError = error;

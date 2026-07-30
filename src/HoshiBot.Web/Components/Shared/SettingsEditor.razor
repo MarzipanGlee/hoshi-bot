@@ -5,27 +5,27 @@
 
 <h2>@Msg.WebCommon.Channels(Lang)</h2>
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="Log" Usage="General bot activity log." @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
-    <ChannelPicker CardTitle="Admin" Usage="Where the bot reports permission/configuration problems it hits." @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
-    <ChannelPicker CardTitle="User Log" Usage="User-facing activity log, separate from the admin-facing one." @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="@Msg.WebGuild.LogTitle(Lang)" Usage="@Msg.WebGuild.LogUsage(Lang)" @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="@Msg.WebGuild.AdminTitle(Lang)" Usage="@Msg.WebGuild.AdminUsage(Lang)" @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="@Msg.WebGuild.UserLogTitle(Lang)" Usage="@Msg.WebGuild.UserLogUsage(Lang)" @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
 </div>
 
 <h2>@Msg.WebCommon.Roles(Lang)</h2>
-@if (createError is not null)
+@if (createError is { } error)
 {
-    <p class="text-danger">@createError</p>
+    <p class="text-danger">@error.Text(Lang)</p>
 }
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="Crews" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
-    <RolePicker CardTitle="Beta Tester" CreateRoleName="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
-    <RolePicker CardTitle="Hoshi Tester" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
+    <RolePicker CardTitle="@Msg.WebGuild.CrewsTitle(Lang)" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
+    <RolePicker CardTitle="@Msg.WebGuild.BetaTesterTitle(Lang)" CreateRoleName="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
+    <RolePicker CardTitle="@Msg.WebGuild.HoshiTesterTitle(Lang)" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
 </div>
 
 <h2>@Msg.WebCommon.Regional(Lang)</h2>
 <div class="card-grid mt-1">
-    <LanguagePicker CardTitle="Language"
-                    Usage="The bot's language for public posts in this guild. Audiences and alliances inherit it unless they set their own; members' ephemeral replies follow their personal language."
-                    InheritedLabel="@inheritedLanguageLabel"
+    <LanguagePicker CardTitle="@Msg.WebGuild.LanguageTitle(Lang)"
+                    Usage="@Msg.WebGuild.GuildLanguageUsage(Lang)"
+                    InheritedLabel="@InheritedLanguageLabel"
                     @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
 </div>
 
@@ -37,7 +37,7 @@
     private GuildSettings settings = new();
     private List<IGuildChannel> channels = [];
     private List<Role> roles = [];
-    private string? createError;
+    private DiscordCreateErrorKind? createError;
 
     private string? logChannelIdInput;
     private string? adminChannelIdInput;
@@ -46,7 +46,14 @@
     private string? betaTesterRoleIdInput;
     private string? hoshiTesterRoleIdInput;
     private string? languageInput;
-    private string inheritedLanguageLabel = "English";
+    private string? discordLanguageName;
+
+    // What "Default" currently resolves to — "Discord: {locale's language}" once loaded;
+    // English's native name during the transient pre-load render (the pre-localization
+    // default this label always started from).
+    private string InheritedLanguageLabel => discordLanguageName is null
+        ? Languages.NativeName(Language.En)
+        : Msg.WebGuild.DiscordLanguageInherited(Lang, discordLanguageName);
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,7 +66,7 @@
             .Where(g => g.Id == GuildId)
             .Select(g => g.PreferredLocale)
             .FirstOrDefaultAsync();
-        inheritedLanguageLabel = $"Discord: {Languages.NativeName(LanguagePolicy.ForGuild(null, preferredLocale))}";
+        discordLanguageName = Languages.NativeName(LanguagePolicy.ForGuild(null, preferredLocale));
 
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);

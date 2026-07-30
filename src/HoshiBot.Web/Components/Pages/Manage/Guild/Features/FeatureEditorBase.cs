@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,11 @@ namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features;
 // persist one field at a time (autosave, no batch Save button).
 public abstract class FeatureEditorBase : ComponentBase
 {
+    // The viewer's language, cascaded by the layout — every editor renders catalog text
+    // (at minimum the shared Discord create-error line) with it.
+    [CascadingParameter]
+    public Language Lang { get; set; }
+
     [Parameter, EditorRequired]
     public ulong GuildId { get; set; }
 

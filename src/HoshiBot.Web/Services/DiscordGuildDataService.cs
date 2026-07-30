@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Localization;
 using HoshiBot.Web.Components.Shared;
 using Microsoft.Extensions.Caching.Memory;
 using NetCord;
@@ -445,22 +446,14 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         return created.Id;
     }
 
-    // Shared failure texts for the OrError wrappers below — before those existed, every editor
-    // carried its own copy of these strings next to a hand-rolled try/catch.
-    private const string RoleCreateError =
-        "Could not create a role on Discord — does the bot have Manage Roles permission in this server?";
-    private const string ChannelCreateError =
-        "Could not create a channel on Discord — does the bot have Manage Channels permission in this server?";
-    private const string CategoryCreateError =
-        "Could not create a category on Discord — does the bot have Manage Channels permission in this server?";
-
     // EnsureRoleAsync wrapped in the create-failure handling every editor used to repeat inline:
     // on success Error is null and Input is the ensured id as picker input; on a RestException
-    // Error carries the shared Manage-Roles message and Input resets a failed *create* back to
-    // blank while keeping an existing selection (a failed modify of an already-selected role
-    // shouldn't silently drop it). Callers deconstruct straight into their own state:
+    // Error carries the failure KIND (not a message — see DiscordCreateErrorKind) and Input
+    // resets a failed *create* back to blank while keeping an existing selection (a failed
+    // modify of an already-selected role shouldn't silently drop it). Callers deconstruct
+    // straight into their own state:
     //   (var roleId, roleIdInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(...);
-    public async Task<(ulong? Id, string? Input, string? Error)> EnsureRoleOrErrorAsync(
+    public async Task<(ulong? Id, string? Input, DiscordCreateErrorKind? Error)> EnsureRoleOrErrorAsync(
         ulong guildId, string? currentInput, string defaultName)
     {
         try
@@ -470,12 +463,12 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         }
         catch (RestException)
         {
-            return (null, currentInput == RolePicker.CreateSentinel ? null : currentInput, RoleCreateError);
+            return (null, currentInput == RolePicker.CreateSentinel ? null : currentInput, DiscordCreateErrorKind.Role);
         }
     }
 
     // Same wrapper for the richer color/mentionable EnsureRoleAsync overload (RoleTierEditor).
-    public async Task<(ulong? Id, string? Input, string? Error)> EnsureRoleOrErrorAsync(
+    public async Task<(ulong? Id, string? Input, DiscordCreateErrorKind? Error)> EnsureRoleOrErrorAsync(
         ulong guildId, string? currentInput, string defaultName, string? colorInput, bool mentionable, IReadOnlyList<Role> currentRoles)
     {
         try
@@ -485,13 +478,13 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         }
         catch (RestException)
         {
-            return (null, currentInput == RolePicker.CreateSentinel ? null : currentInput, RoleCreateError);
+            return (null, currentInput == RolePicker.CreateSentinel ? null : currentInput, DiscordCreateErrorKind.Role);
         }
     }
 
-    // ChannelPicker counterpart — the message says "category" when that's what was being
+    // ChannelPicker counterpart — the kind says "category" when that's what was being
     // created, matching the text each page showed before this wrapper existed.
-    public async Task<(ulong? Id, string? Input, string? Error)> EnsureChannelOrErrorAsync(
+    public async Task<(ulong? Id, string? Input, DiscordCreateErrorKind? Error)> EnsureChannelOrErrorAsync(
         ulong guildId, string? currentInput, string defaultName, ChannelType type, ulong? categoryId = null)
     {
         try
@@ -502,7 +495,7 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         catch (RestException)
         {
             return (null, currentInput == ChannelPicker.CreateSentinel ? null : currentInput,
-                type == ChannelType.CategoryChannel ? CategoryCreateError : ChannelCreateError);
+                type == ChannelType.CategoryChannel ? DiscordCreateErrorKind.Category : DiscordCreateErrorKind.Channel);
         }
     }
 
@@ -537,6 +530,27 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         cache.Remove($"discord-guild-channels:{guildId}");
         cache.Remove($"discord-guild-roles:{guildId}");
     }
+}
+
+// What the OrError wrappers report on a Discord create/modify failure. A KIND rather than a
+// message so the service stays language-free (the localization plan's rule: nothing localized
+// in shared services/caches) — the consuming component maps it to the viewer's language at
+// render time via Text(Lang).
+public enum DiscordCreateErrorKind
+{
+    Role,
+    Channel,
+    Category,
+}
+
+public static class DiscordCreateErrorKindExtensions
+{
+    public static string Text(this DiscordCreateErrorKind kind, Language lang) => kind switch
+    {
+        DiscordCreateErrorKind.Channel => Msg.WebCommon.CreateChannelError(lang),
+        DiscordCreateErrorKind.Category => Msg.WebCommon.CreateCategoryError(lang),
+        _ => Msg.WebCommon.CreateRoleError(lang),
+    };
 }
 
 // See GroupChannelsForDisplay — Category is null for a channel with no matching category.

@@ -14,8 +14,8 @@
         @foreach (var exp in Expectations)
         {
             <tr>
-                <td>@Context.ChannelName(exp.ChannelId)</td>
-                <td>@Context.RoleName(exp.RoleId)</td>
+                <td>@Context.ChannelName(Lang, exp.ChannelId)</td>
+                <td>@Context.RoleName(Lang, exp.RoleId)</td>
                 <td>@PermissionAuditService.PermissionListLabel((Permissions)exp.Allow)</td>
                 <td>@PermissionAuditService.PermissionListLabel((Permissions)exp.Deny)</td>
                 <td>
@@ -87,6 +87,8 @@
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private enum PermissionState { Neutral, Allow, Deny }
 
     [Parameter, EditorRequired]

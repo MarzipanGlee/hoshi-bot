@@ -35,7 +35,7 @@
         <h2>Roles</h2>
         @if (createError is not null)
         {
-            <p class="text-danger">@createError</p>
+            <p class="text-danger">@createError.Value.Text(Lang)</p>
         }
         <div class="card-grid mt-1">
             <RolePicker CardTitle="Member" Usage="This alliance's general membership role." CreateRoleName="@memberRoleName" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
@@ -62,6 +62,8 @@
 </AuthorizedGuildView>
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     protected override string PageSlug => "settings";
 
     private string allianceTag = "";
@@ -72,7 +74,7 @@
     private List<IGuildChannel> channels = [];
     private List<CategoryGuildChannel> categories = [];
     private List<Role> roles = [];
-    private string? createError;
+    private DiscordCreateErrorKind? createError;
 
     private string? allianceBoardingChannelIdInput;
     private string? remindersAlliesChannelIdInput;

@@ -8,7 +8,7 @@
 @inject DiscordGuildDataService DiscordData
 @inject IConfiguration Configuration
 
-<PageTitle>@(guildName ?? "Guild")</PageTitle>
+<PageTitle>@(guildName ?? Msg.WebNav.GuildGroup(Lang))</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     <h1>@guildName</h1>
@@ -22,8 +22,8 @@
 
     @if (links.Count > 0)
     {
-        <h2 class="fs-5 fw-semibold mb-2">Alliances</h2>
-        <p class="mb-3 card-subtext">Select an alliance to configure its features and settings.</p>
+        <h2 class="fs-5 fw-semibold mb-2">@Msg.WebGuild.Alliances(Lang)</h2>
+        <p class="mb-3 card-subtext">@Msg.WebGuild.AlliancesLead(Lang)</p>
         <div class="card-grid">
             @foreach (var link in links)
             {
@@ -38,8 +38,8 @@
     [CascadingParameter] public Language Lang { get; set; }
 
     private string? guildName;
-    private string audienceSummary = "Not configured yet";
-    private string botStatusSummary = "…";
+    private string? audienceSummary;
+    private string? botStatusSummary;
     private bool setupComplete;
     private int enabledCount;
     private int totalCount;
@@ -68,7 +68,7 @@
         var guildAudiences = settings?.Audiences ?? GuildAudience.None;
         setupComplete = settings?.SetupCompletedAt is not null;
         audienceSummary = guildAudiences == GuildAudience.None
-            ? "Not configured yet"
+            ? Msg.WebGuild.NotConfiguredYet(Lang)
             : string.Join(", ", AudienceDisplay.Labels(Lang, guildAudiences));
 
         // The top "Features" card links to the guild-wide features page (the bare .../features route,
@@ -99,14 +99,14 @@
             var botUserId = ulong.Parse(Configuration["Discord:ClientId"]!);
             var status = await DiscordData.GetBotRoleStatusAsync(ParsedGuildId, botUserId);
             botStatusSummary = !status.HasManageRoles
-                ? "⚠ Missing Manage Roles"
+                ? Msg.WebGuild.MissingManageRoles(Lang)
                 : status.NonAdminRolesAbove > 0
-                    ? $"⚠ {status.NonAdminRolesAbove} role{(status.NonAdminRolesAbove == 1 ? "" : "s")} above the bot"
-                    : "✓ Permissions OK";
+                    ? Msg.WebGuild.RolesAboveBot(Lang, status.NonAdminRolesAbove)
+                    : Msg.WebGuild.PermissionsOk(Lang);
         }
         catch (RestException)
         {
-            botStatusSummary = "Couldn't reach Discord";
+            botStatusSummary = Msg.WebGuild.DiscordUnreachable(Lang);
         }
     }
 
@@ -115,11 +115,11 @@
     // has no single headline number, so it gets a static descriptor.
     private string CardSubtitle(AdminPage page) => page.RouteSuffix switch
     {
-        "audience" => audienceSummary,
-        "features" => $"{enabledCount}/{totalCount} enabled",
-        "settings" => "Channels, roles & general config",
-        "setup-wizard" => setupComplete ? "Setup complete" : "Needs setup",
-        "permission-check" => botStatusSummary,
+        "audience" => audienceSummary ?? Msg.WebGuild.NotConfiguredYet(Lang),
+        "features" => Msg.WebGuild.EnabledCount(Lang, enabledCount, totalCount),
+        "settings" => Msg.WebGuild.SettingsSubtitle(Lang),
+        "setup-wizard" => setupComplete ? Msg.WebGuild.SetupComplete(Lang) : Msg.WebGuild.NeedsSetupSubtitle(Lang),
+        "permission-check" => botStatusSummary ?? "…",
         _ => "",
     };
 

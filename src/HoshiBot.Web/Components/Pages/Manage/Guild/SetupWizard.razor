@@ -9,35 +9,35 @@
 @inject GuildAllianceService AllianceService
 @inject IMemoryCache Cache
 
-<PageTitle>Guild Setup Wizard</PageTitle>
+<PageTitle>@Msg.WebWizard.PageTitle(Lang)</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
-    <h1>Setup Wizard</h1>
-    <p class="text-muted">Step @DisplayStepNumber of @VisibleSteps.Count — @AllSteps[step].Title. Every step is optional; you can always adjust things later via Scope/Settings, or per-feature via Features.</p>
+    <h1>@Msg.WebNav.SetupWizard(Lang)</h1>
+    <p class="text-muted">@Msg.WebWizard.StepHeader(Lang, DisplayStepNumber, VisibleSteps.Count, StepTitle(step))</p>
 
     @if (step == 0)
     {
-        <h2>Welcome</h2>
-        <p>This wizard walks you through the essentials for a new guild: which audience it serves, linking your alliance(s)/server(s), a few core channels/roles, and making sure someone besides the server owner can manage the bot.</p>
-        <p>Nothing here is mandatory — skip anything and configure it later. Turning individual features on/off now happens from Features, not this wizard.</p>
+        <h2>@Msg.WebWizard.StepWelcome(Lang)</h2>
+        <p>@Msg.WebWizard.WelcomeLead1(Lang)</p>
+        <p>@Msg.WebWizard.WelcomeLead2(Lang)</p>
     }
     else if (step == 1)
     {
-        <h2>Audience</h2>
-        <p>Which audience(s) this guild serves — drives which of this wizard's later steps are relevant, and how the Features page groups its feature cards. Doesn't restrict which features can be enabled.</p>
+        <h2>@Msg.WebNav.Audience(Lang)</h2>
+        <p>@Msg.WebWizard.AudienceLead(Lang)</p>
         <AudienceEditor GuildId="ParsedGuildId" AudienceChanged="OnAudienceChanged" ShowConfigureButton="false" />
     }
     else if (step == 2)
     {
-        <h2>Scope</h2>
-        <p>Which shared alliances, servers, and veil groups this guild tracks.</p>
+        <h2>@Msg.WebWizard.StepScope(Lang)</h2>
+        <p>@Msg.WebWizard.ScopeLead(Lang)</p>
         <ScopeAccordion GuildId="ParsedGuildId" Audiences="@audiences" />
     }
     else if (step == 3)
     {
-        <h2>Core channels &amp; roles</h2>
-        <p>A curated subset most guilds need right away — the full list is on the <a href="manage/guild/@GuildId/settings">Settings page</a>, editable any time.</p>
-        <p>Leave any field below empty to have Hoshi Bot create it for you.</p>
+        <h2>@Msg.WebWizard.StepCoreChannels(Lang)</h2>
+        <p>@Msg.WebWizard.CoreLead(Lang) <a href="manage/guild/@GuildId/settings">@Msg.WebWizard.CoreLeadLink(Lang)</a>@Msg.WebWizard.CoreLeadTail(Lang)</p>
+        <p>@Msg.WebWizard.CoreLeaveBlank(Lang)</p>
 
         @if (discordDataError is not null)
         {
@@ -50,28 +50,28 @@
 
         @if (creating)
         {
-            <p class="text-muted">Creating anything left blank on Discord...</p>
+            <p class="text-muted">@Msg.WebWizard.Creating(Lang)</p>
         }
 
         <div class="mb-3">
-            <label>Channel group for anything created below</label>
+            <label>@Msg.WebWizard.CategoryLabel(Lang)</label>
             <select class="form-select d-inline-block w-auto" @bind="selectedCategoryIdInput">
-                <option value="">— none / server root —</option>
+                <option value="">@Msg.WebWizard.CategoryNoneOption(Lang)</option>
                 @foreach (var category in categories)
                 {
                     <option value="@category.Id">@category.Name</option>
                 }
             </select>
-            <span class="mx-1">or</span>
-            <input type="text" class="form-control d-inline-block w-auto" @bind="newCategoryNameInput" placeholder="create a new group named..." />
+            <span class="mx-1">@Msg.WebWizard.Or(Lang)</span>
+            <input type="text" class="form-control d-inline-block w-auto" @bind="newCategoryNameInput" placeholder="@Msg.WebWizard.NewCategoryPlaceholder(Lang)" />
         </div>
         <div class="mb-2">
-            <label>Log Channel</label>
+            <label>@Msg.WebWizard.LogChannelLabel(Lang)</label>
             <select class="form-select" @bind="logChannelIdInput">
-                <option value="">— create automatically —</option>
+                <option value="">@Msg.WebWizard.CreateAutomaticallyOption(Lang)</option>
                 @if (IsUnknownChannel(logChannelIdInput))
                 {
-                    <option value="@logChannelIdInput" selected>⚠ Unbekannt (@logChannelIdInput)</option>
+                    <option value="@logChannelIdInput" selected>@Msg.WebCommon.Unknown(Lang, logChannelIdInput)</option>
                 }
                 @foreach (var group in NormalChannelGroups)
                 {
@@ -95,12 +95,12 @@
             </select>
         </div>
         <div class="mb-2">
-            <label>Admin Channel</label>
+            <label>@Msg.WebWizard.AdminChannelLabel(Lang)</label>
             <select class="form-select" @bind="adminChannelIdInput">
-                <option value="">— create automatically —</option>
+                <option value="">@Msg.WebWizard.CreateAutomaticallyOption(Lang)</option>
                 @if (IsUnknownChannel(adminChannelIdInput))
                 {
-                    <option value="@adminChannelIdInput" selected>⚠ Unbekannt (@adminChannelIdInput)</option>
+                    <option value="@adminChannelIdInput" selected>@Msg.WebCommon.Unknown(Lang, adminChannelIdInput)</option>
                 }
                 @foreach (var group in NormalChannelGroups)
                 {
@@ -124,12 +124,12 @@
             </select>
         </div>
         <div class="mb-2">
-            <label>Member Role</label>
+            <label>@Msg.WebWizard.MemberRoleLabel(Lang)</label>
             <select class="form-select" @bind="memberRoleIdInput">
-                <option value="">— create automatically —</option>
+                <option value="">@Msg.WebWizard.CreateAutomaticallyOption(Lang)</option>
                 @if (IsUnknownRole(memberRoleIdInput))
                 {
-                    <option value="@memberRoleIdInput" selected>⚠ Unbekannt (@memberRoleIdInput)</option>
+                    <option value="@memberRoleIdInput" selected>@Msg.WebCommon.Unknown(Lang, memberRoleIdInput)</option>
                 }
                 @foreach (var role in roles)
                 {
@@ -138,12 +138,12 @@
             </select>
         </div>
         <div class="mb-2">
-            <label>Command Staff Role</label>
+            <label>@Msg.WebCommon.CommandStaffRole(Lang)</label>
             <select class="form-select" @bind="commandStaffRoleIdInput">
-                <option value="">— create automatically —</option>
+                <option value="">@Msg.WebWizard.CreateAutomaticallyOption(Lang)</option>
                 @if (IsUnknownRole(commandStaffRoleIdInput))
                 {
-                    <option value="@commandStaffRoleIdInput" selected>⚠ Unbekannt (@commandStaffRoleIdInput)</option>
+                    <option value="@commandStaffRoleIdInput" selected>@Msg.WebCommon.Unknown(Lang, commandStaffRoleIdInput)</option>
                 }
                 @foreach (var role in roles)
                 {
@@ -154,17 +154,17 @@
     }
     else if (step == 4)
     {
-        <h2>Admin access</h2>
-        <p>Members holding any of these roles can manage this guild's Hoshi Bot settings even without Discord's "Manage Server" permission — so setup doesn't leave the server owner as the only possible admin.</p>
+        <h2>@Msg.WebWizard.StepAdminAccess(Lang)</h2>
+        <p>@Msg.WebWizard.AdminAccessLead(Lang)</p>
 
         <table class="table">
-            <thead><tr><th>Role</th><th></th></tr></thead>
+            <thead><tr><th>@Msg.WebCommon.Role(Lang)</th><th></th></tr></thead>
             <tbody>
                 @foreach (var adminRole in guildAdminRoles)
                 {
                     <tr>
                         <td>@RoleName(adminRole.DiscordRoleId)</td>
-                        <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAdminRoleAsync(adminRole)">Delete</button></td>
+                        <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAdminRoleAsync(adminRole)">@Msg.WebCommon.Delete(Lang)</button></td>
                     </tr>
                 }
             </tbody>
@@ -172,51 +172,52 @@
 
         <EditForm Model="this" FormName="setup-add-admin-role" OnValidSubmit="AddAdminRoleAsync">
             <select class="form-select d-inline-block w-auto" @bind="newAdminRoleIdInput">
-                <option value="">— select role —</option>
+                <option value="">@Msg.WebCommon.SelectRoleOption(Lang)</option>
                 @foreach (var role in roles)
                 {
                     <option value="@role.Id">@role.Name</option>
                 }
             </select>
-            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="submit" class="btn btn-primary">@Msg.WebCommon.Add(Lang)</button>
         </EditForm>
     }
     else if (step == 5)
     {
-        <h2>Review &amp; finish</h2>
-        <p>Audience: <strong>@(audiences == GuildAudience.None ? "not set" : audiences.ToString())</strong></p>
-        <p>Alliances/servers/veil groups linked: <strong>@(guildAllianceCount + guildServerCount + guildVeilGroupCount)</strong></p>
-        <p>Admin roles configured: <strong>@guildAdminRoles.Count</strong></p>
-        <p>
-            Anything left unset here just stays editable later via Scope/Settings —
-            finishing doesn't require completing every step. Turning individual features
-            on/off, and their own channel/role settings, happens from Features.
-        </p>
-        <button class="btn btn-success" @onclick="FinishAsync">Finish setup</button>
+        <h2>@Msg.WebWizard.StepReview(Lang)</h2>
+        <p>@Msg.WebWizard.ReviewAudienceLabel(Lang) <strong>@(audiences == GuildAudience.None ? Msg.WebWizard.NotSet(Lang) : audiences.ToString())</strong></p>
+        <p>@Msg.WebWizard.ReviewLinksLabel(Lang) <strong>@(guildAllianceCount + guildServerCount + guildVeilGroupCount)</strong></p>
+        <p>@Msg.WebWizard.ReviewAdminRolesLabel(Lang) <strong>@guildAdminRoles.Count</strong></p>
+        <p>@Msg.WebWizard.ReviewLead(Lang)</p>
+        <button class="btn btn-success" @onclick="FinishAsync">@Msg.WebWizard.FinishButton(Lang)</button>
     }
 
     <div class="mt-3">
         @if (step > 0)
         {
-            <button class="btn btn-secondary" disabled="@creating" @onclick="Back">Back</button>
+            <button class="btn btn-secondary" disabled="@creating" @onclick="Back">@Msg.WebWizard.Back(Lang)</button>
         }
         @if (step < 5)
         {
-            <button class="btn btn-primary" disabled="@creating" @onclick="Next">@(creating ? "Saving..." : "Next")</button>
+            <button class="btn btn-primary" disabled="@creating" @onclick="Next">@(creating ? Msg.WebWizard.Saving(Lang) : Msg.WebWizard.Next(Lang))</button>
         }
     </div>
 </AuthorizedGuildView>
 
 @code {
-    private static readonly (int Step, string Title)[] AllSteps =
-    [
-        (0, "Welcome"),
-        (1, "Audience"),
-        (2, "Scope"),
-        (3, "Core channels & roles"),
-        (4, "Admin access"),
-        (5, "Review & finish"),
-    ];
+    [CascadingParameter] public Language Lang { get; set; }
+
+    private static readonly int[] AllSteps = [0, 1, 2, 3, 4, 5];
+
+    private string StepTitle(int wizardStep) => wizardStep switch
+    {
+        0 => Msg.WebWizard.StepWelcome(Lang),
+        1 => Msg.WebNav.Audience(Lang),
+        2 => Msg.WebWizard.StepScope(Lang),
+        3 => Msg.WebWizard.StepCoreChannels(Lang),
+        4 => Msg.WebWizard.StepAdminAccess(Lang),
+        5 => Msg.WebWizard.StepReview(Lang),
+        _ => "",
+    };
 
     private int step;
     private GuildSettings settings = new();
@@ -283,7 +284,7 @@
             channels = [];
             categories = [];
             roles = [];
-            discordDataError = "Could not load channels/roles from Discord (is the bot in this guild?)";
+            discordDataError = Msg.WebCommon.DiscordLoadError(Lang);
         }
     }
 
@@ -295,7 +296,7 @@
     };
 
     private string RoleName(ulong id) =>
-        roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+        roles.FirstOrDefault(r => r.Id == id)?.Name ?? Msg.WebCommon.Unknown(Lang, id);
 
     private bool IsUnknownChannel(string? current) =>
         !string.IsNullOrEmpty(current) && ulong.TryParse(current, out var id) && !channels.Any(c => c.Id == id);
@@ -318,10 +319,10 @@
     // in that case. Any other audience (including "not decided yet") keeps it visible.
     private bool SkipScope => audiences == GuildAudience.Community;
 
-    private IReadOnlyList<(int Step, string Title)> VisibleSteps =>
-        SkipScope ? AllSteps.Where(s => s.Step != 2).ToList() : AllSteps;
+    private IReadOnlyList<int> VisibleSteps =>
+        SkipScope ? AllSteps.Where(s => s != 2).ToList() : AllSteps;
 
-    private int DisplayStepNumber => VisibleSteps.ToList().FindIndex(s => s.Step == step) + 1;
+    private int DisplayStepNumber => VisibleSteps.ToList().FindIndex(s => s == step) + 1;
 
     // Any of the four fields left blank gets created on Discord instead of just being
     // saved as null — a new group/category first (or the selected existing one), then
@@ -397,7 +398,7 @@
         }
         catch (RestException)
         {
-            createError = "Could not create a channel/role on Discord — does the bot have Manage Channels/Manage Roles permission in this server?";
+            createError = Msg.WebWizard.CreateError(Lang);
             return false;
         }
         finally

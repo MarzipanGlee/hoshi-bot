@@ -1,6 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
+using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using NetCord;
@@ -12,6 +13,12 @@ namespace HoshiBot.Web.Services;
 // their fix paths, extracted from PermissionCheck.razor — components stay UI/state glue, the
 // Discord REST/EF work and the pure permission math live here. The page (and its section
 // child components) bind the result records this service computes.
+//
+// User-visible strings come from the message catalog with the Language passed EXPLICITLY by
+// the calling component (never resolved/injected here): the results live in per-circuit
+// component state, and nothing localized may end up in the shared IMemoryCache (its entries
+// cross circuits/users — see the localization plan). This service only caches raw Discord
+// data, never the strings it renders from it.
 public sealed class PermissionAuditService(
     IDbContextFactory<HoshiBotDbContext> dbFactory,
     DiscordGuildDataService discordData,
@@ -55,22 +62,16 @@ public sealed class PermissionAuditService(
 
     private static string Mark(bool granted) => granted ? "✅" : "❌";
 
-    private static string PermLabel(Permissions permission) => permission switch
-    {
-        Permissions.ViewChannel => "View Channel",
-        Permissions.SendMessages => "Send Messages",
-        Permissions.EmbedLinks => "Embed Links",
-        Permissions.ReadMessageHistory => "Read Message History",
-        Permissions.AddReactions => "Add Reactions",
-        Permissions.PinMessages => "Pin Messages",
-        _ => permission.ToString(),
-    };
+    // Display label per permission — catalog-backed for the handful the audits require;
+    // any other flag falls back to its enum name (Msg.WebAudit.Perm's own fallback).
+    private static string PermLabel(Language lang, Permissions permission) =>
+        Msg.WebAudit.Perm(lang, permission.ToString());
 
     // Each individual required permission with its granted state, e.g. "✅ View Channel · ❌ Send Messages".
-    public static string PermsSummary(Permissions required, Permissions effective) =>
+    public static string PermsSummary(Language lang, Permissions required, Permissions effective) =>
         string.Join(" · ", AllPermissions
             .Where(p => p != default && required.HasFlag(p))
-            .Select(p => $"{Mark(effective.HasFlag(p))} {PermLabel(p)}"));
+            .Select(p => $"{Mark(effective.HasFlag(p))} {PermLabel(lang, p)}"));
 
     public static string PermissionListLabel(Permissions permissions) =>
         permissions == 0 ? "—" : string.Join(", ", AllPermissions.Where(p => permissions.HasFlag(p)));
@@ -81,7 +82,7 @@ public sealed class PermissionAuditService(
     // channel/role lists come back empty with DiscordDataError set while the bot-status fields
     // keep the previous snapshot's values — the same partial state the page kept before this was
     // extracted (its catch only cleared channels/roles).
-    public async Task<PermissionAuditContext> LoadContextAsync(ulong guildId, PermissionAuditContext previous)
+    public async Task<PermissionAuditContext> LoadContextAsync(ulong guildId, PermissionAuditContext previous, Language lang)
     {
         try
         {
@@ -109,7 +110,7 @@ public sealed class PermissionAuditService(
                 GuildId = guildId,
                 Channels = [],
                 Roles = [],
-                DiscordDataError = "Could not load channels/roles from Discord (is the bot in this guild?)",
+                DiscordDataError = Msg.WebCommon.DiscordLoadError(lang),
             };
         }
     }
@@ -117,10 +118,10 @@ public sealed class PermissionAuditService(
     // Manual Re-check variant: evicts the 60s Discord cache first so a permission the admin just
     // changed in Discord is actually picked up — recomputing against the stale in-memory list is
     // exactly the "Re-check didn't reflect my change" symptom.
-    public async Task<PermissionAuditContext> ReloadContextAsync(ulong guildId, PermissionAuditContext previous)
+    public async Task<PermissionAuditContext> ReloadContextAsync(ulong guildId, PermissionAuditContext previous, Language lang)
     {
         discordData.InvalidateCache(guildId);
-        return await LoadContextAsync(guildId, previous);
+        return await LoadContextAsync(guildId, previous, lang);
     }
 
     public async Task<List<ChannelPermissionExpectation>> GetExpectationsAsync(ulong guildId)
@@ -168,7 +169,7 @@ public sealed class PermissionAuditService(
     // Diffs each expectation's Allow/Deny against the channel's live overwrite for that role.
     // Pure in-memory computation over the already-loaded context — no I/O.
     public List<PermissionAuditResult> AuditExpectations(
-        PermissionAuditContext context, IReadOnlyList<ChannelPermissionExpectation> expectations)
+        PermissionAuditContext context, IReadOnlyList<ChannelPermissionExpectation> expectations, Language lang)
     {
         var results = new List<PermissionAuditResult>();
         foreach (var expectation in expectations)
@@ -190,7 +191,7 @@ public sealed class PermissionAuditService(
             var extraDeny = AllPermissions.Where(p => actualDeny.HasFlag(p) && !expectedDeny.HasFlag(p)).ToList();
 
             var isMatch = missingAllow.Count == 0 && extraAllow.Count == 0 && missingDeny.Count == 0 && extraDeny.Count == 0;
-            var (canFix, blockReason) = isMatch ? (true, null) : EvaluateFixability(context, expectation);
+            var (canFix, blockReason) = isMatch ? (true, null) : EvaluateFixability(context, expectation, lang);
             results.Add(new PermissionAuditResult(expectation, isMatch, missingAllow, extraAllow, missingDeny, extraDeny, canFix, blockReason));
         }
 
@@ -203,21 +204,21 @@ public sealed class PermissionAuditService(
     // already holds itself. Any of these failing makes "Fix" a guaranteed 403, so it's
     // checked here instead of just letting the API call fail.
     private static (bool CanFix, string? Reason) EvaluateFixability(
-        PermissionAuditContext context, ChannelPermissionExpectation expectation)
+        PermissionAuditContext context, ChannelPermissionExpectation expectation, Language lang)
     {
         if (!context.BotHasManageRoles)
-            return (false, "Bot lacks Manage Roles permission in this server.");
+            return (false, Msg.WebAudit.BotLacksManageRoles(lang));
 
         if (context.BotPermissions.HasFlag(Permissions.Administrator))
             return (true, null);
 
         if (context.AllRolesById.TryGetValue(expectation.RoleId, out var targetRole) && targetRole.RawPosition >= context.BotHighestRolePosition)
-            return (false, $"Bot's role ({context.BotTopRoleName}) doesn't outrank {targetRole.Name} — move the bot's role higher.");
+            return (false, Msg.WebAudit.BotRoleOutranked(lang, context.BotTopRoleName, targetRole.Name));
 
         var expectedAllow = (Permissions)expectation.Allow;
         var ungrantable = AllPermissions.Where(p => expectedAllow.HasFlag(p) && !context.BotPermissions.HasFlag(p)).ToList();
         if (ungrantable.Count > 0)
-            return (false, $"Bot doesn't hold these permissions itself, so it can't grant them: {string.Join(", ", ungrantable)}.");
+            return (false, Msg.WebAudit.BotCannotGrant(lang, string.Join(", ", ungrantable)));
 
         return (true, null);
     }
@@ -231,7 +232,7 @@ public sealed class PermissionAuditService(
     // rows, and the guild-wide GuildSettings slots), audited for the bot's own View Channel +
     // Send Messages access — the check that would have surfaced the "message only reached one
     // channel" ClientRelease case (a second channel the bot silently couldn't post to).
-    public async Task<List<BotAccessResult>> CheckBotAccessAsync(PermissionAuditContext context)
+    public async Task<List<BotAccessResult>> CheckBotAccessAsync(PermissionAuditContext context, Language lang)
     {
         var guildId = context.GuildId;
         var sources = new Dictionary<ulong, SortedSet<string>>();
@@ -265,7 +266,7 @@ public sealed class PermissionAuditService(
                         or GuildFeature.AiChatKnowledgeLastResort => AiChatKnowledgePermissions,
                     _ => PostPermissions,
                 };
-                var label = $"Feature: {fc.Feature}";
+                var label = Msg.WebAudit.SourceFeature(lang, fc.Feature);
 
                 // A knowledge entry can be a whole category; the bot reads its child channels
                 // (AiChatIndexService.ResolveSourcesAsync), not the category node — so expand a
@@ -279,7 +280,7 @@ public sealed class PermissionAuditService(
                         DiscordGuildDataService.GetParentCategoryId(c) == category.Id
                         && c is TextGuildChannel or ForumGuildChannel))
                     {
-                        Add(child.Id, $"{label} (category {category.Name})", perms);
+                        Add(child.Id, Msg.WebAudit.SourceCategoryChild(lang, label, category.Name), perms);
                     }
                 }
                 else
@@ -293,7 +294,7 @@ public sealed class PermissionAuditService(
                 .Select(c => new { c.ChannelId, c.Kind })
                 .ToListAsync();
             foreach (var ac in alertChannels)
-                Add(ac.ChannelId, $"Alert: {ac.Kind}", PostPermissions);
+                Add(ac.ChannelId, Msg.WebAudit.SourceAlert(lang, ac.Kind), PostPermissions);
 
             // Per-feature channel settings (Absences report channels, Territory Capture
             // digest, Announcements/Tickets/etc.) live in the generic settings table, not a
@@ -314,15 +315,15 @@ public sealed class PermissionAuditService(
                     { Feature: GuildFeature.TerritoryCapture, Key: TerritoryCaptureSettingKeys.DigestChannel } => TerritoryCaptureDigestPermissions,
                     _ => PostPermissions,
                 };
-                Add(sc.Value, $"Feature: {sc.Feature} ({sc.Key})", perms);
+                Add(sc.Value, Msg.WebAudit.SourceFeatureSetting(lang, sc.Feature, sc.Key), perms);
             }
 
             var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == guildId);
             if (settings is not null)
             {
-                Add(settings.LogChannelId, "Log", PostPermissions);
-                Add(settings.AdminChannelId, "Admin", PostPermissions);
-                Add(settings.UserLogChannelId, "User Log", PostPermissions);
+                Add(settings.LogChannelId, Msg.WebGuild.LogTitle(lang), PostPermissions);
+                Add(settings.AdminChannelId, Msg.WebGuild.AdminTitle(lang), PostPermissions);
+                Add(settings.UserLogChannelId, Msg.WebGuild.UserLogTitle(lang), PostPermissions);
             }
 
             // Alliance-scoped channels + Command Bridge now live per linked alliance.
@@ -333,18 +334,18 @@ public sealed class PermissionAuditService(
             foreach (var a in allianceChannels)
             {
                 var tag = a.StfcAlliance.Tag;
-                Add(a.AllianceBoardingChannelId, $"[{tag}] Alliance Boarding", PostPermissions);
-                Add(a.CommandBridgeChannelId, $"[{tag}] Command Bridge", PostPermissions);
-                Add(a.StaffCommandBridgeChannelId, $"[{tag}] Staff Command Bridge", PostPermissions);
-                Add(a.FriendsCommandBridgeChannelId, $"[{tag}] Friends Command Bridge", PostPermissions);
-                Add(a.RemindersAlliesChannelId, $"[{tag}] Reminders (Allies)", PostPermissions);
+                Add(a.AllianceBoardingChannelId, Msg.WebAudit.SourceAllianceBoarding(lang, tag), PostPermissions);
+                Add(a.CommandBridgeChannelId, Msg.WebAudit.SourceCommandBridge(lang, tag), PostPermissions);
+                Add(a.StaffCommandBridgeChannelId, Msg.WebAudit.SourceStaffCommandBridge(lang, tag), PostPermissions);
+                Add(a.FriendsCommandBridgeChannelId, Msg.WebAudit.SourceFriendsCommandBridge(lang, tag), PostPermissions);
+                Add(a.RemindersAlliesChannelId, Msg.WebAudit.SourceRemindersAllies(lang, tag), PostPermissions);
                 // Reminders (Services) moved to the TerritoryCapture feature settings (ServicesChannel);
                 // the generic per-feature-Channel loop above already covers it.
-                Add(a.RulesDeChannelId, $"[{tag}] Rules (DE)", PostPermissions);
-                Add(a.RulesEnChannelId, $"[{tag}] Rules (EN)", PostPermissions);
-                Add(a.UserNotificationsChannelId, $"[{tag}] User Notifications", PostPermissions);
-                Add(a.BotSupportChannelId, $"[{tag}] Bot Support", PostPermissions);
-                Add(a.CommandStaffJobsChannelId, $"[{tag}] Command Staff Jobs", PostPermissions);
+                Add(a.RulesDeChannelId, Msg.WebAudit.SourceRulesDe(lang, tag), PostPermissions);
+                Add(a.RulesEnChannelId, Msg.WebAudit.SourceRulesEn(lang, tag), PostPermissions);
+                Add(a.UserNotificationsChannelId, Msg.WebAudit.SourceUserNotifications(lang, tag), PostPermissions);
+                Add(a.BotSupportChannelId, Msg.WebAudit.SourceBotSupport(lang, tag), PostPermissions);
+                Add(a.CommandStaffJobsChannelId, Msg.WebAudit.SourceCommandStaffJobs(lang, tag), PostPermissions);
             }
         }
 
@@ -358,7 +359,7 @@ public sealed class PermissionAuditService(
             {
                 // Configured but not present in the live channel list — deleted, or the bot
                 // can't even see it. Either way it's undeliverable and not auto-fixable here.
-                results.Add(new BotAccessResult(channelId, null, sourceLabel, req, default, false, null, false, "Channel not found in this guild (deleted, or not visible to the bot)."));
+                results.Add(new BotAccessResult(channelId, null, sourceLabel, req, default, false, null, false, Msg.WebAudit.ChannelNotFound(lang)));
                 continue;
             }
 
@@ -373,7 +374,7 @@ public sealed class PermissionAuditService(
             }
 
             var hasAccess = (req & ~channelEffective) == default;
-            var (canFix, blockReason) = hasAccess ? (true, (string?)null) : EvaluateBotAccessFixability(context, req);
+            var (canFix, blockReason) = hasAccess ? (true, (string?)null) : EvaluateBotAccessFixability(context, req, lang);
             results.Add(new BotAccessResult(channelId, parentCategoryId, sourceLabel, req, channelEffective, IsManage(channelEffective), category, canFix, blockReason));
         }
 
@@ -385,23 +386,23 @@ public sealed class PermissionAuditService(
     // so the same guardrails as EvaluateFixability apply: needs Manage Roles, and (unless
     // Administrator) can only grant permissions the bot already holds itself.
     private static (bool CanFix, string? Reason) EvaluateBotAccessFixability(
-        PermissionAuditContext context, Permissions required)
+        PermissionAuditContext context, Permissions required, Language lang)
     {
         if (!context.BotHasManageRoles)
-            return (false, "Bot lacks Manage Roles permission in this server.");
+            return (false, Msg.WebAudit.BotLacksManageRoles(lang));
 
         if (context.BotPermissions.HasFlag(Permissions.Administrator))
             return (true, null);
 
         if (context.BotTopRoleId is null)
-            return (false, "Bot has no assignable role to grant a channel override to.");
+            return (false, Msg.WebAudit.BotNoRole(lang));
 
         var missing = AllPermissions
             .Where(p => p != default && required.HasFlag(p) && !context.BotPermissions.HasFlag(p))
-            .Select(PermLabel)
+            .Select(p => PermLabel(lang, p))
             .ToList();
         if (missing.Count > 0)
-            return (false, $"Bot doesn't hold these permissions itself, so it can't grant them: {string.Join(", ", missing)}.");
+            return (false, Msg.WebAudit.BotCannotGrant(lang, string.Join(", ", missing)));
 
         return (true, null);
     }
@@ -415,7 +416,7 @@ public sealed class PermissionAuditService(
     // Applied says whether the overwrite went through — the caller only re-checks/replaces its
     // context when it did (a Discord refusal leaves the passed-in context untouched).
     public async Task<BotAccessFixOutcome?> FixBotAccessAsync(
-        PermissionAuditContext context, BotAccessResult result, ulong targetId, bool viaCategory)
+        PermissionAuditContext context, BotAccessResult result, ulong targetId, bool viaCategory, Language lang)
     {
         if (context.BotTopRoleId is not { } roleId)
             return null;
@@ -440,7 +441,7 @@ public sealed class PermissionAuditService(
                 });
 
             cache.Remove($"discord-guild-channels:{context.GuildId}");
-            var reloaded = await LoadContextAsync(context.GuildId, context);
+            var reloaded = await LoadContextAsync(context.GuildId, context, lang);
 
             var channelNow = reloaded.Channels.FirstOrDefault(c => c.Id == result.ChannelId);
             var effectiveNow = channelNow is null ? default : reloaded.BotChannelPermissions(channelNow);
@@ -449,25 +450,25 @@ public sealed class PermissionAuditService(
             var status = (viaCategory, hasAccessNow, viewNow) switch
             {
                 (_, true, _) => viaCategory
-                    ? "✅ Fixed via the category — the bot now has the access it needs here."
-                    : "✅ Fixed on the channel — the bot now has the access it needs here.",
-                (true, false, true) => "Category updated, but the channel is still missing some of what it needs — use \"Fix on channel\".",
-                (true, false, false) => "⚠ Category updated, but this channel doesn't inherit from it (its permissions aren't synced). A channel the bot can't see can't be fixed automatically — grant Hoshi Bot access to it manually in Discord.",
-                (false, false, _) => "⚠ Overwrite applied on the channel, but the bot still lacks the required access. Check that its role isn't out-ranked and that another overwrite doesn't deny the needed permissions.",
+                    ? Msg.WebAudit.FixedViaCategory(lang)
+                    : Msg.WebAudit.FixedOnChannel(lang),
+                (true, false, true) => Msg.WebAudit.CategoryUpdatedChannelMissing(lang),
+                (true, false, false) => Msg.WebAudit.CategoryUpdatedNotSynced(lang),
+                (false, false, _) => Msg.WebAudit.ChannelFixStillMissing(lang),
             };
 
             return new BotAccessFixOutcome(reloaded, status, Applied: true);
         }
         catch (RestException ex)
         {
-            var level = viaCategory ? "category" : "channel";
+            var level = viaCategory ? Msg.WebAudit.LevelCategory(lang) : Msg.WebAudit.LevelChannel(lang);
             var targetChannel = context.Channels.FirstOrDefault(c => c.Id == targetId);
             var canSeeTarget = targetChannel is not null && context.BotChannelPermissions(targetChannel).HasFlag(Permissions.ViewChannel);
             var status = ex.StatusCode == HttpStatusCode.Forbidden
                 ? canSeeTarget
-                    ? $"⚠ Discord refused the change — the bot can see this {level} but isn't allowed to change its permissions here (it needs the Manage Permissions right on it). Grant Hoshi Bot access to this {level} manually in Discord."
-                    : $"⚠ Discord refused the change (Missing Access) — the bot can't edit a {level} it can't see. Grant Hoshi Bot access to it manually in Discord."
-                : $"⚠ Discord rejected the change ({ex.StatusCode}). Check the bot's Manage Roles permission and role position.";
+                    ? Msg.WebAudit.FixRefusedVisible(lang, level)
+                    : Msg.WebAudit.FixRefusedInvisible(lang, level)
+                : Msg.WebAudit.FixRejected(lang, ex.StatusCode);
 
             return new BotAccessFixOutcome(context, status, Applied: false);
         }
@@ -478,7 +479,7 @@ public sealed class PermissionAuditService(
     // refusal nothing is reloaded: the passed-in context comes back untouched with the error
     // line the page surfaces in its top alert.
     public async Task<(PermissionAuditContext Context, string? Error)> FixExpectationAsync(
-        PermissionAuditContext context, ChannelPermissionExpectation expectation)
+        PermissionAuditContext context, ChannelPermissionExpectation expectation, Language lang)
     {
         try
         {
@@ -490,11 +491,11 @@ public sealed class PermissionAuditService(
                 });
 
             cache.Remove($"discord-guild-channels:{context.GuildId}");
-            return (await LoadContextAsync(context.GuildId, context), null);
+            return (await LoadContextAsync(context.GuildId, context, lang), null);
         }
         catch (RestException)
         {
-            return (context, "Could not update the permission overwrite on Discord — does the bot have Manage Roles/Manage Channels permission in this server?");
+            return (context, Msg.WebAudit.FixExpectationError(lang));
         }
     }
 }
@@ -537,14 +538,14 @@ public sealed record PermissionAuditContext(
         _ => $"# {channel.Name}",
     };
 
-    public string ChannelName(ulong id) =>
-        Channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : $"⚠ Unbekannt ({id})";
+    public string ChannelName(Language lang, ulong id) =>
+        Channels.FirstOrDefault(c => c.Id == id) is { } channel ? ChannelLabel(channel) : Msg.WebCommon.Unknown(lang, id);
 
-    public string CategoryName(ulong id) =>
-        Channels.FirstOrDefault(c => c.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+    public string CategoryName(Language lang, ulong id) =>
+        Channels.FirstOrDefault(c => c.Id == id)?.Name ?? Msg.WebCommon.Unknown(lang, id);
 
-    public string RoleName(ulong id) =>
-        Roles.FirstOrDefault(r => r.Id == id)?.Name ?? $"⚠ Unbekannt ({id})";
+    public string RoleName(Language lang, ulong id) =>
+        Roles.FirstOrDefault(r => r.Id == id)?.Name ?? Msg.WebCommon.Unknown(lang, id);
 }
 
 // One expectation's audit outcome — the live overwrite diffed against its Allow/Deny.

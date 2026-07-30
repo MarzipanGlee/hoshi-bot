@@ -3,24 +3,24 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject LanguageResolver LanguageResolver
 
-<PageTitle>@AudienceTitle Settings</PageTitle>
+<PageTitle>@(validAudience ? Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle) : Msg.WebGuild.AudienceSettingsHeading(Lang))</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
     @if (!validAudience)
     {
-        <h1>Audience Settings</h1>
-        <p>Unknown audience. Pick one on the <a href="@($"manage/guild/{GuildId}/audience")">Audience</a> page.</p>
+        <h1>@Msg.WebGuild.AudienceSettingsHeading(Lang)</h1>
+        <p>@Msg.WebGuild.UnknownAudienceLead(Lang) <a href="@($"manage/guild/{GuildId}/audience")">@Msg.WebNav.Audience(Lang)</a>@Msg.WebGuild.UnknownAudienceTail(Lang)</p>
     }
     else
     {
-        <h1>@AudienceTitle Settings</h1>
-        <p>@AudienceDisplay.Description(Lang, audience) Feature-agnostic settings for this audience — per-feature configuration lives on the <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/features")">Features</a> page.</p>
+        <h1>@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle)</h1>
+        <p>@AudienceDisplay.Description(Lang, audience) @Msg.WebGuild.AudienceSettingsIntro(Lang) <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/features")">@Msg.WebNav.Features(Lang)</a>@Msg.WebGuild.AudienceSettingsIntroTail(Lang)</p>
 
-        <h2>Regional</h2>
+        <h2>@Msg.WebCommon.Regional(Lang)</h2>
         <div class="card-grid mt-1">
-            <LanguagePicker CardTitle="Language"
-                            Usage="The bot's language for public posts scoped to this audience."
-                            InheritedLabel="@inheritedLanguageLabel"
+            <LanguagePicker CardTitle="@Msg.WebGuild.LanguageTitle(Lang)"
+                            Usage="@Msg.WebGuild.AudienceLanguageUsage(Lang)"
+                            InheritedLabel="@InheritedLanguageLabel"
                             @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
         </div>
     }
@@ -34,9 +34,15 @@
     private GuildAudience audience;
     private bool validAudience;
     private string? languageInput;
-    private string inheritedLanguageLabel = "guild language";
+    private string? guildLanguageName;
 
-    private string AudienceTitle => validAudience ? AudienceDisplay.Labels(Lang, audience).First() : "Audience";
+    private string AudienceTitle => AudienceDisplay.Labels(Lang, audience).First();
+
+    // What an empty language selection resolves to — the resolved guild language once
+    // loaded; the bare "guild language" wording during the transient pre-load render.
+    private string InheritedLanguageLabel => guildLanguageName is null
+        ? Msg.WebGuild.GuildLanguage(Lang)
+        : Msg.WebGuild.GuildLanguageInherited(Lang, guildLanguageName);
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
@@ -64,7 +70,7 @@
             .Select(l => l.Language)
             .FirstOrDefaultAsync();
 
-        inheritedLanguageLabel = $"guild language: {Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId))}";
+        guildLanguageName = Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId));
     }
 
     private async Task SaveLanguageAsync()

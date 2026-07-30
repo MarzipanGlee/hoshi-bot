@@ -9,10 +9,10 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Region</th>
-                <th>Server</th>
-                <th>Tag</th>
-                <th>Alliance Name</th>
+                <th>@Msg.WebCommon.Region(Lang)</th>
+                <th>@Msg.WebCommon.Server(Lang)</th>
+                <th>@Msg.WebGuild.TagHeader(Lang)</th>
+                <th>@Msg.WebGuild.AllianceNameHeader(Lang)</th>
                 <th></th>
             </tr>
         </thead>
@@ -26,8 +26,8 @@
                     <td>@info?.Tag</td>
                     <td>@info?.Name</td>
                     <td class="text-end">
-                        <a class="btn btn-sm btn-outline-secondary me-1" href="manage/guild/@GuildId/alliance/@link.Id/settings">Settings</a>
-                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">Delete</button>
+                        <a class="btn btn-sm btn-outline-secondary me-1" href="manage/guild/@GuildId/alliance/@link.Id/settings">@Msg.WebNav.Settings(Lang)</a>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildAlliance(link)">@Msg.WebCommon.Delete(Lang)</button>
                     </td>
                 </tr>
             }
@@ -39,32 +39,30 @@
             <RegionServerPicker @bind-RegionId="allianceRegionIdInput"
                                 @bind-ServerId="allianceServerIdInput" @bind-ServerId:after="OnAllianceServerChangedAsync" />
             <div>
-                <label class="form-label">Alliance</label>
+                <label class="form-label">@Msg.WebGuild.AllianceLabel(Lang)</label>
                 <Select TValue="string" Items="allianceItems" @bind-Value="selectedAllianceIdInput"
-                        ShowSearch="true" PlaceHolder="Select alliance..." IsDisabled="@(allianceServerIdInput is null)" />
+                        ShowSearch="true" PlaceHolder="@Msg.WebGuild.SelectAlliancePlaceholder(Lang)" IsDisabled="@(allianceServerIdInput is null)" />
             </div>
             <div>
-                <button class="btn btn-primary" @onclick="AddGuildAlliance">Add</button>
+                <button class="btn btn-primary" @onclick="AddGuildAlliance">@Msg.WebCommon.Add(Lang)</button>
             </div>
         </div>
     </div>
     <p class="text-muted small mt-2 mb-0">
-        Linking an alliance just creates the association — set its roles and channels afterward on the
-        alliance's own <strong>Settings</strong> page (the Settings button in the table), or via the
-        Setup Wizard.
+        @Msg.WebGuild.AllianceLinkHintLead(Lang) <strong>@Msg.WebNav.Settings(Lang)</strong> @Msg.WebGuild.AllianceLinkHintTail(Lang)
     </p>
 }
 else if (Audience == GuildAudience.Server)
 {
     <h2>@Msg.WebCommon.LinkedServers(Lang)</h2>
     <table class="table">
-        <thead><tr><th>Server</th><th></th></tr></thead>
+        <thead><tr><th>@Msg.WebCommon.Server(Lang)</th><th></th></tr></thead>
         <tbody>
             @foreach (var link in guildServers)
             {
                 <tr>
                     <td>@serverNamesById.GetValueOrDefault(link.StfcServerId)</td>
-                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildServer(link)">Delete</button></td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildServer(link)">@Msg.WebCommon.Delete(Lang)</button></td>
                 </tr>
             }
         </tbody>
@@ -75,7 +73,7 @@ else if (Audience == GuildAudience.Server)
             <RegionServerPicker @ref="serverPicker" ExcludedServerIds="LinkedServerIds"
                                 @bind-RegionId="serverRegionIdInput" @bind-ServerId="selectedServerIdInput" />
             <div>
-                <button class="btn btn-primary" @onclick="AddGuildServer">Add</button>
+                <button class="btn btn-primary" @onclick="AddGuildServer">@Msg.WebCommon.Add(Lang)</button>
             </div>
         </div>
     </div>
@@ -84,13 +82,13 @@ else if (Audience == GuildAudience.VeilGroup)
 {
     <h2>@Msg.WebCommon.LinkedVeilGroups(Lang)</h2>
     <table class="table">
-        <thead><tr><th>Veil Group</th><th></th></tr></thead>
+        <thead><tr><th>@Msg.WebGuild.VeilGroupLabel(Lang)</th><th></th></tr></thead>
         <tbody>
             @foreach (var link in guildVeilGroups)
             {
                 <tr>
                     <td>@veilGroupNamesById.GetValueOrDefault(link.StfcVeilGroupId)</td>
-                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildVeilGroup(link)">Delete</button></td>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteGuildVeilGroup(link)">@Msg.WebCommon.Delete(Lang)</button></td>
                 </tr>
             }
         </tbody>
@@ -99,15 +97,15 @@ else if (Audience == GuildAudience.VeilGroup)
     <div class="card mt-3">
         <div class="card-body d-flex gap-2 align-items-end flex-wrap">
             <div>
-                <label class="form-label">Region</label>
-                <Select TValue="string" Items="regionItems" @bind-Value="veilGroupRegionIdInput" @bind-Value:after="OnVeilGroupRegionChangedAsync" PlaceHolder="Select region..." />
+                <label class="form-label">@Msg.WebCommon.Region(Lang)</label>
+                <Select TValue="string" Items="regionItems" @bind-Value="veilGroupRegionIdInput" @bind-Value:after="OnVeilGroupRegionChangedAsync" PlaceHolder="@Msg.WebCommon.SelectRegionPlaceholder(Lang)" />
             </div>
             <div>
-                <label class="form-label">Veil Group</label>
-                <Select TValue="string" Items="veilGroupItems" @bind-Value="selectedVeilGroupIdInput" PlaceHolder="Select veil group..." IsDisabled="@(veilGroupRegionIdInput is null)" />
+                <label class="form-label">@Msg.WebGuild.VeilGroupLabel(Lang)</label>
+                <Select TValue="string" Items="veilGroupItems" @bind-Value="selectedVeilGroupIdInput" PlaceHolder="@Msg.WebGuild.SelectVeilGroupPlaceholder(Lang)" IsDisabled="@(veilGroupRegionIdInput is null)" />
             </div>
             <div>
-                <button class="btn btn-primary" @onclick="AddGuildVeilGroup">Add</button>
+                <button class="btn btn-primary" @onclick="AddGuildVeilGroup">@Msg.WebCommon.Add(Lang)</button>
             </div>
         </div>
     </div>
@@ -249,8 +247,7 @@ else if (Audience == GuildAudience.VeilGroup)
     {
         // Removing the link cascade-deletes this alliance's per-alliance feature toggles and
         // settings (see the FK), so confirm before destroying that configuration.
-        if (!await JS.InvokeAsync<bool>("confirm",
-            "Remove this alliance link? Its feature toggles and settings for this alliance will be deleted too."))
+        if (!await JS.InvokeAsync<bool>("confirm", Msg.WebGuild.RemoveAllianceConfirm(Lang)))
             return;
 
         await using (var db = await DbFactory.CreateDbContextAsync())

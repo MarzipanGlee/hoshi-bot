@@ -208,5 +208,17 @@ public static partial class Msg
 
         public static string NotFoundGoHome(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.NotFoundGoHome");
+
+        public static string DiscordLoadError(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.DiscordLoadError");
+
+        public static string CreateRoleError(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.CreateRoleError");
+
+        public static string CreateChannelError(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.CreateChannelError");
+
+        public static string CreateCategoryError(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.CreateCategoryError");
     }
 }

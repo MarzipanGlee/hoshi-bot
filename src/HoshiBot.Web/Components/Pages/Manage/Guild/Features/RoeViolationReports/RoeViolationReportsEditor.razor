@@ -7,7 +7,7 @@
 
 @if (createError is not null)
 {
-    <p class="text-danger">@createError</p>
+    <p class="text-danger">@createError.Value.Text(Lang)</p>
 }
 
 <div class="card-grid mt-1">
@@ -32,7 +32,7 @@
     private List<Role> roles = [];
     private string? channelIdInput;
     private string? diplomatRoleIdInput;
-    private string? createError;
+    private DiscordCreateErrorKind? createError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
