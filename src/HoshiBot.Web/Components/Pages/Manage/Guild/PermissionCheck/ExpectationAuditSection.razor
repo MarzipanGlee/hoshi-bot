@@ -4,38 +4,38 @@
    with the PermissionCheck page class itself. *@
 @namespace HoshiBot.Web.Components.Pages.Manage.Guild
 
-<h2>Audit</h2>
-<button class="btn btn-primary" disabled="@Auditing" @onclick="OnRunAudit">@(Auditing ? "Checking..." : "Run Audit")</button>
+<h2>@Msg.WebAudit.AuditTitle(Lang)</h2>
+<button class="btn btn-primary" disabled="@Auditing" @onclick="OnRunAudit">@(Auditing ? Msg.WebAudit.CheckingEllipsis(Lang) : Msg.WebAudit.RunAudit(Lang))</button>
 
 @if (Results is not null)
 {
     <table class="table mt-3">
-        <thead><tr><th>Channel</th><th>Role</th><th>Status</th><th>Details</th><th></th></tr></thead>
+        <thead><tr><th>@Msg.WebCommon.Channel(Lang)</th><th>@Msg.WebCommon.Role(Lang)</th><th>@Msg.WebAudit.StatusColumn(Lang)</th><th>@Msg.WebAudit.DetailsColumn(Lang)</th><th></th></tr></thead>
         <tbody>
             @foreach (var result in Results)
             {
                 <tr class="@(result.IsMatch ? "table-success" : "table-danger")">
                     <td>@Context.ChannelName(Lang, result.Expectation.ChannelId)</td>
                     <td>@Context.RoleName(Lang, result.Expectation.RoleId)</td>
-                    <td>@(result.IsMatch ? "✅ OK" : "🚫 Mismatch")</td>
+                    <td>@(result.IsMatch ? Msg.WebAudit.OkStatus(Lang) : Msg.WebAudit.MismatchStatus(Lang))</td>
                     <td>
                         @if (!result.IsMatch)
                         {
                             @if (result.MissingAllow.Count > 0)
                             {
-                                <div>Missing Allow: @string.Join(", ", result.MissingAllow)</div>
+                                <div>@Msg.WebAudit.MissingAllowLabel(Lang) @string.Join(", ", result.MissingAllow.Select(p => PermissionAuditService.PermLabel(Lang, p)))</div>
                             }
                             @if (result.ExtraAllow.Count > 0)
                             {
-                                <div>Unexpected Allow: @string.Join(", ", result.ExtraAllow)</div>
+                                <div>@Msg.WebAudit.UnexpectedAllowLabel(Lang) @string.Join(", ", result.ExtraAllow.Select(p => PermissionAuditService.PermLabel(Lang, p)))</div>
                             }
                             @if (result.MissingDeny.Count > 0)
                             {
-                                <div>Missing Deny: @string.Join(", ", result.MissingDeny)</div>
+                                <div>@Msg.WebAudit.MissingDenyLabel(Lang) @string.Join(", ", result.MissingDeny.Select(p => PermissionAuditService.PermLabel(Lang, p)))</div>
                             }
                             @if (result.ExtraDeny.Count > 0)
                             {
-                                <div>Unexpected Deny: @string.Join(", ", result.ExtraDeny)</div>
+                                <div>@Msg.WebAudit.UnexpectedDenyLabel(Lang) @string.Join(", ", result.ExtraDeny.Select(p => PermissionAuditService.PermLabel(Lang, p)))</div>
                             }
                         }
                     </td>
@@ -44,7 +44,7 @@
                         {
                             @if (result.CanFix)
                             {
-                                <button class="btn btn-sm btn-warning" @onclick="() => OnFix.InvokeAsync(result)">Fix</button>
+                                <button class="btn btn-sm btn-warning" @onclick="() => OnFix.InvokeAsync(result)">@Msg.WebAudit.FixButton(Lang)</button>
                             }
                             else
                             {

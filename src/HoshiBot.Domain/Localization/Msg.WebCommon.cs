@@ -24,6 +24,16 @@ public static partial class Msg
         public static string Delete(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.Delete");
 
+        public static string Edit(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.Edit");
+
+        public static string Cancel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.Cancel");
+
+        // Bootstrap's dismissible-alert close button aria-label.
+        public static string Close(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.Close");
+
         public static string DeleteTitle(Language lang, string entity) =>
             MessageCatalog.Format(lang, "Web.Common.DeleteTitle", ("entity", entity));
 

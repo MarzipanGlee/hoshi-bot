@@ -134,5 +134,127 @@ public static partial class Msg
 
         public static string FixExpectationError(Language lang) =>
             MessageCatalog.Format(lang, "Web.Audit.FixExpectationError");
+
+        // ExpectationEditor.razor — the saved-expectations table plus its add/edit form.
+        // Channel/Role/Add/Delete/Save/Cancel and the select placeholders reuse Msg.WebCommon;
+        // only the pieces specific to this table/form get their own keys here.
+        public static string ExpectedPermissionsTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ExpectedPermissionsTitle");
+
+        public static string AllowColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.AllowColumn");
+
+        public static string DenyColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.DenyColumn");
+
+        public static string AddExpectationTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.AddExpectationTitle");
+
+        public static string EditExpectationTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.EditExpectationTitle");
+
+        public static string PermissionColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.PermissionColumn");
+
+        public static string NeutralColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.NeutralColumn");
+
+        // ExpectationAuditSection.razor — the expectation-vs-live diff table.
+        public static string AuditTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.AuditTitle");
+
+        // Shared by both this section's "Run Audit" button and BotAccessSection's "Re-check".
+        public static string CheckingEllipsis(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CheckingEllipsis");
+
+        public static string RunAudit(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.RunAudit");
+
+        public static string StatusColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.StatusColumn");
+
+        public static string DetailsColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.DetailsColumn");
+
+        // Shared by both this section's match/mismatch cell and BotAccessSection's access cell.
+        public static string OkStatus(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.OkStatus");
+
+        public static string MismatchStatus(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.MismatchStatus");
+
+        public static string MissingAllowLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.MissingAllowLabel");
+
+        public static string UnexpectedAllowLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.UnexpectedAllowLabel");
+
+        public static string MissingDenyLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.MissingDenyLabel");
+
+        public static string UnexpectedDenyLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.UnexpectedDenyLabel");
+
+        // Shared by both this section's per-row fix button and BotAccessSection's fix buttons.
+        public static string FixButton(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.FixButton");
+
+        // BotAccessSection.razor — the configured post-to channels vs. the bot's live access.
+        public static string BotPostingAccessTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.BotPostingAccessTitle");
+
+        public static string BotPostingAccessIntro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.BotPostingAccessIntro");
+
+        public static string ReCheck(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ReCheck");
+
+        public static string NoPostToChannelsConfigured(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.NoPostToChannelsConfigured");
+
+        public static string CantFixCalloutTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixCalloutTitle");
+
+        // The callout's intro paragraph, four <ol> steps, and closing paragraph — each contains
+        // <strong>/<em> markup, so render with @((MarkupString)...); the <p>/<ol>/<li> wrapper
+        // tags themselves stay in BotAccessSection.razor.
+        public static string CantFixCalloutIntro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixCalloutIntro");
+
+        public static string CantFixStep1(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixStep1");
+
+        public static string CantFixStep2(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixStep2");
+
+        public static string CantFixStep3(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixStep3");
+
+        public static string CantFixStep4(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixStep4");
+
+        public static string CantFixCalloutOutro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixCalloutOutro");
+
+        public static string UsedByColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.UsedByColumn");
+
+        public static string MissingAccessStatus(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.MissingAccessStatus");
+
+        public static string ChannelStatusLine(Language lang, string perms) =>
+            MessageCatalog.Format(lang, "Web.Audit.ChannelStatusLine", ("perms", perms));
+
+        public static string CategoryStatusLine(Language lang, string perms) =>
+            MessageCatalog.Format(lang, "Web.Audit.CategoryStatusLine", ("perms", perms));
+
+        public static string FixOnCategoryButton(Language lang, string name) =>
+            MessageCatalog.Format(lang, "Web.Audit.FixOnCategoryButton", ("name", name));
+
+        public static string FixOnChannelButton(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.FixOnChannelButton");
+
+        public static string CantFixAutomaticallyNote(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.CantFixAutomaticallyNote");
     }
 }

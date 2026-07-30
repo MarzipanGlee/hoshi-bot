@@ -112,6 +112,12 @@ public static partial class Msg
         public static string GuildLanguageInherited(Language lang, string name) =>
             MessageCatalog.Format(lang, "Web.Guild.GuildLanguageInherited", ("name", name));
 
+        // Features/Index.razor's own PageTitle/<h1>, e.g. "Alliance Features" — audienceLabel is
+        // the already-localized noun from AudienceDisplay/Msg.WebAudience (Guild's own label for
+        // the bare, audience-less /features route).
+        public static string AudienceFeaturesHeading(Language lang, string audienceLabel) =>
+            MessageCatalog.Format(lang, "Web.Guild.AudienceFeaturesHeading", ("audience", audienceLabel));
+
         public static string SettingsLead(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.SettingsLead");
 
@@ -177,6 +183,18 @@ public static partial class Msg
 
         public static string Configure(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.Configure");
+
+        // Features/Index.razor's own chrome (heading built via AudienceFeaturesHeading above).
+        public static string HideInactiveFeatures(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.HideInactiveFeatures");
+
+        public static string NoFeaturesAvailable(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.NoFeaturesAvailable");
+
+        // "Requires:" label ahead of a feature card's dependency links — DependencyNotEnabled's
+        // "not enabled" badge reuses the FeatureSettings dependency-line wording above.
+        public static string Requires(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.Requires");
 
         // FeatureSettings.razor — the shell around every per-feature editor.
         public static string FeatureSettingsTitle(Language lang) =>

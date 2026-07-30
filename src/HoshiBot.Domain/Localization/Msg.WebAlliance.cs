@@ -86,5 +86,11 @@ public static partial class Msg
 
         public static string TimezoneUsage(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.TimezoneUsage");
+
+        // The LanguagePicker's Usage text on Alliance Settings — CardTitle/InheritedLabel
+        // reuse Msg.WebGuild.LanguageTitle/GuildLanguage(Inherited), same as the guild and
+        // audience Settings pages.
+        public static string AllianceLanguageUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Alliance.AllianceLanguageUsage");
     }
 }

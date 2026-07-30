@@ -7,31 +7,31 @@
 @namespace HoshiBot.Web.Components.Pages.Manage.Guild
 @using NetCord
 
-<h2>Expected Permissions</h2>
+<h2>@Msg.WebAudit.ExpectedPermissionsTitle(Lang)</h2>
 <table class="table">
-    <thead><tr><th>Channel</th><th>Role</th><th>Allow</th><th>Deny</th><th></th></tr></thead>
+    <thead><tr><th>@Msg.WebCommon.Channel(Lang)</th><th>@Msg.WebCommon.Role(Lang)</th><th>@Msg.WebAudit.AllowColumn(Lang)</th><th>@Msg.WebAudit.DenyColumn(Lang)</th><th></th></tr></thead>
     <tbody>
         @foreach (var exp in Expectations)
         {
             <tr>
                 <td>@Context.ChannelName(Lang, exp.ChannelId)</td>
                 <td>@Context.RoleName(Lang, exp.RoleId)</td>
-                <td>@PermissionAuditService.PermissionListLabel((Permissions)exp.Allow)</td>
-                <td>@PermissionAuditService.PermissionListLabel((Permissions)exp.Deny)</td>
+                <td>@PermissionAuditService.PermissionListLabel(Lang, (Permissions)exp.Allow)</td>
+                <td>@PermissionAuditService.PermissionListLabel(Lang, (Permissions)exp.Deny)</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" @onclick="() => EditExpectation(exp)">Edit</button>
-                    <button class="btn btn-sm btn-danger" @onclick="() => OnDelete.InvokeAsync(exp)">Delete</button>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => EditExpectation(exp)">@Msg.WebCommon.Edit(Lang)</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => OnDelete.InvokeAsync(exp)">@Msg.WebCommon.Delete(Lang)</button>
                 </td>
             </tr>
         }
     </tbody>
 </table>
 
-<h3>@(editingId is null ? "Add" : "Edit") Expected Permission</h3>
+<h3>@(editingId is null ? Msg.WebAudit.AddExpectationTitle(Lang) : Msg.WebAudit.EditExpectationTitle(Lang))</h3>
 <div class="mb-2">
-    <label>Channel</label>
+    <label>@Msg.WebCommon.Channel(Lang)</label>
     <select class="form-select d-inline-block w-auto" @bind="formChannelIdInput">
-        <option value="">— select channel —</option>
+        <option value="">@Msg.WebCommon.SelectChannelOption(Lang)</option>
         @foreach (var group in DiscordGuildDataService.GroupChannelsForDisplay(Context.Channels))
         {
             @if (group.Category is not null)
@@ -54,9 +54,9 @@
     </select>
 </div>
 <div class="mb-2">
-    <label>Role</label>
+    <label>@Msg.WebCommon.Role(Lang)</label>
     <select class="form-select d-inline-block w-auto" @bind="formRoleIdInput">
-        <option value="">— select role —</option>
+        <option value="">@Msg.WebCommon.SelectRoleOption(Lang)</option>
         @foreach (var role in Context.Roles)
         {
             <option value="@role.Id">@role.Name</option>
@@ -65,13 +65,13 @@
 </div>
 
 <table class="table table-sm permission-grid">
-    <thead><tr><th>Permission</th><th class="text-center">Neutral</th><th class="text-center">Allow</th><th class="text-center">Deny</th></tr></thead>
+    <thead><tr><th>@Msg.WebAudit.PermissionColumn(Lang)</th><th class="text-center">@Msg.WebAudit.NeutralColumn(Lang)</th><th class="text-center">@Msg.WebAudit.AllowColumn(Lang)</th><th class="text-center">@Msg.WebAudit.DenyColumn(Lang)</th></tr></thead>
     <tbody>
         @foreach (var permission in PermissionAuditService.AllPermissions)
         {
             var current = permission;
             <tr>
-                <td>@current</td>
+                <td>@PermissionAuditService.PermLabel(Lang, current)</td>
                 <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Neutral)" @onchange="() => SetState(current, PermissionState.Neutral)" /></td>
                 <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Allow)" @onchange="() => SetState(current, PermissionState.Allow)" /></td>
                 <td class="text-center"><input type="radio" name="@RadioGroupName(current)" checked="@(GetState(current) == PermissionState.Deny)" @onchange="() => SetState(current, PermissionState.Deny)" /></td>
@@ -80,10 +80,10 @@
     </tbody>
 </table>
 
-<button class="btn btn-primary" @onclick="SaveExpectationAsync">@(editingId is null ? "Add" : "Save")</button>
+<button class="btn btn-primary" @onclick="SaveExpectationAsync">@(editingId is null ? Msg.WebCommon.Add(Lang) : Msg.WebCommon.Save(Lang))</button>
 @if (editingId is not null)
 {
-    <button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    <button class="btn btn-secondary" @onclick="CancelEdit">@Msg.WebCommon.Cancel(Lang)</button>
 }
 
 @code {

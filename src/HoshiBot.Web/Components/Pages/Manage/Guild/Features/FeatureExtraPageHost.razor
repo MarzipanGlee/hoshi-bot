@@ -3,12 +3,14 @@
 @page "/manage/guild/{GuildId}/alliance/{GuildAllianceIdRaw:int}/features/{FeatureSlug}/{ExtraSlug}"
 @inherits GuildAdminPageBase
 
-<PageTitle>@(extra is not null && module is not null ? extra.Title(Lang, module.Feature) : "Not Found")</PageTitle>
+<PageTitle>@(extra is not null && module is not null ? extra.Title(Lang, module.Feature) : Msg.WebCommon.NotFoundTitle(Lang))</PageTitle>
 
+@* Dead-ish branch in practice: Nav.NotFound() below makes the Router render its own NotFound
+   content instead of this page, but keep this localized too as a harmless defensive fallback. *@
 <AuthorizedGuildView Authorized="Authorized">
     @if (extra is null)
     {
-        <p>Unknown page.</p>
+        <p>@Msg.WebCommon.NotFoundMessage(Lang)</p>
     }
     else
     {

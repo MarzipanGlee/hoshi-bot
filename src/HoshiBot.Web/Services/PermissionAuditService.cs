@@ -64,7 +64,7 @@ public sealed class PermissionAuditService(
 
     // Display label per permission — catalog-backed for the handful the audits require;
     // any other flag falls back to its enum name (Msg.WebAudit.Perm's own fallback).
-    private static string PermLabel(Language lang, Permissions permission) =>
+    public static string PermLabel(Language lang, Permissions permission) =>
         Msg.WebAudit.Perm(lang, permission.ToString());
 
     // Each individual required permission with its granted state, e.g. "✅ View Channel · ❌ Send Messages".
@@ -73,8 +73,8 @@ public sealed class PermissionAuditService(
             .Where(p => p != default && required.HasFlag(p))
             .Select(p => $"{Mark(effective.HasFlag(p))} {PermLabel(lang, p)}"));
 
-    public static string PermissionListLabel(Permissions permissions) =>
-        permissions == 0 ? "—" : string.Join(", ", AllPermissions.Where(p => permissions.HasFlag(p)));
+    public static string PermissionListLabel(Language lang, Permissions permissions) =>
+        permissions == 0 ? "—" : string.Join(", ", AllPermissions.Where(p => permissions.HasFlag(p)).Select(p => PermLabel(lang, p)));
 
     // Loads the live Discord snapshot both audits run against: the guild's channels/roles plus
     // the bot's own permission/hierarchy standing (via DiscordGuildDataService, so the Overview's

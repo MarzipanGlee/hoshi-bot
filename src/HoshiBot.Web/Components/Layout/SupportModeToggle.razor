@@ -9,14 +9,16 @@
 @if (isGlobalAdmin)
 {
     <div class="form-switch mb-0 d-flex align-items-center gap-2 text-nowrap flex-shrink-0"
-         title="Support-Modus: alle Server sichtbar und aufrufbar">
+         title="@Msg.WebNav.SupportModeTooltip(Lang)">
         <input class="form-check-input mt-0" type="checkbox" role="switch" id="support-mode-switch"
                checked="@SupportMode.IsActive" @onchange="OnToggleAsync" />
-        <label class="mb-0" for="support-mode-switch">Support</label>
+        <label class="mb-0" for="support-mode-switch">@Msg.WebNav.SupportModeLabel(Lang)</label>
     </div>
 }
 
 @code {
+    [CascadingParameter] public Language Lang { get; set; }
+
     private bool isGlobalAdmin;
     private ulong userId;
 

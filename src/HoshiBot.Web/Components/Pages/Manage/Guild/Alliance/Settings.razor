@@ -52,9 +52,9 @@
                 </p>
                 <Select TValue="string" ShowSearch="true" @bind-Value="timeZoneIdInput" @bind-Value:after="SaveTimeZoneAsync" Items="TimeZoneItems" />
             </SettingsCard>
-            <LanguagePicker CardTitle="Language"
-                            Usage="The bot's language for public posts scoped to this alliance (digests, reminders, announcements)."
-                            InheritedLabel="@inheritedLanguageLabel"
+            <LanguagePicker CardTitle="@Msg.WebGuild.LanguageTitle(Lang)"
+                            Usage="@Msg.WebAlliance.AllianceLanguageUsage(Lang)"
+                            InheritedLabel="@InheritedLanguageLabel"
                             @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
         </div>
     }
@@ -89,7 +89,14 @@
     private string? boardingRoleIdInput;
     private string? timeZoneIdInput;
     private string? languageInput;
-    private string inheritedLanguageLabel = "guild language";
+    private string? guildLanguageName;
+
+    // What an empty language selection resolves to — mirrors AudienceSettings' own
+    // InheritedLanguageLabel: the resolved guild language once loaded, the bare "guild
+    // language" wording during the transient pre-load render.
+    private string InheritedLanguageLabel => guildLanguageName is null
+        ? Msg.WebGuild.GuildLanguage(Lang)
+        : Msg.WebGuild.GuildLanguageInherited(Lang, guildLanguageName);
 
     // IANA ids (on Linux TimeZoneInfo.Id is the IANA id); searchable so the admin can type e.g. "Zurich".
     private static readonly List<SelectedItem> TimeZoneItems =
@@ -130,7 +137,7 @@
         boardingRoleIdInput = alliance.BoardingRoleId?.ToString();
         timeZoneIdInput = alliance.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
         languageInput = alliance.Language;
-        inheritedLanguageLabel = $"guild language: {Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId))}";
+        guildLanguageName = Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId));
     }
 
     private Task SaveTimeZoneAsync() =>

@@ -6,20 +6,19 @@
 <section class="hero">
     <div class="hero-inner">
         <div class="hero-text">
-            <h1>Command Your STFC Community With Hoshi Bot.</h1>
+            <h1>@Msg.WebLanding.HeroTitle(Lang)</h1>
             <p class="hero-subtitle">
-                Raid and shield alerts, absences, Territory Capture reminders, RoE reports, and more —
-                one bot for your STFC alliance, server, veil group, or community.
+                @Msg.WebLanding.HeroSubtitle(Lang)
             </p>
             <div class="hero-actions">
-                <a class="btn btn-light btn-lg" href="invite">Add to Discord</a>
+                <a class="btn btn-light btn-lg" href="invite">@Msg.WebLanding.AddToDiscord(Lang)</a>
                 <AuthorizeView>
                     <Authorized>
-                        <a class="btn btn-outline-light btn-lg" href="manage">Manage</a>
-                        <a class="btn btn-outline-light btn-lg" href="me">My Area</a>
+                        <a class="btn btn-outline-light btn-lg" href="manage">@Msg.WebNav.Manage(Lang)</a>
+                        <a class="btn btn-outline-light btn-lg" href="me">@Msg.WebNav.MyArea(Lang)</a>
                     </Authorized>
                     <NotAuthorized>
-                        <a class="btn btn-outline-light btn-lg" href="login">Log in with Discord</a>
+                        <a class="btn btn-outline-light btn-lg" href="login">@Msg.WebLanding.LogInWithDiscord(Lang)</a>
                     </NotAuthorized>
                 </AuthorizeView>
             </div>
@@ -29,8 +28,8 @@
 </section>
 
 <section class="features">
-    <h2>Built for Every Kind of STFC Discord</h2>
-    <p class="features-intro">Jump to what matters for your Discord.</p>
+    <h2>@Msg.WebLanding.FeaturesTitle(Lang)</h2>
+    <p class="features-intro">@Msg.WebLanding.FeaturesIntro(Lang)</p>
     <div class="row g-4">
         @foreach (var audience in AudienceSections)
         {
@@ -39,7 +38,7 @@
                     <div class="card-body">
                         <div class="feature-icon mx-auto"><span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span></div>
                         <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.35rem;">@AudienceDisplay.Labels(Lang, audience).First()</h3>
-                        <p class="mb-0" style="color:#5a5a63;font-size:0.9rem;">@Tagline(audience)</p>
+                        <p class="mb-0" style="color:#5a5a63;font-size:0.9rem;">@Msg.WebLanding.AudienceTagline(Lang, audience)</p>
                     </div>
                 </a>
             </div>
@@ -52,13 +51,13 @@
     var cards = FeatureCatalog.All
         .Where(f => f.RelevantAudiences().HasFlag(audience))
         .Select(f => (f.Icon, Title: f.Title(Lang), Description: f.Description(Lang)))
-        .Concat(ExtraCards.GetValueOrDefault(audience, []))
+        .Concat(ExtraCards(audience))
         .OrderBy(c => c.Title, StringComparer.OrdinalIgnoreCase)
         .ToList();
 
     <section id="audience-@audience" class="features">
-        <h2>For @(AudienceDisplay.Labels(Lang, audience).First()) Discords</h2>
-        <p class="features-intro">@Intro(audience)</p>
+        <h2>@Msg.WebLanding.AudienceSectionHeading(Lang, AudienceDisplay.Labels(Lang, audience).First())</h2>
+        <p class="features-intro">@Msg.WebLanding.AudienceIntro(Lang, audience)</p>
         @if (cards.Count > 0)
         {
             <div class="row g-4">
@@ -80,10 +79,9 @@
 }
 
 <section class="features">
-    <h2>For Members, Too</h2>
+    <h2>@Msg.WebLanding.MembersTitle(Lang)</h2>
     <p class="features-intro">
-        Hoshi isn't only for the people running the server — every member gets their own corner of the
-        site to control what Hoshi knows about them.
+        @Msg.WebLanding.MembersIntro(Lang)
     </p>
     <div class="row g-4">
         @foreach (var p in MePages.All)
@@ -102,13 +100,13 @@
     <div class="mt-4">
         <AuthorizeView>
             <Authorized>
-                <a class="btn btn-primary btn-lg" href="me">Open my area</a>
+                <a class="btn btn-primary btn-lg" href="me">@Msg.WebLanding.OpenMyArea(Lang)</a>
             </Authorized>
             <NotAuthorized>
                 @* returnUrl so the login round-trip lands on /me instead of /manage — without it
                    an anonymous click straight through to /me is bounced to "/" by Routes.razor's
                    RedirectToHome. *@
-                <a class="btn btn-primary btn-lg" href="login?returnUrl=/me">Log in with Discord</a>
+                <a class="btn btn-primary btn-lg" href="login?returnUrl=/me">@Msg.WebLanding.LogInWithDiscord(Lang)</a>
             </NotAuthorized>
         </AuthorizeView>
     </div>
@@ -116,9 +114,9 @@
 
 <section class="cta">
     <div class="cta-inner">
-        <h2>Ready to upgrade your Discord?</h2>
-        <p>Add Hoshi Bot to your server and get set up in minutes.</p>
-        <a class="btn btn-light btn-lg" href="invite">Add to Discord</a>
+        <h2>@Msg.WebLanding.CtaTitle(Lang)</h2>
+        <p>@Msg.WebLanding.CtaSubtitle(Lang)</p>
+        <a class="btn btn-light btn-lg" href="invite">@Msg.WebLanding.AddToDiscord(Lang)</a>
     </div>
 </section>
 
@@ -132,53 +130,32 @@
     // guided flow, not a toggleable feature; nickname/role sync and onboarding are
     // guild-level settings, not their own admin page. Kept here so the page can still
     // advertise them without pretending they're feature modules.
-    // Announcement Forwarder is a Guild-audience feature (one destination for the whole Discord, not
-    // per-alliance/server/veil-group/community), so it never matches the per-audience FeatureCatalog
-    // filter above — listed here, duplicated across every section like Member Name & Role Sync below,
+    // Announcement Forwarder IS a real feature (GuildFeature.AnnouncementForwarder), but a
+    // Guild-audience one (one destination for the whole Discord, not per-alliance/server/veil-
+    // group/community), so it never matches the per-audience FeatureCatalog filter above —
+    // listed here instead, duplicated across every section like Member Name & Role Sync below,
     // since translating official game announcements is equally useful for any kind of Discord.
-    private const string AnnouncementForwarderTitle = "Announcement Forwarder";
-    private const string AnnouncementForwarderDescription =
-        "Auto-translates official game announcements into your community's language and reposts them " +
-        "where members actually read — so no one misses a maintenance window or update because it only " +
-        "went out in English.";
-
-    private static readonly Dictionary<GuildAudience, (string Icon, string Title, string Description)[]> ExtraCards = new()
+    // Its title reuses Msg.WebFeature.Title (identical wording to the admin catalog); its
+    // description is landing-specific pitch copy, kept separate from the admin description.
+    private (string Icon, string Title, string Description)[] ExtraCards(GuildAudience audience)
     {
-        [GuildAudience.Alliance] =
-        [
-            ("oi-wrench", "Setup Wizard", "Get a new server configured in minutes with a guided, step-by-step setup flow."),
-            ("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription),
-        ],
-        [GuildAudience.Server] =
-        [
-            ("oi-loop-circular", "Member Name & Role Sync", "Keep Discord nicknames and roles in sync with in-game commander names, automatically."),
-            ("oi-account-login", "Member Onboarding", "A guided welcome flow gets new members oriented before they touch the rest of the server."),
-            ("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription),
-        ],
-        [GuildAudience.VeilGroup] =
-        [
-            ("oi-loop-circular", "Member Name & Role Sync", "Keep Discord nicknames and roles in sync with in-game commander names, automatically."),
-            ("oi-account-login", "Member Onboarding", "A guided welcome flow gets new members oriented before they touch the rest of the server."),
-            ("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription),
-        ],
-        [GuildAudience.Community] = [("oi-globe", AnnouncementForwarderTitle, AnnouncementForwarderDescription)],
-    };
+        var announcementForwarder = ("oi-globe", Msg.WebFeature.Title(Lang, GuildFeature.AnnouncementForwarder), Msg.WebLanding.AnnouncementForwarderPitch(Lang));
 
-    private static string Tagline(GuildAudience audience) => audience switch
-    {
-        GuildAudience.Alliance => "Run day-to-day alliance operations.",
-        GuildAudience.Server => "Organize a whole STFC server.",
-        GuildAudience.VeilGroup => "Coordinate across a veil group.",
-        GuildAudience.Community => "Support a general STFC community.",
-        _ => "",
-    };
-
-    private static string Intro(GuildAudience audience) => audience switch
-    {
-        GuildAudience.Alliance => "Everything your alliance leadership needs to run day-to-day operations.",
-        GuildAudience.Server => "Running a Discord for a whole STFC server? Hoshi Bot keeps membership organized across everyone in it.",
-        GuildAudience.VeilGroup => "Running a Discord for a veil group spanning multiple servers? Hoshi Bot keeps membership organized across everyone in it.",
-        GuildAudience.Community => "Not tied to one alliance, server, or veil group? Hoshi Bot's announcements, tickets, and anonymous messages work just as well for general STFC community and fan Discords.",
-        _ => "",
-    };
+        return audience switch
+        {
+            GuildAudience.Alliance =>
+            [
+                ("oi-wrench", Msg.WebNav.SetupWizard(Lang), Msg.WebLanding.SetupWizardDescription(Lang)),
+                announcementForwarder,
+            ],
+            GuildAudience.Server or GuildAudience.VeilGroup =>
+            [
+                ("oi-loop-circular", Msg.WebLanding.MemberSyncTitle(Lang), Msg.WebLanding.MemberSyncDescription(Lang)),
+                ("oi-account-login", Msg.WebFeature.Title(Lang, GuildFeature.MemberOnboarding), Msg.WebLanding.MemberOnboardingPitch(Lang)),
+                announcementForwarder,
+            ],
+            GuildAudience.Community => [announcementForwarder],
+            _ => [],
+        };
+    }
 }

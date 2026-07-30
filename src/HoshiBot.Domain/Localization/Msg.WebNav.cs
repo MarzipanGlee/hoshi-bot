@@ -70,5 +70,12 @@ public static partial class Msg
 
         public static string Version(Language lang, string version) =>
             MessageCatalog.Format(lang, "Web.Nav.Version", ("version", version));
+
+        // SupportModeToggle.razor — global-admin-only chrome.
+        public static string SupportModeLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Nav.SupportModeLabel");
+
+        public static string SupportModeTooltip(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Nav.SupportModeTooltip");
     }
 }

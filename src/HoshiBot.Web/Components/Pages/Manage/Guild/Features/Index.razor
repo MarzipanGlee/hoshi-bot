@@ -14,7 +14,7 @@
 <AuthorizedGuildView Authorized="Authorized">
     @if (audience == GuildAudience.Alliance && scopeAllianceId is null)
     {
-        <h1>Alliance Features</h1>
+        <h1>@Heading()</h1>
         <AllianceLinkRequiredHint GuildId="@GuildId" />
     }
     else
@@ -24,13 +24,13 @@
             <div class="form-switch">
                 <input class="form-check-input" type="checkbox" id="hideInactive" role="switch"
                        checked="@hideInactive" @onchange="ToggleHideInactiveAsync" />
-                <label class="form-check-label" for="hideInactive">Hide inactive features</label>
+                <label class="form-check-label" for="hideInactive">@Msg.WebGuild.HideInactiveFeatures(Lang)</label>
             </div>
         </div>
 
         @if (visibleFeatures.Count == 0)
         {
-            <p class="text-muted mt-4">No features are available for this audience.</p>
+            <p class="text-muted mt-4">@Msg.WebGuild.NoFeaturesAvailable(Lang)</p>
         }
         else
         {
@@ -57,7 +57,7 @@
                                 <div class="mb-2" style="font-size:0.8rem;">
                                     <span class="@(unmet.Count == 0 ? "text-muted" : "text-warning")">
                                         <span class="oi oi-link-intact" aria-hidden="true"></span>
-                                        Requires:
+                                        @Msg.WebGuild.Requires(Lang)
                                     </span>
                                     @for (var i = 0; i < deps.Count; i++)
                                     {
@@ -66,13 +66,13 @@
                                     }
                                     @if (unmet.Count > 0)
                                     {
-                                        <span class="badge bg-warning text-dark ms-1">not enabled</span>
+                                        <span class="badge bg-warning text-dark ms-1">@Msg.WebGuild.DependencyNotEnabled(Lang)</span>
                                     }
                                 </div>
                             }
                         </Requirements>
                         <FooterEnd>
-                            <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(feature)">Configure</a>
+                            <a class="btn btn-sm btn-outline-secondary" href="@FeatureHref(feature)">@Msg.WebGuild.Configure(Lang)</a>
                         </FooterEnd>
                     </ToggleCard>
                 }
@@ -112,8 +112,8 @@
     // Features" for every other audience.
     private string Heading() =>
         audience == GuildAudience.Alliance && AllianceLink is { } link
-            ? $"Alliance — [{link.StfcAlliance.Tag}]"
-            : $"{AudienceDisplay.Labels(Lang, audience).FirstOrDefault() ?? "Guild"} Features";
+            ? Msg.WebNav.AllianceGroup(Lang, link.StfcAlliance.Tag)
+            : Msg.WebGuild.AudienceFeaturesHeading(Lang, AudienceDisplay.Labels(Lang, audience).FirstOrDefault() ?? Msg.WebAudience.Label(Lang, GuildAudience.Guild));
 
     private GuildAlliance? AllianceLink =>
         scopeAllianceId is { } id ? AllianceContext.Alliances.FirstOrDefault(a => a.Id == id) : null;

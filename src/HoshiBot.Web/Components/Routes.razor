@@ -8,7 +8,9 @@
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
     <NotFound>
-        <PageTitle>Not found</PageTitle>
+        @* The title itself moves inside NotFoundContent, which is nested under LandingLayout
+           and can consume its cascaded Language — this NotFound branch has no resolved
+           language of its own yet. *@
         <LayoutView Layout="@typeof(Layout.LandingLayout)">
             <NotFoundContent />
         </LayoutView>
