@@ -63,6 +63,20 @@
     margin: 0 auto 2.5rem;
 }
 
+/* Card headings, one rule for every grid on the page (server types, members, per-audience
+   features) — these were three near-identical inline style attributes before. */
+.features h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* The server-type cards' one-liner: smaller than the feature cards' descriptions, which use the
+   shared .card-subtext for colour only. */
+.audience-tagline {
+    font-size: 0.9rem;
+}
+
 .feature-icon {
     width: 2.75rem;
     height: 2.75rem;

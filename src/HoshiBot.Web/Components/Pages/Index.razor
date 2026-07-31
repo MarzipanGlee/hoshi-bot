@@ -37,8 +37,8 @@
                 <a class="card h-100 text-decoration-none text-body text-center" href="#audience-@audience">
                     <div class="card-body">
                         <div class="feature-icon mx-auto"><span class="oi @AudienceDisplay.Icon(audience)" aria-hidden="true"></span></div>
-                        <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:0.35rem;">@AudienceDisplay.Labels(Lang, audience).First()</h3>
-                        <p class="mb-0" style="color:#5a5a63;font-size:0.9rem;">@Msg.WebLanding.AudienceTagline(Lang, audience)</p>
+                        <h3>@AudienceDisplay.Labels(Lang, audience).First()</h3>
+                        <p class="mb-0 card-subtext audience-tagline">@Msg.WebLanding.AudienceTagline(Lang, audience)</p>
                     </div>
                 </a>
             </div>
@@ -60,10 +60,12 @@
         @foreach (var p in MePages.All)
         {
             <div class="col-12 col-md-6 col-lg-4">
+                @* Centred content, matching the server-type cards directly above — the
+                   per-audience feature cards below stay left-aligned. *@
                 <div class="card h-100">
-                    <div class="card-body">
-                        <div class="feature-icon"><span class="oi @p.Icon" aria-hidden="true"></span></div>
-                        <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@p.Label(Lang)</h3>
+                    <div class="card-body text-center">
+                        <div class="feature-icon mx-auto"><span class="oi @p.Icon" aria-hidden="true"></span></div>
+                        <h3>@p.Label(Lang)</h3>
                         <p class="mb-0 card-subtext">@p.Description(Lang)</p>
                     </div>
                 </div>
@@ -106,7 +108,7 @@
                         <div class="card h-100">
                             <div class="card-body">
                                 <div class="feature-icon"><span class="oi @card.Icon" aria-hidden="true"></span></div>
-                                <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@card.Title</h3>
+                                <h3>@card.Title</h3>
                                 <p class="mb-0 card-subtext">@card.Description</p>
                             </div>
                         </div>
