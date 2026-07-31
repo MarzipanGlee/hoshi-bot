@@ -29,8 +29,10 @@ else
     // with its own icon, right next to the title it belongs to (not floating separately).
     [Parameter] public string? IconSrc { get; set; }
 
-    // Rendered as a small explanatory line under the picker — this is where "good
-    // description per setting, usage must be explained" actually lands.
+    // Rendered as a small explanatory line above the picker — this is where "good
+    // description per setting, usage must be explained" actually lands. Above, not below, so it
+    // reads before the control it explains (matching ChannelPicker/MultiChannelPicker and the
+    // hand-rolled SettingsCard + <p class="form-text"> + picker pattern several editors use).
     [Parameter] public string? Usage { get; set; }
 
     // Null = the catalog's localized "— none —" — callers only pass this for a bespoke wording.
@@ -75,6 +77,10 @@ else
                 }
             </label>
         }
+        @if (!string.IsNullOrWhiteSpace(Usage))
+        {
+            <div class="form-text mb-1">@Usage</div>
+        }
         <select class="form-select" value="@Value" @onchange="OnChangeAsync">
             @if (CreateRoleName is not null)
             {
@@ -97,9 +103,5 @@ else
                 <option value="@role.Id">@role.Name</option>
             }
         </select>
-        @if (!string.IsNullOrWhiteSpace(Usage))
-        {
-            <div class="form-text">@Usage</div>
-        }
     </div>;
 }

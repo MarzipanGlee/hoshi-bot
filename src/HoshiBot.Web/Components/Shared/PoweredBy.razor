@@ -7,7 +7,10 @@
 {
     <div class="alert alert-info powered-by" role="alert">
         <span class="oi oi-external-link me-1" aria-hidden="true"></span>
-        @Msg.WebCommon.PoweredBy(Lang)
+        @* The span is what keeps the space before the first source: Razor drops the whitespace
+           between an expression and the code block that follows, so "Powered by" ran straight
+           into "territory.lol". Trailing space in the catalog string would be too easy to lose. *@
+        <span class="me-1">@Msg.WebCommon.PoweredBy(Lang)</span>
         @for (var i = 0; i < sources.Count; i++)
         {
             <a class="alert-link" href="@sources[i].Url" target="_blank" rel="noopener">@sources[i].Name</a>@((MarkupString)Separator(i))

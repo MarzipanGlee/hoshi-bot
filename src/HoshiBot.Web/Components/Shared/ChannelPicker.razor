@@ -27,8 +27,10 @@ else
     // Off when a caller renders its own header for Label instead (e.g. a card header).
     [Parameter] public bool ShowLabel { get; set; } = true;
 
-    // Rendered as a small explanatory line under the picker — this is where "good
-    // description per setting, usage must be explained" actually lands.
+    // Rendered as a small explanatory line above the picker — this is where "good
+    // description per setting, usage must be explained" actually lands. Above, not below, so it
+    // reads before the control it explains (matching MultiChannelPicker/LanguagePicker and the
+    // hand-rolled SettingsCard + <p class="form-text"> + picker pattern several editors use).
     [Parameter] public string? Usage { get; set; }
 
     // Null = the catalog's localized "— none —" — callers only pass this for a bespoke wording.
@@ -88,6 +90,10 @@ else
         {
             <label>@Label</label>
         }
+        @if (!string.IsNullOrWhiteSpace(Usage))
+        {
+            <div class="form-text mb-1">@Usage</div>
+        }
         <select class="form-select" value="@Value" @onchange="OnChangeAsync">
             <option value="">@(PlaceholderText ?? Msg.WebCommon.NoneOption(Lang))</option>
             @* Create action — a distinct sentinel value (not the blank option, which stays a valid
@@ -131,9 +137,5 @@ else
                 }
             }
         </select>
-        @if (!string.IsNullOrWhiteSpace(Usage))
-        {
-            <div class="form-text">@Usage</div>
-        }
     </div>;
 }
