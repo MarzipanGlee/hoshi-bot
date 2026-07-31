@@ -44,7 +44,7 @@ public partial class TerritoryCaptureDigestService(
     // now but kept as the test/replay entry.
     public async Task SendWeeklyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId, int? onlyGuildAllianceId = null)
     {
-        // The weekly digest fires the day before the week begins (Monday, for a Tuesday anchor) and
+        // The weekly digest fires the day before the week begins (Thursday, for a Friday anchor) and
         // previews the *upcoming* week — GetUpcomingWeekStart, not GetWeekStart (which would snap back
         // to the current, mostly-elapsed week).
         var weekStart = TerritoryCaptureScheduler.GetUpcomingWeekStart(now);
@@ -79,7 +79,7 @@ public partial class TerritoryCaptureDigestService(
                     continue;
 
                 // One weekly digest per alliance per week — skip if we already posted this week's
-                // (idempotent against a Quartz misfire-replay firing the Monday cron twice).
+                // (idempotent against a Quartz misfire-replay firing the digest sweep twice).
                 var dedupKey = $"weekly-{link.Id}-{weekStart:yyyyMMdd}";
                 if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
                     continue;
@@ -107,7 +107,7 @@ public partial class TerritoryCaptureDigestService(
                 var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true, lang);
 
                 // Retention +7 days: no capture-free day anymore, so the pinned digest must live the
-                // whole week until the next Monday's digest replaces it. The sweep's delete also drops
+                // whole week until the next weekly digest replaces it. The sweep's delete also drops
                 // the stale pin.
                 if (messageId is { } weeklyMessageId)
                     await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Weekly, dedupKey, channelIdValue, weeklyMessageId, now, now.AddDays(7));
@@ -123,8 +123,8 @@ public partial class TerritoryCaptureDigestService(
     public async Task SendDailyDigestsAsync(DateTimeOffset now, ulong? onlyGuildId, int? onlyGuildAllianceId = null)
     {
         var tomorrow = DateOnly.FromDateTime(now.UtcDateTime).AddDays(1);
-        // Base the week on tomorrow, not now: the Monday-night daily is about the new week's first
-        // day (Tuesday), which belongs to next week — GetWeekStart(now) would compute the ending
+        // Base the week on tomorrow, not now: the Thursday-night daily is about the new week's first
+        // day (Friday), which belongs to next week — GetWeekStart(now) would compute the ending
         // week's slots and find nothing for tomorrow, silently skipping the new week's opening day.
         var weekStart = TerritoryCaptureScheduler.GetWeekStart(now.AddDays(1));
 

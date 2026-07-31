@@ -7,12 +7,12 @@ namespace HoshiBot.Domain;
 // Weekday/CaptureTimeUtc are per-zone and nullable (unknown until observed/entered).
 public static class TerritoryCaptureScheduler
 {
-    // The TC week starts Tuesday (Scopely's current cadence — there is no longer a capture-free
+    // The TC week starts Friday (Scopely's current cadence — there is no longer a capture-free
     // day). Every consumer derives its week boundary from this one constant, so the weekly digest,
     // daily digest, role-sync and capture reminders all agree on which week a zone falls in.
-    public const DayOfWeek TcWeekStartWeekday = DayOfWeek.Tuesday;
+    public const DayOfWeek TcWeekStartWeekday = DayOfWeek.Friday;
 
-    // The weekly digest posts the day before the week begins (Monday, for a Tuesday anchor).
+    // The weekly digest posts the day before the week begins (Thursday, for a Friday anchor).
     public static readonly DayOfWeek WeeklyDigestWeekday = (DayOfWeek)(((int)TcWeekStartWeekday + 6) % 7);
 
     // Digest-due predicates for the half-hourly sweep. They take the alliance-local instant (the caller
@@ -36,8 +36,8 @@ public static class TerritoryCaptureScheduler
         [4] = 90,
     };
 
-    // The Wednesday that starts the TC week containing the given instant (UTC calendar
-    // days — Zurich-local precision is explicitly out of scope).
+    // The anchor weekday (see TcWeekStartWeekday) that starts the TC week containing the given
+    // instant (UTC calendar days — Zurich-local precision is explicitly out of scope).
     public static DateOnly GetWeekStart(DateTimeOffset now)
     {
         var today = DateOnly.FromDateTime(now.UtcDateTime);
@@ -46,9 +46,9 @@ public static class TerritoryCaptureScheduler
     }
 
     // The start of the *upcoming* TC week: the anchor weekday on or after today. The weekly digest
-    // posts the day before the week begins (Monday, for a Tuesday anchor) and previews the week that
-    // is about to start — so on a Monday this returns tomorrow (Tue), and a same-day Tuesday
-    // misfire-replay returns today (Tue), never skipping or repeating a week. Contrast GetWeekStart,
+    // posts the day before the week begins (Thursday, for a Friday anchor) and previews the week that
+    // is about to start — so on a Thursday this returns tomorrow (Fri), and a same-day Friday
+    // misfire-replay returns today (Fri), never skipping or repeating a week. Contrast GetWeekStart,
     // which snaps *back* to the current week's anchor.
     public static DateOnly GetUpcomingWeekStart(DateTimeOffset now)
     {

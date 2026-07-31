@@ -156,7 +156,7 @@ builder.Services.AddQuartz(quartz =>
 {
     // Persist jobs/triggers in Postgres so a fire missed while the host is down (deploys, crashes)
     // is replayed once on the next startup instead of lost. This matters most for the low-frequency
-    // Territory Capture digests (daily 19:00, Monday 09:00): with the default in-memory RAMJobStore
+    // Territory Capture digests (daily 19:00, weekly 09:00): with the default in-memory RAMJobStore
     // they only ever fired if the process happened to be alive at that exact second, so frequent
     // redeploys could skip them for days. IgnoreDuplicates (set on QuartzOptions below) is what makes
     // the replay actually work — without it, startup reschedules every trigger and resets its state.

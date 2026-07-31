@@ -359,8 +359,8 @@ and giving automatic catch-up). Split of storage:
 The two old `TerritoryCaptureWeeklyDigestJob`/`DailyDigestJob` classes are kept (marked
 `[Obsolete]`) only so a startup `scheduler.DeleteJob` can remove their persisted triggers without
 a missing-JobClass error; delete them once every environment's Quartz store is confirmed clean.
-The digest weekday stays fixed (weekly Monday, daily every day) — only the time-of-day + timezone
-are configurable.
+The digest weekday stays fixed (weekly = `TerritoryCaptureScheduler.WeeklyDigestWeekday`, i.e. the
+day before the week anchor; daily every day) — only the time-of-day + timezone are configurable.
 
 ## Bug: `Absence.CreatedAt` never set (shows `0001-01-01`) — ✅ fixed (2026-07-25)
 
@@ -439,7 +439,9 @@ removed. Ported/fixed the whole lifecycle:
 - **Week window**: TC week anchor changed **Wednesday → Tuesday** (Scopely's current cadence, no
   capture-free day anymore); the weekly digest now posts **Monday** previewing the **upcoming**
   Tue→Mon week (`GetUpcomingWeekStart`), and the daily digest bases its "tomorrow" on next week so
-  the new week's opening day isn't skipped.
+  the new week's opening day isn't skipped. *(Superseded 2026-07-31: the anchor is now **Friday**,
+  so the weekly digest posts **Thursday** previewing Fri→Thu. Only the constant changed —
+  everything else still derives from it.)*
 
 ## Territory Capture "Services" (Dienste) reminder for officers — ✅ infra done (2026-07-25)
 

@@ -7,15 +7,15 @@ namespace HoshiBot.Domain.Tests;
 public class TerritoryCaptureSchedulerTests
 {
     [Fact]
-    public void GetWeekStart_ReturnsPrecedingTuesday()
+    public void GetWeekStart_ReturnsPrecedingFriday()
     {
         // 2026-07-06 is a Monday.
         var now = new DateTimeOffset(2026, 7, 6, 12, 0, 0, TimeSpan.Zero);
 
         var weekStart = TerritoryCaptureScheduler.GetWeekStart(now);
 
-        Assert.Equal(new DateOnly(2026, 6, 30), weekStart);
-        Assert.Equal(DayOfWeek.Tuesday, weekStart.DayOfWeek);
+        Assert.Equal(new DateOnly(2026, 7, 3), weekStart);
+        Assert.Equal(DayOfWeek.Friday, weekStart.DayOfWeek);
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public class TerritoryCaptureSchedulerTests
     {
         // Qoda: Tier 4, Monday 19:00 UTC.
         var qoda = new StfcTerritory { Name = "Qoda", Tier = 4, Weekday = DayOfWeek.Monday, CaptureTimeUtc = new TimeOnly(19, 0) };
-        var weekStart = new DateOnly(2026, 6, 30); // Tuesday.
+        var weekStart = new DateOnly(2026, 7, 3); // Friday.
 
         var window = TerritoryCaptureScheduler.GetCaptureWindow(qoda, weekStart);
 
@@ -43,22 +43,22 @@ public class TerritoryCaptureSchedulerTests
     }
 
     [Fact]
-    public void WeeklyDigestWeekday_IsMondayForTuesdayAnchor()
+    public void WeeklyDigestWeekday_IsThursdayForFridayAnchor()
     {
-        Assert.Equal(DayOfWeek.Monday, TerritoryCaptureScheduler.WeeklyDigestWeekday);
+        Assert.Equal(DayOfWeek.Thursday, TerritoryCaptureScheduler.WeeklyDigestWeekday);
     }
 
     [Fact]
     public void IsWeeklyDigestDue_OnlyOnWeekdayAtOrAfterTime()
     {
         var time = new TimeOnly(9, 0);
-        var monday = new DateOnly(2026, 7, 6);   // Monday
-        var tuesday = new DateOnly(2026, 7, 7);
+        var thursday = new DateOnly(2026, 7, 2); // Thursday
+        var friday = new DateOnly(2026, 7, 3);
 
-        Assert.False(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(monday, 8, 30), time)); // before time
-        Assert.True(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(monday, 9, 0), time));   // exactly at time
-        Assert.True(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(monday, 12, 0), time));  // after time
-        Assert.False(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(tuesday, 9, 0), time)); // wrong day
+        Assert.False(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(thursday, 8, 30), time)); // before time
+        Assert.True(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(thursday, 9, 0), time));   // exactly at time
+        Assert.True(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(thursday, 12, 0), time));  // after time
+        Assert.False(TerritoryCaptureScheduler.IsWeeklyDigestDue(AtLocal(friday, 9, 0), time));    // wrong day
     }
 
     [Fact]
@@ -73,8 +73,8 @@ public class TerritoryCaptureSchedulerTests
     }
 
     [Theory]
-    [InlineData(2026, 7, 6, 7)]  // CEST (+2): 09:00 Europe/Zurich == 07:00 UTC (Monday)
-    [InlineData(2027, 1, 4, 8)]  // CET  (+1): 09:00 Europe/Zurich == 08:00 UTC (Monday)
+    [InlineData(2026, 7, 2, 7)]  // CEST (+2): 09:00 Europe/Zurich == 07:00 UTC (Thursday)
+    [InlineData(2027, 1, 7, 8)]  // CET  (+1): 09:00 Europe/Zurich == 08:00 UTC (Thursday)
     public void IsWeeklyDigestDue_ResolvesLocalTimeAcrossDst(int year, int month, int day, int expectedUtcHour)
     {
         var zurich = TimeZoneInfo.FindSystemTimeZoneById("Europe/Zurich");
