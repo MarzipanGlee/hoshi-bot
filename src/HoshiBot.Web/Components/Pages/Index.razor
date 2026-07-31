@@ -54,7 +54,9 @@
     <p class="features-intro">
         @Msg.WebLanding.MembersIntro(Lang)
     </p>
-    <div class="row g-4">
+    @* Centered, unlike the per-audience grids below: those fill their rows, while MePages is a
+       short list (one entry today) that would otherwise sit hard left under a centered heading. *@
+    <div class="row g-4 justify-content-center">
         @foreach (var p in MePages.All)
         {
             <div class="col-12 col-md-6 col-lg-4">
@@ -68,7 +70,7 @@
             </div>
         }
     </div>
-    <div class="mt-4">
+    <div class="mt-4 text-center">
         <AuthorizeView>
             <Authorized>
                 <a class="btn btn-primary btn-lg" href="me">@Msg.WebLanding.OpenMyArea(Lang)</a>
