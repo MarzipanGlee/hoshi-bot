@@ -573,3 +573,21 @@ see the note in `PlayerModule`). Go through the modules in `HoshiBot.Discord`, d
 whether it's still the best surface for that action, and delete the ones that aren't; every command
 kept costs Discord command-registration slots and a piece of UI to keep correct. Note deletions need a
 command re-registration to actually disappear from Discord.
+
+## Localization: nothing verifies dynamic `Msg.WebEditor.*` keys against the catalog
+
+`Msg.WebEditor.CardTitle/Label/Usage(lang, feature, settingKey)` builds
+`Web.Editor.{feature}.{settingKey}.{kind}` at runtime, so a key the razor requests but the catalog
+doesn't have compiles, tests green, and only shows up as a raw key on screen. That bit twice, both
+from the same cause — the JSON was authored under a card's *display* name while the razor passes the
+*storage* key: `TerritoryCapture.DigestInstructions` vs. `.Instructions`, and
+`NicknameSync.AllianceTag`/`.ServerTag` vs. `.AllianceTagMode`/`.ServerTagMode` (both fixed
+2026-07-31; the NicknameSync pair was found by sweeping for the rest of the class, not by anyone
+seeing it).
+
+A test would need to read `src/HoshiBot.Web/**/*.razor` and resolve the `*SettingKeys` constants,
+which `HoshiBot.Domain.Tests` can't do from its own project reference — so either a small analyzer,
+a CI script, or a Web-side test project. Until then, re-run the ad-hoc sweep after adding
+setting-keyed cards. The same blind spot covers `Msg.WebFeature.Title/Description/ExtraTitle` and
+`Msg.WebAudience.*`, which are enum-driven and therefore enumerable — those *could* be covered by a
+plain Domain test today.

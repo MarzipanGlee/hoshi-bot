@@ -16,6 +16,15 @@ public class TerritoryCaptureFeature : IFeatureModule
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
+        // Absence sign-off (default-on) puts "Abmelden" buttons on the digests/reminders, and those
+        // write Absence rows — so with the switch on but the Absences feature off, TC is enabled but
+        // not workable. Not a GuildFeatureDependencies entry: that table is unconditional, while this
+        // dependency only exists while the switch is on.
+        var signOff = TerritoryCaptureSettingKeys.IsAbsenceSignOffOn(
+            await context.GetTextAsync(guildId, Feature, audience, guildAllianceId, TerritoryCaptureSettingKeys.AbsenceSignOff));
+        if (signOff && !await context.IsEnabledAsync(guildId, GuildFeature.Absences, audience, guildAllianceId))
+            return false;
+
         for (var slot = 1; slot <= 5; slot++)
         {
             if (await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, TerritoryCaptureSettingKeys.ZoneSlotRole(slot)) is not null)
