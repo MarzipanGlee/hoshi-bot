@@ -46,38 +46,9 @@
     </div>
 </section>
 
-@foreach (var audience in AudienceSections)
-{
-    var cards = FeatureCatalog.All
-        .Where(f => f.RelevantAudiences().HasFlag(audience))
-        .Select(f => (f.Icon, Title: f.Title(Lang), Description: f.Description(Lang)))
-        .Concat(ExtraCards(audience))
-        .OrderBy(c => c.Title, StringComparer.OrdinalIgnoreCase)
-        .ToList();
-
-    <section id="audience-@audience" class="features">
-        <h2>@Msg.WebLanding.AudienceSectionHeading(Lang, AudienceDisplay.Labels(Lang, audience).First())</h2>
-        <p class="features-intro">@Msg.WebLanding.AudienceIntro(Lang, audience)</p>
-        @if (cards.Count > 0)
-        {
-            <div class="row g-4">
-                @foreach (var card in cards)
-                {
-                    <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="feature-icon"><span class="oi @card.Icon" aria-hidden="true"></span></div>
-                                <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@card.Title</h3>
-                                <p class="mb-0 card-subtext">@card.Description</p>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-    </section>
-}
-
+@* Members sit right after the four server-type cards above: the reader has just been told which
+   kind of Discord Hoshi is for, and "what's in it for me as a member" belongs there — before the
+   long per-audience feature lists those cards link down into, not buried underneath them. *@
 <section class="features">
     <h2>@Msg.WebLanding.MembersTitle(Lang)</h2>
     <p class="features-intro">
@@ -111,6 +82,38 @@
         </AuthorizeView>
     </div>
 </section>
+
+@foreach (var audience in AudienceSections)
+{
+    var cards = FeatureCatalog.All
+        .Where(f => f.RelevantAudiences().HasFlag(audience))
+        .Select(f => (f.Icon, Title: f.Title(Lang), Description: f.Description(Lang)))
+        .Concat(ExtraCards(audience))
+        .OrderBy(c => c.Title, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    <section id="audience-@audience" class="features">
+        <h2>@Msg.WebLanding.AudienceSectionHeading(Lang, AudienceDisplay.Labels(Lang, audience).First())</h2>
+        <p class="features-intro">@Msg.WebLanding.AudienceIntro(Lang, audience)</p>
+        @if (cards.Count > 0)
+        {
+            <div class="row g-4">
+                @foreach (var card in cards)
+                {
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="feature-icon"><span class="oi @card.Icon" aria-hidden="true"></span></div>
+                                <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">@card.Title</h3>
+                                <p class="mb-0 card-subtext">@card.Description</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
 
 <section class="cta">
     <div class="cta-inner">
