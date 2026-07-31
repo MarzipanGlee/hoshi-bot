@@ -63,16 +63,18 @@
             </div>
         }
 
-        @* Global-admin-only shortcuts (STFC Catalog + Bot settings). Both pages enforce the
-           GlobalAdmin policy server-side; gate the whole card grid so non-admins don't see the
-           shortcuts either — matching the nav, which hides the same sections. *@
+        @* Global-admin-only shortcuts, from the same registry the sidebar groups iterate — so the
+           two can't drift in content or order again (this grid used to be hand-rolled, was missing
+           Database entirely and listed the other two the other way round). The pages enforce the
+           GlobalAdmin policy server-side; gate the whole grid so non-admins don't see the shortcuts
+           either — matching the nav, which hides the same sections. *@
         @if (isGlobalAdmin)
         {
             <div class="card-grid mt-4">
-                <NavCard Href="manage/stfc/regions" Icon="oi-globe" Title="STFC Catalog"
-                         Subtitle="Regions, servers, alliances, and territories" />
-                <NavCard Href="manage/bot/global-admins" Icon="oi-shield" Title="Bot"
-                         Subtitle="Manage global admin access" />
+                @foreach (var area in GlobalAdminAreas.All)
+                {
+                    <NavCard Href="@area.LandingHref" Icon="@area.Icon" Title="@area.Title" Subtitle="@area.Description" />
+                }
             </div>
         }
     </Authorized>

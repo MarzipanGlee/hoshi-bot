@@ -9,6 +9,43 @@ namespace HoshiBot.Web.Components.Shared;
 // These operator-only areas deliberately stay English (out of localization scope) — the entries
 // put their literal English text in AdminPage's LabelKey slot and the catalog's raw-key fallback
 // renders it verbatim; see the AdminPage record comment.
+//
+// GlobalAdminAreas at the bottom groups the three lists with the area-level identity (title, icon,
+// description, base path) that used to be retyped at every call site.
+
+// One operator-only area: its display identity plus the pages it owns. Unlike AdminPage, Title and
+// Description are literal English rather than catalog keys — these areas are out of localization
+// scope, so there is nothing to look up (AdminPage only routes through the catalog because the
+// in-scope registries share the record).
+public sealed record AdminArea(
+    string Title,
+    string Icon,                       // Open Iconic class — sidebar group header and dashboard card
+    string Description,                // dashboard card subtitle
+    string BasePath,                   // e.g. "manage/bot"
+    IReadOnlyList<AdminPage> Pages)
+{
+    public string Href(AdminPage page) => page.Href(BasePath);
+
+    // None of the areas has a root route (there is no /manage/bot page), so the dashboard card and
+    // the area breadcrumb both point at the first page in the list.
+    public string LandingHref => Href(Pages[0]);
+}
+
+// The single source of truth for the three global-admin areas, in sidebar/display order. The
+// sidebar groups (NavMenu), the dashboard shortcut cards (Manage/Index) and the breadcrumbs
+// (PageBreadcrumb) all iterate this — before it existed each of the three kept its own copy and
+// they drifted: the dashboard was missing Database entirely and ordered the other two the other
+// way round, and the breadcrumb had no Database branch at all.
+public static class GlobalAdminAreas
+{
+    public static readonly IReadOnlyList<AdminArea> All =
+    [
+        new("Bot", "oi-shield", "Manage global admin access", "manage/bot", BotAdminPages.All),
+        new("STFC Catalog", "oi-globe", "Regions, servers, alliances, and territories", "manage/stfc", StfcCatalogPages.All),
+        new("Database", "oi-list-rich", "Raw table browser for debugging", "manage/database", DatabaseAdminPages.All),
+    ];
+}
+
 public static class BotAdminPages
 {
     public static readonly IReadOnlyList<AdminPage> All =

@@ -21,29 +21,6 @@
 </nav>
 
 @code {
-    // Keep in sync with the STFC Catalog group in NavMenu.razor.
-    private static readonly (string Segment, string Label)[] StfcCatalogSections =
-    [
-        ("regions", "Regions"),
-        ("veil-groups", "Veil Groups"),
-        ("veil-group-invites", "Veil Group Invites"),
-        ("servers", "Servers"),
-        ("server-invites", "Server Invites"),
-        ("alliances", "Alliances"),
-        ("alliance-invites", "Alliance Invites"),
-        ("alliance-name-history", "Alliance Name History"),
-        ("alliance-diplomacy", "Diplomacy"),
-        ("players", "Players"),
-        ("player-name-history", "Player Name History"),
-        ("systems", "Systems"),
-        ("territories", "Territories"),
-        ("territory-ownership", "Territory Ownership"),
-        ("territory-neighbours", "Territory Neighbours"),
-        ("territory-services", "Territory Services"),
-        ("server-status", "Server Status"),
-        ("event-status", "Event Status"),
-    ];
-
     // Create/Edit/Delete only ever appear under the excluded Manage/Stfc operator area, so they
     // stay literal English by design (like the STFC Catalog / Bot crumbs below); the rest are
     // in-scope guild/alliance pages and localize per viewer.
@@ -131,31 +108,34 @@
                     }
                 }
             }
-            else if (segments.Length >= 2 && segments[1] == "stfc")
+            else if (segments.Length >= 2
+                && GlobalAdminAreas.All.FirstOrDefault(a => a.BasePath == $"manage/{segments[1]}") is { } area)
             {
-                // The STFC Catalog / Bot operator areas are out of localization scope — their
-                // crumb labels stay literal English (see docs/localization-plan.md).
-                var catalogSection = segments.Length >= 3
-                    ? Array.Find(StfcCatalogSections, s => s.Segment == segments[2])
-                    : default;
-                if (catalogSection != default)
-                {
-                    result.Add(("STFC Catalog", null));
-                    result.Add((catalogSection.Label, $"manage/stfc/{catalogSection.Segment}"));
+                // The Bot / STFC Catalog / Database operator areas, all driven off the same registry
+                // the sidebar and the dashboard cards use — the labels used to be retyped here, which
+                // is how Database ended up with no crumbs at all and Bot with only one of its four
+                // pages. They're out of localization scope, so the labels stay literal English (see
+                // docs/localization-plan.md).
+                var areaPage = segments.Length >= 3
+                    ? area.Pages.FirstOrDefault(p => p.RouteSuffix == segments[2])
+                    : null;
+                var pageHref = areaPage is null ? null : area.Href(areaPage);
 
-                    if (segments.Length >= 4 && CrudLabels.TryGetValue(segments[3], out var crudLabel))
+                // The area itself has no route, so its crumb links to the landing page — unless
+                // that IS the page we're on, which would make it a link to itself.
+                result.Add((area.Title, pageHref == area.LandingHref ? null : area.LandingHref));
+
+                if (areaPage is not null)
+                {
+                    var crud = segments.Length >= 4 && CrudLabels.TryGetValue(segments[3], out var crudLabel)
+                        ? crudLabel
+                        : null;
+                    result.Add((areaPage.Label(Lang), crud is null ? null : pageHref));
+
+                    if (crud is not null)
                     {
-                        result.Add((crudLabel(Lang), null));
+                        result.Add((crud(Lang), null));
                     }
-                }
-            }
-            else if (segments.Length >= 2 && segments[1] == "bot")
-            {
-                result.Add(("Bot", null));
-
-                if (segments.Length >= 3 && segments[2] == "global-admins")
-                {
-                    result.Add(("Global Admins", null));
                 }
             }
         }

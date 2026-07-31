@@ -73,36 +73,23 @@
                 @* Bot-wide admin sections (Bot settings, STFC Catalog, raw Database) are global-admin
                    only. The pages themselves already enforce the GlobalAdmin policy server-side; this
                    also hides the whole group from regular guild admins so it isn't just a dead link.
-                   Their group titles (and page labels, via the registries) stay literal English —
-                   the operator areas are out of localization scope (see docs/localization-plan.md). *@
+                   Group titles/icons and page labels all come from GlobalAdminAreas, which the
+                   dashboard's shortcut cards and the breadcrumbs iterate too. They stay literal
+                   English — the operator areas are out of localization scope (see
+                   docs/localization-plan.md). *@
                 <AuthorizeView Policy="GlobalAdmin" Context="adminAuth">
                     <Authorized>
-                <NavMenuGroup Title="Bot" Icon="oi-shield" Active="@IsGroupActive(BotAdminPages.All, BotAdminPages.Href)">
-                    @foreach (var p in BotAdminPages.All)
-                    {
-                        <div class="nav-item">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@BotAdminPages.Href(p)">@p.Label(Lang)</NavLink>
-                        </div>
-                    }
-                </NavMenuGroup>
-
-                <NavMenuGroup Title="STFC Catalog" Icon="oi-globe" Active="@IsGroupActive(StfcCatalogPages.All, StfcCatalogPages.Href)">
-                    @foreach (var p in StfcCatalogPages.All)
-                    {
-                        <div class="nav-item">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@StfcCatalogPages.Href(p)">@p.Label(Lang)</NavLink>
-                        </div>
-                    }
-                </NavMenuGroup>
-
-                <NavMenuGroup Title="Database" Icon="oi-list-rich" Active="@IsGroupActive(DatabaseAdminPages.All, DatabaseAdminPages.Href)">
-                    @foreach (var p in DatabaseAdminPages.All)
-                    {
-                        <div class="nav-item">
-                            <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@DatabaseAdminPages.Href(p)">@p.Label(Lang)</NavLink>
-                        </div>
-                    }
-                </NavMenuGroup>
+                        @foreach (var area in GlobalAdminAreas.All)
+                        {
+                            <NavMenuGroup Title="@area.Title" Icon="@area.Icon" Active="@IsGroupActive(area.Pages, area.Href)">
+                                @foreach (var p in area.Pages)
+                                {
+                                    <div class="nav-item">
+                                        <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@area.Href(p)">@p.Label(Lang)</NavLink>
+                                    </div>
+                                }
+                            </NavMenuGroup>
+                        }
                     </Authorized>
                 </AuthorizeView>
             </Authorized>

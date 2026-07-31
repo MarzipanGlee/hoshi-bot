@@ -556,15 +556,6 @@ Needs care on cost: that check hits the user's OAuth guild list, so it must reus
 `DiscordUserGuildsService`'s existing 60s cache rather than firing a fresh call per page render, and
 it renders in a layout that's on every public page.
 
-## Web dashboard: missing Database card, and card order
-
-`/manage`'s global-admin shortcut grid is missing **Database** entirely, and lists the others in a
-different order than the sidebar. Add the Database card and order all three as the nav does:
-**Bot → STFC Catalog → Database**. Worth doing at the same time: the shortcuts are hand-rolled in
-`Manage/Index.razor` while guild/alliance pages come from the `GuildAdminPages`/`AllianceAdminPages`
-registries — a small `BotAdminPages`-style registry would let the sidebar and the grid share one list
-and stop drifting.
-
 ## Slash commands — prune what the web admin replaced
 
 Several slash commands predate the web admin and the Command Bridge hub and are no longer the way
