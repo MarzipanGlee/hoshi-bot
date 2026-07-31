@@ -39,11 +39,11 @@
         <p class="form-text mb-0">
             @Msg.WebEditor.Usage(Lang, Feature, ZoneSlotRolesKey)
         </p>
-        <RolePicker Label="Slot 1" CreateRoleName="Slot 1" @bind-Value="zoneSlot1Input" @bind-Value:after="SaveZoneSlot1Async" Roles="roles" />
-        <RolePicker Label="Slot 2" CreateRoleName="Slot 2" @bind-Value="zoneSlot2Input" @bind-Value:after="SaveZoneSlot2Async" Roles="roles" />
-        <RolePicker Label="Slot 3" CreateRoleName="Slot 3" @bind-Value="zoneSlot3Input" @bind-Value:after="SaveZoneSlot3Async" Roles="roles" />
-        <RolePicker Label="Slot 4" CreateRoleName="Slot 4" @bind-Value="zoneSlot4Input" @bind-Value:after="SaveZoneSlot4Async" Roles="roles" />
-        <RolePicker Label="Slot 5" CreateRoleName="Slot 5" @bind-Value="zoneSlot5Input" @bind-Value:after="SaveZoneSlot5Async" Roles="roles" />
+        <RolePicker Label="Slot 1" CreateRoleName="@ZoneSlotRoleName(1)" @bind-Value="zoneSlot1Input" @bind-Value:after="SaveZoneSlot1Async" Roles="roles" />
+        <RolePicker Label="Slot 2" CreateRoleName="@ZoneSlotRoleName(2)" @bind-Value="zoneSlot2Input" @bind-Value:after="SaveZoneSlot2Async" Roles="roles" />
+        <RolePicker Label="Slot 3" CreateRoleName="@ZoneSlotRoleName(3)" @bind-Value="zoneSlot3Input" @bind-Value:after="SaveZoneSlot3Async" Roles="roles" />
+        <RolePicker Label="Slot 4" CreateRoleName="@ZoneSlotRoleName(4)" @bind-Value="zoneSlot4Input" @bind-Value:after="SaveZoneSlot4Async" Roles="roles" />
+        <RolePicker Label="Slot 5" CreateRoleName="@ZoneSlotRoleName(5)" @bind-Value="zoneSlot5Input" @bind-Value:after="SaveZoneSlot5Async" Roles="roles" />
     </SettingsCard>
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, WeeklyMentionRoleKey)">
@@ -171,11 +171,18 @@
         await SetSnowflakeAsync(key, roleId);
     }
 
-    private Task SaveZoneSlot1Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot1Role, v => zoneSlot1Input = v, zoneSlot1Input, "Slot 1");
-    private Task SaveZoneSlot2Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot2Role, v => zoneSlot2Input = v, zoneSlot2Input, "Slot 2");
-    private Task SaveZoneSlot3Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot3Role, v => zoneSlot3Input = v, zoneSlot3Input, "Slot 3");
-    private Task SaveZoneSlot4Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot4Role, v => zoneSlot4Input = v, zoneSlot4Input, "Slot 4");
-    private Task SaveZoneSlot5Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role, v => zoneSlot5Input = v, zoneSlot5Input, "Slot 5");
+    // The role Hoshi creates for a slot left blank. "TC-N" rather than "Slot N" so it's obvious in
+    // Discord's role list which feature owns it. One helper because the name is needed twice per
+    // slot (the picker's create option and the save that actually creates it) — they must match, or
+    // the create option stays visible after the role exists. Existing roles are untouched: the
+    // setting stores a role id, so a guild that already picked its own role keeps it.
+    private static string ZoneSlotRoleName(int slot) => $"TC-{slot}";
+
+    private Task SaveZoneSlot1Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot1Role, v => zoneSlot1Input = v, zoneSlot1Input, ZoneSlotRoleName(1));
+    private Task SaveZoneSlot2Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot2Role, v => zoneSlot2Input = v, zoneSlot2Input, ZoneSlotRoleName(2));
+    private Task SaveZoneSlot3Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot3Role, v => zoneSlot3Input = v, zoneSlot3Input, ZoneSlotRoleName(3));
+    private Task SaveZoneSlot4Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot4Role, v => zoneSlot4Input = v, zoneSlot4Input, ZoneSlotRoleName(4));
+    private Task SaveZoneSlot5Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role, v => zoneSlot5Input = v, zoneSlot5Input, ZoneSlotRoleName(5));
 
     private Task SaveInstructionsAsync() =>
         SetTextAsync(TerritoryCaptureSettingKeys.Instructions, instructionsInput);
