@@ -50,34 +50,24 @@
             FeatureSlug="member-lore" ExtraSlug="notes" Label="@Msg.WebMemberLore.OpenNotesLink(Lang)" />
     </SettingsCard>
 
-    <SettingsCard Title="@Msg.WebMemberLore.AnnouncementCardTitle(Lang)">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, MemberLoreSettingKeys.Announcement)">
         <label for="mlAnnouncement" class="form-label">
-            @Msg.WebMemberLore.AnnouncementLabel(Lang)
+            @Msg.WebEditor.Label(Lang, Feature, MemberLoreSettingKeys.Announcement)
         </label>
-        <textarea id="mlAnnouncement" class="form-control" rows="6" readonly>@AnnouncementText</textarea>
+        <textarea id="mlAnnouncement" class="form-control" rows="6"
+                  @bind="announcementInput" @bind:after="SaveAnnouncementAsync"></textarea>
     </SettingsCard>
 </div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.MemberLore;
 
-    // Bot-output content (a template the admin copies verbatim into a Discord channel), not Web UI
-    // text — it's deliberately German-only today and out of scope for Phase 7 (Web UI localization
-    // covers the *editor's* chrome, not the message bodies the bot itself posts). Localizing the
-    // announcement text to the guild's configured language is tracked in docs/backlog.md.
-    private const string AnnouncementText =
-        "🖖 Hallo zusammen! Ich bin Hoshi und möchte euch besser kennenlernen, damit ich ein echtes " +
-        "Mitglied unserer Community werde. In den nächsten Tagen schreibe ich einige von euch per DM an " +
-        "und stelle ein paar Fragen — wie ich euch nennen soll, was ihr so macht, und ob ihr lustige " +
-        "Geschichten über andere Spieler habt. Alles völlig freiwillig, aber ich freue mich riesig, wenn " +
-        "ihr mitmacht! Keine Lust? Sag mir einfach Bescheid oder ignoriere mich, dann lasse ich dich in " +
-        "Ruhe. Bis gleich in euren DMs! 🚀";
-
     private List<Role> roles = [];
     private string? memberRoleInput;
     private string? completedRoleInput;
     private string? maxPerDayInput;
     private bool campaignActive;
+    private string? announcementInput;
     private InterviewProgress? progress;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -89,6 +79,7 @@
         campaignActive = string.Equals(
             await GetTextAsync(MemberLoreSettingKeys.CampaignActive),
             "true", StringComparison.OrdinalIgnoreCase);
+        announcementInput = await GetTextAsync(MemberLoreSettingKeys.Announcement) ?? MemberLoreSettingKeys.DefaultAnnouncement;
         await LoadProgressAsync();
     }
 
@@ -124,6 +115,12 @@
         campaignActive = value;
         await SetTextAsync(MemberLoreSettingKeys.CampaignActive, value ? "true" : null);
     }
+
+    // Stored only once edited away from the default — leaving it unset lets a future default-copy
+    // improvement (typo fix, wording tweak) still reach guilds that never customized it.
+    private Task SaveAnnouncementAsync() =>
+        SetTextAsync(MemberLoreSettingKeys.Announcement,
+            announcementInput == MemberLoreSettingKeys.DefaultAnnouncement ? null : announcementInput);
 
     private record InterviewProgress(int Invited, int InProgress, int Completed, int Declined, int Undeliverable);
 }

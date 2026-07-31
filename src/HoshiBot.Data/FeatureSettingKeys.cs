@@ -142,6 +142,20 @@ public static class MemberLoreSettingKeys
 
     // Optional role (snowflake) granted to a member once they finish their interview. Unset → none.
     public const string CompletedRole = "CompletedRole";
+
+    // The channel-post admins copy verbatim to give members a heads-up before the DM campaign
+    // starts (text) — Hoshi never posts this herself, it's purely a courtesy notice. Unset →
+    // DefaultAnnouncement, so every guild starts with a ready-to-use template it can edit or
+    // translate.
+    public const string Announcement = "Announcement";
+
+    public const string DefaultAnnouncement =
+        "🖖 Hallo zusammen! Ich bin Hoshi und möchte euch besser kennenlernen, damit ich ein echtes " +
+        "Mitglied unserer Community werde. In den nächsten Tagen schreibe ich einige von euch per DM an " +
+        "und stelle ein paar Fragen — wie ich euch nennen soll, was ihr so macht, und ob ihr lustige " +
+        "Geschichten über andere Spieler habt. Alles völlig freiwillig, aber ich freue mich riesig, wenn " +
+        "ihr mitmacht! Keine Lust? Sag mir einfach Bescheid oder ignoriere mich, dann lasse ich dich in " +
+        "Ruhe. Bis gleich in euren DMs! 🚀";
 }
 
 public static class MemberOnboardingSettingKeys

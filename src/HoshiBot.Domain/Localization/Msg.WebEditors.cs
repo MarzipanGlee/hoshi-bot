@@ -229,12 +229,6 @@ public static partial class Msg
         public static string OpenNotesLink(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.MemberLore.OpenNotesLink");
 
-        public static string AnnouncementCardTitle(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.MemberLore.AnnouncementCardTitle");
-
-        public static string AnnouncementLabel(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.MemberLore.AnnouncementLabel");
-
         // Shared by the member-notes review UI (MemberNotesAdmin's per-field labels and its
         // suggestion badges) and, going forward, the member's own /me lore page — one canonical
         // label per MemberNoteField instead of the two slightly different wordings the admin page
