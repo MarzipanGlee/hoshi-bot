@@ -7,7 +7,11 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.TerritoryCapture;
 
-public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding embedBranding, LanguageResolver languageResolver) : ComponentInteractionModule<ButtonInteractionContext>
+public class TerritoryCaptureButtonModule(
+    HoshiBotDbContext db,
+    EmbedBranding embedBranding,
+    LanguageResolver languageResolver,
+    GuildFeatureService featureService) : ComponentInteractionModule<ButtonInteractionContext>
 {
     [ComponentInteraction("territory-capture-unsubscribe")]
     public Task Unsubscribe(int territoryId, long startUnix, long endUnix) =>
@@ -19,6 +23,13 @@ public class TerritoryCaptureButtonModule(HoshiBotDbContext db, EmbedBranding em
             // The confirmation is ephemeral to the clicking member — their language (also used
             // for the stored absence reason: it's their own absence row).
             var lang = await languageResolver.ForUserAsync(userId, Context.Interaction.UserLocale, guildId);
+
+            // This button writes an Absence row directly, so it needs the Absences feature — without
+            // it the member could never see, edit or delete what they just created and no report
+            // would ever read it. New digests/reminders don't render the button in that case, but
+            // already-posted ones stay clickable for their whole retention window, so guard here too.
+            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.Absences, lang) is { } disabled)
+                return disabled;
 
             var start = DateTimeOffset.FromUnixTimeSeconds(startUnix);
             var end = DateTimeOffset.FromUnixTimeSeconds(endUnix);

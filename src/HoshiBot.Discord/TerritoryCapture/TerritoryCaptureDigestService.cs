@@ -104,7 +104,8 @@ public partial class TerritoryCaptureDigestService(
                     : new List<ulong>();
 
                 var title = links.Count > 1 ? Msg.Tc.TitleWithTag(lang, baseTitle, link.StfcAlliance.Tag) : baseTitle;
-                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true, lang);
+                var signOff = await IsSignOffEnabledAsync(guildId, link);
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true, lang, signOff);
 
                 // Retention +7 days: no capture-free day anymore, so the pinned digest must live the
                 // whole week until the next weekly digest replaces it. The sweep's delete also drops
@@ -172,7 +173,8 @@ public partial class TerritoryCaptureDigestService(
                     ? Msg.Tc.TitleWithTag(lang, Msg.Tc.DailyTitle(lang), link.StfcAlliance.Tag)
                     : Msg.Tc.DailyTitle(lang);
                 var known = tomorrowSlots.Select(s => (s.SlotIndex, s.Territory, s.Start, s.End)).ToList();
-                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false, lang);
+                var signOff = await IsSignOffEnabledAsync(guildId, link);
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false, lang, signOff);
 
                 // Retention +1 day: yesterday's "tomorrow's zones" preview is stale once its day arrives.
                 if (messageId is { } dailyMessageId)
@@ -280,12 +282,25 @@ public partial class TerritoryCaptureDigestService(
         return (known.OrderBy(z => z.Item2).ToList(), unknown);
     }
 
+    // Whether this alliance's digests/reminders may ask for a sign-off and carry the "Abmelden"
+    // buttons. Both halves must hold: the admin's explicit switch (default-on) AND the Absences
+    // feature actually being enabled for this alliance — the button writes an Absence row, and
+    // without that feature the member can never see, edit or delete it and no report reads it.
+    // One helper so the weekly digest, the daily digest and the capture reminder never disagree.
+    private async Task<bool> IsSignOffEnabledAsync(ulong guildId, GuildAlliance link)
+    {
+        var stored = await settingsService.GetTextAsync(
+            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.AbsenceSignOff);
+        return TerritoryCaptureSettingKeys.IsAbsenceSignOffOn(stored)
+            && await featureService.IsEnabledAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, link.Id);
+    }
+
     // Returns the posted message id, or null if the send failed (caught RestException). Callers use
     // the id to record a TerritoryCaptureSentMessage so the sweep can clean the message up later.
     // lang: the owning alliance's resolved language — the digest is that alliance's public post.
     private async Task<ulong?> SendDigestAsync(ulong guildId, ulong channelId, GuildAlliance link, string title,
         List<(int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
-        IReadOnlyList<ulong> mentionRoleIds, bool pin, Language lang)
+        IReadOnlyList<ulong> mentionRoleIds, bool pin, Language lang, bool signOff)
     {
         // Each row is its OWN inline-code span, with the time appended as real Discord timestamps
         // (<t:unix:t>) OUTSIDE the span. Discord won't render a timestamp inside a code fence, so
@@ -306,11 +321,13 @@ public partial class TerritoryCaptureDigestService(
             lines.Add(Msg.Tc.TimesUnknown(lang, string.Join(", ", unknown.Select(t => t.Name))));
         }
 
+        // Without sign-off the intro stops before the "…or sign off here / on the {bridge}" clause —
+        // the Command Bridge's absence button is itself gated on the Absences feature, so that half
+        // of the sentence would be just as dead as the buttons below.
         var bridgeMention = link.CommandBridgeChannelId is { } bridgeChannelId ? $"<#{bridgeChannelId}>" : Msg.Tc.BridgeFallback(lang);
+        var intro = signOff ? Msg.Tc.DigestIntro(lang, bridgeMention) : Msg.Tc.DigestIntroNoSignOff(lang);
 
-        var embed = await embedBranding.BuildBrandedAsync(guildId,
-            Msg.Tc.DigestIntro(lang, bridgeMention),
-            title: title);
+        var embed = await embedBranding.BuildBrandedAsync(guildId, intro, title: title);
         embed.Fields =
         [
             new EmbedFieldProperties { Name = Msg.Tc.FieldSchedule(lang), Value = Clamp(string.Join("\n", lines)) },
@@ -327,11 +344,14 @@ public partial class TerritoryCaptureDigestService(
             });
         }
 
-        var buttons = known
-            .Select(z => new ButtonProperties(
-                $"territory-capture-unsubscribe:{z.Territory.Id}:{z.Start.ToUnixTimeSeconds()}:{z.End.ToUnixTimeSeconds()}",
-                Msg.Tc.UnsubscribeButton(lang, z.Territory.Name), EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
-            .ToList();
+        // No sign-off → no buttons at all, so actionRows stays empty and Components ends up null.
+        List<ButtonProperties> buttons = signOff
+            ? known
+                .Select(z => new ButtonProperties(
+                    $"territory-capture-unsubscribe:{z.Territory.Id}:{z.Start.ToUnixTimeSeconds()}:{z.End.ToUnixTimeSeconds()}",
+                    Msg.Tc.UnsubscribeButton(lang, z.Territory.Name), EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
+                .ToList()
+            : [];
 
         var content = mentionRoleIds.Count > 0
             ? string.Join(" ", mentionRoleIds.Select(id => $"<@&{id}>"))

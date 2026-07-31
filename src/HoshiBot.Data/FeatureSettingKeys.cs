@@ -114,6 +114,18 @@ public static class TerritoryCaptureSettingKeys
     public const string ZoneSlot5Role = "ZoneSlot5Role";
     public const string Instructions = "Instructions";
 
+    // Whether the digests/reminders ask members to sign off and carry the "Abmelden für {zone}"
+    // buttons. Needs the Absences feature — the button writes an Absence row, which without that
+    // feature nobody can see, edit or delete and no report ever reads. Default-ON (this is the
+    // long-standing behaviour), so "false" is stored when switched OFF and the row is deleted when
+    // switched back on — inverted vs. MemberLoreSettingKeys.CampaignActive, which defaults off.
+    public const string AbsenceSignOff = "AbsenceSignOff";
+
+    // Unset (or anything but an explicit "false") → on. Shared by the Web editor and the digest
+    // service so the default can never drift between what admins see and what Hoshi posts.
+    public static bool IsAbsenceSignOffOn(string? storedValue) =>
+        !string.Equals(storedValue, "false", StringComparison.OrdinalIgnoreCase);
+
     // Mirrors GuildSettings.GetZoneSlotRoleId's old slot-number indexing (1-5), now backed
     // by the generic settings table instead of 5 fixed columns.
     public static string ZoneSlotRole(int slotIndex) => slotIndex switch

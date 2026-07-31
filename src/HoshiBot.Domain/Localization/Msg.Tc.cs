@@ -31,6 +31,13 @@ public static partial class Msg
         public static string DigestIntro(Language lang, string bridge) =>
             MessageCatalog.Format(lang, "Tc.DigestIntro", ("bridge", bridge));
 
+        // Used when absence sign-off is off for this alliance: the intro stops before the "…or sign
+        // off …" clause, since neither the buttons nor the Command Bridge's absence entry point
+        // exist then. Deliberately a separate key rather than a conditional suffix — the two
+        // sentences read differently in German, and the catalog is the place that decision lives.
+        public static string DigestIntroNoSignOff(Language lang) =>
+            MessageCatalog.Format(lang, "Tc.DigestIntroNoSignOff");
+
         public static string FieldSchedule(Language lang) =>
             MessageCatalog.Format(lang, "Tc.FieldSchedule");
 
@@ -45,6 +52,10 @@ public static partial class Msg
 
         public static string ReminderBody(Language lang, long start, long end) =>
             MessageCatalog.Format(lang, "Tc.ReminderBody", ("start", start), ("end", end));
+
+        // Sign-off-free counterpart of ReminderBody — just the window, no "please sign off" ask.
+        public static string ReminderBodyNoSignOff(Language lang, long start, long end) =>
+            MessageCatalog.Format(lang, "Tc.ReminderBodyNoSignOff", ("start", start), ("end", end));
 
         public static string ServicesTitle(Language lang, string zone) =>
             MessageCatalog.Format(lang, "Tc.ServicesTitle", ("zone", zone));

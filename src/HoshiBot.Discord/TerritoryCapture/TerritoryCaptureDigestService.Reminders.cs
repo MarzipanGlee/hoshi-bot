@@ -43,6 +43,7 @@ public partial class TerritoryCaptureDigestService
             {
                 // Both reminder kinds are this alliance's own public posts — its language.
                 var lang = await languageResolver.ForAllianceAsync(link.Id);
+                var signOff = await IsSignOffEnabledAsync(guildId, link);
 
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
@@ -61,7 +62,7 @@ public partial class TerritoryCaptureDigestService
                     if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
                         continue;
 
-                    var messageId = await SendCaptureReminderAsync(guildId, channelIdValue, link, slot, lang);
+                    var messageId = await SendCaptureReminderAsync(guildId, channelIdValue, link, slot, lang, signOff);
                     if (messageId is { } mid)
                         await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Single, dedupKey, channelIdValue, mid, now, slot.End);
                 }
@@ -97,7 +98,7 @@ public partial class TerritoryCaptureDigestService
     }
 
     private async Task<ulong?> SendCaptureReminderAsync(ulong guildId, ulong channelId, GuildAlliance link,
-        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot, Language lang)
+        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot, Language lang, bool signOff)
     {
         var startUnix = slot.Start.ToUnixTimeSeconds();
         var endUnix = slot.End.ToUnixTimeSeconds();
@@ -105,8 +106,9 @@ public partial class TerritoryCaptureDigestService
         var roleId = await settingsService.GetSnowflakeAsync(
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slot.SlotIndex));
 
+        // Without sign-off the body is just the window — no "please sign off" ask, no button.
         var embed = await embedBranding.BuildBrandedAsync(guildId,
-            Msg.Tc.ReminderBody(lang, startUnix, endUnix),
+            signOff ? Msg.Tc.ReminderBody(lang, startUnix, endUnix) : Msg.Tc.ReminderBodyNoSignOff(lang, startUnix, endUnix),
             title: Msg.Tc.ReminderTitle(lang, slot.Territory.Name));
 
         var button = new ButtonProperties(
@@ -119,7 +121,7 @@ public partial class TerritoryCaptureDigestService
             {
                 Content = roleId is { } rid ? $"<@&{rid}>" : null,
                 Embeds = [embed],
-                Components = [new ActionRowProperties([button])],
+                Components = signOff ? [new ActionRowProperties([button])] : null,
                 AllowedMentions = roleId is { } r
                     ? new AllowedMentionsProperties { Everyone = false, AllowedRoles = new[] { r } }
                     : AllowedMentionsProperties.None,
