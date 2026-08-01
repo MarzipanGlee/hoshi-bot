@@ -73,8 +73,12 @@ public class StfcPlayerImportService(IDbContextFactory<HoshiBotDbContext> dbFact
                 }
 
                 existing.AllianceId = alliance?.Id;
-                if (rank is not null)
-                    existing.Rank = rank;
+
+                // A rank only exists inside an alliance, but the feed keeps reporting a player's
+                // LAST rank after they leave one — so "keep the old rank when the feed omits it"
+                // (which is right for a normal update) would otherwise preserve a rank forever.
+                // Clearing it here fixes the stored row for every reader, not just the role sync.
+                existing.Rank = alliance is null ? null : rank ?? existing.Rank;
                 existing.OpsLevel = entry.Level;
 
                 updated++;

@@ -22,7 +22,12 @@ public class RankRoleSyncJob(
 {
     protected override GuildFeature Feature => GuildFeature.RankRoles;
 
-    protected override StfcPlayerRank? TierOf(GuildPrimaryPlayer player) => player.Rank;
+    // No alliance, no rank — a rank is a position *within* an alliance. Guarded here as well as in
+    // the import (which now clears the stored rank) because this corrects a member on the next
+    // sweep instead of waiting for the next player import to touch their row. Null strips every
+    // configured rank role they hold, which is exactly what should happen when they leave.
+    protected override StfcPlayerRank? TierOf(GuildPrimaryPlayer player) =>
+        player.AllianceId is null ? null : player.Rank;
 
     protected override string RoleSettingKey(StfcPlayerRank tier) => RankRolesSettingKeys.RoleForRank(tier);
 
