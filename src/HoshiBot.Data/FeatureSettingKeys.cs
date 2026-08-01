@@ -176,6 +176,40 @@ public static class MemberOnboardingSettingKeys
     public const string MaxInvitesPerDay = "MaxInvitesPerDay";
 }
 
+public static class AllianceTagRolesSettingKeys
+{
+    // Whether the sync may create a role it can't find. Off → it only assigns roles that already
+    // exist, so a guild can hand-make exactly the ones it wants. Default-ON (the feature does very
+    // little otherwise): "false" is stored when switched OFF, the row is deleted when switched on.
+    public const string CreateMissing = "CreateMissing";
+
+    // Rewrite the tag to look-alike ASCII before naming a role (ĶÅØŞ → KAOS). Default off — it only
+    // affects how a NEW role is NAMED; matching always accepts both spellings, so turning it on or
+    // off never orphans the roles a guild already has. See AllianceTagRoleName.Candidates.
+    public const string Latinize = "Latinize";
+
+    // Name new roles in lower case. Same deal: naming only, since assignment is case-insensitive.
+    public const string Lowercase = "Lowercase";
+
+    // Optional strings wrapped around the tag, e.g. prefix "[" + suffix "]" → "[KAOS]". Also the
+    // safest way to keep tag roles visually distinct from unrelated roles that happen to share a
+    // short name.
+    public const string RolePrefix = "RolePrefix";
+    public const string RoleSuffix = "RoleSuffix";
+
+    // Optional role for a linked member whose player currently has no alliance. Unset → those
+    // members simply hold no tag role.
+    public const string NoAllianceRole = "NoAllianceRole";
+
+    // The role bound to one alliance, written by the sync as it adopts or creates roles. Keyed by
+    // StfcAlliance.Id rather than by tag because StfcAllianceImportService rewrites Tag when an
+    // alliance renames itself — the binding has to survive that. Enumerating these rows is also how
+    // the sync knows which roles are its own, and therefore which stale ones to remove.
+    public static string RoleFor(int stfcAllianceId) => $"{RolePrefixKey}{stfcAllianceId}";
+
+    public const string RolePrefixKey = "Role:";
+}
+
 public static class NicknameSyncSettingKeys
 {
     // NicknameTagMode (text, e.g. "ForeignOnly") controlling the [alliance-tag] prefix. Unset →
@@ -207,6 +241,11 @@ public static class RankRolesSettingKeys
     public const string PremierRole = "PremierRole";
     public const string OperativeRole = "OperativeRole";
     public const string AgentRole = "AgentRole";
+
+    // Optional role for a member who currently has no rank — which, since a rank only exists inside
+    // an alliance, is the same thing as having no alliance. Unset → those members just hold none of
+    // the five rank roles.
+    public const string NoRankRole = "NoRankRole";
 
     // Lets the sync job go straight from a player's Rank to the one key that applies,
     // instead of a switch at every call site.

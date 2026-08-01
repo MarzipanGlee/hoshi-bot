@@ -358,6 +358,53 @@ public static partial class Msg
                 ("declined", declined), ("undeliverable", undeliverable));
     }
 
+    public static class WebAllianceTagRoles
+    {
+        // Contains inline markup — render via MarkupString.
+        public static string HowItWorksUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.HowItWorksUsage");
+
+        public static string CreateMissingLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.CreateMissingLabel");
+
+        public static string CreateMissingUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.CreateMissingUsage");
+
+        public static string LatinizeLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.LatinizeLabel");
+
+        // Contains inline <code> markup (the examples) — render via MarkupString.
+        public static string LatinizeUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.LatinizeUsage");
+
+        public static string LowercaseLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.LowercaseLabel");
+
+        public static string LowercaseUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.LowercaseUsage");
+
+        public static string AffixUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.AffixUsage");
+
+        public static string PrefixLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.PrefixLabel");
+
+        public static string SuffixLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.SuffixLabel");
+
+        public static string PreviewLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.PreviewLabel");
+
+        public static string BoundRolesCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.BoundRolesCardTitle");
+
+        public static string BoundRolesUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.BoundRolesUsage");
+
+        public static string NoBoundRoles(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.NoBoundRoles");
+    }
+
     public static class WebNicknameSync
     {
         public static string HowItWorksUsage(Language lang) =>

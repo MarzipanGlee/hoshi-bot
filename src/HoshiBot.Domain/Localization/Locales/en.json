@@ -262,6 +262,7 @@
   "Feature.ServerStatus": "Server status",
   "Feature.InfiniteIncursions": "Infinite Incursions announcements",
   "Feature.RankRoles": "Rank roles",
+  "Feature.AllianceTagRoles": "Alliance tag roles",
   "Feature.OpsLevelRoles": "Ops level roles",
   "Feature.StfcNews": "STFC news notifications",
   "Feature.AllianceTournament": "Alliance tournament notifications",

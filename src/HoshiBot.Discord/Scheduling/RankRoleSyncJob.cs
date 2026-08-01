@@ -31,6 +31,8 @@ public class RankRoleSyncJob(
 
     protected override string RoleSettingKey(StfcPlayerRank tier) => RankRolesSettingKeys.RoleForRank(tier);
 
+    protected override string? NoTierRoleSettingKey => RankRolesSettingKeys.NoRankRole;
+
     protected override void LogSkippedMember(ulong userId, ulong guildId, HttpStatusCode statusCode) =>
         Logger.LogInformation(
             "Skipped rank role sync for user {UserId} in guild {GuildId}: {StatusCode}",

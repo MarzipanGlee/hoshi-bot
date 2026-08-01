@@ -3,6 +3,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Absences;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiBackend;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiChat;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AlertsOptIn;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AllianceTagRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AllianceTournament;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AnnouncementForwarder;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Announcements;
@@ -43,6 +44,7 @@ public static class FeatureCatalog
     public static readonly IFeatureModule[] All =
     [
         new AbsencesFeature(),
+        new AllianceTagRolesFeature(),
         new AiChatFeature(),
         new AiBackendFeature(),
         new AlertsOptInFeature(),

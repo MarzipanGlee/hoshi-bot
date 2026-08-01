@@ -33,6 +33,12 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
 
     protected abstract string RoleSettingKey(TTier tier);
 
+    // Optional role for members who have no tier at all — e.g. a player with no alliance has no
+    // rank. Null (the default) means the feature has no such role, and a tierless member simply
+    // ends up holding none of them. Managed exactly like a tier role: added when it applies,
+    // removed when it stops applying.
+    protected virtual string? NoTierRoleSettingKey => null;
+
     // Concrete jobs own the skip-log line so each keeps its original wording verbatim.
     protected abstract void LogSkippedMember(ulong userId, ulong guildId, HttpStatusCode statusCode);
 
@@ -64,8 +70,18 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
                 roleIdsByTier[tier] = id;
         }
 
-        if (roleIdsByTier.Count == 0)
+        var noTierRoleId = NoTierRoleSettingKey is { } noTierKey
+            ? await settingsService.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, noTierKey)
+            : null;
+
+        if (roleIdsByTier.Count == 0 && noTierRoleId is null)
             return;
+
+        // Everything this feature owns: the configured tier roles plus the no-tier role, so a member
+        // moving between the two has the old one taken off.
+        var managedRoleIds = roleIdsByTier.Values.ToList();
+        if (noTierRoleId is { } noTier)
+            managedRoleIds.Add(noTier);
 
         foreach (var player in players)
         {
@@ -73,8 +89,8 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
                 continue;
             // A tier with no configured role yields 0 here (not null) — deliberately: the member
             // then matches no role, so stale tier roles still get removed.
-            var targetRoleId = TierOf(player) is { } tier ? roleIdsByTier.GetValueOrDefault(tier) : (ulong?)null;
-            await SyncMemberAsync(guildId, guildUser, roleIdsByTier.Values, targetRoleId);
+            var targetRoleId = TierOf(player) is { } tier ? roleIdsByTier.GetValueOrDefault(tier) : noTierRoleId;
+            await SyncMemberAsync(guildId, guildUser, managedRoleIds, targetRoleId);
         }
     }
 

@@ -73,6 +73,9 @@ public static class GuildFeatureAudiences
         // Per-alliance: its own services channel/role and per-zone service curation, all scoped to
         // one linked alliance like the capture schedule it fires from.
         GuildFeature.TerritoryCaptureServiceReminders => GuildAudience.Alliance,
+        // Guild-wide, like RankRoles/NicknameSync: one set of tag roles for the whole Discord, since
+        // members' alliances span (and reach beyond) whatever the guild has linked.
+        GuildFeature.AllianceTagRoles => GuildAudience.Guild,
         _ => GuildAudience.None,
     };
 

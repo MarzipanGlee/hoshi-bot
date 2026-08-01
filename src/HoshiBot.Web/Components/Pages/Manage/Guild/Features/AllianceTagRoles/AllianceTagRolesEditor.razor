@@ -1,0 +1,161 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Domain
+@using HoshiBot.Web.Services
+@using Microsoft.EntityFrameworkCore
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
+        <p class="form-text mt-0">
+            @((MarkupString)Msg.WebAllianceTagRoles.HowItWorksUsage(Lang))
+        </p>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.CreateMissing)">
+        <div class="form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="atrCreateMissing"
+                   checked="@createMissing" @onchange="e => SaveCreateMissingAsync((bool)e.Value!)" />
+            <label class="form-check-label" for="atrCreateMissing">@Msg.WebAllianceTagRoles.CreateMissingLabel(Lang)</label>
+        </div>
+        <div class="form-text">@Msg.WebAllianceTagRoles.CreateMissingUsage(Lang)</div>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.Latinize)">
+        <div class="form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="atrLatinize"
+                   checked="@latinize" @onchange="e => SaveLatinizeAsync((bool)e.Value!)" />
+            <label class="form-check-label" for="atrLatinize">@Msg.WebAllianceTagRoles.LatinizeLabel(Lang)</label>
+        </div>
+        <div class="form-text">@((MarkupString)Msg.WebAllianceTagRoles.LatinizeUsage(Lang))</div>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.Lowercase)">
+        <div class="form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="atrLowercase"
+                   checked="@lowercase" @onchange="e => SaveLowercaseAsync((bool)e.Value!)" />
+            <label class="form-check-label" for="atrLowercase">@Msg.WebAllianceTagRoles.LowercaseLabel(Lang)</label>
+        </div>
+        <div class="form-text">@Msg.WebAllianceTagRoles.LowercaseUsage(Lang)</div>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.RolePrefix)">
+        <p class="form-text mt-0">@Msg.WebAllianceTagRoles.AffixUsage(Lang)</p>
+        <label for="atrPrefix" class="form-label">@Msg.WebAllianceTagRoles.PrefixLabel(Lang)</label>
+        <input id="atrPrefix" class="form-control mb-3" maxlength="16"
+               @bind="rolePrefix" @bind:after="SaveAffixesAsync" />
+        <label for="atrSuffix" class="form-label">@Msg.WebAllianceTagRoles.SuffixLabel(Lang)</label>
+        <input id="atrSuffix" class="form-control" maxlength="16"
+               @bind="roleSuffix" @bind:after="SaveAffixesAsync" />
+        <p class="form-text mb-0 mt-2">
+            @Msg.WebAllianceTagRoles.PreviewLabel(Lang) <code>@Preview</code>
+        </p>
+    </SettingsCard>
+
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
+            @bind-Value="noAllianceRoleInput" @bind-Value:after="SaveNoAllianceRoleAsync" Roles="roles" />
+
+    <SettingsCard Title="@Msg.WebAllianceTagRoles.BoundRolesCardTitle(Lang)">
+        <p class="form-text mt-0">@Msg.WebAllianceTagRoles.BoundRolesUsage(Lang)</p>
+        @if (boundRoles.Count == 0)
+        {
+            <p class="form-text mb-0">@Msg.WebAllianceTagRoles.NoBoundRoles(Lang)</p>
+        }
+        else
+        {
+            <ul class="list-unstyled d-flex flex-wrap gap-2 mb-0">
+                @foreach (var bound in boundRoles)
+                {
+                    <li><span class="badge bg-secondary">@bound</span></li>
+                }
+            </ul>
+        }
+    </SettingsCard>
+</div>
+
+<PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.AllianceTagRoles;
+
+    // The tag the preview is built from — deliberately one with a diacritic, a Cyrillic look-alike
+    // and a non-decomposing letter, so the Latinize switch visibly does something.
+    private const string PreviewTag = "ĶÅØŞ";
+
+    private List<Role> roles = [];
+    private bool createMissing = true;
+    private bool latinize;
+    private bool lowercase;
+    private string? rolePrefix;
+    private string? roleSuffix;
+    private string? noAllianceRoleInput;
+    private List<string> boundRoles = [];
+
+    private string Preview => AllianceTagRoleName.Build(PreviewTag, latinize, lowercase, rolePrefix, roleSuffix);
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        createMissing = !string.Equals(await GetTextAsync(AllianceTagRolesSettingKeys.CreateMissing), "false", StringComparison.OrdinalIgnoreCase);
+        latinize = string.Equals(await GetTextAsync(AllianceTagRolesSettingKeys.Latinize), "true", StringComparison.OrdinalIgnoreCase);
+        lowercase = string.Equals(await GetTextAsync(AllianceTagRolesSettingKeys.Lowercase), "true", StringComparison.OrdinalIgnoreCase);
+        rolePrefix = await GetTextAsync(AllianceTagRolesSettingKeys.RolePrefix);
+        roleSuffix = await GetTextAsync(AllianceTagRolesSettingKeys.RoleSuffix);
+        noAllianceRoleInput = (await GetSnowflakeAsync(AllianceTagRolesSettingKeys.NoAllianceRole))?.ToString();
+        await LoadBoundRolesAsync();
+    }
+
+    // Read-only view of what the sync has bound so far — the roles it owns, and therefore the ones
+    // it will take off a member who changes alliance. Written by the job, never edited here.
+    private async Task LoadBoundRolesAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var bindings = await db.GuildFeatureSettingSnowflakes
+            .Where(s => s.GuildId == GuildId && s.Feature == Feature && s.Audience == ResolvedAudience
+                && s.GuildAllianceId == null && s.Key.StartsWith(AllianceTagRolesSettingKeys.RolePrefixKey))
+            .Select(s => s.Value)
+            .ToListAsync();
+
+        boundRoles = bindings
+            .Select(id => roles.FirstOrDefault(r => r.Id == id)?.Name ?? Msg.WebCommon.Unknown(Lang, id.ToString()))
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    // Default-on: only the OFF state is stored, so "never touched" and "explicitly on" stay the
+    // same thing (mirrors the other default-on switches in this codebase).
+    private async Task SaveCreateMissingAsync(bool value)
+    {
+        createMissing = value;
+        await SetTextAsync(AllianceTagRolesSettingKeys.CreateMissing, value ? null : "false");
+    }
+
+    private async Task SaveLatinizeAsync(bool value)
+    {
+        latinize = value;
+        await SetTextAsync(AllianceTagRolesSettingKeys.Latinize, value ? "true" : null);
+    }
+
+    private async Task SaveLowercaseAsync(bool value)
+    {
+        lowercase = value;
+        await SetTextAsync(AllianceTagRolesSettingKeys.Lowercase, value ? "true" : null);
+    }
+
+    private async Task SaveAffixesAsync()
+    {
+        rolePrefix = Clean(rolePrefix);
+        roleSuffix = Clean(roleSuffix);
+        await SetTextAsync(AllianceTagRolesSettingKeys.RolePrefix, rolePrefix);
+        await SetTextAsync(AllianceTagRolesSettingKeys.RoleSuffix, roleSuffix);
+    }
+
+    // Not trimmed: a trailing space is a legitimate prefix ("Alliance " + tag). Blank is null.
+    private static string? Clean(string? value) => string.IsNullOrEmpty(value) ? null : value;
+
+    private Task SaveNoAllianceRoleAsync() =>
+        SetSnowflakeAsync(AllianceTagRolesSettingKeys.NoAllianceRole, ParseId(noAllianceRoleInput));
+}

@@ -1,4 +1,7 @@
 @inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -10,6 +13,14 @@
         </div>
     </HeaderTemplate>
 </RoleTierEditor>
+
+@* Its own card rather than a sixth RoleTierEditor tier: the tier headers render a rank icon from
+   images/ranks/{name}.png, and "no rank" has no such icon. *@
+<div class="card-grid mt-1">
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, RankRolesSettingKeys.NoRankRole)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, RankRolesSettingKeys.NoRankRole)"
+            @bind-Value="noRankRoleInput" @bind-Value:after="SaveNoRankRoleAsync" Roles="roles" />
+</div>
 
 <PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
 
@@ -24,4 +35,16 @@
         new("Operative", RankRolesSettingKeys.OperativeRole),
         new("Agent", RankRolesSettingKeys.AgentRole),
     ];
+
+    private List<Role> roles = [];
+    private string? noRankRoleInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        noRankRoleInput = (await GetSnowflakeAsync(RankRolesSettingKeys.NoRankRole))?.ToString();
+    }
+
+    private Task SaveNoRankRoleAsync() =>
+        SetSnowflakeAsync(RankRolesSettingKeys.NoRankRole, ParseId(noRankRoleInput));
 }

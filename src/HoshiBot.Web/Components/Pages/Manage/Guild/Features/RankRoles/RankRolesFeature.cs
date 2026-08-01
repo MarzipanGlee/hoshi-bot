@@ -16,7 +16,7 @@ public class RankRolesFeature : IFeatureModule
         foreach (var key in new[]
         {
             RankRolesSettingKeys.AdmiralRole, RankRolesSettingKeys.CommodoreRole, RankRolesSettingKeys.PremierRole,
-            RankRolesSettingKeys.OperativeRole, RankRolesSettingKeys.AgentRole,
+            RankRolesSettingKeys.OperativeRole, RankRolesSettingKeys.AgentRole, RankRolesSettingKeys.NoRankRole,
         })
         {
             if (await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, key) is not null)

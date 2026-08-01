@@ -112,4 +112,12 @@ public enum GuildFeature
     // its own; TerritoryCapture stays a dependency because the capture times it fires from come
     // from that schedule. Keep last so existing enum ordinals/DB rows don't shift.
     TerritoryCaptureServiceReminders,
+
+    // Guild-wide: gives every linked member a role named after their alliance's tag, so a coalition
+    // or server-wide Discord shows at a glance who is from where. Sibling of RankRoles/OpsLevelRoles
+    // but NOT an exclusive-tier feature in the same sense — the "tiers" are arbitrary alliance tags
+    // rather than an enum, so the roles are discovered/created at runtime and tracked per alliance in
+    // the settings store (AllianceTagRolesSettingKeys.RoleFor). Keep last so existing enum
+    // ordinals/DB rows don't shift.
+    AllianceTagRoles,
 }
