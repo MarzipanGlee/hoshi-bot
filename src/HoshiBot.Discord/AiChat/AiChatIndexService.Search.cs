@@ -17,13 +17,14 @@ public partial class AiChatIndexService
     // Reciprocal Rank Fusion constant (standard 60): score += 1 / (RrfK + rank).
     private const int RrfK = 60;
 
-    // Recency fusion: a third RRF term ranks the already-retrieved candidates newest-first, scaled by
-    // this weight, so a fresher relevant row wins a near-tie over an older one that merely reads more
-    // similarly (the general form of the promo-code/stale-content bug). Deliberately < 1 so it only
-    // breaks near-ties, never overrides a clear relevance win — and applied only over the FTS/vector
-    // candidate union, so it never pulls in recent-but-irrelevant chatter and can't bury a lone
-    // evergreen hit (nothing fresher competes with it). Tunable.
-    private const double RecencyWeight = 0.5;
+    // Weight of the recency leg (RecentMatchCandidatesAsync) in the RRF fusion. Full weight (1.0, a
+    // peer of the FTS and vector legs) on purpose: a single fresh post competing against thousands of
+    // older same-topic matches needs recency to be a first-class signal, not a half-weight tie-breaker
+    // — otherwise the current announcement, even once it's a candidate, still loses to an old
+    // high-density post. Evergreen stays safe: a lone authoritative hit still wins on FTS+vector+tier;
+    // the recency leg only adds *recent matches*, which for an evergreen-topic query are lower-tier
+    // chatter that relevance+tier beat. Tunable.
+    private const double RecencyWeight = 1.0;
 
     // Per-channel knowledge priority tiers (soft down-rank): after RRF fusion a candidate's score is
     // multiplied by its channel's tier factor, so Preferred sources win ties/near-ties and LastResort
@@ -53,8 +54,9 @@ public partial class AiChatIndexService
 
         var ftsCandidates = await FtsCandidatesAsync(db, guildId, language, queryText, cancellationToken);
         var vectorCandidates = await VectorCandidatesAsync(db, guildId, queryText, cancellationToken);
+        var recentCandidates = await RecentMatchCandidatesAsync(db, guildId, language, queryText, cancellationToken);
 
-        if (ftsCandidates.Count == 0 && vectorCandidates.Count == 0)
+        if (ftsCandidates.Count == 0 && vectorCandidates.Count == 0 && recentCandidates.Count == 0)
             return [];
 
         // Reciprocal Rank Fusion: a row's score is the sum of 1/(RrfK + rank) across the lists, so a
@@ -74,12 +76,12 @@ public partial class AiChatIndexService
         Fuse(ftsCandidates);
         Fuse(vectorCandidates);
 
-        // Recency leg: rank the ALREADY-retrieved candidate union newest-first and fuse it at a
-        // fractional weight. Because it only reorders rows FTS/vector already surfaced, it nudges a
-        // fresher relevant row above an older near-tie without introducing recent-but-irrelevant rows
-        // or burying a lone evergreen hit (see RecencyWeight).
-        var byRecency = byId.Values.OrderByDescending(c => c.CreatedAt).ToList();
-        Fuse(byRecency, RecencyWeight);
+        // Recency leg (see RecentMatchCandidatesAsync): its own candidates — the newest query matches
+        // — fused newest-first at RecencyWeight. Unlike the earlier "reorder the union" approach, this
+        // actually pulls fresh posts into the pool that ts_rank/vector missed, so a current
+        // announcement can surface over old high-density same-topic posts. FTS/vector still own
+        // relevance; the channel tier still boosts Preferred sources on top.
+        Fuse(recentCandidates, RecencyWeight);
 
         // Soft down-rank by channel priority tier: multiply each fused score by its tier factor, so
         // Preferred sources win ties/near-ties and LastResort sources only surface when nothing
@@ -131,6 +133,30 @@ public partial class AiChatIndexService
                 .Concat(EF.Functions.ToTsVector(language, m.Content).SetWeight('B'))
                 .Rank(EF.Functions.WebSearchToTsQuery(language, search)))
             .ThenByDescending(m => m.CreatedAt)
+            .Take(CandidatePoolSize)
+            .Select(m => new Candidate(m.Id, m.ChannelId, m.ChannelName, m.Content, m.CreatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    // Recency leg: the NEWEST messages that match the query (same title-weighted FTS predicate as
+    // FtsCandidatesAsync), ordered by CreatedAt — not by ts_rank. This is a candidate SOURCE, not a
+    // reorder: the FTS leg ranks by keyword density with no time component, so for a high-frequency
+    // recurring topic (incursions, tournaments) a fresh announcement is drowned by thousands of older
+    // same-topic posts and never enters the top-CandidatePoolSize FTS/vector pool at all — then the
+    // fusion's recency contribution has nothing to lift. Pulling the newest matches directly
+    // guarantees the current post is a candidate; fusion + channel-tier then decide its final rank.
+    private async Task<List<Candidate>> RecentMatchCandidatesAsync(HoshiBotDbContext db, ulong guildId, string language, string queryText, CancellationToken cancellationToken)
+    {
+        var search = ToOrQuery(queryText);
+        if (string.IsNullOrWhiteSpace(search))
+            return [];
+
+        return await db.AiChatIndexedMessages
+            .Where(m => m.GuildId == guildId
+                && EF.Functions.ToTsVector(language, m.ChannelName ?? "").SetWeight('A')
+                    .Concat(EF.Functions.ToTsVector(language, m.Content).SetWeight('B'))
+                    .Matches(EF.Functions.WebSearchToTsQuery(language, search)))
+            .OrderByDescending(m => m.CreatedAt)
             .Take(CandidatePoolSize)
             .Select(m => new Candidate(m.Id, m.ChannelId, m.ChannelName, m.Content, m.CreatedAt))
             .ToListAsync(cancellationToken);
