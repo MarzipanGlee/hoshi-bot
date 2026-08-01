@@ -267,6 +267,16 @@ File placement rules:
 - **NetCord's NuGet XML docs are incomplete** — existing members (e.g.
   `RestClient.GetUserAsync`) are missing from them. When an API seems absent, consult
   the NetCord sources before concluding it doesn't exist.
+- **Discord timestamp tokens (`<t:UNIX>` / `<t:UNIX:style>`) are opaque to the AI model.**
+  A Discord *client* renders them as localized dates, but in prompt text they're just
+  integers the model can neither read nor reason about — and STFC event announcements put
+  every date/time in these tokens, so a retrieved announcement arrives date-blind (Hoshi
+  once insisted she had "no confirmed date" for an event whose date sat right there as a
+  token). Any new AiChat prompt block that injects indexed/live message content must run it
+  through `AiChatService.ResolveDiscordTimestamps(...)`, which rewrites the tokens to
+  readable local dates. The one deliberate exception is the Territory-Capture facts block,
+  which emits raw `<t:…:t>` on purpose *and* tells the model to pass them through verbatim
+  so Discord localizes them per reader — do that only when the block's instruction says so.
 
 ## Database & migrations
 
