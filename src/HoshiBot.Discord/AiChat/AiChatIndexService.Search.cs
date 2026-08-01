@@ -37,7 +37,7 @@ public partial class AiChatIndexService
     // only before a guild's index is first built) — keeps that prompt from exploding.
     private const int MaxKnowledgeSources = 25;
 
-    public readonly record struct KnowledgeHit(ulong ChannelId, string? ChannelName, string Content);
+    public readonly record struct KnowledgeHit(ulong ChannelId, string? ChannelName, string Content, DateTimeOffset CreatedAt);
 
     // One retrieval candidate (from either the FTS or the vector leg), keyed by row Id for fusion.
     // CreatedAt drives the recency fusion term (see SearchAsync).
@@ -102,7 +102,7 @@ public partial class AiChatIndexService
             .Select(kv => (Hit: byId[kv.Key], Score: kv.Value * TierFactor(byId[kv.Key])))
             .OrderByDescending(x => x.Score)
             .Take(limit)
-            .Select(x => new KnowledgeHit(x.Hit.ChannelId, x.Hit.ChannelName, x.Hit.Content))
+            .Select(x => new KnowledgeHit(x.Hit.ChannelId, x.Hit.ChannelName, x.Hit.Content, x.Hit.CreatedAt))
             .ToList();
     }
 

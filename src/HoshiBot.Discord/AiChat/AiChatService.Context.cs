@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using HoshiBot.Data;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
@@ -28,8 +30,18 @@ public partial class AiChatService
         // a [Text](URL) link, which Discord shows raw in a plain message.
         sb.AppendLine("Formatierung von Kanal-Verweisen: Wenn du auf einen Kanal verweist, verwende exakt die Discord-Syntax <#ID> mit einer ID aus den Kontextblöcken unten (dort steht sie in eckigen Klammern vor jeder Zeile); Discord macht daraus einen klickbaren Kanal. Schreibe niemals eine discord.com/channels-URL, niemals [#Name] oder #Name als reinen Text und erfinde keine IDs. Verwende außerdem nie die Markdown-Linksyntax [Text](URL) — deine Nachricht ist eine normale Chat-Nachricht, in der Discord das unverändert als Text anzeigt; nenne eine URL einfach direkt.");
 
+        // Resolve the guild's timezone + culture once here — the environment block, the <t:unix>
+        // resolver (Part A) and the knowledge-snippet date prefixes (Part C) all share them. Timezone
+        // is an alliance-only setting, so use the message's resolved alliance, falling back to the
+        // guild's primary; culture drives the German/English date rendering.
+        var alliance = _settingsScope.AllianceId is { } allianceId
+            ? await allianceService.FindByIdAsync(guildId, allianceId)
+            : await allianceService.GetPrimaryAsync(guildId);
+        var tz = GuildAlliance.ResolveTimeZone(alliance?.TimeZoneId);
+        var culture = Languages.ToCulture(_replyLanguage);
+
         sb.AppendLine();
-        sb.Append(await BuildEnvironmentContextAsync(guildId, _settingsScope.AllianceId, model, providerKind, _replyLanguage));
+        sb.Append(BuildEnvironmentContext(guildId, model, providerKind, tz, _replyLanguage));
 
         if (!string.IsNullOrWhiteSpace(systemExtra))
         {
@@ -85,7 +97,7 @@ public partial class AiChatService
             sb.Append(facts);
         }
 
-        var announcements = await BuildLatestAnnouncementsBlockAsync(guildId, cancellationToken);
+        var announcements = await BuildLatestAnnouncementsBlockAsync(guildId, tz, culture, cancellationToken);
         if (announcements.Length > 0)
         {
             sb.AppendLine();
@@ -93,14 +105,14 @@ public partial class AiChatService
             sb.Append(announcements);
         }
 
-        var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, knowledgeSnippetLimit, cancellationToken);
+        var knowledge = await BuildKnowledgeBlockAsync(guildId, questionText, knowledgeSnippetLimit, tz, culture, cancellationToken);
         if (knowledge.Length > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("Wissensquellen (relevante Auszüge; der Herkunftskanal steht als Link <#ID> in eckigen Klammern voran):");
+            sb.AppendLine("Wissensquellen (relevante Auszüge; in eckigen Klammern stehen der Herkunftskanal als Link <#ID> und das Erstellungsdatum der Nachricht):");
             sb.Append(knowledge);
             sb.AppendLine();
-            sb.AppendLine("Jede Zeile in den Wissensquellen ist eine eigenständige Information aus einer einzelnen Nachricht. Verknüpfe keine getrennten Zeilen oder Aufzählungspunkte zu einer neuen Behauptung, die so nirgends steht, auch wenn sie plausibel klingt. Wenn die Wissensquellen eine Frage nicht eindeutig und direkt beantworten, sag ehrlich, dass du es nicht sicher weißt, statt Fakten zu kombinieren oder zu raten.");
+            sb.AppendLine("Jede Zeile in den Wissensquellen ist eine eigenständige Information aus einer einzelnen Nachricht. Verknüpfe keine getrennten Zeilen oder Aufzählungspunkte zu einer neuen Behauptung, die so nirgends steht, auch wenn sie plausibel klingt. Wenn die Wissensquellen eine Frage nicht eindeutig und direkt beantworten, sag ehrlich, dass du es nicht sicher weißt, statt Fakten zu kombinieren oder zu raten. Jede Zeile trägt ihr Erstellungsdatum voran: Bei zeitkritischen oder einander widersprechenden Aussagen (z. B. Event verschoben vs. Event läuft) gilt die neuere; vergleiche das Datum mit dem heutigen Datum aus deiner Umgebung und behandle eine alte Nachricht nicht als aktuell.");
         }
 
         sb.AppendLine();
@@ -116,17 +128,13 @@ public partial class AiChatService
     // seen agreeing "in 3 Tagen" without knowing today's date), the community name, and the AI model
     // she runs on (so she can answer meta-questions about herself). These are reliable computed
     // facts, so they sit with the trusted top-of-prompt instructions, not the soft memory blocks.
-    // allianceId is the message's resolved alliance (from _settingsScope) for the chat path, or null
-    // for the admin-compose path — in which case the timezone falls back to the guild's primary
-    // alliance. Timezone is an alliance-only setting (unlike language); Server/Community scopes and
-    // the compose path use the primary alliance's zone. lang is the reply's resolved language and
-    // drives the date/weekday rendering (same per-language pattern split as the TC digest's date).
-    private async Task<string> BuildEnvironmentContextAsync(ulong guildId, int? allianceId, string model, AiProvider providerKind, Language lang)
+    // tz is the guild's resolved timezone (an alliance-only setting): the caller resolves it once —
+    // from the message's resolved alliance on the chat path, or the guild's primary alliance on the
+    // admin-compose path — and shares it with the <t:unix> resolver and the knowledge date prefixes.
+    // lang is the reply's resolved language and drives the date/weekday rendering (same per-language
+    // pattern split as the TC digest's date).
+    private string BuildEnvironmentContext(ulong guildId, string model, AiProvider providerKind, TimeZoneInfo tz, Language lang)
     {
-        var alliance = allianceId is { } id
-            ? await allianceService.FindByIdAsync(guildId, id)
-            : await allianceService.GetPrimaryAsync(guildId);
-        var tz = GuildAlliance.ResolveTimeZone(alliance?.TimeZoneId);
         var localNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz);
         var culture = Languages.ToCulture(lang);
         var nowText = localNow.ToString(lang == Language.En ? "dddd, MMMM d, yyyy, HH:mm" : "dddd, d. MMMM yyyy, HH:mm 'Uhr'", culture);
@@ -141,10 +149,60 @@ public partial class AiChatService
         return sb.ToString();
     }
 
+    // Discord timestamp tokens (<t:UNIX> / <t:UNIX:style>) render as localized dates in a Discord
+    // client, but to the model they're opaque integers it can neither read nor reason about. STFC event
+    // announcements put all their dates/times in these tokens, so a retrieved announcement arrives
+    // date-blind — the model can't tell "when". Rewrite each token to a concrete human-readable
+    // date/time in the guild's timezone. Rendered readable-only (the raw token is dropped): the guild is
+    // single-timezone, so a concrete local time beats a token the model would mangle on output. Only the
+    // TC facts block keeps raw <t:…:t> tokens (it explicitly tells the model to pass them through for
+    // per-user localization). An unparseable/out-of-range token is left untouched.
+    private static string ResolveDiscordTimestamps(string text, TimeZoneInfo tz, CultureInfo culture)
+    {
+        if (string.IsNullOrEmpty(text) || !text.Contains("<t:", StringComparison.Ordinal))
+            return text;
+
+        var german = culture.TwoLetterISOLanguageName != "en";
+        return DiscordTimestampRegex().Replace(text, match =>
+        {
+            if (!long.TryParse(match.Groups[1].Value, out var unix))
+                return match.Value;
+            DateTimeOffset local;
+            try
+            {
+                local = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(unix), tz);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return match.Value; // unix outside DateTimeOffset's representable range
+            }
+
+            // Discord's styles: t/T time, d/D date, f/F (and the default) date+time, R relative. Render
+            // R and F as an absolute long date+time (best for the model's reasoning); f/default as a
+            // short date+time. Weekday/month names follow the reply language.
+            var style = match.Groups[2].Success ? match.Groups[2].Value[0] : 'f';
+            var pattern = style switch
+            {
+                't' => german ? "HH:mm 'Uhr'" : "h:mm tt",
+                'T' => german ? "HH:mm:ss 'Uhr'" : "h:mm:ss tt",
+                'd' => german ? "dd.MM.yyyy" : "MM/dd/yyyy",
+                'D' => german ? "d. MMMM yyyy" : "MMMM d, yyyy",
+                'F' or 'R' => german ? "dddd, d. MMMM yyyy, HH:mm 'Uhr'" : "dddd, MMMM d, yyyy, h:mm tt",
+                _ => german ? "d. MMMM yyyy, HH:mm 'Uhr'" : "MMMM d, yyyy, h:mm tt", // 'f' and the default
+            };
+            return local.ToString(pattern, culture);
+        });
+    }
+
+    // <t:1785571200> or <t:1785571200:F> — the (possibly negative) unix seconds plus an optional
+    // one-letter style, matching Discord's timestamp markup exactly.
+    [GeneratedRegex(@"<t:(-?\d+)(?::([tTdDfFR]))?>")]
+    private static partial Regex DiscordTimestampRegex();
+
     // The grounding block: the messages from the guild's knowledge index most relevant to the
     // question (full-text search). Falls back to a live gather only while the index has no content
     // for the guild yet (before the first backfill), so early questions still work.
-    private async Task<string> BuildKnowledgeBlockAsync(ulong guildId, string questionText, int knowledgeSnippetLimit, CancellationToken cancellationToken)
+    private async Task<string> BuildKnowledgeBlockAsync(ulong guildId, string questionText, int knowledgeSnippetLimit, TimeZoneInfo tz, CultureInfo culture, CancellationToken cancellationToken)
     {
         if (!await indexService.HasIndexedContentAsync(guildId, cancellationToken))
             return await indexService.GetRecentKnowledgeFallbackAsync(guildId, cancellationToken);
@@ -158,9 +216,16 @@ public partial class AiChatService
             guildId, questionText,
             string.Join(" | ", hits.Select(h => $"{h.ChannelName}: {h.Content[..Math.Min(50, h.Content.Length)].Replace('\n', ' ')}")));
 
+        // Each snippet is prefixed with its post's creation date/time in the guild timezone (Part C) so
+        // Hoshi can weigh recency and not narrate a week-old post as current, and its inline <t:unix>
+        // event timestamps are resolved to readable dates (Part A) so she can read the actual event time.
         var sb = new StringBuilder();
         foreach (var hit in hits)
-            sb.AppendLine(hit.ChannelId != 0 ? $"- [<#{hit.ChannelId}>] {hit.Content}" : $"- {hit.Content}");
+        {
+            var date = TimeZoneInfo.ConvertTime(hit.CreatedAt, tz).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+            var content = ResolveDiscordTimestamps(hit.Content, tz, culture);
+            sb.AppendLine(hit.ChannelId != 0 ? $"- [<#{hit.ChannelId}>] ({date}) {content}" : $"- ({date}) {content}");
+        }
 
         return sb.ToString();
     }
@@ -170,11 +235,17 @@ public partial class AiChatService
     // context immediately. This sidesteps both the index/embedding lag and the semantic-ranking miss
     // that buries a time-sensitive fact (like a maintenance date) inside a long announcement — those
     // never rank well, but they're always here regardless. Skips the bot's own messages.
-    private const int LatestAnnouncementsCount = 5;
-    private const int LatestAnnouncementCharCap = 700;
-    private const int LatestAnnouncementsCharBudget = 3500;
+    // Fetch depth PER Preferred channel (a busy general-announcements channel can push a still-relevant
+    // notice several posts down, and the bot's-own-message skip eats into the fetch), the global
+    // newest-first cap across all Preferred channels, the per-snippet char cap and the total budget.
+    // Sized so a time-sensitive announcement that sits ~a dozen posts deep across the Preferred channels
+    // (e.g. an event announced days before it runs) still lands in the block.
+    private const int LatestAnnouncementsFetchPerChannel = 12;
+    private const int LatestAnnouncementsMaxShown = 15;
+    private const int LatestAnnouncementCharCap = 500;
+    private const int LatestAnnouncementsCharBudget = 7500;
 
-    private async Task<string> BuildLatestAnnouncementsBlockAsync(ulong guildId, CancellationToken cancellationToken)
+    private async Task<string> BuildLatestAnnouncementsBlockAsync(ulong guildId, TimeZoneInfo tz, CultureInfo culture, CancellationToken cancellationToken)
     {
         // Preferred knowledge channels across every enabled audience (same source SearchAsync tiers on).
         var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, GuildFeature.AiChat);
@@ -194,7 +265,7 @@ public partial class AiChatService
         {
             try
             {
-                foreach (var message in await indexService.FetchRecentAsync(channelId, LatestAnnouncementsCount, cancellationToken))
+                foreach (var message in await indexService.FetchRecentAsync(channelId, LatestAnnouncementsFetchPerChannel, cancellationToken))
                 {
                     if (message.Author.Id == gatewayClient.Id)
                         continue;
@@ -211,10 +282,14 @@ public partial class AiChatService
         }
 
         var sb = new StringBuilder();
-        foreach (var (when, channelId, text) in messages.OrderByDescending(m => m.When).Take(LatestAnnouncementsCount))
+        foreach (var (when, channelId, text) in messages.OrderByDescending(m => m.When).Take(LatestAnnouncementsMaxShown))
         {
-            var trimmed = text.Length > LatestAnnouncementCharCap ? text[..LatestAnnouncementCharCap] + "…" : text;
-            var line = $"- [<#{channelId}>] ({when:yyyy-MM-dd}) {trimmed.Replace('\n', ' ')}";
+            // Resolve inline <t:unix> event timestamps to readable dates (Part A) before trimming, so the
+            // char cap counts the readable text the model actually sees.
+            var resolved = ResolveDiscordTimestamps(text, tz, culture);
+            var trimmed = resolved.Length > LatestAnnouncementCharCap ? resolved[..LatestAnnouncementCharCap] + "…" : resolved;
+            var date = TimeZoneInfo.ConvertTime(when, tz).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var line = $"- [<#{channelId}>] ({date}) {trimmed.Replace('\n', ' ')}";
             if (sb.Length + line.Length > LatestAnnouncementsCharBudget)
                 break;
             sb.AppendLine(line);

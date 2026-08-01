@@ -1,6 +1,7 @@
 using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Domain;
+using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.Extensions.Logging;
 
@@ -50,7 +51,8 @@ public partial class AiChatService
         // Give the composer the same current-date/environment awareness as a chat reply (no message
         // audience here, so the timezone falls back to the guild's primary alliance) — so an
         // admin-composed announcement uses the real date instead of inventing one.
-        system.Append(await BuildEnvironmentContextAsync(guildId, allianceId: null, model, provider.Kind, lang));
+        var composeTz = GuildAlliance.ResolveTimeZone((await allianceService.GetPrimaryAsync(guildId))?.TimeZoneId);
+        system.Append(BuildEnvironmentContext(guildId, model, provider.Kind, composeTz, lang));
         system.AppendLine();
         system.AppendLine(
             "Ein Administrator bittet dich, eine Nachricht in einen Chat-Kanal der Community zu schreiben. " +
