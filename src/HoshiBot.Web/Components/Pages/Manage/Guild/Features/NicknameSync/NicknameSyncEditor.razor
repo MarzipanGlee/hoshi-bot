@@ -24,6 +24,17 @@
         <Select TValue="string" Items="ModeItems" @bind-Value="serverMode" @bind-Value:after="SaveServerModeAsync" />
     </SettingsCard>
 
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.MemberSuffix)">
+        <div class="form-switch">
+            <input type="checkbox" class="form-check-input" role="switch" id="nsMemberSuffix"
+                   checked="@memberSuffix" @onchange="e => SaveMemberSuffixAsync((bool)e.Value!)" />
+            <label class="form-check-label" for="nsMemberSuffix">@Msg.WebNicknameSync.MemberSuffixLabel(Lang)</label>
+        </div>
+        <div class="form-text">
+            @((MarkupString)Msg.WebNicknameSync.MemberSuffixUsage(Lang))
+        </div>
+    </SettingsCard>
+
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.ExcludedRoles)">
         <p class="form-text mt-0">@Msg.WebEditor.Usage(Lang, Feature, NicknameSyncSettingKeys.ExcludedRoles)</p>
         @if (excludedRoleIds.Count > 0)
@@ -66,6 +77,7 @@
     private string serverMode = nameof(NicknameTagMode.ForeignOnly);
     private List<ulong> excludedRoleIds = [];
     private string? addRoleInput;
+    private bool memberSuffix;
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -75,6 +87,15 @@
         serverMode = await GetTextAsync(NicknameSyncSettingKeys.ServerTagMode)
             ?? nameof(NicknameTagMode.ForeignOnly);
         excludedRoleIds = await GetSnowflakeListAsync(NicknameSyncSettingKeys.ExcludedRoles);
+        memberSuffix = NicknameSyncSettingKeys.IsMemberSuffixOn(await GetTextAsync(NicknameSyncSettingKeys.MemberSuffix));
+    }
+
+    // Default-on, so only the OFF state is stored — switching back on deletes the row rather than
+    // writing "true", which keeps "never touched" and "explicitly on" the same thing.
+    private async Task SaveMemberSuffixAsync(bool value)
+    {
+        memberSuffix = value;
+        await SetTextAsync(NicknameSyncSettingKeys.MemberSuffix, value ? null : "false");
     }
 
     private Task SaveAllianceModeAsync() =>

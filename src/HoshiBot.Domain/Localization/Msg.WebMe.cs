@@ -130,6 +130,16 @@ public static partial class Msg
         public static string SavedConfirmation(Language lang) =>
             MessageCatalog.Format(lang, "Web.Me.SavedConfirmation");
 
+        public static string NicknameSuffixTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Me.NicknameSuffixTitle");
+
+        // Contains inline <code> markup (the rendered example) — render via MarkupString.
+        public static string NicknameSuffixLead(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Me.NicknameSuffixLead");
+
+        public static string NicknameSuffixPlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Me.NicknameSuffixPlaceholder");
+
         public static string PeerLoreHeading(Language lang) =>
             MessageCatalog.Format(lang, "Web.Me.PeerLoreHeading");
 

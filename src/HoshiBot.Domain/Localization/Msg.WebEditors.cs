@@ -377,6 +377,13 @@ public static partial class Msg
 
         public static string ModeAlways(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.NicknameSync.ModeAlways");
+
+        public static string MemberSuffixLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.NicknameSync.MemberSuffixLabel");
+
+        // Contains inline <code> markup (the rendered example) — render via MarkupString.
+        public static string MemberSuffixUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.NicknameSync.MemberSuffixUsage");
     }
 
     public static class WebPlayerLink

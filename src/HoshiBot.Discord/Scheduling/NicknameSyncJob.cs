@@ -1,5 +1,6 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -24,8 +25,6 @@ public class NicknameSyncJob(
     PlayerLinkService playerLinkService,
     ILogger<NicknameSyncJob> logger) : IJob
 {
-    private const int DiscordNicknameMaxLength = 32;
-
     public Task Execute(IJobExecutionContext context) =>
         // Guild-wide, guild-scoped (null): only act when enabled for the Guild audience, ignoring
         // any orphaned rows left under other audiences.
@@ -36,6 +35,10 @@ public class NicknameSyncJob(
         var allianceTagMode = ParseMode(await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.AllianceTagMode));
         var serverTagMode = ParseMode(await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.ServerTagMode));
         var excludedRoles = (await settingsService.GetSnowflakeListAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.ExcludedRoles)).ToHashSet();
+
+        // Members set their own suffix globally on /me; this guild decides whether to render it.
+        var memberSuffix = NicknameSyncSettingKeys.IsMemberSuffixOn(
+            await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.MemberSuffix));
 
         // Home = the guild's own alliances and their servers (plus any explicitly tracked servers).
         var homeAllianceIds = await db.GuildAlliances.Where(ga => ga.GuildId == guildId).Select(ga => ga.StfcAllianceId).ToListAsync();
@@ -54,39 +57,13 @@ public class NicknameSyncJob(
         {
             if (!roster.TryGetValue(member.DiscordUserId, out var guildUser))
                 continue;
-            var nickname = BuildNickname(member, allianceTagMode, serverTagMode, homeAllianceSet, homeServerSet);
+            var nickname = NicknameComposer.Build(
+                member.Name, member.RegionName, member.ServerId, member.AllianceId, member.AllianceTag,
+                allianceTagMode, serverTagMode, homeAllianceSet, homeServerSet,
+                memberSuffix ? member.NicknameSuffix : null);
             await SyncNicknameAsync(guildId, guildUser, nickname, excludedRoles);
         }
     }
-
-    private static string BuildNickname(GuildPrimaryPlayer m, NicknameTagMode allianceMode, NicknameTagMode serverMode, HashSet<int> homeAlliances, HashSet<int> homeServers)
-    {
-        var serverLabel = $"{m.RegionName}{m.ServerId}";
-        var serverTag = Include(serverMode, m.ServerId, homeServers) && !string.IsNullOrWhiteSpace(m.RegionName) ? $"[{serverLabel}]" : "";
-
-        // A player with no alliance is treated as "foreign" (not one of the guild's own) and, when the
-        // tag applies, shown as [n/a] so it's still disambiguated.
-        var showAllianceTag = allianceMode switch
-        {
-            NicknameTagMode.Always => true,
-            NicknameTagMode.ForeignOnly => m.AllianceId is not { } aid || !homeAlliances.Contains(aid),
-            _ => false,
-        };
-        var allianceTag = showAllianceTag ? $"[{(string.IsNullOrWhiteSpace(m.AllianceTag) ? "n/a" : m.AllianceTag)}]" : "";
-
-        var prefix = serverTag + allianceTag;
-        var nickname = prefix.Length > 0 ? $"{prefix} {m.Name}" : m.Name;
-        return nickname.Length > DiscordNicknameMaxLength ? nickname[..DiscordNicknameMaxLength] : nickname;
-    }
-
-    // Whether the server tag applies for this id under the given mode. ForeignOnly = the id is NOT one
-    // of the guild's own servers.
-    private static bool Include(NicknameTagMode mode, int id, HashSet<int> homeIds) => mode switch
-    {
-        NicknameTagMode.Always => true,
-        NicknameTagMode.ForeignOnly => !homeIds.Contains(id),
-        _ => false,
-    };
 
     private static NicknameTagMode ParseMode(string? value) =>
         Enum.TryParse<NicknameTagMode>(value, out var mode) ? mode : NicknameTagMode.ForeignOnly;

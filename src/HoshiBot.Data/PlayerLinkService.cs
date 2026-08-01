@@ -116,12 +116,20 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
             .ToListAsync())
             .ToDictionary(p => p.Id);
 
+        // The member's own nickname suffix (global, set on /me) — only Nickname Sync uses it, but it
+        // rides along here so the job keeps its single roster read instead of a query per member.
+        var userIdList = playerIdByUser.Keys.ToList();
+        var suffixByUser = await db.DiscordUsers
+            .Where(u => userIdList.Contains(u.DiscordUserId) && u.NicknameSuffix != null)
+            .ToDictionaryAsync(u => u.DiscordUserId, u => u.NicknameSuffix!);
+
         var result = new Dictionary<ulong, GuildPrimaryPlayer>();
         foreach (var (userId, playerId) in playerIdByUser)
         {
             if (!players.TryGetValue(playerId, out var p))
                 continue;
-            result[userId] = new GuildPrimaryPlayer(userId, p.Id, p.Name, p.AllianceId, p.AllianceTag, p.ServerId, p.RegionName, p.Rank, p.OpsLevel);
+            result[userId] = new GuildPrimaryPlayer(userId, p.Id, p.Name, p.AllianceId, p.AllianceTag, p.ServerId, p.RegionName, p.Rank, p.OpsLevel,
+                suffixByUser.GetValueOrDefault(userId));
         }
         return result;
     }
@@ -525,4 +533,7 @@ public record GuildPrimaryPlayer(
     int ServerId,
     string RegionName,
     StfcPlayerRank? Rank,
-    int? OpsLevel);
+    int? OpsLevel,
+    // The person's own alias from /me (DiscordUser.NicknameSuffix). Trailing + optional so the
+    // consumers that don't care about it construct the record unchanged.
+    string? NicknameSuffix = null);

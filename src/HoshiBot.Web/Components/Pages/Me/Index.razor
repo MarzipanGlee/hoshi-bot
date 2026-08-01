@@ -1,4 +1,5 @@
 @page "/me"
+@using HoshiBot.Domain
 @using Microsoft.AspNetCore.Authentication
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
@@ -197,6 +198,22 @@
         </select>
     }
 
+    <h2 class="mt-5 mb-2">@Msg.WebMe.NicknameSuffixTitle(Lang)</h2>
+    <p class="card-subtext">
+        @((MarkupString)Msg.WebMe.NicknameSuffixLead(Lang))
+    </p>
+
+    @if (!loading)
+    {
+        <input class="form-control w-auto" maxlength="@NicknameComposer.MaxSuffixLength"
+               placeholder="@Msg.WebMe.NicknameSuffixPlaceholder(Lang)"
+               @bind="nicknameSuffix" @bind:after="SaveNicknameSuffixAsync" />
+        @if (suffixSaved)
+        {
+            <span class="text-success small">@Msg.WebMe.SavedConfirmation(Lang)</span>
+        }
+    }
+
     <h2 class="mt-5 mb-2">@Msg.WebMe.DiscordAccountsTitle(Lang)</h2>
     <p class="card-subtext">
         @Msg.WebMe.DiscordAccountsLead(Lang)
@@ -260,6 +277,8 @@
     private string? playerError;
 
     private string? userLanguage;
+    private string? nicknameSuffix;
+    private bool suffixSaved;
     private string automaticLanguageLabel = "your Discord language";
 
     private string? LinkResultMessage => Link switch
@@ -299,9 +318,10 @@
 
             var userRow = await db.DiscordUsers.AsNoTracking()
                 .Where(u => u.DiscordUserId == currentUserId)
-                .Select(u => new { u.Language, u.DiscordLocale })
+                .Select(u => new { u.Language, u.DiscordLocale, u.NicknameSuffix })
                 .FirstOrDefaultAsync();
             userLanguage = userRow?.Language;
+            nicknameSuffix = userRow?.NicknameSuffix;
 
             // The bot records DiscordLocale from interactions; before the first one, the web
             // login itself knows the locale (the mapped OAuth claim) — use it for the label
@@ -317,6 +337,25 @@
 
         await ReloadPersonAsync();
         loading = false;
+    }
+
+    // Sanitized rather than validated: NicknameComposer.CleanSuffix drops the brackets and
+    // parentheses that would confuse CommanderName's strip (which is what keeps player auto-matching
+    // working), collapses whitespace and caps the length, so there's no error state to surface.
+    // No forceLoad here, unlike the language save — nothing on this page is cascaded from it.
+    private async Task SaveNicknameSuffixAsync()
+    {
+        nicknameSuffix = NicknameComposer.CleanSuffix(nicknameSuffix);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var user = await db.DiscordUsers.FindAsync(currentUserId);
+        if (user is null)
+            db.DiscordUsers.Add(new DiscordUser { DiscordUserId = currentUserId, NicknameSuffix = nicknameSuffix });
+        else
+            user.NicknameSuffix = nicknameSuffix;
+
+        await db.SaveChangesAsync();
+        suffixSaved = true;
     }
 
     private async Task OnLanguageChangedAsync(ChangeEventArgs e)

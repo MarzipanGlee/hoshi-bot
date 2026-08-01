@@ -1,23 +1,21 @@
-using System.Text.RegularExpressions;
+using HoshiBot.Domain;
 using NetCord;
 
 namespace HoshiBot.Discord;
 
-// Ported from legacy's $defs.RegEx.MemberName ("\[.*\]\s*", applied to .Member.Nick in
-// nearly every command handler) — strips a leading alliance/clan tag like "[LF] " from a
-// guild nickname so "Commander {name}" reads naturally instead of "Commander [LF] Name".
-public static partial class CommanderName
+// Strips a guild nickname back to the bare name for salutations — the leading alliance/clan tag
+// ("[LF] ") and the member's own Nickname Sync suffix (" (IgnisDraco)") both come off, so
+// "Commander {name}" reads naturally. The strip itself lives in NicknameComposer.Strip next to the
+// composition it inverts; this is just the User-shaped entry point.
+public static class CommanderName
 {
-    [GeneratedRegex(@"\[.*\]\s*")]
-    private static partial Regex TagPattern();
-
     // Context.User is always actually a GuildInteractionUser (has Nickname) for any
     // guild-context interaction — every command/component here is guild-only — but this
     // falls back to the global display name/username defensively rather than assuming so.
     public static string Of(User user)
     {
         var name = (user as GuildUser)?.Nickname ?? user.GlobalName ?? user.Username;
-        return TagPattern().Replace(name, "");
+        return NicknameComposer.Strip(name);
     }
 
     // The "Commander {name}, " salutation prefix. Catalog messages carry the salutation inside

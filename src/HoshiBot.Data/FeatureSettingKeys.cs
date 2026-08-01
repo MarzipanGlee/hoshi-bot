@@ -187,6 +187,17 @@ public static class NicknameSyncSettingKeys
 
     // Snowflake list of roles whose holders are skipped entirely (never renamed).
     public const string ExcludedRoles = "ExcludedRoles";
+
+    // Whether a member's own suffix (DiscordUser.NicknameSuffix, set on /me) is appended in
+    // parentheses — "[SHQL] Almeophus (IgnisDraco)". Default-ON, so "false" is stored when switched
+    // OFF and the row is deleted when switched back on; a guild that doesn't want member-authored
+    // text in its nicknames turns it off without members losing the suffix in their other guilds.
+    public const string MemberSuffix = "MemberSuffix";
+
+    // Unset (or anything but an explicit "false") → on. Shared by the Web editor and the sync job so
+    // the default can't drift between what admins see and what actually gets written.
+    public static bool IsMemberSuffixOn(string? storedValue) =>
+        !string.Equals(storedValue, "false", StringComparison.OrdinalIgnoreCase);
 }
 
 public static class RankRolesSettingKeys

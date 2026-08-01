@@ -3,6 +3,7 @@ using System;
 using HoshiBot.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace HoshiBot.Data.Migrations
 {
     [DbContext(typeof(HoshiBotDbContext))]
-    partial class HoshiBotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801152256_AddNicknameSuffix")]
+    partial class AddNicknameSuffix
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
