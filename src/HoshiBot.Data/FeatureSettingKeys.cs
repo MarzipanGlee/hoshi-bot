@@ -189,7 +189,7 @@ public static class NicknameSyncSettingKeys
     public const string ExcludedRoles = "ExcludedRoles";
 
     // Whether a member's own suffix (DiscordUser.NicknameSuffix, set on /me) is appended in
-    // parentheses — "[SHQL] Almeophus (IgnisDraco)". Default-ON, so "false" is stored when switched
+    // parentheses — "[TAG] Player (Suffix)". Default-ON, so "false" is stored when switched
     // OFF and the row is deleted when switched back on; a guild that doesn't want member-authored
     // text in its nicknames turns it off without members losing the suffix in their other guilds.
     public const string MemberSuffix = "MemberSuffix";

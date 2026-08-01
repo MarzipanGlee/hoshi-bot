@@ -4,7 +4,7 @@ using NetCord;
 namespace HoshiBot.Discord;
 
 // Strips a guild nickname back to the bare name for salutations — the leading alliance/clan tag
-// ("[LF] ") and the member's own Nickname Sync suffix (" (IgnisDraco)") both come off, so
+// ("[TAG] ") and the member's own Nickname Sync suffix (" (Suffix)") both come off, so
 // "Commander {name}" reads naturally. The strip itself lives in NicknameComposer.Strip next to the
 // composition it inverts; this is just the User-shaped entry point.
 public static class CommanderName

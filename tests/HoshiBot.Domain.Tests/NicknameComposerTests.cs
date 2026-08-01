@@ -7,76 +7,76 @@ namespace HoshiBot.Domain.Tests;
 public class NicknameComposerTests
 {
     private const int HomeAlliance = 1;
-    private const int HomeServer = 164;
+    private const int HomeServer = 1;
     private static readonly HashSet<int> HomeAlliances = [HomeAlliance];
     private static readonly HashSet<int> HomeServers = [HomeServer];
 
     // A member of the guild's own alliance on its own server, unless overridden.
     private static string Build(
-        string name = "Almeophus",
+        string name = "Player",
         NicknameTagMode allianceMode = NicknameTagMode.ForeignOnly,
         NicknameTagMode serverMode = NicknameTagMode.ForeignOnly,
         int? allianceId = HomeAlliance,
-        string? allianceTag = "SHQL",
+        string? allianceTag = "TAG",
         int serverId = HomeServer,
-        string regionName = "EU",
+        string regionName = "RG",
         string? suffix = null) =>
         NicknameComposer.Build(name, regionName, serverId, allianceId, allianceTag,
             allianceMode, serverMode, HomeAlliances, HomeServers, suffix);
 
     [Fact]
     public void ForeignOnly_HomePlayer_GetsNoTags() =>
-        Assert.Equal("Almeophus", Build());
+        Assert.Equal("Player", Build());
 
     [Fact]
     public void ForeignOnly_ForeignAllianceAndServer_GetsBothTags() =>
-        Assert.Equal("[EU999][BONK] Almeophus", Build(allianceId: 2, allianceTag: "BONK", serverId: 999));
+        Assert.Equal("[RG99][OTHR] Player", Build(allianceId: 2, allianceTag: "OTHR", serverId: 99));
 
     [Fact]
     public void Always_HomePlayer_GetsBothTags() =>
-        Assert.Equal("[EU164][SHQL] Almeophus",
+        Assert.Equal("[RG1][TAG] Player",
             Build(allianceMode: NicknameTagMode.Always, serverMode: NicknameTagMode.Always));
 
     [Fact]
     public void Never_ForeignPlayer_GetsNoTags() =>
-        Assert.Equal("Almeophus",
+        Assert.Equal("Player",
             Build(allianceMode: NicknameTagMode.Never, serverMode: NicknameTagMode.Never,
-                allianceId: 2, allianceTag: "BONK", serverId: 999));
+                allianceId: 2, allianceTag: "OTHR", serverId: 99));
 
     [Fact]
     public void AllianceLessPlayer_IsForeign_AndRendersNotApplicable() =>
-        Assert.Equal("[n/a] Almeophus", Build(allianceId: null, allianceTag: null));
+        Assert.Equal("[n/a] Player", Build(allianceId: null, allianceTag: null));
 
     [Fact]
     public void BlankRegion_SuppressesTheServerTag() =>
-        Assert.Equal("[SHQL] Almeophus",
+        Assert.Equal("[TAG] Player",
             Build(allianceMode: NicknameTagMode.Always, serverMode: NicknameTagMode.Always, regionName: ""));
 
     [Fact]
     public void Suffix_IsAppendedInParentheses() =>
-        Assert.Equal("[SHQL] Almeophus (IgnisDraco)",
-            Build(allianceMode: NicknameTagMode.Always, serverMode: NicknameTagMode.Never, suffix: "IgnisDraco"));
+        Assert.Equal("[TAG] Player (Alias)",
+            Build(allianceMode: NicknameTagMode.Always, serverMode: NicknameTagMode.Never, suffix: "Alias"));
 
     [Fact]
     public void Suffix_IsDroppedWholeRatherThanTruncated()
     {
-        // Both tags leave only 9 characters for " (…)" after the name — not enough, so the suffix
-        // goes entirely rather than being cut into. This is the common case when a guild shows both
-        // tags: the prefix alone already costs 14 characters of the 32.
+        // The suffix goes entirely rather than being cut into. Real tags cost far more than this
+        // fixture's — a five-letter region+server and a four-letter alliance tag already eat 14 of
+        // the 32 characters — so this is the common case once a guild shows both tags.
         var result = Build(allianceMode: NicknameTagMode.Always, serverMode: NicknameTagMode.Always,
-            suffix: "IgnisDraco");
+            suffix: "AliasThatIsTooLong");
 
-        Assert.Equal("[EU164][SHQL] Almeophus", result);
+        Assert.Equal("[RG1][TAG] Player", result);
         Assert.DoesNotContain("(", result);
     }
 
     [Fact]
     public void Suffix_FittingExactlyAt32_IsKept()
     {
-        var result = Build(name: "Almeo", allianceMode: NicknameTagMode.Always,
-            serverMode: NicknameTagMode.Always, suffix: "IgnisDrac");
+        var result = Build(allianceMode: NicknameTagMode.Always,
+            serverMode: NicknameTagMode.Always, suffix: "AliasTwelve1");
 
-        Assert.Equal("[EU164][SHQL] Almeo (IgnisDrac)", result);
+        Assert.Equal("[RG1][TAG] Player (AliasTwelve1)", result);
         Assert.True(result.Length <= NicknameComposer.DiscordNicknameMaxLength);
     }
 
@@ -90,10 +90,10 @@ public class NicknameComposerTests
     }
 
     [Theory]
-    [InlineData("  IgnisDraco  ", "IgnisDraco")]
-    [InlineData("Ignis[Draco]", "IgnisDraco")]      // brackets would confuse the tag strip
-    [InlineData("Ignis(Draco)", "IgnisDraco")]      // parens would confuse the suffix strip
-    [InlineData("Ignis   Draco", "Ignis Draco")]    // inner whitespace collapses
+    [InlineData("  Alias  ", "Alias")]
+    [InlineData("Ali[as]", "Alias")]          // brackets would confuse the tag strip
+    [InlineData("Ali(as)", "Alias")]          // parens would confuse the suffix strip
+    [InlineData("My   Alias", "My Alias")]    // inner whitespace collapses
     [InlineData("", null)]
     [InlineData("   ", null)]
     [InlineData("()", null)]                        // nothing left after cleaning
@@ -109,19 +109,19 @@ public class NicknameComposerTests
     // The property the player matcher depends on: whatever Build composes has to strip back to the
     // bare player name, or every member using a suffix falls out of auto-linking.
     [Theory]
-    [InlineData(NicknameTagMode.Always, NicknameTagMode.Always, "IgnisDraco")]
+    [InlineData(NicknameTagMode.Always, NicknameTagMode.Always, "Alias")]
     [InlineData(NicknameTagMode.Always, NicknameTagMode.Always, null)]
-    [InlineData(NicknameTagMode.ForeignOnly, NicknameTagMode.Never, "IgnisDraco")]
-    [InlineData(NicknameTagMode.Never, NicknameTagMode.Never, "IgnisDraco")]
+    [InlineData(NicknameTagMode.ForeignOnly, NicknameTagMode.Never, "Alias")]
+    [InlineData(NicknameTagMode.Never, NicknameTagMode.Never, "Alias")]
     public void Strip_UndoesBuild(NicknameTagMode allianceMode, NicknameTagMode serverMode, string? suffix)
     {
         var composed = Build(allianceMode: allianceMode, serverMode: serverMode, suffix: suffix,
-            allianceId: 2, allianceTag: "BONK", serverId: 999);
+            allianceId: 2, allianceTag: "OTHR", serverId: 99);
 
-        Assert.Equal("Almeophus", NicknameComposer.Strip(composed));
+        Assert.Equal("Player", NicknameComposer.Strip(composed));
     }
 
     [Fact]
     public void Strip_LeavesAnUntaggedNameAlone() =>
-        Assert.Equal("Almeophus", NicknameComposer.Strip("Almeophus"));
+        Assert.Equal("Player", NicknameComposer.Strip("Player"));
 }

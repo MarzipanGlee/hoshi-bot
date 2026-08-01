@@ -44,7 +44,7 @@ public static partial class NicknameComposer
         return cleaned.Length > MaxSuffixLength ? cleaned[..MaxSuffixLength] : cleaned;
     }
 
-    // "[EU164][SHQL] Almeophus (IgnisDraco)" — server tag, then alliance tag (no space between
+    // "[SERVER][TAG] Player (Suffix)" — server tag, then alliance tag (no space between
     // them), the player name, then the member's own suffix in parentheses. Any part can be absent.
     public static string Build(
         string playerName,
@@ -75,7 +75,7 @@ public static partial class NicknameComposer
         var nickname = prefix.Length > 0 ? $"{prefix} {playerName}" : playerName;
 
         // The suffix is all-or-nothing: append it only if the whole thing still fits. Truncating
-        // into it would leave a cut-off "(IgnisDrac", and the tags+name are the part other systems
+        // into it would leave a cut-off "(Suffi", and the tags+name are the part other systems
         // (CommanderName, the player matcher) read back out.
         if (CleanSuffix(suffix) is { } cleanSuffix)
         {
@@ -91,7 +91,7 @@ public static partial class NicknameComposer
     // bare player name. Lives next to Build because the two must agree — PlayerLinkService matches
     // members to STFC players by this output, so anything Build adds, this has to remove, or every
     // member using the feature drops out of auto-linking. Also what makes greetings read
-    // "Commander Almeophus" rather than "Commander [SHQL] Almeophus (IgnisDraco)".
+    // "Commander Player" rather than "Commander [TAG] Player (Suffix)".
     //
     // The suffix strip does also remove a trailing parenthetical nobody asked us to touch (one a
     // member typed themselves, or an in-game name ending that way). That's the better trade: the

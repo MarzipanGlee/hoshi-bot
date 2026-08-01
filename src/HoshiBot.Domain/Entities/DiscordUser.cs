@@ -16,7 +16,7 @@ public class DiscordUser
     // which have no interaction in hand — still resolve the user's automatic language.
     public string? DiscordLocale { get; set; }
 
-    // Optional alias Nickname Sync appends in brackets ("[SHQL] Almeophus (IgnisDraco)"), set by the
+    // Optional alias Nickname Sync appends in brackets ("[TAG] Player (Suffix)"), set by the
     // member on /me. Global like Language — the name people know someone by is a fact about them,
     // not about one community — so it reads the same in every guild that syncs nicknames (each can
     // still opt out via NicknameSyncSettingKeys.MemberSuffix). Null = no suffix.
