@@ -582,3 +582,21 @@ a CI script, or a Web-side test project. Until then, re-run the ad-hoc sweep aft
 setting-keyed cards. The same blind spot covers `Msg.WebFeature.Title/Description/ExtraTitle` and
 `Msg.WebAudience.*`, which are enum-driven and therefore enumerable — those *could* be covered by a
 plain Domain test today.
+
+## AiChat: index-time `<t:unix>` timestamp resolution (searchable event dates)
+
+`ResolveDiscordTimestamps` (AiChatService.Context.cs) rewrites Discord timestamp tokens to readable
+dates at *prompt-build* time, so the model can read event dates/times in retrieved snippets without a
+re-index. It does not make those dates *searchable*: the stored `Content` (and its FTS vector +
+embedding) still holds the raw `<t:…>` tokens, so a query like "welches Event am 1. August" can't
+FTS-match on the date. Resolving in `AiChatIndexService.RenderMessageText` instead (or in addition)
+would fix that, but needs a full re-index of the ~750 existing token-bearing rows. Do it only if
+date-keyword *search* is actually wanted.
+
+## AiChat: latest-announcements block could still bury a post past the global cap
+
+`BuildLatestAnnouncementsBlockAsync` fetches `LatestAnnouncementsFetchPerChannel` per Preferred
+channel but then shows only the `LatestAnnouncementsMaxShown` newest *across all of them*. A very busy
+Preferred channel (e.g. a general-announcements channel) can still push an authoritative
+`official-announcements` notice past that global cap. If that recurs, switch to a per-channel
+guaranteed slice (show the top-N of each channel) rather than a single global newest-first list.
