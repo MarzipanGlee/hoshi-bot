@@ -81,7 +81,7 @@ public static class GuildSettingsSeedData
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.DigestChannel, 832991289423167579),
         // Moved off GuildAlliance.RemindersServicesChannelId into the feature (ServicesRole is a
         // new dedicated role admins configure, so it's not seeded here).
-        (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesChannel, 810175634096783411),
+        (GuildFeature.TerritoryCaptureServiceReminders, TerritoryCaptureServiceRemindersSettingKeys.ServicesChannel, 810175634096783411),
         (GuildFeature.Announcements, AnnouncementsSettingKeys.WarningsRole, 793383681233518633),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot1Role, 1275018847417536554),
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ZoneSlot2Role, 1275019040108318791),

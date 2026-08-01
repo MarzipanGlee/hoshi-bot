@@ -16,25 +16,6 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.DigestChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.DigestChannel)"
             @bind-Value="digestChannelInput" @bind-Value:after="SaveDigestChannelAsync" Channels="channels" />
 
-    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.ServicesChannel)"
-            @bind-Value="servicesChannelInput" @bind-Value:after="SaveServicesChannelAsync" Channels="channels" />
-
-    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)">
-        <p class="form-text mb-0">
-            @Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)
-        </p>
-        <RolePicker Label="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)" ShowLabel="false" CreateRoleName="Commodore"
-            @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
-    </SettingsCard>
-
-    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ServiceSelectionKey)">
-        <p class="form-text mb-2">
-            @Msg.WebEditor.Usage(Lang, Feature, ServiceSelectionKey)
-        </p>
-        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
-            FeatureSlug="territory-capture" ExtraSlug="service-selection" Label="@Msg.WebTerritoryCapture.ServiceSelectionLink(Lang)" />
-    </SettingsCard>
-
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ZoneSlotRolesKey)">
         <p class="form-text mb-0">
             @Msg.WebEditor.Usage(Lang, Feature, ZoneSlotRolesKey)
@@ -80,10 +61,9 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.TerritoryCapture;
 
-    // Not real stored setting keys (no persisted value of their own — the Service Selection card
-    // just links to an extra page, the other three group several *SettingKeys under one card) —
-    // used only to key these cards' catalog text, mirroring RaidAlerts' local ChannelKey pattern.
-    private const string ServiceSelectionKey = "ServiceSelection";
+    // Not real stored setting keys (no persisted value of their own — each groups several
+    // *SettingKeys under one card) — used only to key these cards' catalog text, mirroring
+    // RaidAlerts' local ChannelKey pattern.
     private const string ZoneSlotRolesKey = "ZoneSlotRoles";
     private const string WeeklyMentionRoleKey = "WeeklyMentionRole";
     private const string DigestScheduleKey = "DigestSchedule";
@@ -91,8 +71,6 @@
     private List<Role> roles = [];
     private List<IGuildChannel> channels = [];
     private string? digestChannelInput;
-    private string? servicesChannelInput;
-    private string? servicesRoleInput;
     private string? zoneSlot1Input;
     private string? zoneSlot2Input;
     private string? zoneSlot3Input;
@@ -110,8 +88,6 @@
         roles = await DiscordData.GetRolesAsync(GuildId);
         channels = await DiscordData.GetChannelsAsync(GuildId);
         digestChannelInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.DigestChannel))?.ToString();
-        servicesChannelInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesChannel))?.ToString();
-        servicesRoleInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
         zoneSlot1Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot1Role))?.ToString();
         zoneSlot2Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot2Role))?.ToString();
         zoneSlot3Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
@@ -128,22 +104,6 @@
 
     private Task SaveDigestChannelAsync() =>
         SetSnowflakeAsync(TerritoryCaptureSettingKeys.DigestChannel, ParseId(digestChannelInput));
-
-    private Task SaveServicesChannelAsync() =>
-        SetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesChannel, ParseId(servicesChannelInput));
-
-    // A blank selection creates a dedicated "Commodore" role instead of saving null (mirrors the
-    // zone-slot roles).
-    private async Task SaveServicesRoleAsync()
-    {
-        createRoleError = null;
-        (var roleId, servicesRoleInput, createRoleError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, servicesRoleInput, "Commodore");
-        if (createRoleError is not null)
-            return;
-
-        roles = await DiscordData.GetRolesAsync(GuildId);
-        await SetSnowflakeAsync(TerritoryCaptureSettingKeys.ServicesRole, roleId);
-    }
 
     private async Task SaveZoneSlotAsync(string key, Action<string?> setInput, string? currentInput, string slotName)
     {

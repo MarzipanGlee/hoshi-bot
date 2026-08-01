@@ -459,9 +459,6 @@ public static partial class Msg
 
     public static class WebTerritoryCapture
     {
-        public static string ServiceSelectionLink(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.TerritoryCapture.ServiceSelectionLink");
-
         // Contains inline <strong>/<a> markup (the alliance timezone + Alliance Settings link) —
         // render via MarkupString. href is built by the caller from the current route.
         public static string DigestScheduleUsage(Language lang, string timezone, string href) =>
@@ -472,6 +469,18 @@ public static partial class Msg
 
         public static string DailyDigestTimeLabel(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.TerritoryCapture.DailyDigestTimeLabel");
+    }
+
+    // The post-capture "activate services" nudge, split out of TerritoryCapture into its own
+    // feature (channel + role + the Service Selection page).
+    public static class WebTerritoryCaptureServiceReminders
+    {
+        // Contains inline <strong> markup — render via MarkupString.
+        public static string Intro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.TerritoryCaptureServiceReminders.Intro");
+
+        public static string ServiceSelectionLink(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.TerritoryCaptureServiceReminders.ServiceSelectionLink");
     }
 
     // The settings-free Capture Sign-Off feature — its editor is the enable switch plus this one

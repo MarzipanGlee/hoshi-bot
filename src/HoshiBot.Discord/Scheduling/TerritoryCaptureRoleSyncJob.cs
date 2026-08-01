@@ -97,7 +97,8 @@ public class TerritoryCaptureRoleSyncJob(
                     await featureService.IsEnabledAsync(guildId, GuildFeature.ServicesRoleSync, GuildAudience.Alliance, link.Id))
                 {
                     var servicesRoleId = await settingsService.GetSnowflakeAsync(
-                        guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesRole);
+                        guildId, GuildFeature.TerritoryCaptureServiceReminders, GuildAudience.Alliance, link.Id,
+                        TerritoryCaptureServiceRemindersSettingKeys.ServicesRole);
                     if (servicesRoleId is { } svcRole)
                     {
                         foreach (var guildUser in roster.Values)

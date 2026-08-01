@@ -68,11 +68,15 @@ public partial class TerritoryCaptureDigestService
                 }
 
                 // Services (Dienste) reminder: a post-capture nudge for officers to activate the
-                // zone's services, posted to its own channel ~5 min after each capture ends. Fully
-                // independent of the DigestChannel above — a guild that only set a DigestChannel gets
-                // no services reminder.
+                // zone's services, posted to its own channel ~5 min after each capture ends. Its own
+                // feature — an alliance can want the capture digests without it (and vice versa) —
+                // so it is gated separately here rather than riding along with Territory Capture.
+                if (!await featureService.IsEnabledAsync(guildId, GuildFeature.TerritoryCaptureServiceReminders, GuildAudience.Alliance, link.Id))
+                    continue;
+
                 var servicesChannelId = await settingsService.GetSnowflakeAsync(
-                    guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesChannel);
+                    guildId, GuildFeature.TerritoryCaptureServiceReminders, GuildAudience.Alliance, link.Id,
+                    TerritoryCaptureServiceRemindersSettingKeys.ServicesChannel);
                 if (servicesChannelId is not { } servicesChannelIdValue)
                     continue;
 
@@ -144,7 +148,8 @@ public partial class TerritoryCaptureDigestService
         (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot, Language lang)
     {
         var roleId = await settingsService.GetSnowflakeAsync(
-            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ServicesRole);
+            guildId, GuildFeature.TerritoryCaptureServiceReminders, GuildAudience.Alliance, link.Id,
+            TerritoryCaptureServiceRemindersSettingKeys.ServicesRole);
 
         var description = await BuildServicesDescriptionAsync(link, slot.Territory, lang);
 

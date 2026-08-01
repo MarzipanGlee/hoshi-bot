@@ -14,5 +14,6 @@ public class ServicesRoleSyncFeature : IFeatureModule
     // Configured once the Services role it assigns exists — that role is owned by the Territory
     // Capture feature (this feature carries no settings of its own; it shares TC's ServicesRole).
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context) =>
-        await context.GetSnowflakeAsync(guildId, GuildFeature.TerritoryCapture, audience, guildAllianceId, TerritoryCaptureSettingKeys.ServicesRole) is not null;
+        await context.GetSnowflakeAsync(guildId, GuildFeature.TerritoryCaptureServiceReminders, audience, guildAllianceId,
+            TerritoryCaptureServiceRemindersSettingKeys.ServicesRole) is not null;
 }

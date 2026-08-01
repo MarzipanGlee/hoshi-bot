@@ -5,10 +5,10 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject GuildAllianceService AllianceService
 
-<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.TerritoryCapture, "service-selection")</PageTitle>
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.TerritoryCaptureServiceReminders, "service-selection")</PageTitle>
 
 <AuthorizedGuildView Authorized="Authorized">
-    <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.TerritoryCapture, "service-selection")</h1>
+    <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.TerritoryCaptureServiceReminders, "service-selection")</h1>
     <p>
         @((MarkupString)Msg.WebServiceSelectionAdmin.Intro(Lang))
     </p>

@@ -339,7 +339,7 @@ public sealed class PermissionAuditService(
                 Add(a.StaffCommandBridgeChannelId, Msg.WebAudit.SourceStaffCommandBridge(lang, tag), PostPermissions);
                 Add(a.FriendsCommandBridgeChannelId, Msg.WebAudit.SourceFriendsCommandBridge(lang, tag), PostPermissions);
                 Add(a.RemindersAlliesChannelId, Msg.WebAudit.SourceRemindersAllies(lang, tag), PostPermissions);
-                // Reminders (Services) moved to the TerritoryCapture feature settings (ServicesChannel);
+                // Reminders (Services) moved to the TerritoryCaptureServiceReminders feature settings (ServicesChannel);
                 // the generic per-feature-Channel loop above already covers it.
                 Add(a.RulesDeChannelId, Msg.WebAudit.SourceRulesDe(lang, tag), PostPermissions);
                 Add(a.RulesEnChannelId, Msg.WebAudit.SourceRulesEn(lang, tag), PostPermissions);

@@ -104,4 +104,12 @@ public enum GuildFeature
     // was "another feature must be on" reads far clearer as a feature with declared dependencies.
     // Keep last so existing enum ordinals/DB rows don't shift.
     TerritoryCaptureSignOff,
+
+    // Alliance-audience: the post-capture "activate services" nudge for officers — its own channel
+    // + role and the per-zone service curation (TerritoryServiceSelection), split out of
+    // TerritoryCapture. Independent of the capture digests in every practical sense (different
+    // channel, different audience, an alliance can want one without the other), so it toggles on
+    // its own; TerritoryCapture stays a dependency because the capture times it fires from come
+    // from that schedule. Keep last so existing enum ordinals/DB rows don't shift.
+    TerritoryCaptureServiceReminders,
 }

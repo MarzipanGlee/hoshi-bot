@@ -11,9 +11,6 @@ public class TerritoryCaptureFeature : IFeatureModule
     public string Icon => "oi-map";
     public Type EditorComponentType => typeof(TerritoryCaptureEditor);
 
-    public IReadOnlyList<FeatureExtraPage> ExtraPages =>
-        [new FeatureExtraPage("service-selection", typeof(ServiceSelectionAdmin))];
-
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
         for (var slot = 1; slot <= 5; slot++)

@@ -15,8 +15,8 @@
 }
 
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)"
-        Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureSettingKeys.ServicesRole)"
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
+        Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
         CreateRoleName="Commodore" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, MemberRoleKey)"
@@ -29,8 +29,8 @@
 
     // Not a real stored setting (the value lives on GuildAlliance.MemberRoleId, not
     // GuildFeatureSettings) — used only to key this card's catalog text, mirroring
-    // TerritoryCaptureSettingKeys.ServicesRole above (a real stored key, reused because this editor
-    // writes that same setting under GuildFeature.TerritoryCapture).
+    // the ServicesRole card above (a real stored key, reused because this editor writes that same
+    // setting under GuildFeature.TerritoryCaptureServiceReminders).
     private const string MemberRoleKey = "MemberRole";
 
     private List<Role> roles = [];
@@ -44,7 +44,7 @@
         roles = await DiscordData.GetRolesAsync(GuildId);
 
         // Services role is the TC feature's setting (shared, not a copy).
-        servicesRoleInput = (await GetSnowflakeAsync(GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesRole))?.ToString();
+        servicesRoleInput = (await GetSnowflakeAsync(GuildFeature.TerritoryCaptureServiceReminders, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole))?.ToString();
 
         // Member role is the alliance's own column (shared with Alliance Settings).
         if (GuildAllianceId is { } allianceId)
@@ -66,7 +66,7 @@
             return;
 
         roles = await DiscordData.GetRolesAsync(GuildId);
-        await SetSnowflakeAsync(GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.ServicesRole, roleId);
+        await SetSnowflakeAsync(GuildFeature.TerritoryCaptureServiceReminders, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole, roleId);
     }
 
     // Writes GuildAlliance.MemberRoleId (same value Alliance Settings' Member card edits). A blank

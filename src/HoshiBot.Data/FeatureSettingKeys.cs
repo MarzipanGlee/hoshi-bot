@@ -92,12 +92,6 @@ public static class TerritoryCaptureSettingKeys
     // so it lives with the feature (and each alliance can post to its own channel).
     public const string DigestChannel = "DigestChannel";
 
-    // Where the post-capture "activate services" (Dienste) reminder for officers is posted, and the
-    // role it pings — both moved off GuildAlliance.RemindersServicesChannelId / a dedicated role so
-    // they live with the feature (mirrors DigestChannel).
-    public const string ServicesChannel = "ServicesChannel";
-    public const string ServicesRole = "ServicesRole";
-
     // LOCAL "HH:mm" (:00/:30) digest fire times, interpreted in the alliance's GuildAlliance.TimeZoneId
     // (DST-aware). Unset → the Default* below, which — with the default Europe/Zurich zone — reproduce
     // the previous hard-coded weekly-09:00 / daily-19:00 Europe/Zurich cron exactly. The weekday
@@ -125,6 +119,18 @@ public static class TerritoryCaptureSettingKeys
         5 => ZoneSlot5Role,
         _ => throw new ArgumentOutOfRangeException(nameof(slotIndex), slotIndex, "Zone slot index must be 1-5."),
     };
+}
+
+// The post-capture "activate services" nudge. Both keys used to live on TerritoryCaptureSettingKeys
+// (and were stored under GuildFeature.TerritoryCapture) — a data migration moved the existing rows
+// over when this became its own feature. The per-zone service curation isn't here at all: it's the
+// TerritoryServiceSelection table, keyed by alliance/zone/service rather than by feature.
+public static class TerritoryCaptureServiceRemindersSettingKeys
+{
+    // Where the reminder is posted and the officer role it pings. Deliberately its own channel, not
+    // the capture DigestChannel — this one is for the handful of officers who can activate services.
+    public const string ServicesChannel = "ServicesChannel";
+    public const string ServicesRole = "ServicesRole";
 }
 
 public static class MemberLoreSettingKeys

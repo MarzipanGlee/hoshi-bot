@@ -1,0 +1,73 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<p class="form-text">
+    @((MarkupString)Msg.WebTerritoryCaptureServiceReminders.Intro(Lang))
+</p>
+
+@if (createRoleError is not null)
+{
+    <p class="text-danger">@createRoleError.Value.Text(Lang)</p>
+}
+
+<div class="card-grid mt-1">
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesChannel)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesChannel)"
+            @bind-Value="servicesChannelInput" @bind-Value:after="SaveServicesChannelAsync" Channels="channels" />
+
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
+            CreateRoleName="Commodore" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ServiceSelectionKey)">
+        <p class="form-text mb-2">
+            @Msg.WebEditor.Usage(Lang, Feature, ServiceSelectionKey)
+        </p>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="territory-capture-service-reminders" ExtraSlug="service-selection"
+            Label="@Msg.WebTerritoryCaptureServiceReminders.ServiceSelectionLink(Lang)" />
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.TerritoryCaptureServiceReminders;
+
+    // Not a real stored setting key (the curation lives in TerritoryServiceSelection rows, and this
+    // card only links to the page that edits them) — used just to key the card's catalog text,
+    // mirroring the TC editor's local pseudo-keys.
+    private const string ServiceSelectionKey = "ServiceSelection";
+
+    private List<Role> roles = [];
+    private List<IGuildChannel> channels = [];
+    private string? servicesChannelInput;
+    private string? servicesRoleInput;
+    private DiscordCreateErrorKind? createRoleError;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        servicesChannelInput = (await GetSnowflakeAsync(TerritoryCaptureServiceRemindersSettingKeys.ServicesChannel))?.ToString();
+        servicesRoleInput = (await GetSnowflakeAsync(TerritoryCaptureServiceRemindersSettingKeys.ServicesRole))?.ToString();
+    }
+
+    private Task SaveServicesChannelAsync() =>
+        SetSnowflakeAsync(TerritoryCaptureServiceRemindersSettingKeys.ServicesChannel, ParseId(servicesChannelInput));
+
+    // A blank selection creates a dedicated "Commodore" role instead of saving null (mirrors the
+    // TC zone-slot roles). Services Role Sync edits this same setting from its own page.
+    private async Task SaveServicesRoleAsync()
+    {
+        createRoleError = null;
+        (var roleId, servicesRoleInput, createRoleError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, servicesRoleInput, "Commodore");
+        if (createRoleError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(TerritoryCaptureServiceRemindersSettingKeys.ServicesRole, roleId);
+    }
+}

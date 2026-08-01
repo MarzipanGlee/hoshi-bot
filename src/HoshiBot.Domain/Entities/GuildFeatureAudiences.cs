@@ -70,6 +70,9 @@ public static class GuildFeatureAudiences
         // Per-alliance, like the TerritoryCapture posts it adds the sign-off buttons to and the
         // Absences feature whose rows those buttons write.
         GuildFeature.TerritoryCaptureSignOff => GuildAudience.Alliance,
+        // Per-alliance: its own services channel/role and per-zone service curation, all scoped to
+        // one linked alliance like the capture schedule it fires from.
+        GuildFeature.TerritoryCaptureServiceReminders => GuildAudience.Alliance,
         _ => GuildAudience.None,
     };
 

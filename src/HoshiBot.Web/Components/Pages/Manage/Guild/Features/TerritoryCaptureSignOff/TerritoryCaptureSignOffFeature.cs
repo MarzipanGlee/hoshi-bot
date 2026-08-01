@@ -5,7 +5,7 @@ namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features.TerritoryCaptureSi
 public class TerritoryCaptureSignOffFeature : IFeatureModule
 {
     public GuildFeature Feature => GuildFeature.TerritoryCaptureSignOff;
-    public string Slug => "capture-sign-off";
+    public string Slug => "territory-capture-sign-off";
 
     public string Icon => "oi-account-logout";
     public Type EditorComponentType => typeof(TerritoryCaptureSignOffEditor);

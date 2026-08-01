@@ -61,10 +61,15 @@ public static class GuildFeatureDependencies
         GuildFeature.Tickets => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.AnonymousMessaging => [new(GuildFeature.CommandBridge, HasNote: true)],
 
-        // Assigns the Territory Capture Services role to the alliance's Admiral/Commodore members —
-        // it needs TC to own the Services role ("Provides the Services role to assign.") and Rank
-        // Roles to maintain the source rank roles ("Mirrors the Admiral/Commodore rank roles.").
-        GuildFeature.ServicesRoleSync => [new(GuildFeature.TerritoryCapture, HasNote: true), new(GuildFeature.RankRoles, HasNote: true)],
+        // Assigns the Services role to the alliance's Admiral/Commodore members — it needs the
+        // service-reminders feature to own that role ("Provides the Services role to assign.") and
+        // Rank Roles to maintain the source rank roles ("Mirrors the Admiral/Commodore rank roles.").
+        GuildFeature.ServicesRoleSync => [new(GuildFeature.TerritoryCaptureServiceReminders, HasNote: true), new(GuildFeature.RankRoles, HasNote: true)],
+
+        // The "activate services" nudge fires a fixed interval after a capture ends, so it needs the
+        // capture schedule TerritoryCapture owns ("Capture times come from the capture schedule.").
+        // Its own channel, role and per-zone service curation are its own settings.
+        GuildFeature.TerritoryCaptureServiceReminders => [new(GuildFeature.TerritoryCapture, HasNote: true)],
 
         // Capture sign-off owns nothing of its own: TC's digests/reminders are what carry the
         // buttons ("The sign-off buttons ride on the capture digests and reminders.") and Absences
