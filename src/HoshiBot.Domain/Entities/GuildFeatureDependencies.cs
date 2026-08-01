@@ -66,6 +66,13 @@ public static class GuildFeatureDependencies
         // Roles to maintain the source rank roles ("Mirrors the Admiral/Commodore rank roles.").
         GuildFeature.ServicesRoleSync => [new(GuildFeature.TerritoryCapture, HasNote: true), new(GuildFeature.RankRoles, HasNote: true)],
 
+        // Capture sign-off owns nothing of its own: TC's digests/reminders are what carry the
+        // buttons ("The sign-off buttons ride on the capture digests and reminders.") and Absences
+        // owns the rows a click writes ("Each sign-off is recorded as an absence."). Both are hard
+        // requirements — with either off the feature has nothing to attach to, or writes rows
+        // nobody can manage.
+        GuildFeature.TerritoryCaptureSignOff => [new(GuildFeature.TerritoryCapture, HasNote: true), new(GuildFeature.Absences, HasNote: true)],
+
         _ => [],
     };
 }

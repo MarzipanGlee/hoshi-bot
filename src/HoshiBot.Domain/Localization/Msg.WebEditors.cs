@@ -472,13 +472,15 @@ public static partial class Msg
 
         public static string DailyDigestTimeLabel(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.TerritoryCapture.DailyDigestTimeLabel");
+    }
 
-        public static string AbsenceSignOffLabel(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.TerritoryCapture.AbsenceSignOffLabel");
-
-        // Contains inline <strong> markup (the required Absences feature) — render via MarkupString.
-        public static string AbsenceSignOffUsage(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.TerritoryCapture.AbsenceSignOffUsage");
+    // The settings-free Capture Sign-Off feature — its editor is the enable switch plus this one
+    // explanatory paragraph.
+    public static class WebTerritoryCaptureSignOff
+    {
+        // Contains inline <strong> markup — render via MarkupString.
+        public static string Intro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.TerritoryCaptureSignOff.Intro");
     }
 
     // TerritoryCapture's "Service Selection" extra admin page (ServiceSelectionAdmin.razor).

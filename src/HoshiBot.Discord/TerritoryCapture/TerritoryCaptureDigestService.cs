@@ -283,17 +283,15 @@ public partial class TerritoryCaptureDigestService(
     }
 
     // Whether this alliance's digests/reminders may ask for a sign-off and carry the "Abmelden"
-    // buttons. Both halves must hold: the admin's explicit switch (default-on) AND the Absences
-    // feature actually being enabled for this alliance — the button writes an Absence row, and
-    // without that feature the member can never see, edit or delete it and no report reads it.
+    // buttons. The Capture Sign-Off feature is the toggle, but Absences must also be on: a click
+    // writes an Absence row, and without that feature the member can never see, edit or delete it
+    // and no report reads it. Absences is a declared dependency of Capture Sign-Off, so a guild in
+    // that state already sees the feature flagged in the Web UI — this just makes the posts match
+    // the warning instead of offering a button that would only reply "feature disabled".
     // One helper so the weekly digest, the daily digest and the capture reminder never disagree.
-    private async Task<bool> IsSignOffEnabledAsync(ulong guildId, GuildAlliance link)
-    {
-        var stored = await settingsService.GetTextAsync(
-            guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.AbsenceSignOff);
-        return TerritoryCaptureSettingKeys.IsAbsenceSignOffOn(stored)
-            && await featureService.IsEnabledAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, link.Id);
-    }
+    private async Task<bool> IsSignOffEnabledAsync(ulong guildId, GuildAlliance link) =>
+        await featureService.IsEnabledAsync(guildId, GuildFeature.TerritoryCaptureSignOff, GuildAudience.Alliance, link.Id)
+        && await featureService.IsEnabledAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, link.Id);
 
     // Returns the posted message id, or null if the send failed (caught RestException). Callers use
     // the id to record a TerritoryCaptureSentMessage so the sweep can clean the message up later.

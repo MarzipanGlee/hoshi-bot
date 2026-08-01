@@ -95,4 +95,13 @@ public enum GuildFeature
     // snowflake setting) — role membership is the permission gate. Depends on AiBackend (the model
     // that composes the text). Keep last so existing enum ordinals/DB rows don't shift.
     HoshiSay,
+
+    // Alliance-audience, settings-free: lets members sign off from an upcoming territory capture.
+    // With it on, the TC digests/reminders ask members to sign off and carry the "Abmelden für
+    // {zone}" buttons; each click writes an Absence row. Depends on TerritoryCapture (whose posts
+    // carry the buttons) and Absences (which owns the rows the buttons create) — it was a
+    // TerritoryCaptureSettingKeys.AbsenceSignOff switch first, but a toggle whose real requirement
+    // was "another feature must be on" reads far clearer as a feature with declared dependencies.
+    // Keep last so existing enum ordinals/DB rows don't shift.
+    TerritoryCaptureSignOff,
 }

@@ -271,6 +271,7 @@
   "Feature.AiChatKnowledgePreferred": "KI-Chat: Wissensquellen (bevorzugt)",
   "Feature.AiChatKnowledgeLastResort": "KI-Chat: Wissensquellen (letzte Wahl)",
   "Feature.HoshiSay": "Hoshi sag",
+  "Feature.TerritoryCaptureSignOff": "Abmeldung von Gebietsübernahmen",
 
   "Interview.DeclineButton": "Nein danke",
   "Interview.Opener": "🖖 Hi! Ich bin {botName} und möchte dich gern besser kennenlernen, damit ich ein echtes Mitglied unserer Community sein kann. Magst du mir ein bisschen was über dich erzählen? Zum Beispiel: Wie soll ich dich nennen? Was machst du so – im Spiel und sonst? Und hast du vielleicht ein paar lustige Geschichten über andere Spieler? 😄\n\nAlles völlig freiwillig – wenn du gerade keine Lust hast, klick einfach unten auf den Nein-danke-Knopf, dann lasse ich dich in Ruhe.",

@@ -66,17 +66,6 @@
                value="@dailyDigestTimeInput" @onchange="OnDailyDigestTimeChanged" />
     </SettingsCard>
 
-    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.AbsenceSignOff)">
-        <div class="form-switch">
-            <input type="checkbox" class="form-check-input" role="switch" id="tcAbsenceSignOff"
-                   checked="@absenceSignOff" @onchange="e => SaveAbsenceSignOffAsync((bool)e.Value!)" />
-            <label class="form-check-label" for="tcAbsenceSignOff">@Msg.WebTerritoryCapture.AbsenceSignOffLabel(Lang)</label>
-        </div>
-        <div class="form-text">
-            @((MarkupString)Msg.WebTerritoryCapture.AbsenceSignOffUsage(Lang))
-        </div>
-    </SettingsCard>
-
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureSettingKeys.Instructions)">
         <label for="territoryCaptureInstructions" class="form-label">
             @Msg.WebEditor.Label(Lang, Feature, TerritoryCaptureSettingKeys.Instructions)
@@ -113,7 +102,6 @@
     private string? instructionsInput;
     private string? weeklyDigestTimeInput;
     private string? dailyDigestTimeInput;
-    private bool absenceSignOff;
     private string allianceTimeZoneDisplay = GuildAlliance.DefaultTimeZoneId;
     private DiscordCreateErrorKind? createRoleError;
 
@@ -131,7 +119,6 @@
         zoneSlot5Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
         notificationRoleInput = (await GetSnowflakeAsync(GuildFeature.Absences, AbsencesSettingKeys.NotificationRole))?.ToString();
         instructionsInput = await GetTextAsync(TerritoryCaptureSettingKeys.Instructions);
-        absenceSignOff = TerritoryCaptureSettingKeys.IsAbsenceSignOffOn(await GetTextAsync(TerritoryCaptureSettingKeys.AbsenceSignOff));
 
         weeklyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.WeeklyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultWeeklyTime;
         dailyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.DailyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultDailyTime;
@@ -186,14 +173,6 @@
 
     private Task SaveInstructionsAsync() =>
         SetTextAsync(TerritoryCaptureSettingKeys.Instructions, instructionsInput);
-
-    // Default-on, so only the OFF state is stored — switching back on deletes the row rather than
-    // writing "true", which keeps "never touched" and "explicitly on" the same thing.
-    private async Task SaveAbsenceSignOffAsync(bool value)
-    {
-        absenceSignOff = value;
-        await SetTextAsync(TerritoryCaptureSettingKeys.AbsenceSignOff, value ? null : "false");
-    }
 
     // The <input type="time"> emits an "HH:mm" string; bind it manually (a string @bind isn't allowed
     // on type=time). We snap to the nearest :00/:30 before saving — the sweep only fires at half-hour

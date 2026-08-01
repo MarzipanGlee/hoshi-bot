@@ -81,6 +81,8 @@
   "Web.Feature.StfcNews.Description": "Pings this guild's Admin channel when a new Alliance Tournament or Infinite Incursions post appears on the official STFC blog, and lets admins confirm the event date so it feeds the relevant notify feature.",
   "Web.Feature.TerritoryCapture.Title": "Territory Capture",
   "Web.Feature.TerritoryCapture.Description": "Zone-slot and rank role sync, plus the weekly/daily Territory Capture digest summarizing owned zones and next capture times.",
+  "Web.Feature.TerritoryCaptureSignOff.Title": "Capture Sign-Off",
+  "Web.Feature.TerritoryCaptureSignOff.Description": "Lets members sign off from an upcoming territory capture: the capture digests and reminders ask them to, and carry a button per zone. Each click records an absence for that capture window. Nothing to configure — needs Territory Capture and Absences enabled.",
   "Web.Feature.TerritoryCapture.Extra.service-selection": "Service Selection",
   "Web.Feature.Tickets.Title": "Tickets",
   "Web.Feature.Tickets.Description": "Members can open a private support thread with staff via the hub button — usable by any audience.",
@@ -322,6 +324,8 @@
   "Web.Editor.ServicesRoleSync.MemberRole.CardTitle": "Member Role",
   "Web.Editor.ServicesRoleSync.MemberRole.Usage": "This alliance's general membership role — only its holders receive the Services role. Shared with Alliance Settings.",
 
+  "Web.Editor.TerritoryCaptureSignOff.Intro": "When enabled, this alliance's Territory Capture digests and capture reminders ask members to sign off if they can't make a capture, and carry a <strong>\"Sign off for …\"</strong> button per zone. A click records an <strong>absence</strong> for that capture window, which the member can then see and manage like any other. There is nothing to configure here — turn it off and the digests simply drop the request and the buttons.",
+
   "Web.Editor.StfcNews.Intro": "Watches the official STFC blog (startrekfleetcommand.com) for new posts whose title mentions \"Alliance Tournament\" or \"Infinite Incursions\", and pings this guild's Admin channel (see Global Settings) with the post's title and link, plus a button to enter the event date once an admin has read the post. Pairing/schedule details inside the post are not parsed out automatically.",
 
   "Web.Editor.TerritoryCapture.DigestChannel.CardTitle": "Digest Channel",
@@ -344,9 +348,6 @@
   "Web.Editor.TerritoryCapture.DailyDigestTimeLabel": "Daily digest time",
   "Web.Editor.TerritoryCapture.Instructions.CardTitle": "Digest Instructions",
   "Web.Editor.TerritoryCapture.Instructions.Label": "Free-text \"Instructions from {Command Staff}\" section shown on the weekly/daily digest (e.g. attendance/armada expectations).",
-  "Web.Editor.TerritoryCapture.AbsenceSignOff.CardTitle": "Absence Sign-Off",
-  "Web.Editor.TerritoryCapture.AbsenceSignOffLabel": "Let members sign off for a capture",
-  "Web.Editor.TerritoryCapture.AbsenceSignOffUsage": "Adds the \"Sign off for …\" buttons to the digests and capture reminders, and asks members to sign off. Requires the <strong>Absences</strong> feature to be enabled for this alliance — the button records an absence, which without that feature nobody can view, edit or delete. Turn this off if your alliance doesn't track absences.",
 
   "Web.Editor.ServiceSelectionAdmin.Intro": "Curate which of a zone's services the Territory Capture \"activate services\" reminder tells officers to activate, split into two priorities — <strong>must have</strong> (mandatory services) and <strong>nice to have</strong> (optional services, on request). A zone with no selection lists all its services instead. Only zones the alliance currently owns are shown; available services come from the territory.lol sync.",
   "Web.Editor.ServiceSelectionAdmin.AllianceCardTitle": "Alliance",
@@ -571,6 +572,8 @@
   "Web.Guild.DependencyNote.AnonymousMessaging.CommandBridge": "The 'contact staff' button lives on the Command Bridge.",
   "Web.Guild.DependencyNote.ServicesRoleSync.TerritoryCapture": "Provides the Services role to assign.",
   "Web.Guild.DependencyNote.ServicesRoleSync.RankRoles": "Mirrors the Admiral/Commodore rank roles.",
+  "Web.Guild.DependencyNote.TerritoryCaptureSignOff.TerritoryCapture": "The sign-off buttons ride on the capture digests and reminders.",
+  "Web.Guild.DependencyNote.TerritoryCaptureSignOff.Absences": "Each sign-off is recorded as an absence.",
 
   "Web.Alliance.PageTitle": "Alliance",
   "Web.Alliance.OverviewSettingsSubtitle": "Channels & roles",

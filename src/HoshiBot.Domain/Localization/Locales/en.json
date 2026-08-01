@@ -271,6 +271,7 @@
   "Feature.AiChatKnowledgePreferred": "AI chat: knowledge sources (preferred)",
   "Feature.AiChatKnowledgeLastResort": "AI chat: knowledge sources (last resort)",
   "Feature.HoshiSay": "Hoshi say",
+  "Feature.TerritoryCaptureSignOff": "Capture sign-off",
 
   "Interview.DeclineButton": "No thanks",
   "Interview.Opener": "🖖 Hi! I'm {botName} and I'd love to get to know you better so I can be a real member of our community. Would you like to tell me a bit about yourself? For example: What should I call you? What do you get up to – in the game and beyond? And do you have any funny stories about other players? 😄\n\nCompletely optional – if you're not in the mood right now, just click the No-thanks button below and I'll leave you alone.",

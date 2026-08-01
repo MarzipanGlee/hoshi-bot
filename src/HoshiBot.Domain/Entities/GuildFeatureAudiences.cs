@@ -67,6 +67,9 @@ public static class GuildFeatureAudiences
         // Guild-wide admin utility (one /hoshi-say command + one allowed role for the whole Discord),
         // like AnnouncementForwarder/AiBackend — a single Guild-audience toggle.
         GuildFeature.HoshiSay => GuildAudience.Guild,
+        // Per-alliance, like the TerritoryCapture posts it adds the sign-off buttons to and the
+        // Absences feature whose rows those buttons write.
+        GuildFeature.TerritoryCaptureSignOff => GuildAudience.Alliance,
         _ => GuildAudience.None,
     };
 

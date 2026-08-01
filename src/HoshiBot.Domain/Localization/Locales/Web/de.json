@@ -81,6 +81,8 @@
   "Web.Feature.StfcNews.Description": "Pingt den Admin-Kanal dieser Guild an, sobald ein neuer Allianz-Turnier- oder Infinite-Incursions-Beitrag auf dem offiziellen STFC-Blog erscheint, und lässt Admins das Eventdatum bestätigen, damit es in das passende Benachrichtigungs-Feature einfließt.",
   "Web.Feature.TerritoryCapture.Title": "Gebietsübernahmen",
   "Web.Feature.TerritoryCapture.Description": "Zonen-Slot- und Rangrollen-Synchronisierung, plus die wöchentliche/tägliche Gebietsübernahmen-Übersicht mit den eigenen Zonen und den nächsten Übernahmezeiten.",
+  "Web.Feature.TerritoryCaptureSignOff.Title": "Abmeldung von Gebietsübernahmen",
+  "Web.Feature.TerritoryCaptureSignOff.Description": "Ermöglicht Mitgliedern, sich von einer bevorstehenden Gebietsübernahme abzumelden: Die Digests und Erinnerungen bitten darum und tragen je Zone einen Button. Jeder Klick erfasst eine Abwesenheit für dieses Übernahmefenster. Nichts zu konfigurieren — benötigt aktivierte Gebietsübernahmen und Absences.",
   "Web.Feature.TerritoryCapture.Extra.service-selection": "Service-Auswahl",
   "Web.Feature.Tickets.Title": "Tickets",
   "Web.Feature.Tickets.Description": "Mitglieder können über die Hub-Schaltfläche einen privaten Support-Thread mit dem Führungsstab öffnen — für jede Zielgruppe nutzbar.",
@@ -322,6 +324,8 @@
   "Web.Editor.ServicesRoleSync.MemberRole.CardTitle": "Mitgliedsrolle",
   "Web.Editor.ServicesRoleSync.MemberRole.Usage": "Die allgemeine Mitgliedsrolle dieser Allianz — nur ihre Inhaber erhalten die Services-Rolle. Wird mit den Allianz-Einstellungen geteilt.",
 
+  "Web.Editor.TerritoryCaptureSignOff.Intro": "Ist dies aktiviert, bitten die Gebietsübernahme-Digests und Erinnerungen dieser Allianz die Mitglieder, sich abzumelden, falls sie einen Termin nicht wahrnehmen können, und tragen je Zone einen <strong>„Abmelden für …“</strong>-Button. Ein Klick erfasst eine <strong>Abwesenheit</strong> für dieses Übernahmefenster, die das Mitglied danach wie jede andere sehen und verwalten kann. Hier gibt es nichts zu konfigurieren — ausgeschaltet lassen die Digests die Bitte und die Buttons einfach weg.",
+
   "Web.Editor.StfcNews.Intro": "Beobachtet den offiziellen STFC-Blog (startrekfleetcommand.com) auf neue Beiträge, deren Titel „Alliance Tournament“ oder „Infinite Incursions“ erwähnt, und pingt den Admin-Kanal dieser Guild (siehe Globale Einstellungen) mit Titel und Link des Beitrags sowie einem Button, um das Event-Datum einzutragen, sobald ein Admin den Beitrag gelesen hat. Details zu Paarungen/Zeitplan im Beitrag werden nicht automatisch ausgelesen.",
 
   "Web.Editor.TerritoryCapture.DigestChannel.CardTitle": "Digest-Kanal",
@@ -344,9 +348,6 @@
   "Web.Editor.TerritoryCapture.DailyDigestTimeLabel": "Tägliche Digest-Zeit",
   "Web.Editor.TerritoryCapture.Instructions.CardTitle": "Digest-Anweisungen",
   "Web.Editor.TerritoryCapture.Instructions.Label": "Freitext-Abschnitt „Anweisungen von {Command Staff}“, der im wöchentlichen/täglichen Digest angezeigt wird (z. B. Anwesenheits-/Armada-Erwartungen).",
-  "Web.Editor.TerritoryCapture.AbsenceSignOff.CardTitle": "Abmeldung",
-  "Web.Editor.TerritoryCapture.AbsenceSignOffLabel": "Mitglieder können sich für eine Eroberung abmelden",
-  "Web.Editor.TerritoryCapture.AbsenceSignOffUsage": "Fügt den Digests und Eroberungs-Erinnerungen die „Abmelden für …“-Buttons hinzu und bittet die Mitglieder um Abmeldung. Erfordert die aktivierte Funktion <strong>Absences</strong> für diese Allianz — der Button erfasst eine Abwesenheit, die ohne diese Funktion niemand sehen, bearbeiten oder löschen kann. Schalte dies aus, wenn Deine Allianz keine Abwesenheiten führt.",
 
   "Web.Editor.ServiceSelectionAdmin.Intro": "Kuratiere, welche Dienste einer Zone die „Dienste aktivieren“-Erinnerung der Territory Capture den Offizieren zur Aktivierung vorgibt, aufgeteilt in zwei Prioritäten — <strong>Pflicht</strong> (obligatorische Dienste) und <strong>Kür</strong> (optionale Dienste, auf Anfrage). Eine Zone ohne Auswahl listet stattdessen alle ihre Dienste. Nur Zonen, die die Allianz aktuell besitzt, werden angezeigt; verfügbare Dienste stammen aus dem territory.lol-Sync.",
   "Web.Editor.ServiceSelectionAdmin.AllianceCardTitle": "Allianz",
@@ -571,6 +572,8 @@
   "Web.Guild.DependencyNote.AnonymousMessaging.CommandBridge": "Der Button „Stab kontaktieren“ befindet sich auf der Kommandobrücke.",
   "Web.Guild.DependencyNote.ServicesRoleSync.TerritoryCapture": "Stellt die zu vergebende Services-Rolle bereit.",
   "Web.Guild.DependencyNote.ServicesRoleSync.RankRoles": "Spiegelt die Admiral/Commodore-Rangrollen.",
+  "Web.Guild.DependencyNote.TerritoryCaptureSignOff.TerritoryCapture": "Die Abmelde-Buttons hängen an den Übernahme-Digests und -Erinnerungen.",
+  "Web.Guild.DependencyNote.TerritoryCaptureSignOff.Absences": "Jede Abmeldung wird als Abwesenheit erfasst.",
 
   "Web.Alliance.PageTitle": "Allianz",
   "Web.Alliance.OverviewSettingsSubtitle": "Kanäle & Rollen",

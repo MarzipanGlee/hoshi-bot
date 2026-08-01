@@ -24,12 +24,15 @@ public class TerritoryCaptureButtonModule(
             // for the stored absence reason: it's their own absence row).
             var lang = await languageResolver.ForUserAsync(userId, Context.Interaction.UserLocale, guildId);
 
-            // This button writes an Absence row directly, so it needs the Absences feature — without
-            // it the member could never see, edit or delete what they just created and no report
-            // would ever read it. New digests/reminders don't render the button in that case, but
-            // already-posted ones stay clickable for their whole retention window, so guard here too.
-            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.Absences, lang) is { } disabled)
-                return disabled;
+            // New digests/reminders stop rendering the button as soon as either feature goes off,
+            // but already-posted ones stay clickable for their whole retention window — so guard
+            // both here as well. Absences matters most: this writes an Absence row directly, and
+            // without that feature the member could never see, edit or delete what they created
+            // and no report would ever read it.
+            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.TerritoryCaptureSignOff, lang) is { } signOffDisabled)
+                return signOffDisabled;
+            if (await featureService.EnsureEnabledAsync(guildId, GuildFeature.Absences, lang) is { } absencesDisabled)
+                return absencesDisabled;
 
             var start = DateTimeOffset.FromUnixTimeSeconds(startUnix);
             var end = DateTimeOffset.FromUnixTimeSeconds(endUnix);

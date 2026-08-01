@@ -1,0 +1,14 @@
+@inherits FeatureEditorBase
+
+@* Settings-free feature: the enable switch IS the whole configuration. Everything it needs lives
+   on Territory Capture (the digests/reminders that carry the buttons) and Absences (the rows a
+   click writes), both declared as dependencies so the Features page surfaces them. *@
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<p class="form-text">
+    @((MarkupString)Msg.WebTerritoryCaptureSignOff.Intro(Lang))
+</p>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.TerritoryCaptureSignOff;
+}

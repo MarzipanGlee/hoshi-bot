@@ -25,6 +25,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ServicesRoleSync;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ShieldReminders;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.StfcNews;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.TerritoryCapture;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.TerritoryCaptureSignOff;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Tickets;
 
 namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features;
@@ -66,6 +67,7 @@ public static class FeatureCatalog
         new ShieldRemindersFeature(),
         new StfcNewsFeature(),
         new TerritoryCaptureFeature(),
+        new TerritoryCaptureSignOffFeature(),
         new TicketsFeature(),
     ];
 
