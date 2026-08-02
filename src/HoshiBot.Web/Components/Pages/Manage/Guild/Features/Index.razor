@@ -19,9 +19,12 @@
     }
     else
     {
-        <div class="d-flex align-items-center justify-content-between mb-4">
+        @* flex-wrap + nowrap: the switch used to squeeze against the heading until its label broke
+           mid-phrase ("Inaktive Features" / "ausblenden"). Keeping the caption on one line means the
+           row has to be allowed to wrap instead, or a long heading would push the switch out of it. *@
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
             <h1 class="mb-0">@Heading()</h1>
-            <div class="form-switch">
+            <div class="form-switch text-nowrap">
                 <input class="form-check-input" type="checkbox" id="hideInactive" role="switch"
                        checked="@hideInactive" @onchange="ToggleHideInactiveAsync" />
                 <label class="form-check-label" for="hideInactive">@Msg.WebGuild.HideInactiveFeatures(Lang)</label>
