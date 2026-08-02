@@ -1,10 +1,14 @@
 @implements IDisposable
 @using Microsoft.AspNetCore.Authentication
+@using Microsoft.EntityFrameworkCore
 @inject CurrentGuildContext GuildContext
 @inject DiscordUserGuildsService DiscordUserGuilds
 @inject SupportModeContext SupportMode
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Nav
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject GuildAllianceService AllianceService
 
 <div class="guild-selector position-relative">
     <button type="button" class="guild-selector-toggle d-flex align-items-center gap-2 bg-white rounded-3" @onclick="ToggleOpen">
@@ -123,9 +127,31 @@
 
     private async Task SelectAsync(ulong guildId)
     {
+        var previousGuildId = GuildContext.GuildId;
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        await GuildContext.SetAsync(guildId, authState.User);
+        if (!await GuildContext.SetAsync(guildId, authState.User))
+            return;
+
         isOpen = false;
+
+        // Move the open page to the new guild too — switching used to refresh only the sidebar and
+        // leave the page itself on the previous guild's data. Same idea as AllianceSelector's
+        // /alliance/{id} rewrite, but a page can be inapplicable to the new guild (an audience it
+        // doesn't serve, an alliance it doesn't have), so GuildScopedUrl decides where to land.
+        if (previousGuildId is not { } oldGuildId || oldGuildId == guildId)
+            return;
+
+        var path = Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].Split('#')[0];
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var audiences = await db.GuildSettings
+            .Where(s => s.GuildId == guildId)
+            .Select(s => s.Audiences)
+            .FirstOrDefaultAsync();
+
+        var target = GuildScopedUrl.Rewrite(path, oldGuildId, guildId, audiences, await AllianceService.GetPrimaryIdAsync(guildId));
+        if (target is not null)
+            Nav.NavigateTo(target);
     }
 
     public void Dispose()
