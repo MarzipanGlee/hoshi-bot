@@ -73,6 +73,14 @@ public static partial class Msg
         public static string AudienceLead(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.AudienceLead");
 
+        // The Community audience has no linkable scope, so its settings page says so where the
+        // other audiences show their linked-things table.
+        public static string NothingToLinkCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.NothingToLinkCardTitle");
+
+        public static string NothingToLinkUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.NothingToLinkUsage");
+
         public static string Configuration(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.Configuration");
 

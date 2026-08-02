@@ -16,6 +16,25 @@
         <h1>@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle)</h1>
         <p>@AudienceDisplay.Description(Lang, audience) @Msg.WebGuild.AudienceSettingsIntro(Lang) <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/features")">@Msg.WebNav.Features(Lang)</a>@Msg.WebGuild.AudienceSettingsIntroTail(Lang)</p>
 
+        @* The linking UI for this audience, moved here from the Audience page's accordion — one
+           page per audience now, reached from that page's Configure link. Community has no
+           GuildXxx link entity, so ScopeEditor renders nothing for it; say so rather than leaving
+           a gap where the other audiences have a table. *@
+        @if (audience == GuildAudience.Community)
+        {
+            <div class="card-grid mt-1 mb-4">
+                <SettingsCard Title="@Msg.WebGuild.NothingToLinkCardTitle(Lang)">
+                    <p class="form-text mt-0 mb-0">@Msg.WebGuild.NothingToLinkUsage(Lang)</p>
+                </SettingsCard>
+            </div>
+        }
+        else
+        {
+            <div class="mb-4">
+                <ScopeEditor GuildId="ParsedGuildId" Audience="audience" />
+            </div>
+        }
+
         <h2>@Msg.WebCommon.Regional(Lang)</h2>
         <div class="card-grid mt-1">
             <LanguagePicker CardTitle="@Msg.WebGuild.LanguageTitle(Lang)"

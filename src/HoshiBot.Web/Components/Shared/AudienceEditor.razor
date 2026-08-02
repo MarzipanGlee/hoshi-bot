@@ -12,9 +12,9 @@
                     BorderClass="@(enabled ? "border-success" : "border-danger")" Enabled="@enabled"
                     EnabledChanged="e => ToggleAsync(audience, e)">
             <FooterEnd>
-                @if (ShowConfigureButton && enabled && audience != GuildAudience.Community)
+                @if (ShowConfigureButton && enabled)
                 {
-                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OnConfigure.InvokeAsync(audience)">@Msg.WebGuild.Configure(Lang)</button>
+                    <a class="btn btn-sm btn-outline-secondary" href="@ConfigureHref(audience)">@Msg.WebGuild.Configure(Lang)</a>
                 }
             </FooterEnd>
         </ToggleCard>
@@ -24,8 +24,6 @@
 @code {
     [CascadingParameter] public Language Lang { get; set; }
 
-    // Community has no corresponding GuildXxx link entity/ScopeEditor branch — no Configure
-    // button for it regardless of ShowConfigureButton.
     private static readonly GuildAudience[] AudienceCards =
         [GuildAudience.Alliance, GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community];
 
@@ -35,16 +33,19 @@
     // immediately, e.g. recomputing which later steps are relevant.
     [Parameter] public EventCallback<GuildAudience> AudienceChanged { get; set; }
 
-    // The Setup Wizard doesn't show the Scope accordion until its own later step, so a
-    // Configure button here would have nothing to jump to — the Audience page (which shows
-    // the accordion directly below this editor) is the only place it makes sense.
+    // Off in the Setup Wizard: it walks the user through the same configuration inline as its own
+    // later step, so sending them away mid-flow would break it.
     [Parameter] public bool ShowConfigureButton { get; set; } = true;
 
-    // Only meaningful when ShowConfigureButton is true — lets the embedding page expand
-    // (and scroll to) the matching ScopeAccordion section.
-    [Parameter] public EventCallback<GuildAudience> OnConfigure { get; set; }
-
     private GuildAudience audiences;
+
+    // Each audience's own page, the way a feature card links to its editor. Alliance is the odd one
+    // out: {slug}/settings is the per-audience settings page for everyone else, but for Alliance
+    // that route is already the per-ALLIANCE settings page, so its guild-level linking lives at
+    // /alliances instead.
+    private string ConfigureHref(GuildAudience audience) => audience == GuildAudience.Alliance
+        ? $"manage/guild/{GuildId}/alliances"
+        : $"{AudienceDisplay.FeatureScopePrefix(GuildId, audience, null)}/settings";
 
     protected override async Task OnInitializedAsync()
     {

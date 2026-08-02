@@ -33,6 +33,7 @@
         ["setup-wizard"] = Msg.WebNav.SetupWizard,
         ["features"] = Msg.WebNav.Features,
         ["audience"] = Msg.WebNav.Audience,
+        ["alliances"] = Msg.WebCommon.LinkedAlliances,
         ["permission-check"] = Msg.WebNav.PermissionCheck,
     };
 
@@ -99,11 +100,22 @@
                         {
                             result.Add((pageLabel(Lang), null));
                         }
-                        else if (AudienceDisplay.TryParseSlug(segments[3], out var aud) && segments.Length >= 5 && segments[4] == "features")
+                        else if (AudienceDisplay.TryParseSlug(segments[3], out var aud) && segments.Length >= 5)
                         {
-                            // Audience features (.../{slug}/features[/{featureSlug}]).
-                            result.Add((AudienceDisplay.Labels(Lang, aud).FirstOrDefault() ?? segments[3], null));
-                            AddFeatureCrumbs(Lang, result, segments, 4, $"manage/guild/{guildId}/{segments[3]}/features");
+                            // An audience's own pages (.../{slug}/features[/{featureSlug}] or
+                            // .../{slug}/settings). Settings used to render no crumbs at all — it
+                            // matched neither the "features" arm nor CrudLabels, since the audience
+                            // slug isn't a CrudLabels key.
+                            if (segments[4] == "features")
+                            {
+                                result.Add((AudienceDisplay.Labels(Lang, aud).FirstOrDefault() ?? segments[3], null));
+                                AddFeatureCrumbs(Lang, result, segments, 4, $"manage/guild/{guildId}/{segments[3]}/features");
+                            }
+                            else if (CrudLabels.TryGetValue(segments[4], out var audiencePageLabel))
+                            {
+                                result.Add((AudienceDisplay.Labels(Lang, aud).FirstOrDefault() ?? segments[3], null));
+                                result.Add((audiencePageLabel(Lang), null));
+                            }
                         }
                     }
                 }

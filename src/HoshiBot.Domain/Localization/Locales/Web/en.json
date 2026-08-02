@@ -543,6 +543,8 @@
   "Web.Guild.SetupComplete": "Setup complete",
   "Web.Guild.NeedsSetupSubtitle": "Needs setup",
   "Web.Guild.AudienceLead": "Which audience(s) this guild serves — drives the Setup Wizard's relevant steps and how the Features page groups its cards. Doesn't restrict which features can be enabled.",
+  "Web.Guild.NothingToLinkCardTitle": "Nothing to link",
+  "Web.Guild.NothingToLinkUsage": "A Community Discord isn't tied to a particular alliance, server or veil group, so there is nothing to link here — only the settings below apply.",
   "Web.Guild.Configuration": "Configuration",
   "Web.Guild.AudienceSettings": "Audience settings",
   "Web.Guild.AudienceSettingsLead": "Feature-agnostic settings per audience, such as the posting language. The Alliance audience is configured per alliance on its own Settings page.",

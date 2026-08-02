@@ -1,43 +1,18 @@
 @page "/manage/guild/{GuildId}/audience"
 @inherits GuildAdminPageBase
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
 
 <PageTitle>@Msg.WebNav.Audience(Lang)</PageTitle>
 
+@* A catalog, like the Features page: pick which audiences this guild serves here, and configure
+   each one on its own page. The per-audience configuration used to sit in an accordion further
+   down this page. *@
 <AuthorizedGuildView Authorized="Authorized">
     <h1>@Msg.WebNav.Audience(Lang)</h1>
     <p>@Msg.WebGuild.AudienceLead(Lang)</p>
 
-    <AudienceEditor GuildId="ParsedGuildId" AudienceChanged="OnAudienceChanged" OnConfigure="OnConfigureAudienceAsync" />
-
-    <div class="mt-4">
-        <h2>@Msg.WebGuild.Configuration(Lang)</h2>
-        <ScopeAccordion @ref="scopeAccordion" GuildId="ParsedGuildId" Audiences="audiences" />
-    </div>
+    <AudienceEditor GuildId="ParsedGuildId" />
 </AuthorizedGuildView>
 
 @code {
     [CascadingParameter] public Language Lang { get; set; }
-
-    private GuildAudience audiences;
-    private ScopeAccordion? scopeAccordion;
-
-    protected override async Task OnAuthorizedParametersSetAsync()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        audiences = await db.GuildSettings
-            .Where(s => s.GuildId == ParsedGuildId)
-            .Select(s => s.Audiences)
-            .FirstOrDefaultAsync();
-    }
-
-    private void OnAudienceChanged(GuildAudience newAudiences) => audiences = newAudiences;
-
-    // Expands the matching accordion section, then scrolls to it — the section can be a
-    // fair way down the page below the audience cards.
-    private void OnConfigureAudienceAsync(GuildAudience audience)
-    {
-        scopeAccordion?.Expand(audience);
-        Nav.NavigateTo($"{Nav.Uri.Split('#')[0]}#scope-{AudienceDisplay.Slug(audience)}");
-    }
 }

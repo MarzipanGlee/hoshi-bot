@@ -543,6 +543,8 @@
   "Web.Guild.SetupComplete": "Einrichtung abgeschlossen",
   "Web.Guild.NeedsSetupSubtitle": "Einrichtung nötig",
   "Web.Guild.AudienceLead": "Welche Zielgruppe(n) diese Guild betreut — bestimmt die relevanten Schritte des Einrichtungsassistenten und wie die Features-Seite ihre Karten gruppiert. Schränkt nicht ein, welche Features aktiviert werden können.",
+  "Web.Guild.NothingToLinkCardTitle": "Nichts zu verknüpfen",
+  "Web.Guild.NothingToLinkUsage": "Ein Community-Discord ist an keine bestimmte Allianz, keinen Server und keine Veil-Gruppe gebunden — hier gibt es also nichts zu verknüpfen, es gelten nur die Einstellungen unten.",
   "Web.Guild.Configuration": "Konfiguration",
   "Web.Guild.AudienceSettings": "Zielgruppen-Einstellungen",
   "Web.Guild.AudienceSettingsLead": "Feature-unabhängige Einstellungen pro Zielgruppe, etwa die Sprache für öffentliche Posts. Die Zielgruppe Allianz wird pro Allianz auf ihrer eigenen Einstellungsseite konfiguriert.",

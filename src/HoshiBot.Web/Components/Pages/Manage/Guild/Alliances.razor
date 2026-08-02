@@ -1,0 +1,26 @@
+@page "/manage/guild/{GuildId}/alliances"
+@inherits GuildAdminPageBase
+
+<PageTitle>@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle)</PageTitle>
+
+@* The Alliance audience's own page, reached from the Audience page's Configure link — same header
+   shape as the other three audiences' settings pages. It can't live at {slug}/settings like they
+   do: for Alliance that route is already the per-ALLIANCE settings page (one linked alliance's
+   roles and channels), whereas this is the guild-level "which alliances do we serve" list. Each row
+   in the table below links through to its own settings. *@
+<AuthorizedGuildView Authorized="Authorized">
+    <h1>@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle)</h1>
+    <p>
+        @AudienceDisplay.Description(Lang, GuildAudience.Alliance)
+        @Msg.WebGuild.AudienceSettingsIntro(Lang)
+        <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, GuildAudience.Alliance, null)}/features")">@Msg.WebNav.Features(Lang)</a>@Msg.WebGuild.AudienceSettingsIntroTail(Lang)
+    </p>
+
+    <ScopeEditor GuildId="ParsedGuildId" Audience="GuildAudience.Alliance" />
+</AuthorizedGuildView>
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    private string AudienceTitle => AudienceDisplay.Labels(Lang, GuildAudience.Alliance).First();
+}
