@@ -33,6 +33,11 @@ public class RankRoleSyncJob(
 
     protected override string? NoTierRoleSettingKey => RankRolesSettingKeys.NoRankRole;
 
+    // "No rank" is only a fact when we know they're in no alliance. A player who IS in one but has
+    // no rank stored is missing data, not rankless — every player of a server that was seeded but
+    // never imported looks like that, and badging them all "No Rank" is wrong.
+    protected override bool NoTierApplies(GuildPrimaryPlayer player) => player.AllianceId is null;
+
     protected override void LogSkippedMember(ulong userId, ulong guildId, HttpStatusCode statusCode) =>
         Logger.LogInformation(
             "Skipped rank role sync for user {UserId} in guild {GuildId}: {StatusCode}",

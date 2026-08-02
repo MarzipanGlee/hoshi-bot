@@ -18,15 +18,15 @@ namespace HoshiBot.Data.Seeding;
 // StfcAllianceSeedData (~1,500 rows was real Roslyn compile time on every build).
 public static class StfcPlayerSeedData
 {
-    private record Entry(long ExternalId, string Name, string? AllianceTag, int Server);
+    private record Entry(long ExternalId, string Name, string? AllianceTag, int Server, int? RankId, int? OpsLevel);
 
-    public static readonly (long ExternalId, string Name, string? AllianceTag, int Server)[] Entries = Load();
+    public static readonly (long ExternalId, string Name, string? AllianceTag, int Server, int? RankId, int? OpsLevel)[] Entries = Load();
 
     // The servers this snapshot covers — the seeder walks these so it can skip one that already
     // has players without skipping the rest.
     public static IEnumerable<int> Servers => Entries.Select(e => e.Server).Distinct();
 
-    private static (long ExternalId, string Name, string? AllianceTag, int Server)[] Load()
+    private static (long ExternalId, string Name, string? AllianceTag, int Server, int? RankId, int? OpsLevel)[] Load()
     {
         var assembly = Assembly.GetExecutingAssembly();
         const string resourceName = "HoshiBot.Data.Seeding.StfcPlayerSeedData.json";
@@ -36,6 +36,6 @@ public static class StfcPlayerSeedData
         var entries = JsonSerializer.Deserialize<Entry[]>(stream)
             ?? throw new InvalidOperationException($"Embedded resource '{resourceName}' deserialized to null.");
 
-        return entries.Select(e => (e.ExternalId, e.Name, e.AllianceTag, e.Server)).ToArray();
+        return entries.Select(e => (e.ExternalId, e.Name, e.AllianceTag, e.Server, e.RankId, e.OpsLevel)).ToArray();
     }
 }

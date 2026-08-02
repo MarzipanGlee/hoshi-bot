@@ -95,7 +95,12 @@ void SyncPlayers()
                     data.GetProperty("playerid").GetInt64(),
                     data.GetProperty("owner").GetString()!,
                     data.TryGetProperty("tag", out var tag) && tag.ValueKind == JsonValueKind.String && tag.GetString() is { Length: > 0 } t ? t : null,
-                    serverId));
+                    serverId,
+                    // The feed carries these and the seed used to drop them, so every player of a
+                    // seeded-but-never-imported server had a null rank — which the rank role sync
+                    // then read as "no rank". 0/absent stays null: no rank, rather than rank 0.
+                    data.TryGetProperty("rankid", out var rank) && rank.TryGetInt32(out var rankId) && rankId > 0 ? rankId : null,
+                    data.TryGetProperty("level", out var level) && level.TryGetInt32(out var lvl) && lvl > 0 ? lvl : null));
             }
         }
     }
@@ -202,4 +207,4 @@ void WriteDataJson<T>(string name, T value) =>
 
 // Trimmed seed shapes (PascalCase keys — must match the loaders in HoshiBot.Data/Seeding).
 internal record AllianceSeed(long ExternalId, int ServerId, string Tag, string Name, int Emblem);
-internal record PlayerSeed(long ExternalId, string Name, string? AllianceTag, int Server);
+internal record PlayerSeed(long ExternalId, string Name, string? AllianceTag, int Server, int? RankId, int? OpsLevel);

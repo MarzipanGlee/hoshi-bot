@@ -39,6 +39,13 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
     // removed when it stops applying.
     protected virtual string? NoTierRoleSettingKey => null;
 
+    // Whether a null TierOf means "this member genuinely has no tier" rather than "we have no data
+    // for them". The two are indistinguishable in TierOf's return value but must not be treated
+    // alike: acting on missing data badges every player of a server we've only seeded (and never
+    // imported) as having no rank. When this returns false the member is skipped entirely — no role
+    // added, none taken away — so whatever they hold survives until real data arrives.
+    protected virtual bool NoTierApplies(GuildPrimaryPlayer player) => true;
+
     // Concrete jobs own the skip-log line so each keeps its original wording verbatim.
     protected abstract void LogSkippedMember(ulong userId, ulong guildId, HttpStatusCode statusCode);
 
@@ -87,9 +94,13 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
         {
             if (!roster.TryGetValue(player.DiscordUserId, out var guildUser))
                 continue;
+            var tier = TierOf(player);
+            if (tier is null && !NoTierApplies(player))
+                continue;
+
             // A tier with no configured role yields 0 here (not null) — deliberately: the member
             // then matches no role, so stale tier roles still get removed.
-            var targetRoleId = TierOf(player) is { } tier ? roleIdsByTier.GetValueOrDefault(tier) : noTierRoleId;
+            var targetRoleId = tier is { } t ? roleIdsByTier.GetValueOrDefault(t) : noTierRoleId;
             await SyncMemberAsync(guildId, guildUser, managedRoleIds, targetRoleId);
         }
     }

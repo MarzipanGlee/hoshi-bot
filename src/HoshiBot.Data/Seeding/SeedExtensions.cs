@@ -386,7 +386,7 @@ public static class SeedExtensions
                     .GroupBy(a => a.Tag)
                     .ToDictionary(g => g.Key, g => g.First().Id);
 
-                foreach (var (externalId, name, allianceTag, _) in StfcPlayerSeedData.Entries.Where(e => e.Server == serverId))
+                foreach (var (externalId, name, allianceTag, _, rankId, opsLevel) in StfcPlayerSeedData.Entries.Where(e => e.Server == serverId))
                 {
                     // TryGetValue rather than GetValueOrDefault: the dictionary holds ints, so a
                     // missing tag would come back as 0 — a real-looking id — instead of null.
@@ -398,6 +398,12 @@ public static class SeedExtensions
                         Name = name,
                         ServerId = serverId,
                         AllianceId = allianceId,
+                        // Same guards the import applies: an unknown rank id stays null rather than
+                        // becoming a bogus enum value, and a rank without an alliance isn't a rank.
+                        Rank = allianceId is not null && rankId is { } r && Enum.IsDefined(typeof(StfcPlayerRank), r)
+                            ? (StfcPlayerRank)r
+                            : null,
+                        OpsLevel = opsLevel,
                     };
                     player.NameHistory.Add(new StfcPlayerNameHistory { Name = name, ObservedAt = seededAt });
 
