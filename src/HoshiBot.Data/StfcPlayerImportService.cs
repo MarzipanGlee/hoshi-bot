@@ -26,9 +26,15 @@ public class StfcPlayerImportService(IDbContextFactory<HoshiBotDbContext> dbFact
             .Where(p => p.ServerId == serverId)
             .ToDictionaryAsync(p => p.ExternalId);
 
-        var alliancesByTag = await db.StfcAlliances
-            .Where(a => a.ServerId == serverId)
-            .ToDictionaryAsync(a => a.Tag);
+        // GroupBy/First rather than keying ToDictionary straight on Tag: a tag is only unique per
+        // server by convention, not by constraint, and the catalog already holds a server with two
+        // alliances sharing one — which would throw here and abort the whole import. Same defence
+        // as the player seeder and the territory-ownership import.
+        var alliancesByTag = (await db.StfcAlliances
+                .Where(a => a.ServerId == serverId)
+                .ToListAsync())
+            .GroupBy(a => a.Tag)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var seenAt = DateTimeOffset.UtcNow;
         var added = 0;
