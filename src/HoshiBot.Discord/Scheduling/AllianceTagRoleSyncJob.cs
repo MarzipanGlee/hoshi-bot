@@ -46,10 +46,21 @@ public class AllianceTagRoleSyncJob(
         var suffix = await GetAsync(guildId, AllianceTagRolesSettingKeys.RoleSuffix);
         var noAllianceRoleId = await settingsService.GetSnowflakeAsync(
             guildId, GuildFeature.AllianceTagRoles, GuildAudience.Guild, null, AllianceTagRolesSettingKeys.NoAllianceRole);
+        var foreignRoleId = await settingsService.GetSnowflakeAsync(
+            guildId, GuildFeature.AllianceTagRoles, GuildAudience.Guild, null, AllianceTagRolesSettingKeys.ForeignAllianceRole);
 
         var players = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values.ToList();
         if (players.Count == 0)
             return;
+
+        // Home = the servers of the guild's own linked alliances, plus any server it tracks in its
+        // own right. Same definition Nickname Sync uses for its "foreign player" tags. Only these
+        // servers get per-alliance roles: a Discord with visitors from all over would otherwise
+        // collect a role per foreign alliance and walk straight into Discord's 250-role cap.
+        var homeAllianceIds = await db.GuildAlliances.Where(ga => ga.GuildId == guildId).Select(ga => ga.StfcAllianceId).ToListAsync();
+        var homeServerIds = (await db.StfcAlliances.Where(a => homeAllianceIds.Contains(a.Id)).Select(a => a.ServerId).ToListAsync())
+            .Concat(await db.GuildServers.Where(gs => gs.GuildId == guildId).Select(gs => gs.StfcServerId).ToListAsync())
+            .ToHashSet();
 
         var roles = await gatewayClient.Rest.GetGuildRolesAsync(guildId);
         var bindings = await LoadBindingsAsync(guildId);
@@ -63,9 +74,10 @@ public class AllianceTagRoleSyncJob(
             await SetBindingAsync(guildId, allianceId, null);
         }
 
-        // One role per alliance actually represented among the members.
+        // One role per HOME alliance actually represented among the members. Foreign ones share the
+        // single ForeignAllianceRole instead, so they never reach the create loop below.
         var alliances = players
-            .Where(p => p.AllianceId is not null && !string.IsNullOrWhiteSpace(p.AllianceTag))
+            .Where(p => p.AllianceId is not null && !string.IsNullOrWhiteSpace(p.AllianceTag) && homeServerIds.Contains(p.ServerId))
             .GroupBy(p => p.AllianceId!.Value)
             .ToDictionary(g => g.Key, g => g.First().AllianceTag!);
 
@@ -118,6 +130,8 @@ public class AllianceTagRoleSyncJob(
         var managedRoleIds = bindings.Values.ToHashSet();
         if (noAllianceRoleId is { } noneRole)
             managedRoleIds.Add(noneRole);
+        if (foreignRoleId is { } foreignRole)
+            managedRoleIds.Add(foreignRole);
         if (managedRoleIds.Count == 0)
             return;
 
@@ -127,9 +141,13 @@ public class AllianceTagRoleSyncJob(
             if (!roster.TryGetValue(player.DiscordUserId, out var guildUser))
                 continue;
 
-            var targetRoleId = player.AllianceId is { } allianceId
-                ? bindings.GetValueOrDefault(allianceId)
-                : noAllianceRoleId;
+            // Three mutually exclusive states, in this order: no alliance at all beats "foreign",
+            // because "Foreign Alliance" on someone who has no alliance would simply be wrong.
+            var targetRoleId = player.AllianceId is not { } allianceId
+                ? noAllianceRoleId
+                : homeServerIds.Contains(player.ServerId)
+                    ? bindings.GetValueOrDefault(allianceId)
+                    : foreignRoleId;
 
             await SyncMemberAsync(guildId, guildUser, managedRoleIds, targetRoleId);
         }

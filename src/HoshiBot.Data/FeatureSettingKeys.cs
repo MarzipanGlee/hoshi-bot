@@ -209,6 +209,12 @@ public static class AllianceTagRolesSettingKeys
     // members simply hold no tag role.
     public const string NoAllianceRole = "NoAllianceRole";
 
+    // Optional single role for members whose alliance lives on a server this guild doesn't track.
+    // Tag roles are only created for the guild's own server(s) — otherwise a Discord with visitors
+    // from all over would accumulate a role per foreign alliance and run into Discord's 250-role
+    // cap. Unset → those members hold no tag role at all.
+    public const string ForeignAllianceRole = "ForeignAllianceRole";
+
     // The role bound to one alliance, written by the sync as it adopts or creates roles. Keyed by
     // StfcAlliance.Id rather than by tag because StfcAllianceImportService rewrites Tag when an
     // alliance renames itself — the binding has to survive that. Enumerating these rows is also how

@@ -54,6 +54,10 @@
         </p>
     </SettingsCard>
 
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.ForeignAllianceRole)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, AllianceTagRolesSettingKeys.ForeignAllianceRole)"
+            @bind-Value="foreignRoleInput" @bind-Value:after="SaveForeignRoleAsync" Roles="roles" />
+
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
             @bind-Value="noAllianceRoleInput" @bind-Value:after="SaveNoAllianceRoleAsync" Roles="roles" />
@@ -92,6 +96,7 @@
     private string? rolePrefix;
     private string? roleSuffix;
     private string? noAllianceRoleInput;
+    private string? foreignRoleInput;
     private List<string> boundRoles = [];
 
     private string Preview => AllianceTagRoleName.Build(PreviewTag, latinize, lowercase, rolePrefix, roleSuffix);
@@ -105,6 +110,7 @@
         rolePrefix = await GetTextAsync(AllianceTagRolesSettingKeys.RolePrefix);
         roleSuffix = await GetTextAsync(AllianceTagRolesSettingKeys.RoleSuffix);
         noAllianceRoleInput = (await GetSnowflakeAsync(AllianceTagRolesSettingKeys.NoAllianceRole))?.ToString();
+        foreignRoleInput = (await GetSnowflakeAsync(AllianceTagRolesSettingKeys.ForeignAllianceRole))?.ToString();
         await LoadBoundRolesAsync();
     }
 
@@ -158,4 +164,7 @@
 
     private Task SaveNoAllianceRoleAsync() =>
         SetSnowflakeAsync(AllianceTagRolesSettingKeys.NoAllianceRole, ParseId(noAllianceRoleInput));
+
+    private Task SaveForeignRoleAsync() =>
+        SetSnowflakeAsync(AllianceTagRolesSettingKeys.ForeignAllianceRole, ParseId(foreignRoleInput));
 }
