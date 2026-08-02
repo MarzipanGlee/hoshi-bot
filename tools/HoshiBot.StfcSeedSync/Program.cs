@@ -50,38 +50,61 @@ SyncRawFeed("territory-owners.json", "StfcTerritoryOwnershipSeedData.json");
 Console.WriteLine("Done.");
 return 0;
 
-// players_164_* (gzip pages, {count,players:[{data:{…}}]}) → merged full-raw data/players.json
-// → trimmed Seeding/StfcPlayerSeedData.json.
+// players_{server}_* (gzip pages, {count,players:[{data:{…}}]}) → merged full-raw
+// data/players.json → trimmed Seeding/StfcPlayerSeedData.json.
+//
+// The server comes from the file name, so dropping in a new server's pages is all it takes to
+// seed it. A players_* file whose name carries no server number is a hard error rather than a
+// skip: the glob used to be pinned to one server, and 20 pages of another sat in data/ for a
+// while being silently ignored.
 void SyncPlayers()
 {
-    var pages = Directory.GetFiles(dataDir, "players_164_*")
-        .OrderBy(f => f, StringComparer.Ordinal)
-        .ToList();
-    if (pages.Count == 0)
+    var pagesByServer = new SortedDictionary<int, List<string>>();
+    foreach (var path in Directory.GetFiles(dataDir, "players_*").OrderBy(f => f, StringComparer.Ordinal))
     {
-        Console.WriteLine("players: no players_164_* pages found — skipping.");
+        // players_164_07 → 164. Anything else under players_* is a mistake worth stopping for.
+        var parts = Path.GetFileName(path).Split('_');
+        if (parts.Length < 3 || !int.TryParse(parts[1], out var serverId))
+            throw new InvalidOperationException(
+                $"Cannot read a server id from '{Path.GetFileName(path)}'. Player pages must be named players_{{server}}_{{page}}.");
+
+        pagesByServer.TryAdd(serverId, []);
+        pagesByServer[serverId].Add(path);
+    }
+
+    if (pagesByServer.Count == 0)
+    {
+        Console.WriteLine("players: no players_* pages found — skipping.");
         return;
     }
 
     var records = new List<JsonElement>();
-    foreach (var page in pages)
+    var seed = new List<PlayerSeed>();
+    foreach (var (serverId, pages) in pagesByServer)
     {
-        using var fs = File.OpenRead(page);
-        using var gz = new GZipStream(fs, CompressionMode.Decompress);
-        using var doc = JsonDocument.Parse(gz);
-        foreach (var player in doc.RootElement.GetProperty("players").EnumerateArray())
-            records.Add(player.GetProperty("data").Clone());
+        foreach (var page in pages)
+        {
+            using var fs = File.OpenRead(page);
+            using var gz = new GZipStream(fs, CompressionMode.Decompress);
+            using var doc = JsonDocument.Parse(gz);
+            foreach (var player in doc.RootElement.GetProperty("players").EnumerateArray())
+            {
+                var data = player.GetProperty("data").Clone();
+                records.Add(data);
+                seed.Add(new PlayerSeed(
+                    data.GetProperty("playerid").GetInt64(),
+                    data.GetProperty("owner").GetString()!,
+                    data.TryGetProperty("tag", out var tag) && tag.ValueKind == JsonValueKind.String && tag.GetString() is { Length: > 0 } t ? t : null,
+                    serverId));
+            }
+        }
     }
 
     File.WriteAllText(Path.Combine(dataDir, "players.json"), JsonSerializer.Serialize(records, writeOpts));
+    WriteSeed("StfcPlayerSeedData.json", seed.ToArray());
 
-    var seed = records.Select(d => new PlayerSeed(
-        d.GetProperty("playerid").GetInt64(),
-        d.GetProperty("owner").GetString()!,
-        d.TryGetProperty("tag", out var tag) && tag.ValueKind == JsonValueKind.String && tag.GetString() is { Length: > 0 } t ? t : null))
-        .ToArray();
-    WriteSeed("StfcPlayerSeedData.json", seed);
-    Console.WriteLine($"players: {pages.Count} pages → {records.Count} players (data/players.json + trimmed seed).");
+    var perServer = string.Join(", ", pagesByServer.Select(kv => $"{kv.Key}: {kv.Value.Count} pages"));
+    Console.WriteLine($"players: {perServer} → {records.Count} players (data/players.json + trimmed seed).");
 }
 
 // data/alliances (one big JSON dump, no file extension, with stray control chars in
@@ -179,4 +202,4 @@ void WriteDataJson<T>(string name, T value) =>
 
 // Trimmed seed shapes (PascalCase keys — must match the loaders in HoshiBot.Data/Seeding).
 internal record AllianceSeed(long ExternalId, int ServerId, string Tag, string Name, int Emblem);
-internal record PlayerSeed(long ExternalId, string Name, string? AllianceTag);
+internal record PlayerSeed(long ExternalId, string Name, string? AllianceTag, int Server);

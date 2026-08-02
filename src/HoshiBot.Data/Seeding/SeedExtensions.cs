@@ -357,41 +357,57 @@ public static class SeedExtensions
             await db.SaveChangesAsync();
         });
 
-    // Seeds a one-time snapshot of server 164's player roster from StfcPlayerSeedData,
-    // each with an initial NameHistory row so a future re-sync has a baseline to diff
-    // against for rename detection. Checked per-server, same reasoning as
-    // SeedStfcAlliancesIfEmptyAsync. Must run after alliances are seeded — it resolves
-    // AllianceTag against already-seeded StfcAlliances, leaving AllianceId null for
-    // unaffiliated players or a tag that doesn't match a seeded alliance.
+    // Seeds a one-time snapshot of the player rosters in StfcPlayerSeedData, each player with an
+    // initial NameHistory row so a future re-sync has a baseline to diff against for rename
+    // detection. Checked per server, same reasoning as SeedStfcAlliancesIfEmptyAsync — and now
+    // necessarily so, since the snapshot covers several: a single "any players at all" guard would
+    // skip a newly added server forever just because an older one is already seeded. Must run after
+    // alliances are seeded — it resolves AllianceTag against already-seeded StfcAlliances, leaving
+    // AllianceId null for unaffiliated players or a tag that doesn't match a seeded alliance.
     public static Task SeedStfcPlayersIfEmptyAsync(this IServiceProvider services) =>
         services.WithDbAsync(async db =>
         {
-            if (await db.StfcPlayers.AnyAsync(p => p.ServerId == StfcPlayerSeedData.Server164Id))
-                return;
-
-            var alliancesByTag = await db.StfcAlliances
-                .Where(a => a.ServerId == StfcPlayerSeedData.Server164Id)
-                .ToDictionaryAsync(a => a.Tag);
-
             var seededAt = DateTimeOffset.UtcNow;
+            var added = false;
 
-            foreach (var (externalId, name, allianceTag) in StfcPlayerSeedData.Server164Entries)
+            foreach (var serverId in StfcPlayerSeedData.Servers)
             {
-                var alliance = allianceTag is not null ? alliancesByTag.GetValueOrDefault(allianceTag) : null;
+                if (await db.StfcPlayers.AnyAsync(p => p.ServerId == serverId))
+                    continue;
 
-                var player = new StfcPlayer
+                // GroupBy/First rather than ToDictionary keyed on Tag: a tag is only unique per
+                // server *by convention*, and the catalog already contains a server with two
+                // alliances sharing one — which would throw here. Same defence as the territory
+                // ownership seed above.
+                var alliancesByTag = (await db.StfcAlliances
+                        .Where(a => a.ServerId == serverId)
+                        .Select(a => new { a.Id, a.Tag })
+                        .ToListAsync())
+                    .GroupBy(a => a.Tag)
+                    .ToDictionary(g => g.Key, g => g.First().Id);
+
+                foreach (var (externalId, name, allianceTag, _) in StfcPlayerSeedData.Entries.Where(e => e.Server == serverId))
                 {
-                    ExternalId = externalId,
-                    Name = name,
-                    ServerId = StfcPlayerSeedData.Server164Id,
-                    AllianceId = alliance?.Id,
-                };
-                player.NameHistory.Add(new StfcPlayerNameHistory { Name = name, ObservedAt = seededAt });
+                    // TryGetValue rather than GetValueOrDefault: the dictionary holds ints, so a
+                    // missing tag would come back as 0 — a real-looking id — instead of null.
+                    int? allianceId = allianceTag is not null && alliancesByTag.TryGetValue(allianceTag, out var id) ? id : null;
 
-                db.StfcPlayers.Add(player);
+                    var player = new StfcPlayer
+                    {
+                        ExternalId = externalId,
+                        Name = name,
+                        ServerId = serverId,
+                        AllianceId = allianceId,
+                    };
+                    player.NameHistory.Add(new StfcPlayerNameHistory { Name = name, ObservedAt = seededAt });
+
+                    db.StfcPlayers.Add(player);
+                    added = true;
+                }
             }
 
-            await db.SaveChangesAsync();
+            if (added)
+                await db.SaveChangesAsync();
         });
 
     // Seeds a one-time snapshot of every known server's up/down/maintenance state from
