@@ -48,7 +48,10 @@ public class InterviewOpener(ILogger<InterviewOpener> logger)
             $"the two paragraphs, and the two proper nouns (\"{botName}\" and \"{allianceName}\") must " +
             "stay unchanged and in the same place. \"No-thanks button\" refers to a Discord button " +
             "the member can click, so translate it the way that button's label would read in " +
-            $"{targetLanguage}.";
+            $"{targetLanguage}. The speaker is female: wherever {targetLanguage} marks gender, use " +
+            "the feminine form for her (German \"Kommunikationsoffizierin\", not " +
+            "\"Kommunikationsoffizier\"). The English source doesn't mark it, so without this the " +
+            "form comes out differently on every call.";
 
         var translated = (await model.Provider.GenerateAsync(
             new AiChatCompletionRequest(model.Model, systemPrompt, [new AiChatTurn(AiChatRole.User, opener)], model.ApiKey),
