@@ -25,6 +25,7 @@ public class MemberInterviewService(
     EmbedBranding embedBranding,
     LanguageResolver languageResolver,
     InterviewOpener interviewOpener,
+    PlayerLinkService playerLinkService,
     ILogger<MemberInterviewService> logger)
 {
     public const string DeclineButtonId = "member-interview-decline";
@@ -49,7 +50,7 @@ public class MemberInterviewService(
 
         var lang = await languageResolver.ForUserAsync(userId, scopeGuildId: guildId);
         var botName = await ResolveBotNameAsync(guildId);
-        var allianceName = await ResolveAllianceNameAsync(guildId, guildAllianceId, cancellationToken);
+        var (allianceName, _) = await ResolveAllianceAsync(guildId, guildAllianceId, cancellationToken);
         // The lighter/cheaper member-lore model, same as the conversation itself uses below.
         var opener = await interviewOpener.RenderAsync(
             await modelResolver.ResolveLightweightAsync(guildId), botName, allianceName, lang, cancellationToken);
@@ -90,20 +91,82 @@ public class MemberInterviewService(
     // is the plain name — the tag lives in its own column — so this is already "without the tag".
     // MemberLore is Alliance-audience, so the link is always there in practice; the Discord guild's
     // own name and then a generic noun are belt-and-braces fallbacks that keep the sentence intact.
-    private async Task<string> ResolveAllianceNameAsync(ulong guildId, int? guildAllianceId, CancellationToken cancellationToken)
+    // StfcAllianceId comes along because the prompt needs it to tell members from guests.
+    private async Task<(string Name, int? StfcAllianceId)> ResolveAllianceAsync(ulong guildId, int? guildAllianceId, CancellationToken cancellationToken)
     {
-        var name = guildAllianceId is not { } linkId
+        var link = guildAllianceId is not { } linkId
             ? null
             : await db.GuildAlliances
                 .Where(ga => ga.Id == linkId)
-                .Select(ga => ga.StfcAlliance.Name)
+                .Select(ga => new { ga.StfcAlliance.Name, ga.StfcAllianceId })
                 .FirstOrDefaultAsync(cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(name))
-            return name;
+        if (link is not null && !string.IsNullOrWhiteSpace(link.Name))
+            return (link.Name, link.StfcAllianceId);
 
         var guildName = gatewayClient.Cache.Guilds.GetValueOrDefault(guildId)?.Name;
-        return string.IsNullOrWhiteSpace(guildName) ? "the alliance" : guildName;
+        return (string.IsNullOrWhiteSpace(guildName) ? "the alliance" : guildName, link?.StfcAllianceId);
+    }
+
+    // Who Hoshi is actually talking to — the opening paragraph of the interview prompt, including
+    // the goals, because those differ per case.
+    //
+    // The invite job's gate is a Discord *role*, and guilds hand that role to friends from other
+    // alliances too (confirmed: two invitees in Lost Falcons play in KW and IRS, one of them on a
+    // different server entirely). So "was invited" is not "plays here", and the prompt used to
+    // assert the latter — leaving Hoshi asking a guest what they get up to in an alliance they
+    // aren't in. Their player link is what actually knows, when there is one.
+    private async Task<string> DescribeSubjectAsync(MemberInterview interview, string allianceName, int? homeAllianceId, CancellationToken cancellationToken)
+    {
+        const string Goals = "Your goals: what they want to be called; ";
+
+        var playerId = await playerLinkService.GetGuildPrimaryPlayerIdAsync(interview.GuildId, interview.DiscordUserId);
+        var player = playerId is not { } pid
+            ? null
+            : await db.StfcPlayers
+                .Where(p => p.Id == pid)
+                .Select(p => new
+                {
+                    p.Name,
+                    p.AllianceId,
+                    AllianceLabel = p.Alliance != null ? p.Alliance.Name : null,
+                    AllianceTag = p.Alliance != null ? p.Alliance.Tag : null,
+                    Server = p.Server.Region.Name + p.ServerId,
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+        // No link at all: the bot genuinely doesn't know, and guessing "member" is what caused this
+        // in the first place — so say so and let the person answer it themselves.
+        if (player is null)
+        {
+            return $"You are having a relaxed, friendly get-to-know-you conversation by direct message with someone " +
+                $"from the \"{allianceName}\" Discord. You do NOT know whether they actually play in {allianceName} — " +
+                "some people here are guests from other alliances — so never assume it; let them tell you. " +
+                Goals + "which alliance they play in and what they get up to in the game; and whether they have any " +
+                "funny or charming stories about other people in this community.";
+        }
+
+        var isMember = homeAllianceId is not { } home || player.AllianceId == home;
+        if (isMember)
+        {
+            return $"You are having a relaxed, friendly get-to-know-you conversation by direct message with a member of " +
+                $"the alliance \"{allianceName}\", to get to know them better. They play as \"{player.Name}\". " +
+                Goals + "what they get up to in the game and in the alliance; and whether they have any funny or " +
+                "charming stories about other members.";
+        }
+
+        // A linked player with no alliance at all lands here too (roster data has them unaffiliated),
+        // hence the second phrasing — "in the alliance another alliance" is the sentence to avoid.
+        var theirAlliance = player.AllianceLabel is { Length: > 0 } label
+            ? $"in the alliance \"{label}\"{(player.AllianceTag is { Length: > 0 } tag ? $" [{tag}]" : "")}"
+            : "and are currently in no alliance";
+
+        return $"You are having a relaxed, friendly get-to-know-you conversation by direct message with a GUEST of the " +
+            $"\"{allianceName}\" Discord — they are NOT a member of {allianceName}, so never imply that they are. They " +
+            $"play as \"{player.Name}\" {theirAlliance}, on server {player.Server}. They know this " +
+            "community from voice chat and from visiting, which is exactly why they are worth talking to. " +
+            Goals + "what they get up to in the game and in their own alliance; how they came to know this community; " +
+            $"and whether they have any funny or charming stories about the people in {allianceName}.";
     }
 
     // Handles a member's DM reply for an active interview. No-op if the user has no active interview
@@ -153,9 +216,10 @@ public class MemberInterviewService(
             .ToList();
 
         var botName = await ResolveBotNameAsync(interview.GuildId);
-        var allianceName = await ResolveAllianceNameAsync(interview.GuildId, interview.GuildAllianceId, cancellationToken);
+        var (allianceName, homeAllianceId) = await ResolveAllianceAsync(interview.GuildId, interview.GuildAllianceId, cancellationToken);
+        var subject = await DescribeSubjectAsync(interview, allianceName, homeAllianceId, cancellationToken);
         var forceWrapUp = turns.Count(t => t.Role == AiChatRole.User) >= MaxTurns;
-        var systemPrompt = BuildInterviewPrompt(botName, allianceName, forceWrapUp);
+        var systemPrompt = BuildInterviewPrompt(botName, subject, forceWrapUp);
 
         // Interviews are casual, in-character DM chat — use the lighter/cheaper member-lore model
         // (flash-lite by default) so they don't burn the premium answer model's tiny per-day quota.
@@ -254,14 +318,11 @@ public class MemberInterviewService(
     // English, unlike the German HoshiPersona block it's prepended to — the persona is shared with
     // AiChat and /hoshi-say, so translating it belongs in its own change (docs/backlog.md). The mix
     // is fine for the model: the language the member actually reads is pinned by the rule at the end.
-    private static string BuildInterviewPrompt(string botName, string allianceName, bool forceWrapUp)
+    private static string BuildInterviewPrompt(string botName, string subject, bool forceWrapUp)
     {
         var basePrompt =
             HoshiPersona.Describe(botName) + "\n\n" +
-            $"You are having a relaxed, friendly get-to-know-you conversation by direct message with a member of the " +
-            $"alliance \"{allianceName}\", to get to know them better. Your goals: what the member wants to be called; " +
-            "what they get up to in the game and in the alliance; and whether they have any funny or charming stories " +
-            "about other members.\n\n" +
+            subject + "\n\n" +
             "Be warm and brief, and stay in character. Ask only one question at a time, two at most, and genuinely " +
             "engage with the answers. Do be curious and follow up with interested questions – about the game, their " +
             "role in the alliance, and shared experiences; that is exactly what people like about you. With private or " +
