@@ -322,6 +322,8 @@
   "Web.Editor.PlayerLink.StatusCardTitle": "Status",
   "Web.Editor.PlayerLink.StatusUsage.one": "{count} member couldn't be matched automatically and is waiting for manual assignment. To adjust roles yourself, see the <em>Rank Roles</em> and <em>Ops-Level Roles</em> features.",
   "Web.Editor.PlayerLink.StatusUsage.other": "{count} members couldn't be matched automatically and are waiting for manual assignment. To adjust roles yourself, see the <em>Rank Roles</em> and <em>Ops-Level Roles</em> features.",
+  "Web.Editor.PlayerLink.UnlinkedRole.CardTitle": "Not-Linked Role",
+  "Web.Editor.PlayerLink.UnlinkedRole.Usage": "Given to every member who has no in-game player linked yet, and taken away again the moment one is. Useful as a nudge, or to gate channels until someone is identified. Leave blank to assign nothing. Bots are ignored.",
 
   "Web.Editor.PlayerAssignmentsAdmin.Loading": "Loading members…",
   "Web.Editor.PlayerAssignmentsAdmin.Heading": "Player Assignment",

@@ -1,7 +1,10 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Data
 @using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
 @using Microsoft.EntityFrameworkCore
+@using NetCord
+@inject DiscordGuildDataService DiscordData
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -19,6 +22,10 @@
             @((MarkupString)Msg.WebPlayerLink.StatusUsage(Lang, unresolvedCount))
         </p>
     </SettingsCard>
+
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, PlayerLinkSettingKeys.UnlinkedRole)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, PlayerLinkSettingKeys.UnlinkedRole)"
+            @bind-Value="unlinkedRoleInput" @bind-Value:after="SaveUnlinkedRoleAsync" Roles="roles" />
 </div>
 
 <PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
@@ -27,11 +34,19 @@
     protected override GuildFeature Feature => GuildFeature.PlayerLink;
 
     private int unresolvedCount;
+    private List<Role> roles = [];
+    private string? unlinkedRoleInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        unlinkedRoleInput = (await GetSnowflakeAsync(PlayerLinkSettingKeys.UnlinkedRole))?.ToString();
+
         await using var db = await DbFactory.CreateDbContextAsync();
         unresolvedCount = await db.PlayerLinkReviews
             .CountAsync(r => r.GuildId == GuildId && r.Status == PlayerLinkReviewStatus.Unresolved);
     }
+
+    private Task SaveUnlinkedRoleAsync() =>
+        SetSnowflakeAsync(PlayerLinkSettingKeys.UnlinkedRole, ParseId(unlinkedRoleInput));
 }

@@ -322,6 +322,8 @@
   "Web.Editor.PlayerLink.StatusCardTitle": "Status",
   "Web.Editor.PlayerLink.StatusUsage.one": "{count} Mitglied konnte nicht automatisch zugeordnet werden und wartet auf manuelle Zuordnung. Zum Anpassen der Rollen selbst siehe die Features <em>Rang-Rollen</em> und <em>Ops-Level-Rollen</em>.",
   "Web.Editor.PlayerLink.StatusUsage.other": "{count} Mitglieder konnten nicht automatisch zugeordnet werden und warten auf manuelle Zuordnung. Zum Anpassen der Rollen selbst siehe die Features <em>Rang-Rollen</em> und <em>Ops-Level-Rollen</em>.",
+  "Web.Editor.PlayerLink.UnlinkedRole.CardTitle": "Rolle ohne Verknüpfung",
+  "Web.Editor.PlayerLink.UnlinkedRole.Usage": "Erhält jedes Mitglied, das noch keinen In-Game-Spieler verknüpft hat — und verliert sie wieder, sobald eine Verknüpfung besteht. Praktisch als Erinnerung oder um Kanäle zu sperren, bis jemand zugeordnet ist. Leer lassen, um nichts zu vergeben. Bots werden ignoriert.",
 
   "Web.Editor.PlayerAssignmentsAdmin.Loading": "Mitglieder werden geladen…",
   "Web.Editor.PlayerAssignmentsAdmin.Heading": "Spieler-Zuordnung",

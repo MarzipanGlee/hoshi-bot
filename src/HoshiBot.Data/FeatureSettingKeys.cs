@@ -176,6 +176,14 @@ public static class MemberOnboardingSettingKeys
     public const string MaxInvitesPerDay = "MaxInvitesPerDay";
 }
 
+public static class PlayerLinkSettingKeys
+{
+    // Optional role for members who have no linked player. Unlike every other role sync, which only
+    // ever visits members it HAS player data for, this one is defined by their absence — so it walks
+    // the whole roster. Unset → nothing is assigned. Removed again the moment a member gets linked.
+    public const string UnlinkedRole = "UnlinkedRole";
+}
+
 public static class AllianceTagRolesSettingKeys
 {
     // Whether the sync may create a role it can't find. Off → it only assigns roles that already
