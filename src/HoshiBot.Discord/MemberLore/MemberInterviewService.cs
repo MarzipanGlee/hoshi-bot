@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.AiChat;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +48,7 @@ public class MemberInterviewService(
             return false;
 
         var lang = await languageResolver.ForUserAsync(userId, scopeGuildId: guildId);
-        var botName = await embedBranding.GetBotDisplayNameAsync(guildId);
+        var botName = await ResolveBotNameAsync(guildId);
         var allianceName = await ResolveAllianceNameAsync(guildId, guildAllianceId, cancellationToken);
         // The lighter/cheaper member-lore model, same as the conversation itself uses below.
         var opener = await interviewOpener.RenderAsync(
@@ -72,6 +73,17 @@ public class MemberInterviewService(
         db.MemberInterviews.Add(interview);
         await db.SaveChangesAsync(cancellationToken);
         return messageId is not null;
+    }
+
+    // Her display name without the alliance tag her guild nickname carries. "[LF] Hoshi Sato,
+    // communication officer of Lost Falcons" says the alliance twice; "Hoshi Sato, communication
+    // officer of Lost Falcons" is what she'd actually say. Same strip the player matcher and the
+    // "Commander {name}" greetings use, so it handles multiple tags too.
+    private async Task<string> ResolveBotNameAsync(ulong guildId)
+    {
+        var displayName = await embedBranding.GetBotDisplayNameAsync(guildId);
+        var stripped = NicknameComposer.Strip(displayName).Trim();
+        return stripped.Length == 0 ? displayName : stripped;
     }
 
     // The alliance Hoshi introduces herself for, and speaks for during the interview. The Name column
@@ -140,7 +152,7 @@ public class MemberInterviewService(
             .Select(m => new AiChatTurn(m.Role == MemberInterviewRole.Bot ? AiChatRole.Assistant : AiChatRole.User, m.Content))
             .ToList();
 
-        var botName = await embedBranding.GetBotDisplayNameAsync(interview.GuildId);
+        var botName = await ResolveBotNameAsync(interview.GuildId);
         var allianceName = await ResolveAllianceNameAsync(interview.GuildId, interview.GuildAllianceId, cancellationToken);
         var forceWrapUp = turns.Count(t => t.Role == AiChatRole.User) >= MaxTurns;
         var systemPrompt = BuildInterviewPrompt(botName, allianceName, forceWrapUp);
