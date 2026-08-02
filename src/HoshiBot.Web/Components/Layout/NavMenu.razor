@@ -35,6 +35,17 @@
                             <div class="nav-item">
                                 <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@GuildAdminPages.Href(guildId, p)" Match="@(p.ExactMatch ? NavLinkMatch.All : NavLinkMatch.Prefix)">@p.Label(Lang)</NavLink>
                             </div>
+
+                            @* Sits right under Audience, since it's where that page's Alliance card
+                               leads. Not a GuildAdminPages entry: that registry also drives the
+                               guild Overview's card grid, and this one is conditional — only a
+                               guild that serves the Alliance audience has alliances to link. *@
+                            if (p.RouteSuffix == "audience" && guildAudiences.HasFlag(GuildAudience.Alliance))
+                            {
+                                <div class="nav-item">
+                                    <NavLink class="nav-link rounded-1 d-flex align-items-center" href="@LinkedAlliancesHref(guildId)">@Msg.WebCommon.LinkedAlliances(Lang)</NavLink>
+                                </div>
+                            }
                         }
                     </NavMenuGroup>
 
@@ -210,10 +221,13 @@
     // features. Overview is matched exactly (its route is a prefix of every other guild page); the
     // rest are distinct paths that don't overlap the alliance/audience feature pages owned by the
     // other groups. Both the links above and this active test iterate the same GuildAdminPages list.
+    private static string LinkedAlliancesHref(ulong guildId) => $"manage/guild/{guildId}/alliances";
+
     private bool IsGuildGroupActive(ulong guildId) =>
         GuildAdminPages.All.Any(p => p.ExactMatch
             ? string.Equals(currentUrl, GuildAdminPages.Href(guildId, p), StringComparison.OrdinalIgnoreCase)
-            : IsActive(GuildAdminPages.Href(guildId, p)));
+            : IsActive(GuildAdminPages.Href(guildId, p)))
+        || IsActive(LinkedAlliancesHref(guildId));
 
     // Highlights a guild-scoped audience's group on its Settings page, its catalog page and
     // its feature editors — all sharing the audience's path prefix (.../{slug}/...).
