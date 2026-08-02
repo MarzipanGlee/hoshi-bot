@@ -14,23 +14,6 @@
         <h2>@Msg.WebGuild.Configuration(Lang)</h2>
         <ScopeAccordion @ref="scopeAccordion" GuildId="ParsedGuildId" Audiences="audiences" />
     </div>
-
-    @if (settingsAudiences.Count > 0)
-    {
-        <div class="mt-4">
-            <h2>@Msg.WebGuild.AudienceSettings(Lang)</h2>
-            <p>@Msg.WebGuild.AudienceSettingsLead(Lang)</p>
-            <div class="card-grid mt-1">
-                @foreach (var audience in settingsAudiences)
-                {
-                    <NavCard Href="@AudienceSettingsHref(audience)"
-                             Icon="@AudienceDisplay.Icon(audience)"
-                             Title="@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceDisplay.Labels(Lang, audience).First())"
-                             Subtitle="@AudienceDisplay.Description(Lang, audience)" />
-                }
-            </div>
-        </div>
-    }
 </AuthorizedGuildView>
 
 @code {
@@ -38,16 +21,6 @@
 
     private GuildAudience audiences;
     private ScopeAccordion? scopeAccordion;
-
-    // Alliance settings are per-alliance (its own page); the other selectable audiences
-    // each get an AudienceSettings page.
-    private List<GuildAudience> settingsAudiences =>
-        new[] { GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community }
-            .Where(a => audiences.HasFlag(a))
-            .ToList();
-
-    private string AudienceSettingsHref(GuildAudience audience) =>
-        $"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/settings";
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {

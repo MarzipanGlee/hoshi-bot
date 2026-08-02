@@ -22,13 +22,31 @@
 
     @if (links.Count > 0)
     {
-        <h2 class="fs-5 fw-semibold mb-2">@Msg.WebGuild.Alliances(Lang)</h2>
+        <h2 class="mt-4">@Msg.WebGuild.Alliances(Lang)</h2>
         <p class="mb-3 card-subtext">@Msg.WebGuild.AlliancesLead(Lang)</p>
         <div class="card-grid">
             @foreach (var link in links)
             {
                 <AllianceCard Link="link" EnabledCount="allianceEnabledCounts.GetValueOrDefault(link.Id)" TotalCount="allianceFeatureTotal"
                               OnOpen="() => OpenAllianceAsync(link.Id)" />
+            }
+        </div>
+    }
+
+    @* Sits here rather than on the Audience page: these are per-audience settings pages, the same
+       kind of "open this scope" shortcut as the alliance cards above, so the Overview is where you
+       reach for them. The Audience page keeps what actually configures the audiences. *@
+    @if (settingsAudiences.Count > 0)
+    {
+        <h2 class="mt-4">@Msg.WebGuild.AudienceSettings(Lang)</h2>
+        <p class="mb-3 card-subtext">@Msg.WebGuild.AudienceSettingsLead(Lang)</p>
+        <div class="card-grid">
+            @foreach (var audience in settingsAudiences)
+            {
+                <NavCard Href="@AudienceSettingsHref(audience)"
+                         Icon="@AudienceDisplay.Icon(audience)"
+                         Title="@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceDisplay.Labels(Lang, audience).First())"
+                         Subtitle="@AudienceDisplay.Description(Lang, audience)" />
             }
         </div>
     }
@@ -46,6 +64,17 @@
     private List<GuildAlliance> links = [];
     private Dictionary<int, int> allianceEnabledCounts = new();
     private int allianceFeatureTotal;
+    private GuildAudience audiences;
+
+    // Alliance settings are per-alliance (the cards above lead there); the other selectable
+    // audiences each get an AudienceSettings page.
+    private List<GuildAudience> settingsAudiences =>
+        new[] { GuildAudience.Server, GuildAudience.VeilGroup, GuildAudience.Community }
+            .Where(a => audiences.HasFlag(a))
+            .ToList();
+
+    private string AudienceSettingsHref(GuildAudience audience) =>
+        $"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, null)}/settings";
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
@@ -65,11 +94,11 @@
             .FirstOrDefaultAsync();
 
         var settings = await db.GuildSettings.Where(s => s.GuildId == ParsedGuildId).FirstOrDefaultAsync();
-        var guildAudiences = settings?.Audiences ?? GuildAudience.None;
+        audiences = settings?.Audiences ?? GuildAudience.None;
         setupComplete = settings?.SetupCompletedAt is not null;
-        audienceSummary = guildAudiences == GuildAudience.None
+        audienceSummary = audiences == GuildAudience.None
             ? Msg.WebGuild.NotConfiguredYet(Lang)
-            : string.Join(", ", AudienceDisplay.Labels(Lang, guildAudiences));
+            : string.Join(", ", AudienceDisplay.Labels(Lang, audiences));
 
         // The top "Features" card links to the guild-wide features page (the bare .../features route,
         // GuildAudience.Guild), which lists exactly the Guild-audience features — so the card counts
