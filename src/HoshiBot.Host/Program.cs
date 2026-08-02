@@ -115,6 +115,7 @@ builder.Services.AddScoped<AiChatIndexService>();
 builder.Services.AddScoped<AiChatService>();
 builder.Services.AddScoped<AiChatModelResolver>();
 builder.Services.AddScoped<MemberInterviewService>();
+builder.Services.AddScoped<InterviewOpener>();
 builder.Services.AddScoped<MemberNoteExtractor>();
 builder.Services.AddScoped<MemoryExtractor>();
 builder.Services.AddScoped<AnnouncementTranslator>();

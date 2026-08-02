@@ -50,13 +50,6 @@
             FeatureSlug="member-lore" ExtraSlug="notes" Label="@Msg.WebMemberLore.OpenNotesLink(Lang)" />
     </SettingsCard>
 
-    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, MemberLoreSettingKeys.Announcement)">
-        <label for="mlAnnouncement" class="form-label">
-            @Msg.WebEditor.Label(Lang, Feature, MemberLoreSettingKeys.Announcement)
-        </label>
-        <textarea id="mlAnnouncement" class="form-control" rows="6"
-                  @bind="announcementInput" @bind:after="SaveAnnouncementAsync"></textarea>
-    </SettingsCard>
 </div>
 
 @code {
@@ -67,7 +60,6 @@
     private string? completedRoleInput;
     private string? maxPerDayInput;
     private bool campaignActive;
-    private string? announcementInput;
     private InterviewProgress? progress;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -79,7 +71,6 @@
         campaignActive = string.Equals(
             await GetTextAsync(MemberLoreSettingKeys.CampaignActive),
             "true", StringComparison.OrdinalIgnoreCase);
-        announcementInput = await GetTextAsync(MemberLoreSettingKeys.Announcement) ?? MemberLoreSettingKeys.DefaultAnnouncement;
         await LoadProgressAsync();
     }
 
@@ -115,12 +106,6 @@
         campaignActive = value;
         await SetTextAsync(MemberLoreSettingKeys.CampaignActive, value ? "true" : null);
     }
-
-    // Stored only once edited away from the default — leaving it unset lets a future default-copy
-    // improvement (typo fix, wording tweak) still reach guilds that never customized it.
-    private Task SaveAnnouncementAsync() =>
-        SetTextAsync(MemberLoreSettingKeys.Announcement,
-            announcementInput == MemberLoreSettingKeys.DefaultAnnouncement ? null : announcementInput);
 
     private record InterviewProgress(int Invited, int InProgress, int Completed, int Declined, int Undeliverable);
 }

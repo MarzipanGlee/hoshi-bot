@@ -600,3 +600,19 @@ channel but then shows only the `LatestAnnouncementsMaxShown` newest *across all
 Preferred channel (e.g. a general-announcements channel) can still push an authoritative
 `official-announcements` notice past that global cap. If that recurs, switch to a per-channel
 guaranteed slice (show the top-N of each channel) rather than a single global newest-first list.
+
+## LLM prompts: finish the move to English
+
+`MemberInterviewService.BuildInterviewPrompt` was translated to English on 2026-08-02 (the interview
+opener next to it is an English constant the model translates per member). The rest of the prompt
+surface is still German and was deliberately left alone in that change:
+
+- `HoshiPersona.Describe` — shared by AiChat, `/hoshi-say` and the interview, so the interview prompt
+  currently mixes a German persona block with English instructions. Models handle that fine, but it's
+  the obvious next one. Watch the tone of German replies when you do: they currently come from a
+  German persona, and an English persona + "Answer in German" can read slightly more translated.
+- `AiChatService.Routing.cs`'s `GateSystemPrompt`/`RouterSystemPrompt` and the `MemoryExtractor` /
+  `MemberNoteExtractor` prompts — these are *decision logic* whose behaviour was tuned by observation.
+  A regression looks like "she went quiet", "she chimes in too often", or silently worse extractions,
+  days later. Do them in their own change, one at a time, so a regression is attributable.
+- `AnnouncementTranslator` — self-contained; easy whenever.

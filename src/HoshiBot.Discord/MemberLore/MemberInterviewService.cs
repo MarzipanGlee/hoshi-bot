@@ -23,13 +23,14 @@ public class MemberInterviewService(
     GuildFeatureSettingsService settingsService,
     EmbedBranding embedBranding,
     LanguageResolver languageResolver,
+    InterviewOpener interviewOpener,
     ILogger<MemberInterviewService> logger)
 {
     public const string DeclineButtonId = "member-interview-decline";
 
-    // The fixed DM messages (opener, decline button, closers) render in the interviewee's
-    // resolved language; the interview conversation itself mirrors the member's language via
-    // the LLM prompt below.
+    // The decline button and the closers render in the interviewee's resolved language from the
+    // catalog; the opener is translated on the fly from an English constant (InterviewOpener), and
+    // the interview conversation itself mirrors the member's language via the LLM prompt below.
 
     // The model appends this on its own line when it has learned enough; stripped before sending.
     private const string DoneSentinel = "[INTERVIEW_DONE]";
@@ -47,7 +48,10 @@ public class MemberInterviewService(
 
         var lang = await languageResolver.ForUserAsync(userId, scopeGuildId: guildId);
         var botName = await embedBranding.GetBotDisplayNameAsync(guildId);
-        var opener = Msg.Interview.Opener(lang, botName);
+        var allianceName = await ResolveAllianceNameAsync(guildId, guildAllianceId, cancellationToken);
+        // The lighter/cheaper member-lore model, same as the conversation itself uses below.
+        var opener = await interviewOpener.RenderAsync(
+            await modelResolver.ResolveLightweightAsync(guildId), botName, allianceName, lang, cancellationToken);
         var declineButton = new ButtonProperties(DeclineButtonId, Msg.Interview.DeclineButton(lang), ButtonStyle.Secondary);
 
         var now = DateTimeOffset.UtcNow;
@@ -68,6 +72,26 @@ public class MemberInterviewService(
         db.MemberInterviews.Add(interview);
         await db.SaveChangesAsync(cancellationToken);
         return messageId is not null;
+    }
+
+    // The alliance Hoshi introduces herself for, and speaks for during the interview. The Name column
+    // is the plain name — the tag lives in its own column — so this is already "without the tag".
+    // MemberLore is Alliance-audience, so the link is always there in practice; the Discord guild's
+    // own name and then a generic noun are belt-and-braces fallbacks that keep the sentence intact.
+    private async Task<string> ResolveAllianceNameAsync(ulong guildId, int? guildAllianceId, CancellationToken cancellationToken)
+    {
+        var name = guildAllianceId is not { } linkId
+            ? null
+            : await db.GuildAlliances
+                .Where(ga => ga.Id == linkId)
+                .Select(ga => ga.StfcAlliance.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(name))
+            return name;
+
+        var guildName = gatewayClient.Cache.Guilds.GetValueOrDefault(guildId)?.Name;
+        return string.IsNullOrWhiteSpace(guildName) ? "the alliance" : guildName;
     }
 
     // Handles a member's DM reply for an active interview. No-op if the user has no active interview
@@ -117,8 +141,9 @@ public class MemberInterviewService(
             .ToList();
 
         var botName = await embedBranding.GetBotDisplayNameAsync(interview.GuildId);
+        var allianceName = await ResolveAllianceNameAsync(interview.GuildId, interview.GuildAllianceId, cancellationToken);
         var forceWrapUp = turns.Count(t => t.Role == AiChatRole.User) >= MaxTurns;
-        var systemPrompt = BuildInterviewPrompt(botName, forceWrapUp);
+        var systemPrompt = BuildInterviewPrompt(botName, allianceName, forceWrapUp);
 
         // Interviews are casual, in-character DM chat — use the lighter/cheaper member-lore model
         // (flash-lite by default) so they don't burn the premium answer model's tiny per-day quota.
@@ -214,29 +239,33 @@ public class MemberInterviewService(
         return c is "nein danke" or "nein, danke" or "stop" or "stopp" or "no thanks" or "kein interesse";
     }
 
-    private static string BuildInterviewPrompt(string botName, bool forceWrapUp)
+    // English, unlike the German HoshiPersona block it's prepended to — the persona is shared with
+    // AiChat and /hoshi-say, so translating it belongs in its own change (docs/backlog.md). The mix
+    // is fine for the model: the language the member actually reads is pinned by the rule at the end.
+    private static string BuildInterviewPrompt(string botName, string allianceName, bool forceWrapUp)
     {
         var basePrompt =
             HoshiPersona.Describe(botName) + "\n\n" +
-            "Du führst gerade ein lockeres, freundliches Kennenlern-Gespräch per Direktnachricht mit einem Mitglied, " +
-            "um es besser kennenzulernen. Deine Ziele: Wie das Mitglied genannt werden möchte; was es im Spiel und in der " +
-            "Allianz so macht; und ob es lustige oder charmante Geschichten über andere Mitglieder hat.\n\n" +
-            "Sei warm, kurz und bleibe in deiner Rolle. Stelle immer nur eine, höchstens zwei Fragen auf einmal und gehe " +
-            "echt auf die Antworten ein. Sei ruhig neugierig und hake mit interessierten Nachfragen nach – zu Spiel, " +
-            "Rolle in der Allianz und gemeinsamen Erlebnissen; genau dafür mögen dich die Leute. Bei privaten oder " +
-            "persönlichen Themen sei dagegen zurückhaltend: frage nicht aktiv nach, sondern nur, wenn das Mitglied von " +
-            "selbst darüber erzählt. Dränge zu nichts und respektiere immer, wenn jemand etwas nicht teilen möchte.\n\n" +
-            "WICHTIG: Antworte immer in derselben Sprache, in der das Mitglied schreibt (Deutsch, Englisch, …).";
+            $"You are having a relaxed, friendly get-to-know-you conversation by direct message with a member of the " +
+            $"alliance \"{allianceName}\", to get to know them better. Your goals: what the member wants to be called; " +
+            "what they get up to in the game and in the alliance; and whether they have any funny or charming stories " +
+            "about other members.\n\n" +
+            "Be warm and brief, and stay in character. Ask only one question at a time, two at most, and genuinely " +
+            "engage with the answers. Do be curious and follow up with interested questions – about the game, their " +
+            "role in the alliance, and shared experiences; that is exactly what people like about you. With private or " +
+            "personal topics, be reserved instead: don't ask about them, only follow up if the member brings them up " +
+            "themselves. Never push, and always respect it when someone doesn't want to share something.\n\n" +
+            "IMPORTANT: always answer in the same language the member writes in (German, English, …).";
 
         var wrapUp = forceWrapUp
-            ? " Das Gespräch ist jetzt lang genug: Bedanke dich herzlich, sag, dass es dir jederzeit mehr erzählen kann, und beende es."
-            : " Beende das Gespräch nicht zu früh – plaudere ruhig ein bisschen und stelle noch ein, zwei interessierte " +
-              "Nachfragen (zu Spiel, Allianz, gemeinsamen Erlebnissen), bevor du abschließt. Schließe erst ab, wenn das " +
-              "Mitglied sich verabschieden bzw. abschließen möchte oder ihr wirklich ausführlich geplaudert habt; bedanke " +
-              "dich dann herzlich und sag, dass es dir jederzeit mehr erzählen kann.";
+            ? " The conversation is long enough now: thank them warmly, tell them they can always tell you more, and end it."
+            : " Don't end the conversation too early – chat a little and ask another one or two interested follow-up " +
+              "questions (about the game, the alliance, shared experiences) before you wrap up. Only wrap up once the " +
+              "member wants to say goodbye or finish, or you have really chatted at length; then thank them warmly and " +
+              "tell them they can always tell you more.";
 
         return basePrompt + wrapUp +
-            $"\n\nWenn (und nur wenn) du das Gespräch beendest, schreibe GANZ AM ENDE deiner Nachricht auf einer eigenen " +
-            $"Zeile exakt {DoneSentinel} — das Mitglied sieht diesen Marker nicht.";
+            $"\n\nIf (and only if) you end the conversation, write exactly {DoneSentinel} on its own line at the VERY " +
+            $"END of your message — the member does not see this marker.";
     }
 }
