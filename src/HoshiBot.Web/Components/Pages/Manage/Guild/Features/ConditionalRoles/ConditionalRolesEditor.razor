@@ -1,0 +1,44 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Domain.Entities
+@using Microsoft.EntityFrameworkCore
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
+        <p class="form-text mt-0">
+            @((MarkupString)Msg.WebConditionalRoles.HowItWorksUsage(Lang))
+        </p>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebConditionalRoles.RulesCardTitle(Lang)">
+        <p class="form-text mt-0">@Msg.WebConditionalRoles.RulesCardUsage(Lang)</p>
+        <p class="form-text mb-2">@Msg.WebConditionalRoles.RuleCount(Lang, enabledRules, totalRules)</p>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="conditional-roles" ExtraSlug="rules" Label="@Msg.WebConditionalRoles.OpenRulesLink(Lang)" />
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebConditionalRoles.ConditionsCardTitle(Lang)">
+        <p class="form-text mt-0">@Msg.WebConditionalRoles.ConditionsCardUsage(Lang)</p>
+        <p class="form-text mb-2">@Msg.WebConditionalRoles.ConditionCount(Lang, totalConditions)</p>
+        <ExtraPageLink GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId"
+            FeatureSlug="conditional-roles" ExtraSlug="conditions" Label="@Msg.WebConditionalRoles.OpenConditionsLink(Lang)" />
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.ConditionalRoles;
+
+    private int totalRules;
+    private int enabledRules;
+    private int totalConditions;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var rules = await db.ConditionalRoleRules.Where(r => r.GuildId == GuildId).Select(r => r.Enabled).ToListAsync();
+        totalRules = rules.Count;
+        enabledRules = rules.Count(enabled => enabled);
+        totalConditions = await db.ConditionalRoleConditions.CountAsync(c => c.GuildId == GuildId);
+    }
+}

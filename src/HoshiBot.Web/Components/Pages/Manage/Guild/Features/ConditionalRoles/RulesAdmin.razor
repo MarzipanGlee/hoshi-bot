@@ -1,0 +1,187 @@
+@using HoshiBot.Data
+@using HoshiBot.Domain.ConditionalRoles
+@using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using Microsoft.EntityFrameworkCore
+@using NetCord
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject ConditionalRoleService ConditionalRoles
+@inject DiscordGuildDataService DiscordData
+
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "rules")</PageTitle>
+
+<AuthorizedGuildView Authorized="Authorized">
+    @if (loading)
+    {
+        <LoadingPlaceholder Em="false" />
+    }
+    else
+    {
+        <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "rules")</h1>
+        <p class="text-muted">@Msg.WebConditionalRoles.RulesIntro(Lang)</p>
+
+        @foreach (var rule in rules)
+        {
+            <SettingsCard @key="rule">
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                    <input class="form-control condition-name-input" maxlength="100" placeholder="@Msg.WebConditionalRoles.RuleNamePlaceholder(Lang)"
+                           @bind="rule.Name" @bind:after="() => rule.Dirty = true" />
+                    <div class="form-switch">
+                        <input type="checkbox" class="form-check-input" role="switch" id="@($"cr-enabled-{rule.Id}")"
+                               checked="@rule.Enabled" @onchange="e => { rule.Enabled = (bool)e.Value!; rule.Dirty = true; }" />
+                        <label class="form-check-label" for="@($"cr-enabled-{rule.Id}")">@Msg.WebConditionalRoles.RuleEnabled(Lang)</label>
+                    </div>
+                </div>
+
+                <label class="form-label">@Msg.WebConditionalRoles.TargetRoleLabel(Lang)</label>
+                <RolePicker ShowLabel="false" @bind-Value="rule.TargetRoleId" @bind-Value:after="() => rule.Dirty = true" Roles="roles" />
+
+                <label class="form-label mt-3">@Msg.WebConditionalRoles.ConditionLabel(Lang)</label>
+                <ConditionNodeEditor Node="rule.Root" Roles="roles" Conditions="conditionOptions" IsRoot="true"
+                                     OnChanged="() => rule.Dirty = true" />
+
+                @if (!IsUsable(rule))
+                {
+                    <p class="text-warning mt-2 mb-0">@Msg.WebConditionalRoles.IncompleteWarning(Lang)</p>
+                }
+
+                <div class="d-flex align-items-center gap-2 mt-3">
+                    <button class="btn btn-primary" @onclick="() => SaveRuleAsync(rule)">@Msg.WebCommon.Save(Lang)</button>
+                    <button class="btn btn-outline-danger" @onclick="() => DeleteRuleAsync(rule)">@Msg.WebCommon.Delete(Lang)</button>
+                    @if (rule.Dirty)
+                    {
+                        <span class="form-text">@Msg.WebConditionalRoles.UnsavedChanges(Lang)</span>
+                    }
+                </div>
+            </SettingsCard>
+        }
+
+        <SettingsCard Title="@Msg.WebConditionalRoles.AddRuleCardTitle(Lang)">
+            <div class="d-flex align-items-end gap-2 flex-wrap">
+                <div class="condition-name-input">
+                    <label class="form-label">@Msg.WebConditionalRoles.RuleNamePlaceholder(Lang)</label>
+                    <input class="form-control" maxlength="100" @bind="newRuleName" />
+                </div>
+                <button class="btn btn-primary" @onclick="AddRuleAsync" disabled="@string.IsNullOrWhiteSpace(newRuleName)">
+                    @Msg.WebCommon.Add(Lang)
+                </button>
+            </div>
+        </SettingsCard>
+    }
+</AuthorizedGuildView>
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    // A rule as the page holds it: the stored fields plus the live tree and whether it has been
+    // touched since the last save. Explicit Save (not the settings cards' autosave) — a half-edited
+    // tree written on every keystroke would grant and revoke roles while someone is still thinking.
+    private sealed class RuleVm
+    {
+        public int Id;
+        public string Name = "";
+        public string? TargetRoleId;
+        public bool Enabled = true;
+        public EditableNode Root = EditableNode.NewGroup();
+        public bool Dirty;
+    }
+
+    private bool loading = true;
+    private List<RuleVm> rules = [];
+    private List<Role> roles = [];
+    private List<ConditionNodeEditor.ConditionOption> conditionOptions = [];
+    private Dictionary<int, ConditionNode> conditionTrees = [];
+    private string? newRuleName;
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        loading = true;
+        roles = await DiscordData.GetRolesAsync(ParsedGuildId);
+        await LoadAsync();
+        loading = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        // onlyEnabledRules: false — the editor shows disabled rules too, which is the whole point of
+        // the switch.
+        var snapshot = await ConditionalRoles.LoadAsync(ParsedGuildId, onlyEnabledRules: false);
+        conditionTrees = snapshot.Conditions.ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var stored = await db.ConditionalRoleRules
+            .Where(r => r.GuildId == ParsedGuildId)
+            .OrderBy(r => r.Name)
+            .ToListAsync();
+
+        conditionOptions = (await db.ConditionalRoleConditions
+                .Where(c => c.GuildId == ParsedGuildId)
+                .OrderBy(c => c.Name)
+                .ToListAsync())
+            .Select(c => new ConditionNodeEditor.ConditionOption(c.Id, c.Name))
+            .ToList();
+
+        rules = stored.Select(r => new RuleVm
+        {
+            Id = r.Id,
+            Name = r.Name,
+            TargetRoleId = r.TargetRoleId == 0 ? null : r.TargetRoleId.ToString(),
+            Enabled = r.Enabled,
+            Root = snapshot.Rules.FirstOrDefault(s => s.Id == r.Id)?.Root is { } root
+                ? EditableNode.FromDomain(root)
+                : EditableNode.NewGroup(),
+        }).ToList();
+    }
+
+    // What the sync will conclude, shown before it happens: an unfinished tree or a missing target
+    // role means the rule grants nothing at all (ConditionEvaluator fails closed), and an admin
+    // should hear that from the editor rather than by watching nothing happen for ten minutes.
+    private bool IsUsable(RuleVm rule) =>
+        ulong.TryParse(rule.TargetRoleId, out _)
+        && ConditionEvaluator.IsComplete(rule.Root.ToDomain(), conditionTrees);
+
+    private async Task SaveRuleAsync(RuleVm rule)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var stored = await db.ConditionalRoleRules.FirstOrDefaultAsync(r => r.Id == rule.Id && r.GuildId == ParsedGuildId);
+        if (stored is null)
+            return;
+
+        stored.Name = string.IsNullOrWhiteSpace(rule.Name) ? stored.Name : rule.Name.Trim();
+        stored.TargetRoleId = ulong.TryParse(rule.TargetRoleId, out var roleId) ? roleId : 0;
+        stored.Enabled = rule.Enabled;
+        await db.SaveChangesAsync();
+
+        await ConditionalRoles.SaveTreeAsync(rule.Id, null, rule.Root.ToDomain());
+        rule.Dirty = false;
+        await LoadAsync();
+    }
+
+    private async Task DeleteRuleAsync(RuleVm rule)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        // Its nodes go with it (cascade from the owner).
+        await db.ConditionalRoleRules.Where(r => r.Id == rule.Id && r.GuildId == ParsedGuildId).ExecuteDeleteAsync();
+        await LoadAsync();
+    }
+
+    private async Task AddRuleAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newRuleName))
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.ConditionalRoleRules.Add(new ConditionalRoleRule
+        {
+            GuildId = ParsedGuildId,
+            Name = newRuleName.Trim(),
+            // No target role and no tree yet, so it grants nothing until it's filled in.
+            Enabled = true,
+        });
+        await db.SaveChangesAsync();
+
+        newRuleName = null;
+        await LoadAsync();
+    }
+}

@@ -264,6 +264,7 @@
   "Feature.RankRoles": "Rangrollen",
   "Feature.AllianceTagRoles": "Allianz-Tag-Rollen",
   "Feature.ServerTagRoles": "Server-Tag-Rollen",
+  "Feature.ConditionalRoles": "Bedingte Rollen",
   "Feature.OpsLevelRoles": "Ops-Level-Rollen",
   "Feature.StfcNews": "STFC-News-Benachrichtigungen",
   "Feature.AllianceTournament": "Allianz-Turnier-Benachrichtigungen",

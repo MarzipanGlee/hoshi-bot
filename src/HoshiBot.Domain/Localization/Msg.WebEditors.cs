@@ -429,6 +429,111 @@ public static partial class Msg
             MessageCatalog.Format(lang, "Web.Editor.ServerTagRoles.ColRole");
     }
 
+    public static class WebConditionalRoles
+    {
+        // Contains inline markup — render via MarkupString.
+        public static string HowItWorksUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.HowItWorksUsage");
+
+        public static string RulesCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.RulesCardTitle");
+
+        public static string RulesCardUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.RulesCardUsage");
+
+        public static string RuleCount(Language lang, int enabled, int total) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.RuleCount", ("enabled", enabled), ("total", total));
+
+        public static string OpenRulesLink(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.OpenRulesLink");
+
+        public static string ConditionsCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionsCardTitle");
+
+        public static string ConditionsCardUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionsCardUsage");
+
+        public static string ConditionCount(Language lang, int count) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionCount", ("count", count));
+
+        public static string OpenConditionsLink(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.OpenConditionsLink");
+
+        public static string RulesIntro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.RulesIntro");
+
+        public static string ConditionsIntro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionsIntro");
+
+        public static string RuleNamePlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.RuleNamePlaceholder");
+
+        public static string ConditionNamePlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionNamePlaceholder");
+
+        public static string RuleEnabled(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.RuleEnabled");
+
+        public static string TargetRoleLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.TargetRoleLabel");
+
+        public static string ConditionLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionLabel");
+
+        public static string AddRuleCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddRuleCardTitle");
+
+        public static string AddConditionCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddConditionCardTitle");
+
+        // The fail-closed state made visible: an unfinished rule grants nothing, and an admin should
+        // read that here rather than infer it from ten minutes of nothing happening.
+        public static string IncompleteWarning(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.IncompleteWarning");
+
+        public static string ConditionIncompleteWarning(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionIncompleteWarning");
+
+        public static string UnsavedChanges(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.UnsavedChanges");
+
+        public static string CycleRejected(Language lang, string name) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.CycleRejected", ("name", name));
+
+        public static string ConditionInUse(Language lang, string name, string usages) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionInUse", ("name", name), ("usages", usages));
+
+        public static string KindAnd(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindAnd");
+
+        public static string KindOr(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindOr");
+
+        public static string KindNot(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindNot");
+
+        public static string KindHasRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindHasRole");
+
+        public static string KindMatchesCondition(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindMatchesCondition");
+
+        public static string ChooseCondition(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ChooseCondition");
+
+        public static string AddRoleOption(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddRoleOption");
+
+        public static string AddGroup(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddGroup");
+
+        public static string AddConditionRef(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddConditionRef");
+
+        public static string NotTakesOneHint(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.NotTakesOneHint");
+    }
+
     public static class WebNicknameSync
     {
         public static string HowItWorksUsage(Language lang) =>

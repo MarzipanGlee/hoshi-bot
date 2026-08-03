@@ -77,6 +77,7 @@ public static class GuildFeatureAudiences
         // members' alliances span (and reach beyond) whatever the guild has linked.
         GuildFeature.AllianceTagRoles => GuildAudience.Guild,
         GuildFeature.ServerTagRoles => GuildAudience.Guild,
+        GuildFeature.ConditionalRoles => GuildAudience.Guild,
         _ => GuildAudience.None,
     };
 

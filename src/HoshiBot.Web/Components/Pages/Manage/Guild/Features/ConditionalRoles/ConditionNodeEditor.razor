@@ -1,0 +1,170 @@
+@using HoshiBot.Domain.ConditionalRoles
+@using NetCord
+
+@* One node of a condition tree, rendering itself again for each child — the only recursive editor
+   in this codebase. Indentation comes from the nesting, so an admin reads the shape of their rule
+   the way it evaluates. *@
+<div class="condition-node @(Depth > 0 ? "condition-node-nested" : "")">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <select class="form-select form-select-sm condition-kind-select" value="@Node.Kind"
+                @onchange="OnKindChangedAsync">
+            @foreach (var kind in SelectableKinds)
+            {
+                <option value="@kind">@KindLabel(kind)</option>
+            }
+        </select>
+
+        @if (Node.Kind == ConditionNodeKind.HasRole)
+        {
+            <div class="condition-operand">
+                <RolePicker ShowLabel="false" @bind-Value="Node.RoleId" @bind-Value:after="Changed" Roles="Roles" />
+            </div>
+        }
+        else if (Node.Kind == ConditionNodeKind.MatchesCondition)
+        {
+            <div class="condition-operand">
+                <select class="form-select form-select-sm" value="@Node.ReferencedConditionId"
+                        @onchange="OnConditionChangedAsync">
+                    <option value="">@Msg.WebConditionalRoles.ChooseCondition(Lang)</option>
+                    @foreach (var condition in Conditions)
+                    {
+                        <option value="@condition.Id">@condition.Name</option>
+                    }
+                </select>
+            </div>
+        }
+
+        @if (!IsRoot)
+        {
+            <button type="button" class="btn btn-sm btn-outline-danger ms-auto" title="@Msg.WebCommon.Delete(Lang)"
+                    @onclick="() => OnRemove.InvokeAsync(Node)">✕</button>
+        }
+    </div>
+
+    @if (Node.IsOperator)
+    {
+        <div class="condition-children">
+            @foreach (var child in Node.Children)
+            {
+                <ConditionNodeEditor @key="child" Node="child" Roles="Roles" Conditions="Conditions"
+                                     Depth="Depth + 1" OnRemove="RemoveChildAsync" OnChanged="Changed" />
+            }
+
+            @if (Node.Kind == ConditionNodeKind.Not && Node.Children.Count >= 1)
+            {
+                <p class="form-text mb-0">@Msg.WebConditionalRoles.NotTakesOneHint(Lang)</p>
+            }
+            else
+            {
+                <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+                    @* Picking a role adds the leaf in one action — the "any of these eight tags"
+                       case is otherwise an add-then-pick round trip per tag. *@
+                    <div class="condition-operand">
+                        <RolePicker ShowLabel="false" PlaceholderText="@Msg.WebConditionalRoles.AddRoleOption(Lang)"
+                                    @bind-Value="addRoleInput" @bind-Value:after="AddRoleChildAsync" Roles="Roles" />
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AddGroupChildAsync">
+                        @Msg.WebConditionalRoles.AddGroup(Lang)
+                    </button>
+                    @if (Conditions.Count > 0)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AddConditionChildAsync">
+                            @Msg.WebConditionalRoles.AddConditionRef(Lang)
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired] public EditableNode Node { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<Role> Roles { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<ConditionOption> Conditions { get; set; } = [];
+
+    [Parameter] public int Depth { get; set; }
+
+    // The root has no remove button — a tree always has exactly one root; emptying it is done by
+    // changing its kind, not by deleting it.
+    [Parameter] public bool IsRoot { get; set; }
+
+    [Parameter] public EventCallback<EditableNode> OnRemove { get; set; }
+
+    // Bubbles every edit up so the page can mark itself dirty; the tree itself is mutated in place.
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    public record ConditionOption(int Id, string Name);
+
+    private string? addRoleInput;
+
+    private static readonly ConditionNodeKind[] SelectableKinds =
+    [
+        ConditionNodeKind.And,
+        ConditionNodeKind.Or,
+        ConditionNodeKind.Not,
+        ConditionNodeKind.HasRole,
+        ConditionNodeKind.MatchesCondition,
+    ];
+
+    private string KindLabel(ConditionNodeKind kind) => kind switch
+    {
+        ConditionNodeKind.And => Msg.WebConditionalRoles.KindAnd(Lang),
+        ConditionNodeKind.Or => Msg.WebConditionalRoles.KindOr(Lang),
+        ConditionNodeKind.Not => Msg.WebConditionalRoles.KindNot(Lang),
+        ConditionNodeKind.HasRole => Msg.WebConditionalRoles.KindHasRole(Lang),
+        _ => Msg.WebConditionalRoles.KindMatchesCondition(Lang),
+    };
+
+    private Task Changed() => OnChanged.InvokeAsync();
+
+    // Children survive a switch between operators (AND ↔ OR ↔ NOT), so an admin can restructure
+    // without rebuilding. Switching to a leaf drops them, since a leaf can't hold any.
+    private async Task OnKindChangedAsync(ChangeEventArgs e)
+    {
+        if (!Enum.TryParse<ConditionNodeKind>(e.Value?.ToString(), out var kind))
+            return;
+
+        Node.Kind = kind;
+        if (!Node.IsOperator)
+            Node.Children.Clear();
+
+        await Changed();
+    }
+
+    private async Task OnConditionChangedAsync(ChangeEventArgs e)
+    {
+        Node.ReferencedConditionId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        await Changed();
+    }
+
+    private async Task AddRoleChildAsync()
+    {
+        if (!ulong.TryParse(addRoleInput, out var roleId))
+            return;
+
+        Node.Children.Add(new EditableNode { Kind = ConditionNodeKind.HasRole, RoleId = roleId.ToString() });
+        addRoleInput = null;
+        await Changed();
+    }
+
+    private async Task AddGroupChildAsync()
+    {
+        Node.Children.Add(EditableNode.NewGroup());
+        await Changed();
+    }
+
+    private async Task AddConditionChildAsync()
+    {
+        Node.Children.Add(new EditableNode { Kind = ConditionNodeKind.MatchesCondition });
+        await Changed();
+    }
+
+    private async Task RemoveChildAsync(EditableNode child)
+    {
+        Node.Children.Remove(child);
+        await Changed();
+    }
+}

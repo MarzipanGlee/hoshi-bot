@@ -49,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AiChatHealthService>();
         services.AddScoped<MemoryService>();
         services.AddScoped<PlayerLinkService>();
+        services.AddScoped<ConditionalRoleService>();
         services.AddScoped<MemberNoteService>();
         services.AddScoped<LanguageResolver>();
         // Singleton: the resolved-language cache spans scopes by design (5-min TTL).

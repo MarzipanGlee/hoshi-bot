@@ -1,0 +1,184 @@
+@using HoshiBot.Data
+@using HoshiBot.Domain.ConditionalRoles
+@using HoshiBot.Domain.Entities
+@using HoshiBot.Web.Services
+@using Microsoft.EntityFrameworkCore
+@using NetCord
+@inherits GuildAdminPageBase
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject ConditionalRoleService ConditionalRoles
+@inject DiscordGuildDataService DiscordData
+
+<PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "conditions")</PageTitle>
+
+<AuthorizedGuildView Authorized="Authorized">
+    @if (loading)
+    {
+        <LoadingPlaceholder Em="false" />
+    }
+    else
+    {
+        <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "conditions")</h1>
+        <p class="text-muted">@Msg.WebConditionalRoles.ConditionsIntro(Lang)</p>
+
+        @if (saveError is not null)
+        {
+            <p class="text-danger">@saveError</p>
+        }
+
+        @foreach (var condition in conditions)
+        {
+            <SettingsCard @key="condition">
+                <input class="form-control condition-name-input mb-3" maxlength="100"
+                       placeholder="@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)"
+                       @bind="condition.Name" @bind:after="() => condition.Dirty = true" />
+
+                <ConditionNodeEditor Node="condition.Root" Roles="roles" Conditions="OptionsFor(condition.Id)" IsRoot="true"
+                                     OnChanged="() => condition.Dirty = true" />
+
+                @if (!ConditionEvaluator.IsComplete(condition.Root.ToDomain(), conditionTrees))
+                {
+                    <p class="text-warning mt-2 mb-0">@Msg.WebConditionalRoles.ConditionIncompleteWarning(Lang)</p>
+                }
+
+                <div class="d-flex align-items-center gap-2 mt-3">
+                    <button class="btn btn-primary" @onclick="() => SaveConditionAsync(condition)">@Msg.WebCommon.Save(Lang)</button>
+                    <button class="btn btn-outline-danger" @onclick="() => DeleteConditionAsync(condition)">@Msg.WebCommon.Delete(Lang)</button>
+                    @if (condition.Dirty)
+                    {
+                        <span class="form-text">@Msg.WebConditionalRoles.UnsavedChanges(Lang)</span>
+                    }
+                </div>
+            </SettingsCard>
+        }
+
+        <SettingsCard Title="@Msg.WebConditionalRoles.AddConditionCardTitle(Lang)">
+            <div class="d-flex align-items-end gap-2 flex-wrap">
+                <div class="condition-name-input">
+                    <label class="form-label">@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)</label>
+                    <input class="form-control" maxlength="100" @bind="newConditionName" />
+                </div>
+                <button class="btn btn-primary" @onclick="AddConditionAsync" disabled="@string.IsNullOrWhiteSpace(newConditionName)">
+                    @Msg.WebCommon.Add(Lang)
+                </button>
+            </div>
+        </SettingsCard>
+    }
+</AuthorizedGuildView>
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    private sealed class ConditionVm
+    {
+        public int Id;
+        public string Name = "";
+        public EditableNode Root = EditableNode.NewGroup();
+        public bool Dirty;
+    }
+
+    private bool loading = true;
+    private List<ConditionVm> conditions = [];
+    private List<Role> roles = [];
+    private Dictionary<int, ConditionNode> conditionTrees = [];
+    private List<ConditionNodeEditor.ConditionOption> allOptions = [];
+    private string? newConditionName;
+    private string? saveError;
+
+    protected override async Task OnAuthorizedParametersSetAsync()
+    {
+        loading = true;
+        roles = await DiscordData.GetRolesAsync(ParsedGuildId);
+        await LoadAsync();
+        loading = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        var snapshot = await ConditionalRoles.LoadAsync(ParsedGuildId, onlyEnabledRules: false);
+        conditionTrees = snapshot.Conditions.ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var stored = await db.ConditionalRoleConditions
+            .Where(c => c.GuildId == ParsedGuildId)
+            .OrderBy(c => c.Name)
+            .ToListAsync();
+
+        allOptions = stored.Select(c => new ConditionNodeEditor.ConditionOption(c.Id, c.Name)).ToList();
+
+        conditions = stored.Select(c => new ConditionVm
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Root = conditionTrees.TryGetValue(c.Id, out var root) ? EditableNode.FromDomain(root) : EditableNode.NewGroup(),
+        }).ToList();
+    }
+
+    // A condition can reference other conditions but never itself — offering itself in its own
+    // picker would only invite the cycle the save then rejects.
+    private IReadOnlyList<ConditionNodeEditor.ConditionOption> OptionsFor(int conditionId) =>
+        allOptions.Where(o => o.Id != conditionId).ToList();
+
+    private async Task SaveConditionAsync(ConditionVm condition)
+    {
+        saveError = null;
+        var root = condition.Root.ToDomain();
+
+        // Checked here rather than left to the evaluator: a cycle makes every rule using this
+        // condition silently grant nothing, which is a miserable thing to debug ten minutes later.
+        if (await ConditionalRoles.WouldCycleAsync(ParsedGuildId, condition.Id, root))
+        {
+            saveError = Msg.WebConditionalRoles.CycleRejected(Lang, condition.Name);
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var stored = await db.ConditionalRoleConditions.FirstOrDefaultAsync(c => c.Id == condition.Id && c.GuildId == ParsedGuildId);
+        if (stored is null)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(condition.Name))
+            stored.Name = condition.Name.Trim();
+        await db.SaveChangesAsync();
+
+        await ConditionalRoles.SaveTreeAsync(null, condition.Id, root);
+        condition.Dirty = false;
+        await LoadAsync();
+    }
+
+    private async Task DeleteConditionAsync(ConditionVm condition)
+    {
+        saveError = null;
+
+        // The FK from a referencing node is Restrict, so the delete would fail with a raw database
+        // error. Naming the rules that still use it is the useful version of that.
+        var (usedByRules, usedByConditions) = await ConditionalRoles.UsagesOfConditionAsync(condition.Id);
+        if (usedByRules.Count > 0 || usedByConditions.Count > 0)
+        {
+            saveError = Msg.WebConditionalRoles.ConditionInUse(
+                Lang, condition.Name, string.Join(", ", usedByRules.Concat(usedByConditions)));
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.ConditionalRoleConditions.Where(c => c.Id == condition.Id && c.GuildId == ParsedGuildId).ExecuteDeleteAsync();
+        await LoadAsync();
+    }
+
+    private async Task AddConditionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newConditionName))
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.ConditionalRoleConditions.Add(new ConditionalRoleCondition
+        {
+            GuildId = ParsedGuildId,
+            Name = newConditionName.Trim(),
+        });
+        await db.SaveChangesAsync();
+
+        newConditionName = null;
+        await LoadAsync();
+    }
+}

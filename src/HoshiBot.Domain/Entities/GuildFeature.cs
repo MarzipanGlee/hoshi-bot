@@ -128,4 +128,11 @@ public enum GuildFeature
     // ExclusiveTierRoleSyncJob with server ids as tiers rather than discovering roles at runtime.
     // Keep last so existing enum ordinals/DB rows don't shift.
     ServerTagRoles,
+
+    // Guild-wide: admin-authored rules that grant a role while a boolean expression over a member's
+    // other roles holds, and take it away when it stops holding. The generic form of what features
+    // like ServicesRoleSync hardcode in C# — its trees live in their own tables
+    // (ConditionalRoleRule/Condition/Node) rather than the settings store, since a tree needs
+    // ordering and referential integrity. Keep last so existing enum ordinals/DB rows don't shift.
+    ConditionalRoles,
 }
