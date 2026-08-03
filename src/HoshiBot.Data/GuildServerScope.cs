@@ -12,15 +12,14 @@ public record GuildScope(HashSet<int> AllianceIds, HashSet<int> ServerIds);
 
 public static class GuildServerScope
 {
-    // Three sources, unioned: the guild's linked alliances (and the servers those sit on), any
-    // server the guild tracks in its own right, and every server in a linked veil group.
+    // Two sources, unioned: the guild's linked alliances (and the servers those sit on), plus any
+    // server the guild tracks in its own right.
     //
-    // The veil-group arm is the broad one — a veil group holds ~20 servers, so a guild that links
-    // one considers most of its region home. That is deliberate: linking a veil group is a
-    // statement about which part of the game this Discord belongs to.
-    //
-    // StfcServer.VeilGroupId is nullable (a newly-launched server exists before players can fly to
-    // a veil group area), so servers not assigned to one simply don't come in through that arm.
+    // Linked veil groups are deliberately NOT a third source. A veil group holds ~20 servers, so
+    // including them would make most of a region "ours" off the back of a link that is really about
+    // veil features — a guild linking one is not saying it belongs to all 20. If a veil-group-wide
+    // Discord ever wants a role per server in its group, that belongs behind its own opt-in rather
+    // than silently widening what "foreign" means for nicknames and alliance tag roles.
     public static async Task<GuildScope> ResolveAsync(HoshiBotDbContext db, ulong guildId, CancellationToken cancellationToken = default)
     {
         var allianceIds = await db.GuildAlliances
@@ -38,18 +37,8 @@ public static class GuildServerScope
             .Select(gs => gs.StfcServerId)
             .ToListAsync(cancellationToken);
 
-        var veilGroupIds = await db.GuildVeilGroups
-            .Where(gv => gv.GuildId == guildId)
-            .Select(gv => gv.StfcVeilGroupId)
-            .ToListAsync(cancellationToken);
-
-        var veilGroupServerIds = await db.StfcServers
-            .Where(s => s.VeilGroupId != null && veilGroupIds.Contains(s.VeilGroupId.Value))
-            .Select(s => s.Id)
-            .ToListAsync(cancellationToken);
-
         return new GuildScope(
             allianceIds.ToHashSet(),
-            allianceServerIds.Concat(trackedServerIds).Concat(veilGroupServerIds).ToHashSet());
+            allianceServerIds.Concat(trackedServerIds).ToHashSet());
     }
 }

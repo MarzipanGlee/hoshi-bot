@@ -122,8 +122,8 @@ public enum GuildFeature
     AllianceTagRoles,
 
     // Guild-wide sibling of AllianceTagRoles, one tier down: a role per STFC server the guild counts
-    // as its own (GuildServerScope — its linked alliances' servers, servers it tracks directly, and
-    // every server in a linked veil group), plus one shared role for members from anywhere else.
+    // as its own (GuildServerScope — its linked alliances' servers plus servers it tracks
+    // directly), plus one shared role for members from anywhere else.
     // Unlike alliance tags the set is closed and known from configuration, so it rides on
     // ExclusiveTierRoleSyncJob with server ids as tiers rather than discovering roles at runtime.
     // Keep last so existing enum ordinals/DB rows don't shift.

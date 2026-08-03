@@ -24,8 +24,8 @@ public class ServerTagRoleSyncJob(
 {
     protected override GuildFeature Feature => GuildFeature.ServerTagRoles;
 
-    // The guild's own servers — its linked alliances' servers, servers it tracks directly, and every
-    // server in a linked veil group. The same list the editor offers a role picker for.
+    // The guild's own servers — its linked alliances' servers plus any it tracks directly. The same
+    // list the editor offers a role picker for.
     protected override async ValueTask<IReadOnlyList<int>> TiersAsync(ulong guildId) =>
         (await GuildServerScope.ResolveAsync(db, guildId)).ServerIds.ToList();
 

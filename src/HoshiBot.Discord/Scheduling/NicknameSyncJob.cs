@@ -40,9 +40,9 @@ public class NicknameSyncJob(
         var memberSuffix = NicknameSyncSettingKeys.IsMemberSuffixOn(
             await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.MemberSuffix));
 
-        // Home = the guild's own alliances and their servers, any explicitly tracked server, and
-        // every server in a linked veil group — the one definition Server Tag Roles and Alliance Tag
-        // Roles share, so "foreign" means the same thing in a nickname tag as it does in a role.
+        // Home = the guild's own alliances and their servers, plus any explicitly tracked server —
+        // the one definition Server Tag Roles and Alliance Tag Roles share, so "foreign" means the
+        // same thing in a nickname tag as it does in a role.
         var scope = await GuildServerScope.ResolveAsync(db, guildId);
 
         // Whichever player represents each member *in this guild* — their own pick when they made
