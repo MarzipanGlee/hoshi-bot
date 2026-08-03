@@ -40,12 +40,10 @@ public class NicknameSyncJob(
         var memberSuffix = NicknameSyncSettingKeys.IsMemberSuffixOn(
             await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.MemberSuffix));
 
-        // Home = the guild's own alliances and their servers (plus any explicitly tracked servers).
-        var homeAllianceIds = await db.GuildAlliances.Where(ga => ga.GuildId == guildId).Select(ga => ga.StfcAllianceId).ToListAsync();
-        var homeAllianceSet = homeAllianceIds.ToHashSet();
-        var homeServerSet = (await db.StfcAlliances.Where(a => homeAllianceIds.Contains(a.Id)).Select(a => a.ServerId).ToListAsync())
-            .Concat(await db.GuildServers.Where(gs => gs.GuildId == guildId).Select(gs => gs.StfcServerId).ToListAsync())
-            .ToHashSet();
+        // Home = the guild's own alliances and their servers, any explicitly tracked server, and
+        // every server in a linked veil group — the one definition Server Tag Roles and Alliance Tag
+        // Roles share, so "foreign" means the same thing in a nickname tag as it does in a role.
+        var scope = await GuildServerScope.ResolveAsync(db, guildId);
 
         // Whichever player represents each member *in this guild* — their own pick when they made
         // one, else their oldest link. The server label is built in memory below to avoid a
@@ -59,7 +57,7 @@ public class NicknameSyncJob(
                 continue;
             var nickname = NicknameComposer.Build(
                 member.Name, member.RegionName, member.ServerId, member.AllianceId, member.AllianceTag,
-                allianceTagMode, serverTagMode, homeAllianceSet, homeServerSet,
+                allianceTagMode, serverTagMode, scope.AllianceIds, scope.ServerIds,
                 memberSuffix ? member.NicknameSuffix : null);
             await SyncNicknameAsync(guildId, guildUser, nickname, excludedRoles);
         }

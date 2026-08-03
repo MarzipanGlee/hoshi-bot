@@ -1,0 +1,154 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using Microsoft.EntityFrameworkCore
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
+        <p class="form-text mt-0">
+            @((MarkupString)Msg.WebServerTagRoles.HowItWorksUsage(Lang))
+        </p>
+    </SettingsCard>
+
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, ServerTagRolesSettingKeys.ForeignServerRole)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, ServerTagRolesSettingKeys.ForeignServerRole)"
+            CreateRoleName="@ForeignRoleDefaultName"
+            @bind-Value="foreignRoleInput" @bind-Value:after="SaveForeignRoleAsync" Roles="roles" />
+</div>
+
+@* Full width and outside the card grid: a linked veil group brings ~20 servers with it, so this is
+   one table rather than the card-per-tier grid RoleTierEditor renders for the 5 ranks. *@
+<SettingsCard Title="@Msg.WebServerTagRoles.ServersCardTitle(Lang)">
+    <p class="form-text mt-0">@Msg.WebServerTagRoles.ServersUsage(Lang)</p>
+
+    @if (saveError is not null)
+    {
+        <p class="text-danger">@saveError.Value.Text(Lang)</p>
+    }
+
+    @if (servers.Count == 0)
+    {
+        <p class="form-text mb-0">@Msg.WebServerTagRoles.NoServers(Lang)</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>@Msg.WebServerTagRoles.ColServer(Lang)</th>
+                        <th>@Msg.WebServerTagRoles.ColRole(Lang)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in servers)
+                    {
+                        <tr @key="row.ServerId">
+                            <td class="text-nowrap">
+                                <strong>@row.DefaultName</strong>
+                                <span class="text-muted ms-1">@row.Label</span>
+                            </td>
+                            <td>
+                                <RolePicker ShowLabel="false" CreateRoleName="@row.DefaultName"
+                                        @bind-Value="row.RoleId" @bind-Value:after="() => SaveServerRoleAsync(row)" Roles="roles" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</SettingsCard>
+
+<PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.ServerTagRoles;
+
+    // Name a freshly created catch-all role gets. The per-server rows use the bare server number.
+    private const string ForeignRoleDefaultName = "foreign-server";
+
+    // One row of the table: the server, and the role currently picked for it.
+    private sealed class ServerRow
+    {
+        public required int ServerId { get; init; }
+
+        // "EU164 Mindmeld" — shown next to the number so the bare id isn't the only clue.
+        public required string Label { get; init; }
+
+        public string DefaultName => ServerId.ToString();
+        public string? RoleId { get; set; }
+    }
+
+    private List<Role> roles = [];
+    private List<ServerRow> servers = [];
+    private string? foreignRoleInput;
+    private DiscordCreateErrorKind? saveError;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        foreignRoleInput = (await GetSnowflakeAsync(ServerTagRolesSettingKeys.ForeignServerRole))?.ToString();
+
+        // Exactly the servers the sync job treats as this guild's own, from the same helper — a
+        // second definition here would offer roles for servers the job then ignores.
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var serverIds = (await GuildServerScope.ResolveAsync(db, GuildId)).ServerIds;
+        var known = await db.StfcServers
+            .Include(s => s.Region)
+            .Where(s => serverIds.Contains(s.Id))
+            .OrderBy(s => s.Id)
+            .ToListAsync();
+
+        servers = known.Select(s => new ServerRow { ServerId = s.Id, Label = s.DisplayName }).ToList();
+        foreach (var row in servers)
+            await LoadServerRoleAsync(row);
+    }
+
+    // Falls back to an existing role literally named after the server number and persists that right
+    // away — same reasoning as RoleTierEditor.LoadAsync: without it, a guild that already made these
+    // roles by hand sees every picker on "create new", and saving would build a duplicate set.
+    private async Task LoadServerRoleAsync(ServerRow row)
+    {
+        if (await GetSnowflakeAsync(ServerTagRolesSettingKeys.RoleFor(row.ServerId)) is { } savedId)
+        {
+            row.RoleId = savedId.ToString();
+            return;
+        }
+
+        if (roles.FirstOrDefault(r => r.Name == row.DefaultName) is { } match)
+        {
+            row.RoleId = match.Id.ToString();
+            await SetSnowflakeAsync(ServerTagRolesSettingKeys.RoleFor(row.ServerId), match.Id);
+        }
+    }
+
+    // A blank pick clears the row (that server simply gets no role); the create option makes one
+    // named after the server number. Roles are created with Discord's defaults — unlike the rank
+    // tiers there are no colour/mentionable inputs here, since 20-odd rows of them would swamp the
+    // table and a server tag doesn't carry a hierarchy the way a rank does.
+    private async Task SaveServerRoleAsync(ServerRow row)
+    {
+        saveError = null;
+        (var roleId, row.RoleId, saveError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, row.RoleId, row.DefaultName);
+        if (saveError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(ServerTagRolesSettingKeys.RoleFor(row.ServerId), roleId);
+    }
+
+    private async Task SaveForeignRoleAsync()
+    {
+        saveError = null;
+        (var roleId, foreignRoleInput, saveError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, foreignRoleInput, ForeignRoleDefaultName);
+        if (saveError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(ServerTagRolesSettingKeys.ForeignServerRole, roleId);
+    }
+}

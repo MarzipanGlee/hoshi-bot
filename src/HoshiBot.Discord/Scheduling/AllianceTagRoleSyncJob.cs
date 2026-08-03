@@ -53,14 +53,11 @@ public class AllianceTagRoleSyncJob(
         if (players.Count == 0)
             return;
 
-        // Home = the servers of the guild's own linked alliances, plus any server it tracks in its
-        // own right. Same definition Nickname Sync uses for its "foreign player" tags. Only these
-        // servers get per-alliance roles: a Discord with visitors from all over would otherwise
-        // collect a role per foreign alliance and walk straight into Discord's 250-role cap.
-        var homeAllianceIds = await db.GuildAlliances.Where(ga => ga.GuildId == guildId).Select(ga => ga.StfcAllianceId).ToListAsync();
-        var homeServerIds = (await db.StfcAlliances.Where(a => homeAllianceIds.Contains(a.Id)).Select(a => a.ServerId).ToListAsync())
-            .Concat(await db.GuildServers.Where(gs => gs.GuildId == guildId).Select(gs => gs.StfcServerId).ToListAsync())
-            .ToHashSet();
+        // Home = the shared GuildServerScope definition, the same one Nickname Sync uses for its
+        // "foreign player" tags and Server Tag Roles uses for its server list. Only these servers
+        // get per-alliance roles: a Discord with visitors from all over would otherwise collect a
+        // role per foreign alliance and walk straight into Discord's 250-role cap.
+        var homeServerIds = (await GuildServerScope.ResolveAsync(db, guildId)).ServerIds;
 
         var roles = await gatewayClient.Rest.GetGuildRolesAsync(guildId);
         var bindings = await LoadBindingsAsync(guildId);

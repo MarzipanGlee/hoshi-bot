@@ -405,6 +405,30 @@ public static partial class Msg
             MessageCatalog.Format(lang, "Web.Editor.AllianceTagRoles.NoBoundRoles");
     }
 
+    public static class WebServerTagRoles
+    {
+        // Contains inline markup — render via MarkupString.
+        public static string HowItWorksUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ServerTagRoles.HowItWorksUsage");
+
+        public static string ServersCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ServerTagRoles.ServersCardTitle");
+
+        public static string ServersUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ServerTagRoles.ServersUsage");
+
+        // Shown when the guild has linked no alliance, server or veil group yet, so there is
+        // nothing to list.
+        public static string NoServers(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ServerTagRoles.NoServers");
+
+        public static string ColServer(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ServerTagRoles.ColServer");
+
+        public static string ColRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ServerTagRoles.ColRole");
+    }
+
     public static class WebNicknameSync
     {
         public static string HowItWorksUsage(Language lang) =>

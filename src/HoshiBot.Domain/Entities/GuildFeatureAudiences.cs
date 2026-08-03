@@ -76,6 +76,7 @@ public static class GuildFeatureAudiences
         // Guild-wide, like RankRoles/NicknameSync: one set of tag roles for the whole Discord, since
         // members' alliances span (and reach beyond) whatever the guild has linked.
         GuildFeature.AllianceTagRoles => GuildAudience.Guild,
+        GuildFeature.ServerTagRoles => GuildAudience.Guild,
         _ => GuildAudience.None,
     };
 

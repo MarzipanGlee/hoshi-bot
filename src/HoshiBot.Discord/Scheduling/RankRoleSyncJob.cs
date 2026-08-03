@@ -22,6 +22,10 @@ public class RankRoleSyncJob(
 {
     protected override GuildFeature Feature => GuildFeature.RankRoles;
 
+    // Closed set, same for every guild.
+    protected override ValueTask<IReadOnlyList<StfcPlayerRank>> TiersAsync(ulong guildId) =>
+        ValueTask.FromResult<IReadOnlyList<StfcPlayerRank>>(Enum.GetValues<StfcPlayerRank>());
+
     // No alliance, no rank — a rank is a position *within* an alliance. Guarded here as well as in
     // the import (which now clears the stored rank) because this corrects a member on the next
     // sweep instead of waiting for the next player import to touch their row. Null strips every

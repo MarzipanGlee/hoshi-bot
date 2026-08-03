@@ -23,6 +23,10 @@ public class OpsLevelRoleSyncJob(
 {
     protected override GuildFeature Feature => GuildFeature.OpsLevelRoles;
 
+    // Closed set, same for every guild.
+    protected override ValueTask<IReadOnlyList<StfcOpsGroup>> TiersAsync(ulong guildId) =>
+        ValueTask.FromResult<IReadOnlyList<StfcOpsGroup>>(Enum.GetValues<StfcOpsGroup>());
+
     protected override StfcOpsGroup? TierOf(GuildPrimaryPlayer player) => StfcOpsGroupExtensions.FromLevel(player.OpsLevel);
 
     protected override string RoleSettingKey(StfcOpsGroup tier) => OpsLevelRolesSettingKeys.RoleForGroup(tier);

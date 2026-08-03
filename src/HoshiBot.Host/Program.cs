@@ -247,6 +247,8 @@ builder.Services.AddQuartz(quartz =>
 
     AddSimpleJob<AllianceTagRoleSyncJob>(TimeSpan.FromMinutes(10));
 
+    AddSimpleJob<ServerTagRoleSyncJob>(TimeSpan.FromMinutes(10));
+
     AddSimpleJob<AnnouncementCounterRefreshJob>(TimeSpan.FromMinutes(15));
 
     AddSimpleJob<AbsenceReportRefreshJob>(TimeSpan.FromMinutes(15));

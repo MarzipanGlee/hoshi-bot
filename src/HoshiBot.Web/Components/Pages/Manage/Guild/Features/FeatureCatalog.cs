@@ -22,6 +22,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.RaidAlerts;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.RankRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.RoeViolationReports;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ServerStatus;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ServerTagRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ServicesRoleSync;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ShieldReminders;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.StfcNews;
@@ -66,6 +67,7 @@ public static class FeatureCatalog
         new RankRolesFeature(),
         new RoeViolationReportsFeature(),
         new ServerStatusFeature(),
+        new ServerTagRolesFeature(),
         new ServicesRoleSyncFeature(),
         new ShieldRemindersFeature(),
         new StfcNewsFeature(),

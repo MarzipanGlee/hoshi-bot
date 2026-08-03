@@ -48,6 +48,7 @@ public static class GuildFeatureDependencies
         GuildFeature.OpsLevelRoles => [new(GuildFeature.PlayerLink, HasNote: true)],
         GuildFeature.NicknameSync => [new(GuildFeature.PlayerLink, HasNote: true)],
         GuildFeature.AllianceTagRoles => [new(GuildFeature.PlayerLink, HasNote: true)],
+        GuildFeature.ServerTagRoles => [new(GuildFeature.PlayerLink, HasNote: true)],
 
         // Each of these puts a button on a Command Bridge hub — that button is the member/staff
         // entry point, so without a configured Command Bridge the feature has nowhere to be reached

@@ -210,6 +210,21 @@ public static class AllianceTagRolesSettingKeys
     public const string RolePrefixKey = "Role:";
 }
 
+public static class ServerTagRolesSettingKeys
+{
+    // The role for one server, picked (or created) in the editor rather than discovered by the sync
+    // — unlike alliance tags, the server set is closed and known from the guild's own configuration
+    // (GuildServerScope), so there is a card for each one up front. Keyed by StfcServer.Id, which is
+    // the real Scopely server number and never changes.
+    public static string RoleFor(int stfcServerId) => $"{RolePrefixKey}{stfcServerId}";
+
+    public const string RolePrefixKey = "Role:";
+
+    // Optional single role for members playing on a server this guild doesn't count as its own.
+    // Unset → those members hold no server role at all.
+    public const string ForeignServerRole = "ForeignServerRole";
+}
+
 public static class NicknameSyncSettingKeys
 {
     // NicknameTagMode (text, e.g. "ForeignOnly") controlling the [alliance-tag] prefix. Unset →
