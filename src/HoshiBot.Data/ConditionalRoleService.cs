@@ -158,6 +158,15 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
     // point of the feature for a rogue listing: someone who left the Discord to hide is linked to
     // nobody, and naming them here is what lets the rule tag them the moment they rejoin under a new
     // name and PlayerLink links them again.
+    // Searches the WHOLE catalog, not just players linked to a member of this guild. That is the
+    // point of the feature for a rogue listing: someone who left the Discord to hide is linked to
+    // nobody, and naming them here is what lets the rule tag them the moment they rejoin under a new
+    // name and PlayerLink links them again.
+    //
+    // The label is built AFTER materializing. A method call in the projection is evaluated on the
+    // client over entities whose Server/Alliance navigations were never loaded, so it threw an NRE
+    // per keystroke — which killed the Blazor circuit and took the admin's unsaved tree with it.
+    // Naming the columns inline is what makes EF join them.
     public async Task<List<OperandOption>> SearchPlayersAsync(string term, ulong guildId)
     {
         var t = term.Trim().ToLower();
@@ -165,12 +174,14 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
             return [];
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await db.StfcPlayers
+        var rows = await db.StfcPlayers
             .Where(p => p.Name.ToLower().Contains(t))
             .OrderBy(p => p.Name)
             .Take(SearchLimit)
-            .Select(p => new OperandOption(p.Id, PlayerLabel(p)))
+            .Select(p => new PlayerRow(p.Id, p.Name, p.Alliance != null ? p.Alliance.Tag : null, p.Server.Name))
             .ToListAsync();
+
+        return rows.Select(r => new OperandOption(r.Id, PlayerLabel(r))).ToList();
     }
 
     public async Task<List<OperandOption>> SearchAlliancesAsync(string term, ulong guildId)
@@ -180,12 +191,14 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
             return [];
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await db.StfcAlliances
+        var rows = await db.StfcAlliances
             .Where(a => a.Name.ToLower().Contains(t) || a.Tag.ToLower().Contains(t))
             .OrderBy(a => a.Tag)
             .Take(SearchLimit)
-            .Select(a => new OperandOption(a.Id, AllianceLabel(a)))
+            .Select(a => new AllianceRow(a.Id, a.Name, a.Tag, a.Server.Name))
             .ToListAsync();
+
+        return rows.Select(r => new OperandOption(r.Id, AllianceLabel(r))).ToList();
     }
 
     // Labels for ids already stored in trees, so the editor can show what was picked without
@@ -196,9 +209,12 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
             return [];
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await db.StfcPlayers
+        var rows = await db.StfcPlayers
             .Where(p => ids.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id, p => PlayerLabel(p));
+            .Select(p => new PlayerRow(p.Id, p.Name, p.Alliance != null ? p.Alliance.Tag : null, p.Server.Name))
+            .ToListAsync();
+
+        return rows.ToDictionary(r => r.Id, PlayerLabel);
     }
 
     public async Task<Dictionary<int, string>> AllianceLabelsAsync(IReadOnlyCollection<int> ids)
@@ -207,17 +223,24 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
             return [];
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        return await db.StfcAlliances
+        var rows = await db.StfcAlliances
             .Where(a => ids.Contains(a.Id))
-            .ToDictionaryAsync(a => a.Id, a => AllianceLabel(a));
+            .Select(a => new AllianceRow(a.Id, a.Name, a.Tag, a.Server.Name))
+            .ToListAsync();
+
+        return rows.ToDictionary(r => r.Id, AllianceLabel);
     }
 
-    // Names repeat across servers and alliances, so both labels carry enough to tell two apart in a
-    // dropdown. Expression-bodied and static so EF can translate them inside the projections above.
-    private static string PlayerLabel(StfcPlayer p) =>
-        (p.Alliance != null ? "[" + p.Alliance.Tag + "] " : "") + p.Name + " · " + p.Server.Name;
+    // Flat projections, so nothing here depends on a navigation being loaded.
+    private record PlayerRow(int Id, string Name, string? AllianceTag, string ServerName);
 
-    private static string AllianceLabel(StfcAlliance a) => "[" + a.Tag + "] " + a.Name + " · " + a.Server.Name;
+    private record AllianceRow(int Id, string Name, string Tag, string ServerName);
+
+    // Names repeat across servers and alliances, so both labels carry enough to tell two apart.
+    private static string PlayerLabel(PlayerRow r) =>
+        $"{(r.AllianceTag is null ? "" : $"[{r.AllianceTag}] ")}{r.Name} · {r.ServerName}";
+
+    private static string AllianceLabel(AllianceRow r) => $"[{r.Tag}] {r.Name} · {r.ServerName}";
 
     // Which rules and conditions reference a condition — the reason the tree is stored as rows
     // rather than a blob. The editor shows these before letting a condition be deleted, since the
