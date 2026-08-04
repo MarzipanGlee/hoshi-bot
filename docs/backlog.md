@@ -616,3 +616,24 @@ surface is still German and was deliberately left alone in that change:
   A regression looks like "she went quiet", "she chimes in too often", or silently worse extractions,
   days later. Do them in their own change, one at a time, so a regression is attributable.
 - `AnnouncementTranslator` — self-contained; easy whenever.
+
+## Conditional Roles: operand search doesn't cope with non-Latin player names
+
+The player/alliance typeahead (`ConditionalRoleService.SearchPlayersAsync`) is a plain
+case-insensitive `Contains` on the stored name. Real rogue names defeat it: `ЖSCHИЦРГЄИЖ`,
+`光TerrifiedTaser`, `本ZirpendeGrille`, `éçàeçé`, `ШAlexSpeedly`. Typing the Latin letters a name
+*looks* like finds nothing, so an admin has to paste the exact glyphs to name a player.
+
+`AllianceTagLatinizer` (Domain) already does exactly the right mapping — visual look-alikes, not
+phonetic: `Ш`→`W`-ish shapes, `Ø`→`O`, diacritics stripped via NFD. The trap is that latinizing the
+*search term* alone does nothing, because the column still holds the original glyphs; both sides have
+to be normalized. Options:
+
+- A persisted `SearchKey` column on `StfcPlayer`/`StfcAlliance`, written by the import services and
+  indexed — the only version that keeps the query in the database. Needs a migration plus a
+  backfill of ~2k rows per server.
+- Fetch-and-filter in memory. Simplest, but it is a full table scan per keystroke; fine for one
+  alliance, not for a server-wide catalog.
+
+Prefer the first. Also worth folding in at the same time: match on the alliance tag for players (a
+rogue listing is organised by tag), and accept a bare in-game name pasted with its tag prefix.
