@@ -19,6 +19,12 @@ public class StfcAlliance
 
     public required string Name { get; set; }
 
+    // Searchable forms of Tag and Name — see StfcPlayer.NameKey. Null, never "", when nothing in
+    // the source string is typeable.
+    public string? NameKey { get; set; }
+
+    public string? TagKey { get; set; }
+
     // The alliance's in-game emblem, as a 0-based index into the bundled emblem image set
     // (HoshiBot.Web/wwwroot/images/emblems/emblem_{Emblem:D3}.png, currently 0–26). Null = unknown
     // (the ~10k seeded alliances have no emblem yet). Expected to line up 1:1 with stfc.pro's

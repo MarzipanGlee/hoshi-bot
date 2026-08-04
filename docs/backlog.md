@@ -617,23 +617,41 @@ surface is still German and was deliberately left alone in that change:
   days later. Do them in their own change, one at a time, so a regression is attributable.
 - `AnnouncementTranslator` — self-contained; easy whenever.
 
-## Conditional Roles: operand search doesn't cope with non-Latin player names
+## Player name normalization: the remaining call sites
 
-The player/alliance typeahead (`ConditionalRoleService.SearchPlayersAsync`) is a plain
-case-insensitive `Contains` on the stored name. Real rogue names defeat it: `ЖSCHИЦРГЄИЖ`,
-`光TerrifiedTaser`, `本ZirpendeGrille`, `éçàeçé`, `ШAlexSpeedly`. Typing the Latin letters a name
-*looks* like finds nothing, so an admin has to paste the exact glyphs to name a player.
+`PlayerNameKey` (Domain) + the persisted `StfcPlayer.NameKey` / `StfcAlliance.NameKey`/`TagKey` now
+back the five paths where a name is searched or matched: the auto-link matcher, the player picker,
+both conditional-role operand pickers, and the onboarding "type your name" modal. Eight more places
+still compare names directly, and each is its own small failure:
 
-`AllianceTagLatinizer` (Domain) already does exactly the right mapping — visual look-alikes, not
-phonetic: `Ш`→`W`-ish shapes, `Ø`→`O`, diacritics stripped via NFD. The trap is that latinizing the
-*search term* alone does nothing, because the column still holds the original glyphs; both sides have
-to be normalized. Options:
+- **`/link-player`** (`PlayerModule.cs:25,29`) — case-sensitive, and on a miss it *inserts a new
+  `StfcPlayer`*. Typing `speed` when the catalog holds `Speed` silently creates a duplicate ghost row
+  with `ExternalId = 0`, which then collides with the unique index if it ever happens twice. This is
+  a live data-corruption path, not just a search annoyance.
+- **`/set-my-alliance`** (`PlayerModule.cs:62`) and **`/set-diplomacy`** (`AllianceModule.cs:25,39`)
+  — case-sensitive tag lookups.
+- **Alliance-by-tag resolution in three importers** — `StfcPlayerImportService.cs:36,70`,
+  `SeedExtensions.cs:386,393`, `StfcTerritoryOwnershipImportService.cs:31,65`. All case-sensitive
+  `ToDictionary`, so a feed whose tag case differs from the catalog silently drops the player's
+  alliance to null — which then shows up as wrong roles rather than as an import error.
+- **Import rename detection** (`StfcPlayerImportService.cs:74`, `StfcAllianceImportService.cs:47`) —
+  ordinal compare, so a pure case change counts as a rename and appends a `NameHistory` row.
+- **`MemberInterviewInviteJob.RankByActivityAsync`** (`:130-136`) — matches `AiChatIndexedMessages
+  .AuthorName` to `CommanderName.Of(member)` with an ordinal dictionary, so activity ranking misses
+  anyone whose chat name differs in case, and splits anyone who renamed mid-window.
 
-- A persisted `SearchKey` column on `StfcPlayer`/`StfcAlliance`, written by the import services and
-  indexed — the only version that keeps the query in the database. Needs a migration plus a
-  backfill of ~2k rows per server.
-- Fetch-and-filter in memory. Simplest, but it is a full table scan per keystroke; fine for one
-  alliance, not for a server-wide catalog.
+Note these want the *key*, not merely a `ToLower()`: the tag lookups in particular are comparing
+catalog data to catalog data, where homoglyphs are exactly as likely as case differences.
 
-Prefer the first. Also worth folding in at the same time: match on the alliance tag for players (a
-rogue listing is organised by tag), and accept a bare in-game name pasted with its tag prefix.
+## Slash commands: a review and cleanup pass
+
+Flagged while doing the name normalization. Every command wants going through once for: name
+arguments that should be normalized or (better) autocompleted, commands that write on a miss instead
+of failing, and commands that no longer earn their registration slot. `/link-player` is the worst of
+these (see above). `StationHousingSystemAutocompleteProvider` is the only autocomplete in the
+codebase and is the model to copy for any name-taking option.
+
+There is also a shadowing hazard worth checking for while in there: every module wraps its body in
+`SendDelayedEmbedAsync(… async () => …)`, and a pattern variable declared inside that lambda can
+shadow a command parameter of the same name with no warning — that is what made `/hoshi-say` ping the
+invoker instead of the chosen member (fixed 2026-08-04).

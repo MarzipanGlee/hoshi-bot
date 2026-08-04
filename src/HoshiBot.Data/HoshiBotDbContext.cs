@@ -1,3 +1,4 @@
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -156,4 +157,47 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HoshiBotDbContext).Assembly);
     }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        RefreshSearchKeys();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        RefreshSearchKeys();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    // Keeps StfcPlayer.NameKey / StfcAlliance.NameKey+TagKey in step with the names they derive from.
+    //
+    // Done here rather than at each write site because there are ten of those — the two import
+    // services, the seeder, /link-player's ghost row, the STFC admin Create/Edit pages (which
+    // Attach+Modified a detached entity, so they cannot recompute anything themselves) — and a key
+    // that silently goes stale is worse than one that never existed: the row simply stops being
+    // findable, with nothing to notice.
+    //
+    // Empty maps to null on purpose: a name with nothing typeable in it (キャプテンネモ) has no key,
+    // and "" would match every substring search and make all such rows match one another.
+    private void RefreshSearchKeys()
+    {
+        foreach (var entry in ChangeTracker.Entries<StfcPlayer>())
+        {
+            if (entry.State is EntityState.Added or EntityState.Modified)
+                entry.Entity.NameKey = KeyOrNull(entry.Entity.Name);
+        }
+
+        foreach (var entry in ChangeTracker.Entries<StfcAlliance>())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified))
+                continue;
+
+            entry.Entity.NameKey = KeyOrNull(entry.Entity.Name);
+            entry.Entity.TagKey = KeyOrNull(entry.Entity.Tag);
+        }
+    }
+
+    private static string? KeyOrNull(string? source) =>
+        string.IsNullOrEmpty(source) ? null : PlayerNameKey.Compute(source) is { Length: > 0 } key ? key : null;
 }

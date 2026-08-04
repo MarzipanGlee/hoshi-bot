@@ -11,6 +11,12 @@ public class StfcPlayer
 
     public required string Name { get; set; }
 
+    // What a Latin keyboard would type to find this player (PlayerNameKey.Compute), maintained by
+    // HoshiBotDbContext.SaveChanges. Null — never "" — when the name has nothing typeable in it at
+    // all: an empty key would match every substring search and would make all such players match
+    // each other.
+    public string? NameKey { get; set; }
+
     public int ServerId { get; set; }
 
     public StfcServer Server { get; set; } = null!;

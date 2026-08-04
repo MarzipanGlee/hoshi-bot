@@ -12,6 +12,13 @@ public class StfcAllianceConfiguration : IEntityTypeConfiguration<StfcAlliance>
         builder.Property(a => a.Tag).HasMaxLength(20).IsRequired();
         builder.Property(a => a.Name).HasMaxLength(100).IsRequired();
 
+        // See StfcPlayerConfiguration: wider than the source because a character can expand.
+        builder.Property(a => a.NameKey).HasMaxLength(200);
+        builder.Property(a => a.TagKey).HasMaxLength(40);
+
+        builder.HasIndex(a => a.NameKey);
+        builder.HasIndex(a => a.TagKey);
+
         // ExternalId, not (ServerId, Tag) — a Tag is just an alliance's latest known tag
         // and can legitimately change (see NameHistory), so it can't be part of a
         // uniqueness constraint; ExternalId is the stable identity instead.

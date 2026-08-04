@@ -37,12 +37,41 @@ public static class SeedExtensions
         await services.SeedGuildSettingsIfEmptyAsync();
         await services.SeedHoshiTestGuildSettingsIfEmptyAsync();
 
+        await services.BackfillNameSearchKeysAsync();
+
         // Self-heal: attach any Alliance-audience feature rows still left unscoped (seeded or
         // migrated before their guild linked an alliance) to each guild's primary link. Safe to
         // run every startup — it only touches rows with a null GuildAllianceId.
         using var scope = services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<GuildAllianceService>().AdoptAllOrphansAsync();
     }
+
+    // Fills NameKey/TagKey for rows written before the column existed. Self-healing rather than a
+    // one-shot migration step: the keys are derived, so recomputing a missing one is always safe,
+    // and a row that somehow loses its key (a raw SQL edit, a restore from an older dump) is picked
+    // up on the next start instead of quietly staying unfindable.
+    //
+    // Only rows with a null key are touched, so this is a no-op query once the catalog is filled.
+    // The names go through the same DbContext hook every other write does — this just marks them
+    // Modified so it fires.
+    public static Task BackfillNameSearchKeysAsync(this IServiceProvider services) =>
+        services.WithDbAsync(async db =>
+        {
+            var players = await db.StfcPlayers.Where(p => p.NameKey == null).ToListAsync();
+            var alliances = await db.StfcAlliances.Where(a => a.NameKey == null || a.TagKey == null).ToListAsync();
+            if (players.Count == 0 && alliances.Count == 0)
+                return;
+
+            // Marked Modified explicitly rather than by touching Name: change detection compares
+            // against the original snapshot, so assigning a property its own value is not a change
+            // and the hook would never fire.
+            foreach (var player in players)
+                db.Entry(player).State = EntityState.Modified;
+            foreach (var alliance in alliances)
+                db.Entry(alliance).State = EntityState.Modified;
+
+            await db.SaveChangesAsync();
+        });
 
     // Bootstraps the first global admin(s) from config, since nobody could otherwise grant
     // themselves the role via the UI. Only seeds while the table is empty — if every global

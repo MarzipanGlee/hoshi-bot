@@ -1,3 +1,4 @@
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,12 +23,15 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
 
     private static async Task<List<StfcPlayer>> ResolveCandidatesAsync(HoshiBotDbContext db, HashSet<int> guildStfcAllianceIds, string name)
     {
-        var lowered = name.Trim().ToLower();
-        if (lowered.Length == 0)
+        // Matched on the searchable key, so a Discord nickname typed in plain Latin finds the
+        // roster row spelled with homoglyphs ("Gorn" → "Gоrn"). An empty key means the typed name
+        // had nothing typeable in it, which is not a reason to match every player.
+        var key = PlayerNameKey.Compute(name);
+        if (key.Length == 0)
             return [];
 
         var matches = await db.StfcPlayers
-            .Where(p => p.Name.ToLower() == lowered)
+            .Where(p => p.NameKey == key)
             .ToListAsync();
 
         return matches
@@ -40,13 +44,13 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
     // it never excludes a player already linked to another user (multi-account owners are legitimate).
     public async Task<List<PlayerSearchResult>> SearchPlayersAsync(string term, int limit = 25)
     {
-        var t = term.Trim().ToLower();
-        if (t.Length == 0)
+        var key = PlayerNameKey.Compute(term);
+        if (key.Length == 0)
             return [];
 
         await using var db = await dbFactory.CreateDbContextAsync();
         return await db.StfcPlayers
-            .Where(p => p.Name.ToLower().Contains(t))
+            .Where(p => p.NameKey != null && p.NameKey.Contains(key))
             .OrderBy(p => p.Name)
             .Take(limit)
             .Select(p => new PlayerSearchResult(p.Id, p.Name, p.Server.Name, p.Alliance != null ? p.Alliance.Tag : null))

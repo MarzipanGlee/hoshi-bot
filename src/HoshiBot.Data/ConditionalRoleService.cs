@@ -1,3 +1,4 @@
+using HoshiBot.Domain;
 using HoshiBot.Domain.ConditionalRoles;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -228,13 +229,13 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
     // Naming the columns inline is what makes EF join them.
     public async Task<List<OperandOption>> SearchPlayersAsync(string term, ulong guildId)
     {
-        var t = term.Trim().ToLower();
-        if (t.Length == 0)
+        var key = PlayerNameKey.Compute(term);
+        if (key.Length == 0)
             return [];
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var rows = await db.StfcPlayers
-            .Where(p => p.Name.ToLower().Contains(t))
+            .Where(p => p.NameKey != null && p.NameKey.Contains(key))
             .OrderBy(p => p.Name)
             .Take(SearchLimit)
             .Select(p => new PlayerRow(p.Id, p.Name, p.Alliance != null ? p.Alliance.Tag : null, p.Server.Name))
@@ -245,13 +246,14 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
 
     public async Task<List<OperandOption>> SearchAlliancesAsync(string term, ulong guildId)
     {
-        var t = term.Trim().ToLower();
-        if (t.Length == 0)
+        var key = PlayerNameKey.Compute(term);
+        if (key.Length == 0)
             return [];
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var rows = await db.StfcAlliances
-            .Where(a => a.Name.ToLower().Contains(t) || a.Tag.ToLower().Contains(t))
+            .Where(a => (a.NameKey != null && a.NameKey.Contains(key))
+                || (a.TagKey != null && a.TagKey.Contains(key)))
             .OrderBy(a => a.Tag)
             .Take(SearchLimit)
             .Select(a => new AllianceRow(a.Id, a.Name, a.Tag, a.Server.Name))
