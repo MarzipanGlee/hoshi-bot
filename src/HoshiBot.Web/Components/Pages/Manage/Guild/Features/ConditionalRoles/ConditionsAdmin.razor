@@ -74,6 +74,7 @@
                 <table class="table align-middle">
                     <thead>
                         <tr>
+                            <th class="condition-expand-col"></th>
                             <th>@Msg.WebConditionalRoles.ColConditionName(Lang)</th>
                             <th>@Msg.WebConditionalRoles.ColStatus(Lang)</th>
                             <th></th>
@@ -83,6 +84,14 @@
                         @foreach (var listed in conditions)
                         {
                             <tr @key="listed.Id">
+                                @* Several open at once, same as the rules list — a condition is
+                                   usually opened to compare it with the one using it. *@
+                                <td class="condition-expand-col">
+                                    <button type="button" class="btn btn-sm btn-link condition-expand" @onclick="() => ToggleExpanded(listed.Id)"
+                                            aria-expanded="@expanded.Contains(listed.Id)" title="@listed.Name">
+                                        @(expanded.Contains(listed.Id) ? "▾" : "▸")
+                                    </button>
+                                </td>
                                 <td>@listed.Name</td>
                                 <td>@StatusOf(listed)</td>
                                 <td class="text-nowrap">
@@ -91,6 +100,18 @@
                                     <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteConditionAsync(listed)">@Msg.WebCommon.Delete(Lang)</button>
                                 </td>
                             </tr>
+                            @if (expanded.Contains(listed.Id))
+                            {
+                                <tr @key="@($"detail-{listed.Id}")" class="condition-detail-row">
+                                    <td></td>
+                                    <td colspan="2">
+                                        <ul class="condition-summary list-unstyled mb-0">
+                                            <ConditionSummary Node="listed.Root" Roles="roles" Conditions="allOptions"
+                                                              PlayerLabels="playerLabels" AllianceLabels="allianceLabels" />
+                                        </ul>
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>
@@ -137,6 +158,7 @@
     private string? newConditionName;
     private string? saveError;
     private bool subscribed;
+    private readonly HashSet<int> expanded = [];
 
     private string ListHref => Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0];
 
@@ -217,6 +239,12 @@
                 stack.Push(child);
         }
         return ids.ToList();
+    }
+
+    private void ToggleExpanded(int conditionId)
+    {
+        if (!expanded.Add(conditionId))
+            expanded.Remove(conditionId);
     }
 
     private string StatusOf(ConditionVm condition) =>
