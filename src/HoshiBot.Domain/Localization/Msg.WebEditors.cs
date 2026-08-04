@@ -530,8 +530,20 @@ public static partial class Msg
         public static string KindIsPlayer(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindIsPlayer");
 
+        public static string KindInAlliance(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindInAlliance");
+
         public static string ChoosePlayer(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ChoosePlayer");
+
+        public static string SearchPlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.SearchPlaceholder");
+
+        public static string ChooseOperand(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ChooseOperand");
+
+        public static string AddAllianceOption(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddAllianceOption");
 
         public static string AddPlayerOption(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddPlayerOption");

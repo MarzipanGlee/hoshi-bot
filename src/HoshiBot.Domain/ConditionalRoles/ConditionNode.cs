@@ -27,7 +27,15 @@ public enum ConditionNodeKind
 
     // Whether the member's linked player IS one particular player. Unlike the two above this is
     // never Unknown: it asks about the link itself, and "nobody is linked" answers it definitively.
+    //
+    // The point of naming a player rather than a role: someone who leaves the Discord holds no
+    // roles at all, and a rogue who rejoins under a new name is still the same in-game player. The
+    // rule recognises them the moment PlayerLink links them again.
     IsPlayer,
+
+    // Whether the linked player is in one particular alliance — the named counterpart of
+    // InHomeAlliance. Unknown without a link, like the other facts about the person behind it.
+    InAlliance,
 }
 
 // One node of a condition tree, free of EF and Discord so the semantics can be unit-tested on its
@@ -41,7 +49,8 @@ public sealed record ConditionNode(
     IReadOnlyList<ConditionNode> Children,
     ulong? RoleId = null,
     int? ReferencedConditionId = null,
-    int? StfcPlayerId = null)
+    int? StfcPlayerId = null,
+    int? StfcAllianceId = null)
 {
     public static ConditionNode And(params ConditionNode[] children) => new(ConditionNodeKind.And, children);
 
@@ -58,4 +67,7 @@ public sealed record ConditionNode(
 
     public static ConditionNode Player(int stfcPlayerId) =>
         new(ConditionNodeKind.IsPlayer, [], StfcPlayerId: stfcPlayerId);
+
+    public static ConditionNode Alliance(int stfcAllianceId) =>
+        new(ConditionNodeKind.InAlliance, [], StfcAllianceId: stfcAllianceId);
 }

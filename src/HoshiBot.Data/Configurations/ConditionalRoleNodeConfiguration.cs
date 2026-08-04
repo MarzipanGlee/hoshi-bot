@@ -55,5 +55,10 @@ public class ConditionalRoleNodeConfiguration : IEntityTypeConfiguration<Conditi
             .WithMany()
             .HasForeignKey(n => n.StfcPlayerId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(n => n.StfcAlliance)
+            .WithMany()
+            .HasForeignKey(n => n.StfcAllianceId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

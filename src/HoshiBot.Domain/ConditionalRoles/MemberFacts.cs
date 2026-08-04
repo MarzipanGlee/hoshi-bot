@@ -8,7 +8,7 @@ namespace HoshiBot.Domain.ConditionalRoles;
 // their servers. Deliberately not the alliance/server ids themselves — a rule saying "one of ours"
 // keeps working when the guild links another alliance, where a rule naming an id would quietly go
 // stale.
-public readonly record struct PlayerFacts(int PlayerId, bool InHomeAlliance, bool OnHomeServer);
+public readonly record struct PlayerFacts(int PlayerId, int? AllianceId, bool InHomeAlliance, bool OnHomeServer);
 
 // Everything a condition can ask about one member: the Discord roles they hold, and their player
 // data when there is any.

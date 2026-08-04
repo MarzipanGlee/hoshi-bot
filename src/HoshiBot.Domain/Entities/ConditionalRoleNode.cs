@@ -50,6 +50,11 @@ public class ConditionalRoleNode
 
     public StfcPlayer? StfcPlayer { get; set; }
 
+    // Set only for Kind == InAlliance. SetNull for the same reason as the player above.
+    public int? StfcAllianceId { get; set; }
+
+    public StfcAlliance? StfcAlliance { get; set; }
+
     // Sibling order, so a rebuilt tree reads back the way the admin arranged it. Only meaningful
     // among nodes sharing a parent.
     public int Position { get; set; }

@@ -14,6 +14,9 @@ public record ConditionalRoleSnapshot(
     IReadOnlyList<ConditionalRuleTree> Rules,
     IReadOnlyDictionary<int, ConditionNode> Conditions);
 
+// One choice in an operand typeahead — a player or an alliance, already rendered for display.
+public record OperandOption(int Id, string Label);
+
 // Reads and writes condition trees, converting between the stored rows (ConditionalRoleNode) and
 // the pure evaluable shape (ConditionNode) the Domain evaluator works on. Nothing here decides
 // whether a member matches — that is ConditionEvaluator's job, deliberately kept free of EF.
@@ -65,7 +68,8 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
                 byParent[node.Id].OrderBy(c => c.Position).Select(c => Build(c, byParent)!).ToList(),
                 node.RoleId,
                 node.ReferencedConditionId,
-                node.StfcPlayerId);
+                node.StfcPlayerId,
+                node.StfcAllianceId);
 
     // Replaces an owner's whole tree. Trees are small and always edited as a unit, so this is
     // delete-everything-then-reinsert rather than a diff.
@@ -107,6 +111,7 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
             RoleId = node.RoleId,
             ReferencedConditionId = node.ReferencedConditionId,
             StfcPlayerId = node.StfcPlayerId,
+            StfcAllianceId = node.StfcAllianceId,
             Position = position,
         };
 
@@ -143,6 +148,76 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
 
         return node.Children.Any(child => Reaches(child, target, conditions, seen));
     }
+
+    // How many matches a typeahead offers at once. A server carries a couple of thousand players,
+    // so the picker searches rather than listing; this is the same shape (and limit) the player
+    // assignment page's typeahead already uses.
+    private const int SearchLimit = 25;
+
+    // Searches the WHOLE catalog, not just players linked to a member of this guild. That is the
+    // point of the feature for a rogue listing: someone who left the Discord to hide is linked to
+    // nobody, and naming them here is what lets the rule tag them the moment they rejoin under a new
+    // name and PlayerLink links them again.
+    public async Task<List<OperandOption>> SearchPlayersAsync(string term, ulong guildId)
+    {
+        var t = term.Trim().ToLower();
+        if (t.Length == 0)
+            return [];
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.StfcPlayers
+            .Where(p => p.Name.ToLower().Contains(t))
+            .OrderBy(p => p.Name)
+            .Take(SearchLimit)
+            .Select(p => new OperandOption(p.Id, PlayerLabel(p)))
+            .ToListAsync();
+    }
+
+    public async Task<List<OperandOption>> SearchAlliancesAsync(string term, ulong guildId)
+    {
+        var t = term.Trim().ToLower();
+        if (t.Length == 0)
+            return [];
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.StfcAlliances
+            .Where(a => a.Name.ToLower().Contains(t) || a.Tag.ToLower().Contains(t))
+            .OrderBy(a => a.Tag)
+            .Take(SearchLimit)
+            .Select(a => new OperandOption(a.Id, AllianceLabel(a)))
+            .ToListAsync();
+    }
+
+    // Labels for ids already stored in trees, so the editor can show what was picked without
+    // re-searching for it. Resolved in one query per kind rather than one per node.
+    public async Task<Dictionary<int, string>> PlayerLabelsAsync(IReadOnlyCollection<int> ids)
+    {
+        if (ids.Count == 0)
+            return [];
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.StfcPlayers
+            .Where(p => ids.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => PlayerLabel(p));
+    }
+
+    public async Task<Dictionary<int, string>> AllianceLabelsAsync(IReadOnlyCollection<int> ids)
+    {
+        if (ids.Count == 0)
+            return [];
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.StfcAlliances
+            .Where(a => ids.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, a => AllianceLabel(a));
+    }
+
+    // Names repeat across servers and alliances, so both labels carry enough to tell two apart in a
+    // dropdown. Expression-bodied and static so EF can translate them inside the projections above.
+    private static string PlayerLabel(StfcPlayer p) =>
+        (p.Alliance != null ? "[" + p.Alliance.Tag + "] " : "") + p.Name + " · " + p.Server.Name;
+
+    private static string AllianceLabel(StfcAlliance a) => "[" + a.Tag + "] " + a.Name + " · " + a.Server.Name;
 
     // Which rules and conditions reference a condition — the reason the tree is stored as rows
     // rather than a blob. The editor shows these before letting a condition be deleted, since the

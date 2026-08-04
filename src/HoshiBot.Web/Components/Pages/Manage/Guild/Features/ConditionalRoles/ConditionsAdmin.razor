@@ -8,7 +8,6 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject ConditionalRoleService ConditionalRoles
 @inject DiscordGuildDataService DiscordData
-@inject PlayerLinkService PlayerLinks
 
 <PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "conditions")</PageTitle>
 
@@ -37,7 +36,7 @@
                        placeholder="@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)"
                        @bind="condition.Name" @bind:after="() => condition.Dirty = true" />
 
-                <ConditionNodeEditor Node="condition.Root" Roles="roles" Conditions="OptionsFor(condition.Id)" Players="playerOptions" IsRoot="true"
+                <ConditionNodeEditor Node="condition.Root" Roles="roles" Conditions="OptionsFor(condition.Id)" GuildId="ParsedGuildId" PlayerLabels="playerLabels" AllianceLabels="allianceLabels" IsRoot="true"
                                      OnChanged="() => condition.Dirty = true" />
 
                 @if (!ConditionEvaluator.IsComplete(condition.Root.ToDomain(), conditionTrees))
@@ -85,7 +84,8 @@
     private bool loading = true;
     private List<ConditionVm> conditions = [];
     private List<Role> roles = [];
-    private List<ConditionNodeEditor.PlayerOption> playerOptions = [];
+    private Dictionary<int, string> playerLabels = [];
+    private Dictionary<int, string> allianceLabels = [];
     private Dictionary<int, ConditionNode> conditionTrees = [];
     private List<ConditionNodeEditor.ConditionOption> allOptions = [];
     private string? newConditionName;
@@ -95,14 +95,6 @@
     {
         loading = true;
         roles = await DiscordData.GetRolesAsync(ParsedGuildId);
-
-        // Exactly the players the sync resolves members to, so a rule can never name someone it
-        // would then never match.
-        playerOptions = (await PlayerLinks.GetGuildPrimaryPlayersAsync(ParsedGuildId)).Values
-            .Select(p => new ConditionNodeEditor.PlayerOption(p.PlayerId, p.Name))
-            .DistinctBy(p => p.Id)
-            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
 
         await LoadAsync();
         loading = false;
@@ -127,6 +119,32 @@
             Name = c.Name,
             Root = conditionTrees.TryGetValue(c.Id, out var root) ? EditableNode.FromDomain(root) : EditableNode.NewGroup(),
         }).ToList();
+
+        await LoadOperandLabelsAsync();
+    }
+
+    // One query per operand kind for the whole page, rather than one per node: a rogue listing is a
+    // dozen leaves and each would otherwise be its own round trip.
+    private async Task LoadOperandLabelsAsync()
+    {
+        var roots = conditions.Select(x => x.Root).ToList();
+        playerLabels = await ConditionalRoles.PlayerLabelsAsync(Collect(roots, n => n.StfcPlayerId));
+        allianceLabels = await ConditionalRoles.AllianceLabelsAsync(Collect(roots, n => n.StfcAllianceId));
+    }
+
+    private static List<int> Collect(IEnumerable<EditableNode> roots, Func<EditableNode, int?> pick)
+    {
+        var ids = new HashSet<int>();
+        var stack = new Stack<EditableNode>(roots);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            if (pick(node) is { } id)
+                ids.Add(id);
+            foreach (var child in node.Children)
+                stack.Push(child);
+        }
+        return ids.ToList();
     }
 
     // A condition can reference other conditions but never itself — offering itself in its own

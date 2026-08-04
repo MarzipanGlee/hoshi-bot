@@ -8,7 +8,6 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject ConditionalRoleService ConditionalRoles
 @inject DiscordGuildDataService DiscordData
-@inject PlayerLinkService PlayerLinks
 
 <PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "rules")</PageTitle>
 
@@ -42,7 +41,7 @@
                 <RolePicker ShowLabel="false" @bind-Value="rule.TargetRoleId" @bind-Value:after="() => rule.Dirty = true" Roles="roles" />
 
                 <label class="form-label mt-3">@Msg.WebConditionalRoles.ConditionLabel(Lang)</label>
-                <ConditionNodeEditor Node="rule.Root" Roles="roles" Conditions="conditionOptions" Players="playerOptions" IsRoot="true"
+                <ConditionNodeEditor Node="rule.Root" Roles="roles" Conditions="conditionOptions" GuildId="ParsedGuildId" PlayerLabels="playerLabels" AllianceLabels="allianceLabels" IsRoot="true"
                                      OnChanged="() => rule.Dirty = true" />
 
                 @if (!IsUsable(rule))
@@ -95,7 +94,8 @@
     private bool loading = true;
     private List<RuleVm> rules = [];
     private List<Role> roles = [];
-    private List<ConditionNodeEditor.PlayerOption> playerOptions = [];
+    private Dictionary<int, string> playerLabels = [];
+    private Dictionary<int, string> allianceLabels = [];
     private List<ConditionNodeEditor.ConditionOption> conditionOptions = [];
     private Dictionary<int, ConditionNode> conditionTrees = [];
     private string? newRuleName;
@@ -104,14 +104,6 @@
     {
         loading = true;
         roles = await DiscordData.GetRolesAsync(ParsedGuildId);
-
-        // Exactly the players the sync resolves members to, so a rule can never name someone it
-        // would then never match.
-        playerOptions = (await PlayerLinks.GetGuildPrimaryPlayersAsync(ParsedGuildId)).Values
-            .Select(p => new ConditionNodeEditor.PlayerOption(p.PlayerId, p.Name))
-            .DistinctBy(p => p.Id)
-            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
 
         await LoadAsync();
         loading = false;
@@ -147,6 +139,32 @@
                 ? EditableNode.FromDomain(root)
                 : EditableNode.NewGroup(),
         }).ToList();
+
+        await LoadOperandLabelsAsync();
+    }
+
+    // One query per operand kind for the whole page, rather than one per node: a rogue listing is a
+    // dozen leaves and each would otherwise be its own round trip.
+    private async Task LoadOperandLabelsAsync()
+    {
+        var roots = rules.Select(x => x.Root).ToList();
+        playerLabels = await ConditionalRoles.PlayerLabelsAsync(Collect(roots, n => n.StfcPlayerId));
+        allianceLabels = await ConditionalRoles.AllianceLabelsAsync(Collect(roots, n => n.StfcAllianceId));
+    }
+
+    private static List<int> Collect(IEnumerable<EditableNode> roots, Func<EditableNode, int?> pick)
+    {
+        var ids = new HashSet<int>();
+        var stack = new Stack<EditableNode>(roots);
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            if (pick(node) is { } id)
+                ids.Add(id);
+            foreach (var child in node.Children)
+                stack.Push(child);
+        }
+        return ids.ToList();
     }
 
     // What the sync will conclude, shown before it happens: an unfinished tree or a missing target

@@ -18,8 +18,9 @@ public class ConditionEvaluatorTests
     private const int PlayerOther = 99;
 
     // A member the bot has player data for.
-    private static MemberFacts Linked(bool inHomeAlliance, bool onHomeServer, int playerId = PlayerEvil, params ulong[] roles) =>
-        new(roles.ToHashSet(), new PlayerFacts(playerId, inHomeAlliance, onHomeServer));
+    private static MemberFacts Linked(bool inHomeAlliance, bool onHomeServer, int playerId = PlayerEvil,
+        int? allianceId = null, params ulong[] roles) =>
+        new(roles.ToHashSet(), new PlayerFacts(playerId, allianceId, inHomeAlliance, onHomeServer));
 
     private static ConditionOutcome Eval(ConditionNode node, MemberFacts facts, Dictionary<int, ConditionNode>? conditions = null) =>
         ConditionEvaluator.Evaluate(node, facts, conditions ?? NoConditions);
@@ -339,5 +340,44 @@ public class ConditionEvaluatorTests
         Assert.False(Grants(rogues, Linked(inHomeAlliance: true, onHomeServer: true, playerId: PlayerOther)));
         // No link and no tag role: decided, not Unknown — nothing here needed player scope data.
         Assert.Equal(ConditionOutcome.NoMatch, Eval(rogues, Member()));
+    }
+
+    [Fact]
+    public void InAlliance_ComparesTheNamedAlliance()
+    {
+        const int rogueAlliance = 7434;
+        var node = ConditionNode.Alliance(rogueAlliance);
+
+        Assert.Equal(ConditionOutcome.Match, Eval(node, Linked(false, true, allianceId: rogueAlliance)));
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Linked(true, true, allianceId: 1)));
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Linked(false, true, allianceId: null)));
+
+        // Unknown without a link, unlike IsPlayer: an unlinked member may well be in that alliance.
+        Assert.Equal(ConditionOutcome.Unknown, Eval(node, Member()));
+    }
+
+    [Fact]
+    public void InAlliance_WithoutAnAllianceIsIncomplete()
+    {
+        var node = new ConditionNode(ConditionNodeKind.InAlliance, []);
+
+        Assert.False(ConditionEvaluator.IsComplete(node, NoConditions));
+    }
+
+    // The point of naming players and alliances rather than roles: a rogue who left the Discord
+    // holds no roles at all, and comes back under a different name. The rule recognises the player
+    // behind the name as soon as they are linked again.
+    [Fact]
+    public void RogueRejoiningUnderANewName_IsStillMatched()
+    {
+        const int rogueAlliance = 7434;
+        var rogues = ConditionNode.Or(ConditionNode.Player(PlayerEvil), ConditionNode.Alliance(rogueAlliance));
+
+        // Fresh Discord account, no roles at all, but linked to the same in-game player.
+        Assert.True(Grants(rogues, Linked(false, true, playerId: PlayerEvil)));
+        // Or a different player who is in the rogue alliance.
+        Assert.True(Grants(rogues, Linked(false, true, playerId: PlayerOther, allianceId: rogueAlliance)));
+        // Someone unrelated stays untagged.
+        Assert.False(Grants(rogues, Linked(true, true, playerId: PlayerOther, allianceId: 1)));
     }
 }

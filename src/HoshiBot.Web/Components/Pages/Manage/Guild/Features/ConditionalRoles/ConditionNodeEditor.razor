@@ -1,5 +1,7 @@
+@using HoshiBot.Data
 @using HoshiBot.Domain.ConditionalRoles
 @using NetCord
+@inject ConditionalRoleService ConditionalRoles
 
 @* One node of a condition tree, rendering itself again for each child — the only recursive editor
    in this codebase. Indentation comes from the nesting, so an admin reads the shape of their rule
@@ -22,16 +24,35 @@
                 <RolePicker ShowLabel="false" @bind-Value="Node.RoleId" @bind-Value:after="Changed" Roles="Roles" />
             </div>
         }
-        else if (Node.Kind == ConditionNodeKind.IsPlayer)
+        else if (IsCatalogLeaf)
         {
-            <div class="condition-operand">
-                <select class="form-select form-select-sm" value="@Node.StfcPlayerId" @onchange="OnPlayerChangedAsync">
-                    <option value="">@Msg.WebConditionalRoles.ChoosePlayer(Lang)</option>
-                    @foreach (var player in Players)
+            @* A server carries a couple of thousand players, so this searches rather than listing.
+               Once something is picked it collapses back to a button showing the choice — clicking
+               it reopens the search. *@
+            <div class="condition-operand position-relative">
+                @if (searching)
+                {
+                    <input class="form-control form-control-sm" autofocus placeholder="@Msg.WebConditionalRoles.SearchPlaceholder(Lang)"
+                           value="@searchTerm" @oninput="OnSearchInputAsync" @onblur="StopSearching" />
+                    @if (searchResults.Count > 0)
                     {
-                        <option value="@player.Id">@player.Name</option>
+                        <ul class="condition-search-results list-unstyled mb-0">
+                            @foreach (var option in searchResults)
+                            {
+                                @* onmousedown, not onclick: blur fires first on a click and would
+                                   close the list before the selection ever registered. *@
+                                <li><button type="button" class="condition-search-result"
+                                            @onmousedown="() => PickAsync(option)">@option.Label</button></li>
+                            }
+                        </ul>
                     }
-                </select>
+                }
+                else
+                {
+                    <button type="button" class="form-select form-select-sm text-start" @onclick="StartSearching">
+                        @(SelectedLabel ?? Msg.WebConditionalRoles.ChooseOperand(Lang))
+                    </button>
+                }
             </div>
         }
         else if (Node.Kind == ConditionNodeKind.MatchesCondition)
@@ -62,7 +83,8 @@
         <div class="condition-children">
             @foreach (var child in Node.Children)
             {
-                <ConditionNodeEditor @key="child" Node="child" Roles="Roles" Conditions="Conditions" Players="Players"
+                <ConditionNodeEditor @key="child" Node="child" Roles="Roles" Conditions="Conditions" GuildId="GuildId"
+                                     PlayerLabels="PlayerLabels" AllianceLabels="AllianceLabels"
                                      Depth="Depth + 1" OnRemove="RemoveChildAsync" OnChanged="Changed" />
             }
 
@@ -81,20 +103,12 @@
                         <RolePicker ShowLabel="false" PlaceholderText="@Msg.WebConditionalRoles.AddRoleOption(Lang)"
                                     @bind-Value="addRoleInput" @bind-Value:after="AddRoleChildAsync" Roles="Roles" />
                     </div>
-                    @if (Players.Count > 0)
-                    {
-                        @* Same one-action add as the role picker: a rogue listing is a dozen named
-                           players, which is a dozen add-then-pick round trips otherwise. *@
-                        <div class="condition-operand">
-                            <select class="form-select form-select-sm" value="" @onchange="AddPlayerChildAsync">
-                                <option value="">@Msg.WebConditionalRoles.AddPlayerOption(Lang)</option>
-                                @foreach (var player in Players)
-                                {
-                                    <option value="@player.Id">@player.Name</option>
-                                }
-                            </select>
-                        </div>
-                    }
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AddPlayerChildAsync">
+                        @Msg.WebConditionalRoles.AddPlayerOption(Lang)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AddAllianceChildAsync">
+                        @Msg.WebConditionalRoles.AddAllianceOption(Lang)
+                    </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AddGroupChildAsync">
                         @Msg.WebConditionalRoles.AddGroup(Lang)
                     </button>
@@ -117,9 +131,12 @@
     [Parameter, EditorRequired] public IReadOnlyList<Role> Roles { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlyList<ConditionOption> Conditions { get; set; } = [];
 
-    // The guild's linked players — the same set the sync compares a member against, so the picker
-    // can't offer someone a rule could never match.
-    [Parameter] public IReadOnlyList<PlayerOption> Players { get; set; } = [];
+    // Labels for ids already stored in this tree, resolved once by the page. The typeahead fills in
+    // anything picked during this session itself, so this only has to cover what was loaded.
+    [Parameter] public IReadOnlyDictionary<int, string> PlayerLabels { get; set; } = new Dictionary<int, string>();
+    [Parameter] public IReadOnlyDictionary<int, string> AllianceLabels { get; set; } = new Dictionary<int, string>();
+
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
     [Parameter] public int Depth { get; set; }
 
@@ -134,9 +151,15 @@
 
     public record ConditionOption(int Id, string Name);
 
-    public record PlayerOption(int Id, string Name);
+
 
     private string? addRoleInput;
+
+    // Per-node typeahead state; each node in the tree keeps its own.
+    private bool searching;
+    private string searchTerm = "";
+    private IReadOnlyList<OperandOption> searchResults = [];
+    private string? pickedLabel;
 
     private static readonly ConditionNodeKind[] SelectableKinds =
     [
@@ -150,6 +173,7 @@
         ConditionNodeKind.InHomeAlliance,
         ConditionNodeKind.OnHomeServer,
         ConditionNodeKind.IsPlayer,
+        ConditionNodeKind.InAlliance,
     ];
 
     private string KindLabel(ConditionNodeKind kind) => kind switch
@@ -162,6 +186,7 @@
         ConditionNodeKind.InHomeAlliance => Msg.WebConditionalRoles.KindInHomeAlliance(Lang),
         ConditionNodeKind.OnHomeServer => Msg.WebConditionalRoles.KindOnHomeServer(Lang),
         ConditionNodeKind.IsPlayer => Msg.WebConditionalRoles.KindIsPlayer(Lang),
+        ConditionNodeKind.InAlliance => Msg.WebConditionalRoles.KindInAlliance(Lang),
         _ => Msg.WebConditionalRoles.KindMatchesCondition(Lang),
     };
 
@@ -197,18 +222,56 @@
         await Changed();
     }
 
-    private async Task OnPlayerChangedAsync(ChangeEventArgs e)
+    // The two leaves whose operand is a catalog entity picked by search.
+    private bool IsCatalogLeaf => Node.Kind is ConditionNodeKind.IsPlayer or ConditionNodeKind.InAlliance;
+
+    private string? SelectedLabel => pickedLabel ?? (Node.Kind == ConditionNodeKind.IsPlayer
+        ? Node.StfcPlayerId is { } p ? PlayerLabels.GetValueOrDefault(p) : null
+        : Node.StfcAllianceId is { } a ? AllianceLabels.GetValueOrDefault(a) : null);
+
+    private void StartSearching()
     {
-        Node.StfcPlayerId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        searching = true;
+        searchTerm = "";
+        searchResults = [];
+    }
+
+    private void StopSearching() => searching = false;
+
+    private async Task OnSearchInputAsync(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        // Two characters before hitting the database, matching the assignment page's typeahead.
+        searchResults = searchTerm.Trim().Length < 2
+            ? []
+            : Node.Kind == ConditionNodeKind.IsPlayer
+                ? await ConditionalRoles.SearchPlayersAsync(searchTerm, GuildId)
+                : await ConditionalRoles.SearchAlliancesAsync(searchTerm, GuildId);
+    }
+
+    private async Task PickAsync(OperandOption option)
+    {
+        if (Node.Kind == ConditionNodeKind.IsPlayer)
+            Node.StfcPlayerId = option.Id;
+        else
+            Node.StfcAllianceId = option.Id;
+
+        // Remembered locally so the collapsed button shows the choice without waiting for the page
+        // to reload its label dictionaries.
+        pickedLabel = option.Label;
+        searching = false;
         await Changed();
     }
 
-    private async Task AddPlayerChildAsync(ChangeEventArgs e)
+    private async Task AddPlayerChildAsync()
     {
-        if (!int.TryParse(e.Value?.ToString(), out var playerId))
-            return;
+        Node.Children.Add(new EditableNode { Kind = ConditionNodeKind.IsPlayer });
+        await Changed();
+    }
 
-        Node.Children.Add(new EditableNode { Kind = ConditionNodeKind.IsPlayer, StfcPlayerId = playerId });
+    private async Task AddAllianceChildAsync()
+    {
+        Node.Children.Add(new EditableNode { Kind = ConditionNodeKind.InAlliance });
         await Changed();
     }
 

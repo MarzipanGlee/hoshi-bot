@@ -70,6 +70,7 @@ public static class ConditionEvaluator
             // This one does — and its id is cleared if the player is ever removed from the catalog,
             // which turns the rule incomplete and therefore harmless rather than silently wrong.
             ConditionNodeKind.IsPlayer => node.StfcPlayerId is not null,
+            ConditionNodeKind.InAlliance => node.StfcAllianceId is not null,
 
             // A kind this build doesn't know (a row written by a newer version) is not something to
             // guess at.
@@ -143,6 +144,12 @@ public static class ConditionEvaluator
             // that player. The other two stay Unknown because an unlinked member might well be in
             // our alliance; we simply haven't linked them yet.
             ConditionNodeKind.IsPlayer => Known(facts.Player is { } who && who.PlayerId == node.StfcPlayerId),
+
+            // Unknown without a link, unlike IsPlayer above: this asks which alliance the person is
+            // in, and an unlinked member may well be in it — we just haven't linked them yet.
+            ConditionNodeKind.InAlliance => facts.Player is { } inAlliance
+                ? Known(inAlliance.AllianceId == node.StfcAllianceId)
+                : ConditionOutcome.Unknown,
 
             _ => ConditionOutcome.NoMatch,
         };
