@@ -32,17 +32,25 @@
             <div class="condition-operand position-relative">
                 @if (searching)
                 {
-                    <input class="form-control form-control-sm" autofocus placeholder="@Msg.WebConditionalRoles.SearchPlaceholder(Lang)"
-                           value="@searchTerm" @oninput="OnSearchInputAsync" @onblur="StopSearching" />
+                    @* Closed only by picking something or by Cancel — never by losing focus. An
+                       @onblur here looked right and was the bug: every keystroke runs an async
+                       search, and the re-render when it returns was enough to blur the input, so the
+                       panel shut itself mid-word and fell back to showing the (still unset)
+                       selection. *@
+                    <div class="d-flex align-items-center gap-1">
+                        <input class="form-control form-control-sm" @ref="searchInput"
+                               placeholder="@Msg.WebConditionalRoles.SearchPlaceholder(Lang)"
+                               @bind="searchTerm" @bind:event="oninput" @bind:after="SearchAsync" />
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelSearch"
+                                title="@Msg.WebCommon.Cancel(Lang)">✕</button>
+                    </div>
                     @if (searchResults.Count > 0)
                     {
                         <ul class="condition-search-results list-unstyled mb-0">
                             @foreach (var option in searchResults)
                             {
-                                @* onmousedown, not onclick: blur fires first on a click and would
-                                   close the list before the selection ever registered. *@
                                 <li><button type="button" class="condition-search-result"
-                                            @onmousedown="() => PickAsync(option)">@option.Label</button></li>
+                                            @onclick="() => PickAsync(option)">@option.Label</button></li>
                             }
                         </ul>
                     }
@@ -160,6 +168,8 @@
     private string searchTerm = "";
     private IReadOnlyList<OperandOption> searchResults = [];
     private string? pickedLabel;
+    private ElementReference searchInput;
+    private bool focusSearch;
 
     private static readonly ConditionNodeKind[] SelectableKinds =
     [
@@ -234,19 +244,36 @@
         searching = true;
         searchTerm = "";
         searchResults = [];
+        focusSearch = true;
     }
 
-    private void StopSearching() => searching = false;
-
-    private async Task OnSearchInputAsync(ChangeEventArgs e)
+    // Leaves whatever was already picked alone — cancelling a search must not clear a selection the
+    // admin only meant to look at.
+    private void CancelSearch()
     {
-        searchTerm = e.Value?.ToString() ?? "";
+        searching = false;
+        searchResults = [];
+    }
+
+    private async Task SearchAsync()
+    {
         // Two characters before hitting the database, matching the assignment page's typeahead.
         searchResults = searchTerm.Trim().Length < 2
             ? []
             : Node.Kind == ConditionNodeKind.IsPlayer
                 ? await ConditionalRoles.SearchPlayersAsync(searchTerm, GuildId)
                 : await ConditionalRoles.SearchAlliancesAsync(searchTerm, GuildId);
+    }
+
+    // The input only exists once searching starts, so focus is moved after it renders rather than
+    // with an autofocus attribute (which only applies on the page's first load).
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusSearch)
+            return;
+
+        focusSearch = false;
+        await searchInput.FocusAsync();
     }
 
     private async Task PickAsync(OperandOption option)
