@@ -486,6 +486,54 @@ public static partial class Msg
         public static string AddConditionCardTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.AddConditionCardTitle");
 
+        public static string Copy(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.Copy");
+
+        public static string BackToList(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.BackToList");
+
+        public static string BackToConditionList(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.BackToConditionList");
+
+        public static string ColName(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ColName");
+
+        public static string ColConditionName(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ColConditionName");
+
+        public static string ColTargetRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ColTargetRole");
+
+        public static string ColStatus(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ColStatus");
+
+        public static string StatusInactive(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.StatusInactive");
+
+        public static string StatusUnfinished(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.StatusUnfinished");
+
+        public static string StatusActive(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.StatusActive");
+
+        public static string StatusUsedBy(Language lang, int count) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.StatusUsedBy", ("count", count));
+
+        public static string NoTargetRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.NoTargetRole");
+
+        public static string NoRulesYet(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.NoRulesYet");
+
+        public static string NoConditionsYet(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.NoConditionsYet");
+
+        public static string CopySuffix(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.CopySuffix");
+
+        public static string CopyIsInactive(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.CopyIsInactive");
+
         // The fail-closed state made visible: an unfinished rule grants nothing, and an admin should
         // read that here rather than infer it from ten minutes of nothing happening.
         public static string IncompleteWarning(Language lang) =>

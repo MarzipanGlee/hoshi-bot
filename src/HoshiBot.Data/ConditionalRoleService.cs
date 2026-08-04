@@ -149,6 +149,65 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
         return node.Children.Any(child => Reaches(child, target, conditions, seen));
     }
 
+    // Duplicates a rule with its whole tree. Created INACTIVE on purpose: a copy is a starting point
+    // someone is about to edit, and a rule that starts granting the same role as the one it was
+    // copied from — before anyone has looked at it — is a surprise, not a convenience.
+    public async Task<int?> CopyRuleAsync(ulong guildId, int ruleId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var source = await db.ConditionalRoleRules.FirstOrDefaultAsync(r => r.Id == ruleId && r.GuildId == guildId);
+        if (source is null)
+            return null;
+
+        var taken = await db.ConditionalRoleRules.Where(r => r.GuildId == guildId).Select(r => r.Name).ToListAsync();
+        var copy = new ConditionalRoleRule
+        {
+            GuildId = guildId,
+            Name = NextFreeName(source.Name, taken),
+            TargetRoleId = source.TargetRoleId,
+            Enabled = false,
+        };
+        db.ConditionalRoleRules.Add(copy);
+        await db.SaveChangesAsync();
+
+        var snapshot = await LoadAsync(guildId, onlyEnabledRules: false);
+        if (snapshot.Rules.FirstOrDefault(r => r.Id == ruleId)?.Root is { } root)
+            await SaveTreeAsync(copy.Id, null, root);
+
+        return copy.Id;
+    }
+
+    public async Task<int?> CopyConditionAsync(ulong guildId, int conditionId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var source = await db.ConditionalRoleConditions.FirstOrDefaultAsync(c => c.Id == conditionId && c.GuildId == guildId);
+        if (source is null)
+            return null;
+
+        var taken = await db.ConditionalRoleConditions.Where(c => c.GuildId == guildId).Select(c => c.Name).ToListAsync();
+        var copy = new ConditionalRoleCondition { GuildId = guildId, Name = NextFreeName(source.Name, taken) };
+        db.ConditionalRoleConditions.Add(copy);
+        await db.SaveChangesAsync();
+
+        var snapshot = await LoadAsync(guildId, onlyEnabledRules: false);
+        if (snapshot.Conditions.TryGetValue(conditionId, out var root))
+            await SaveTreeAsync(null, copy.Id, root);
+
+        return copy.Id;
+    }
+
+    // "Rogues" → "Rogues (copy)" → "Rogues (copy 2)". Condition names are unique per guild, so a
+    // collision here would be a database error rather than a nuisance.
+    private static string NextFreeName(string name, ICollection<string> taken)
+    {
+        var candidate = $"{name} (copy)";
+        for (var i = 2; taken.Contains(candidate); i++)
+            candidate = $"{name} (copy {i})";
+
+        // The column is capped at 100; repeated copying of a long name would otherwise throw.
+        return candidate.Length <= 100 ? candidate : candidate[^100..];
+    }
+
     // How many matches a typeahead offers at once. A server carries a couple of thousand players,
     // so the picker searches rather than listing; this is the same shape (and limit) the player
     // assignment page's typeahead already uses.

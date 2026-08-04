@@ -2,8 +2,11 @@
 @using HoshiBot.Domain.ConditionalRoles
 @using HoshiBot.Domain.Entities
 @using HoshiBot.Web.Services
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.EntityFrameworkCore
 @using NetCord
+@implements IDisposable
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject ConditionalRoleService ConditionalRoles
@@ -16,24 +19,24 @@
     {
         <LoadingPlaceholder Em="false" />
     }
-    else
+    else if (editing is { } rule)
     {
-        <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "rules")</h1>
-        <p class="text-muted">@Msg.WebConditionalRoles.RulesIntro(Lang)</p>
+        @* One rule at a time, on its own URL. The list used to be edited in place, and because it
+           re-sorts by name after every save, renaming a rule moved the card out from under whoever
+           was editing it — the next thing they set then landed on a different rule. A separate page
+           makes that impossible rather than merely unlikely. *@
+        <a href="@ListHref">@Msg.WebConditionalRoles.BackToList(Lang)</a>
+        <h1 class="mt-2">@rule.Name</h1>
 
-        @* SettingsCard renders `card h-100`; outside a card-grid that resolves
-           against the page and stretches every card to the viewport. *@
         <div class="card-grid">
-        @foreach (var rule in rules)
-        {
-            <SettingsCard @key="rule" Class="card-span-full">
+            <SettingsCard Class="card-span-full">
                 <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
                     <input class="form-control condition-name-input" maxlength="100" placeholder="@Msg.WebConditionalRoles.RuleNamePlaceholder(Lang)"
                            @bind="rule.Name" @bind:after="() => rule.Dirty = true" />
                     <div class="form-switch">
-                        <input type="checkbox" class="form-check-input" role="switch" id="@($"cr-enabled-{rule.Id}")"
+                        <input type="checkbox" class="form-check-input" role="switch" id="cr-enabled"
                                checked="@rule.Enabled" @onchange="e => { rule.Enabled = (bool)e.Value!; rule.Dirty = true; }" />
-                        <label class="form-check-label" for="@($"cr-enabled-{rule.Id}")">@Msg.WebConditionalRoles.RuleEnabled(Lang)</label>
+                        <label class="form-check-label" for="cr-enabled">@Msg.WebConditionalRoles.RuleEnabled(Lang)</label>
                     </div>
                 </div>
 
@@ -41,7 +44,8 @@
                 <RolePicker ShowLabel="false" @bind-Value="rule.TargetRoleId" @bind-Value:after="() => rule.Dirty = true" Roles="roles" />
 
                 <label class="form-label mt-3">@Msg.WebConditionalRoles.ConditionLabel(Lang)</label>
-                <ConditionNodeEditor Node="rule.Root" Roles="roles" Conditions="conditionOptions" GuildId="ParsedGuildId" PlayerLabels="playerLabels" AllianceLabels="allianceLabels" IsRoot="true"
+                <ConditionNodeEditor Node="rule.Root" Roles="roles" Conditions="conditionOptions" GuildId="ParsedGuildId"
+                                     PlayerLabels="playerLabels" AllianceLabels="allianceLabels" IsRoot="true"
                                      OnChanged="() => rule.Dirty = true" />
 
                 @if (!IsUsable(rule))
@@ -51,26 +55,79 @@
 
                 <div class="d-flex align-items-center gap-2 mt-3">
                     <button class="btn btn-primary" @onclick="() => SaveRuleAsync(rule)">@Msg.WebCommon.Save(Lang)</button>
-                    <button class="btn btn-outline-danger" @onclick="() => DeleteRuleAsync(rule)">@Msg.WebCommon.Delete(Lang)</button>
                     @if (rule.Dirty)
                     {
                         <span class="form-text">@Msg.WebConditionalRoles.UnsavedChanges(Lang)</span>
                     }
                 </div>
             </SettingsCard>
+        </div>
+    }
+    else
+    {
+        <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "rules")</h1>
+        <p class="text-muted">@Msg.WebConditionalRoles.RulesIntro(Lang)</p>
+
+        @if (rules.Count == 0)
+        {
+            <p class="form-text">@Msg.WebConditionalRoles.NoRulesYet(Lang)</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>@Msg.WebConditionalRoles.ColName(Lang)</th>
+                            <th>@Msg.WebConditionalRoles.ColTargetRole(Lang)</th>
+                            <th>@Msg.WebConditionalRoles.ColStatus(Lang)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var listed in rules)
+                        {
+                            <tr @key="listed.Id">
+                                <td>@listed.Name</td>
+                                @* Shown here so a rule reads "Rogues → @Rogue" at a glance: the one
+                                   mismatch that actually happened was invisible until you opened the
+                                   rule and cross-referenced the role by hand. *@
+                                <td>
+                                    @if (TargetRoleName(listed) is { } roleName)
+                                    {
+                                        <span class="badge bg-secondary">@roleName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-warning">@Msg.WebConditionalRoles.NoTargetRole(Lang)</span>
+                                    }
+                                </td>
+                                <td>@StatusOf(listed)</td>
+                                <td class="text-nowrap">
+                                    <a class="btn btn-sm btn-outline-primary" href="@EditHref(listed.Id)">@Msg.WebCommon.Edit(Lang)</a>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => CopyRuleAsync(listed.Id)">@Msg.WebConditionalRoles.Copy(Lang)</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteRuleAsync(listed.Id)">@Msg.WebCommon.Delete(Lang)</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="form-text">@Msg.WebConditionalRoles.CopyIsInactive(Lang)</p>
         }
 
-        <SettingsCard Title="@Msg.WebConditionalRoles.AddRuleCardTitle(Lang)" Class="card-span-full">
-            <div class="d-flex align-items-end gap-2 flex-wrap">
-                <div class="condition-name-input">
-                    <label class="form-label">@Msg.WebConditionalRoles.RuleNamePlaceholder(Lang)</label>
-                    <input class="form-control" maxlength="100" @bind="newRuleName" />
+        <div class="card-grid">
+            <SettingsCard Title="@Msg.WebConditionalRoles.AddRuleCardTitle(Lang)" Class="card-span-full">
+                <div class="d-flex align-items-end gap-2 flex-wrap">
+                    <div class="condition-name-input">
+                        <label class="form-label">@Msg.WebConditionalRoles.RuleNamePlaceholder(Lang)</label>
+                        <input class="form-control" maxlength="100" @bind="newRuleName" />
+                    </div>
+                    <button class="btn btn-primary" @onclick="AddRuleAsync" disabled="@string.IsNullOrWhiteSpace(newRuleName)">
+                        @Msg.WebCommon.Add(Lang)
+                    </button>
                 </div>
-                <button class="btn btn-primary" @onclick="AddRuleAsync" disabled="@string.IsNullOrWhiteSpace(newRuleName)">
-                    @Msg.WebCommon.Add(Lang)
-                </button>
-            </div>
-        </SettingsCard>
+            </SettingsCard>
         </div>
     }
 </AuthorizedGuildView>
@@ -93,21 +150,41 @@
 
     private bool loading = true;
     private List<RuleVm> rules = [];
+    private RuleVm? editing;
     private List<Role> roles = [];
-    private Dictionary<int, string> playerLabels = [];
-    private Dictionary<int, string> allianceLabels = [];
     private List<ConditionNodeEditor.ConditionOption> conditionOptions = [];
     private Dictionary<int, ConditionNode> conditionTrees = [];
+    private Dictionary<int, string> playerLabels = [];
+    private Dictionary<int, string> allianceLabels = [];
     private string? newRuleName;
+    private bool subscribed;
+
+    private string ListHref => Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0];
+
+    private string EditHref(int ruleId) => $"{ListHref}?rule={ruleId}";
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
         loading = true;
         roles = await DiscordData.GetRolesAsync(ParsedGuildId);
 
+        if (!subscribed)
+        {
+            Nav.LocationChanged += OnLocationChanged;
+            subscribed = true;
+        }
+
         await LoadAsync();
         loading = false;
     }
+
+    // Edit and back are query-string changes on the same route, which doesn't re-run the page's
+    // parameters — so the mode is re-read here instead of relying on a re-render.
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
 
     private async Task LoadAsync()
     {
@@ -140,6 +217,13 @@
                 : EditableNode.NewGroup(),
         }).ToList();
 
+        // Which rule (if any) this URL is editing. Read from the query rather than a route parameter
+        // because FeatureExtraPageHost only ever passes the guild id along.
+        var query = QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+        editing = query.TryGetValue("rule", out var raw) && int.TryParse(raw, out var editingId)
+            ? rules.FirstOrDefault(r => r.Id == editingId)
+            : null;
+
         await LoadOperandLabelsAsync();
     }
 
@@ -167,12 +251,20 @@
         return ids.ToList();
     }
 
+    private string? TargetRoleName(RuleVm rule) =>
+        ulong.TryParse(rule.TargetRoleId, out var id) ? roles.FirstOrDefault(r => r.Id == id)?.Name : null;
+
     // What the sync will conclude, shown before it happens: an unfinished tree or a missing target
     // role means the rule grants nothing at all (ConditionEvaluator fails closed), and an admin
     // should hear that from the editor rather than by watching nothing happen for ten minutes.
     private bool IsUsable(RuleVm rule) =>
         ulong.TryParse(rule.TargetRoleId, out _)
         && ConditionEvaluator.IsComplete(rule.Root.ToDomain(), conditionTrees);
+
+    private string StatusOf(RuleVm rule) =>
+        !rule.Enabled ? Msg.WebConditionalRoles.StatusInactive(Lang)
+        : !IsUsable(rule) ? Msg.WebConditionalRoles.StatusUnfinished(Lang)
+        : Msg.WebConditionalRoles.StatusActive(Lang);
 
     private async Task SaveRuleAsync(RuleVm rule)
     {
@@ -191,12 +283,20 @@
         await LoadAsync();
     }
 
-    private async Task DeleteRuleAsync(RuleVm rule)
+    private async Task DeleteRuleAsync(int ruleId)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         // Its nodes go with it (cascade from the owner).
-        await db.ConditionalRoleRules.Where(r => r.Id == rule.Id && r.GuildId == ParsedGuildId).ExecuteDeleteAsync();
+        await db.ConditionalRoleRules.Where(r => r.Id == ruleId && r.GuildId == ParsedGuildId).ExecuteDeleteAsync();
         await LoadAsync();
+    }
+
+    private async Task CopyRuleAsync(int ruleId)
+    {
+        // Straight into the copy: it is inactive and named "… (copy)", so it needs editing before it
+        // does anything.
+        if (await ConditionalRoles.CopyRuleAsync(ParsedGuildId, ruleId) is { } copyId)
+            Nav.NavigateTo(EditHref(copyId));
     }
 
     private async Task AddRuleAsync()
@@ -205,16 +305,24 @@
             return;
 
         await using var db = await DbFactory.CreateDbContextAsync();
-        db.ConditionalRoleRules.Add(new ConditionalRoleRule
+        var rule = new ConditionalRoleRule
         {
             GuildId = ParsedGuildId,
             Name = newRuleName.Trim(),
             // No target role and no tree yet, so it grants nothing until it's filled in.
             Enabled = true,
-        });
+        };
+        db.ConditionalRoleRules.Add(rule);
         await db.SaveChangesAsync();
 
         newRuleName = null;
-        await LoadAsync();
+        // Straight into the new rule — an empty one has nothing to look at in the list.
+        Nav.NavigateTo(EditHref(rule.Id));
+    }
+
+    public void Dispose()
+    {
+        if (subscribed)
+            Nav.LocationChanged -= OnLocationChanged;
     }
 }

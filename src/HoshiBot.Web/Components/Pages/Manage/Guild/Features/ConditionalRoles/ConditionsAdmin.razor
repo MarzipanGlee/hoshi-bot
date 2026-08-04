@@ -2,8 +2,11 @@
 @using HoshiBot.Domain.ConditionalRoles
 @using HoshiBot.Domain.Entities
 @using HoshiBot.Web.Services
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.EntityFrameworkCore
 @using NetCord
+@implements IDisposable
 @inherits GuildAdminPageBase
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject ConditionalRoleService ConditionalRoles
@@ -16,6 +19,41 @@
     {
         <LoadingPlaceholder Em="false" />
     }
+    else if (editing is { } condition)
+    {
+        <a href="@ListHref">@Msg.WebConditionalRoles.BackToConditionList(Lang)</a>
+        <h1 class="mt-2">@condition.Name</h1>
+
+        @if (saveError is not null)
+        {
+            <p class="text-danger">@saveError</p>
+        }
+
+        <div class="card-grid">
+            <SettingsCard Class="card-span-full">
+                <input class="form-control condition-name-input mb-3" maxlength="100"
+                       placeholder="@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)"
+                       @bind="condition.Name" @bind:after="() => condition.Dirty = true" />
+
+                <ConditionNodeEditor Node="condition.Root" Roles="roles" Conditions="OptionsFor(condition.Id)"
+                                     GuildId="ParsedGuildId" PlayerLabels="playerLabels" AllianceLabels="allianceLabels"
+                                     IsRoot="true" OnChanged="() => condition.Dirty = true" />
+
+                @if (!ConditionEvaluator.IsComplete(condition.Root.ToDomain(), conditionTrees))
+                {
+                    <p class="text-warning mt-2 mb-0">@Msg.WebConditionalRoles.ConditionIncompleteWarning(Lang)</p>
+                }
+
+                <div class="d-flex align-items-center gap-2 mt-3">
+                    <button class="btn btn-primary" @onclick="() => SaveConditionAsync(condition)">@Msg.WebCommon.Save(Lang)</button>
+                    @if (condition.Dirty)
+                    {
+                        <span class="form-text">@Msg.WebConditionalRoles.UnsavedChanges(Lang)</span>
+                    }
+                </div>
+            </SettingsCard>
+        </div>
+    }
     else
     {
         <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "conditions")</h1>
@@ -26,46 +64,52 @@
             <p class="text-danger">@saveError</p>
         }
 
-        @* SettingsCard renders `card h-100`; outside a card-grid that resolves
-           against the page and stretches every card to the viewport. *@
-        <div class="card-grid">
-        @foreach (var condition in conditions)
+        @if (conditions.Count == 0)
         {
-            <SettingsCard @key="condition" Class="card-span-full">
-                <input class="form-control condition-name-input mb-3" maxlength="100"
-                       placeholder="@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)"
-                       @bind="condition.Name" @bind:after="() => condition.Dirty = true" />
-
-                <ConditionNodeEditor Node="condition.Root" Roles="roles" Conditions="OptionsFor(condition.Id)" GuildId="ParsedGuildId" PlayerLabels="playerLabels" AllianceLabels="allianceLabels" IsRoot="true"
-                                     OnChanged="() => condition.Dirty = true" />
-
-                @if (!ConditionEvaluator.IsComplete(condition.Root.ToDomain(), conditionTrees))
-                {
-                    <p class="text-warning mt-2 mb-0">@Msg.WebConditionalRoles.ConditionIncompleteWarning(Lang)</p>
-                }
-
-                <div class="d-flex align-items-center gap-2 mt-3">
-                    <button class="btn btn-primary" @onclick="() => SaveConditionAsync(condition)">@Msg.WebCommon.Save(Lang)</button>
-                    <button class="btn btn-outline-danger" @onclick="() => DeleteConditionAsync(condition)">@Msg.WebCommon.Delete(Lang)</button>
-                    @if (condition.Dirty)
-                    {
-                        <span class="form-text">@Msg.WebConditionalRoles.UnsavedChanges(Lang)</span>
-                    }
-                </div>
-            </SettingsCard>
+            <p class="form-text">@Msg.WebConditionalRoles.NoConditionsYet(Lang)</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>@Msg.WebConditionalRoles.ColConditionName(Lang)</th>
+                            <th>@Msg.WebConditionalRoles.ColStatus(Lang)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var listed in conditions)
+                        {
+                            <tr @key="listed.Id">
+                                <td>@listed.Name</td>
+                                <td>@StatusOf(listed)</td>
+                                <td class="text-nowrap">
+                                    <a class="btn btn-sm btn-outline-primary" href="@EditHref(listed.Id)">@Msg.WebCommon.Edit(Lang)</a>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => CopyConditionAsync(listed.Id)">@Msg.WebConditionalRoles.Copy(Lang)</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteConditionAsync(listed)">@Msg.WebCommon.Delete(Lang)</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="form-text">@Msg.WebConditionalRoles.CopyIsInactive(Lang)</p>
         }
 
-        <SettingsCard Title="@Msg.WebConditionalRoles.AddConditionCardTitle(Lang)" Class="card-span-full">
-            <div class="d-flex align-items-end gap-2 flex-wrap">
-                <div class="condition-name-input">
-                    <label class="form-label">@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)</label>
-                    <input class="form-control" maxlength="100" @bind="newConditionName" />
+        <div class="card-grid">
+            <SettingsCard Title="@Msg.WebConditionalRoles.AddConditionCardTitle(Lang)" Class="card-span-full">
+                <div class="d-flex align-items-end gap-2 flex-wrap">
+                    <div class="condition-name-input">
+                        <label class="form-label">@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)</label>
+                        <input class="form-control" maxlength="100" @bind="newConditionName" />
+                    </div>
+                    <button class="btn btn-primary" @onclick="AddConditionAsync" disabled="@string.IsNullOrWhiteSpace(newConditionName)">
+                        @Msg.WebCommon.Add(Lang)
+                    </button>
                 </div>
-                <button class="btn btn-primary" @onclick="AddConditionAsync" disabled="@string.IsNullOrWhiteSpace(newConditionName)">
-                    @Msg.WebCommon.Add(Lang)
-                </button>
-            </div>
-        </SettingsCard>
+            </SettingsCard>
         </div>
     }
 </AuthorizedGuildView>
@@ -78,27 +122,48 @@
         public int Id;
         public string Name = "";
         public EditableNode Root = EditableNode.NewGroup();
+        public int UsedBy;
         public bool Dirty;
     }
 
     private bool loading = true;
     private List<ConditionVm> conditions = [];
+    private ConditionVm? editing;
     private List<Role> roles = [];
-    private Dictionary<int, string> playerLabels = [];
-    private Dictionary<int, string> allianceLabels = [];
     private Dictionary<int, ConditionNode> conditionTrees = [];
     private List<ConditionNodeEditor.ConditionOption> allOptions = [];
+    private Dictionary<int, string> playerLabels = [];
+    private Dictionary<int, string> allianceLabels = [];
     private string? newConditionName;
     private string? saveError;
+    private bool subscribed;
+
+    private string ListHref => Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0];
+
+    private string EditHref(int conditionId) => $"{ListHref}?condition={conditionId}";
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
         loading = true;
         roles = await DiscordData.GetRolesAsync(ParsedGuildId);
 
+        if (!subscribed)
+        {
+            Nav.LocationChanged += OnLocationChanged;
+            subscribed = true;
+        }
+
         await LoadAsync();
         loading = false;
     }
+
+    // Edit and back are query-string changes on the same route, which doesn't re-run the page's
+    // parameters — so the mode is re-read here instead of relying on a re-render.
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
 
     private async Task LoadAsync()
     {
@@ -113,21 +178,28 @@
 
         allOptions = stored.Select(c => new ConditionNodeEditor.ConditionOption(c.Id, c.Name)).ToList();
 
+        // How many trees reference each condition, for the list's status column — the same number
+        // that blocks a delete.
+        var references = await db.ConditionalRoleNodes
+            .Where(n => n.ReferencedConditionId != null)
+            .GroupBy(n => n.ReferencedConditionId!.Value)
+            .Select(g => new { ConditionId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ConditionId, x => x.Count);
+
         conditions = stored.Select(c => new ConditionVm
         {
             Id = c.Id,
             Name = c.Name,
             Root = conditionTrees.TryGetValue(c.Id, out var root) ? EditableNode.FromDomain(root) : EditableNode.NewGroup(),
+            UsedBy = references.GetValueOrDefault(c.Id),
         }).ToList();
 
-        await LoadOperandLabelsAsync();
-    }
+        var query = QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+        editing = query.TryGetValue("condition", out var raw) && int.TryParse(raw, out var editingId)
+            ? conditions.FirstOrDefault(c => c.Id == editingId)
+            : null;
 
-    // One query per operand kind for the whole page, rather than one per node: a rogue listing is a
-    // dozen leaves and each would otherwise be its own round trip.
-    private async Task LoadOperandLabelsAsync()
-    {
-        var roots = conditions.Select(x => x.Root).ToList();
+        var roots = conditions.Select(c => c.Root).ToList();
         playerLabels = await ConditionalRoles.PlayerLabelsAsync(Collect(roots, n => n.StfcPlayerId));
         allianceLabels = await ConditionalRoles.AllianceLabelsAsync(Collect(roots, n => n.StfcAllianceId));
     }
@@ -146,6 +218,11 @@
         }
         return ids.ToList();
     }
+
+    private string StatusOf(ConditionVm condition) =>
+        !ConditionEvaluator.IsComplete(condition.Root.ToDomain(), conditionTrees)
+            ? Msg.WebConditionalRoles.StatusUnfinished(Lang)
+            : Msg.WebConditionalRoles.StatusUsedBy(Lang, condition.UsedBy);
 
     // A condition can reference other conditions but never itself — offering itself in its own
     // picker would only invite the cycle the save then rejects.
@@ -198,20 +275,33 @@
         await LoadAsync();
     }
 
+    private async Task CopyConditionAsync(int conditionId)
+    {
+        if (await ConditionalRoles.CopyConditionAsync(ParsedGuildId, conditionId) is { } copyId)
+            Nav.NavigateTo(EditHref(copyId));
+    }
+
     private async Task AddConditionAsync()
     {
         if (string.IsNullOrWhiteSpace(newConditionName))
             return;
 
         await using var db = await DbFactory.CreateDbContextAsync();
-        db.ConditionalRoleConditions.Add(new ConditionalRoleCondition
+        var condition = new ConditionalRoleCondition
         {
             GuildId = ParsedGuildId,
             Name = newConditionName.Trim(),
-        });
+        };
+        db.ConditionalRoleConditions.Add(condition);
         await db.SaveChangesAsync();
 
         newConditionName = null;
-        await LoadAsync();
+        Nav.NavigateTo(EditHref(condition.Id));
+    }
+
+    public void Dispose()
+    {
+        if (subscribed)
+            Nav.LocationChanged -= OnLocationChanged;
     }
 }
