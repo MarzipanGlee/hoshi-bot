@@ -56,11 +56,13 @@
 
             @if (Node.Kind == ConditionNodeKind.Not && Node.Children.Count >= 1)
             {
-                <p class="form-text mb-0">@Msg.WebConditionalRoles.NotTakesOneHint(Lang)</p>
+                <p class="form-text condition-add-row mb-0">@Msg.WebConditionalRoles.NotTakesOneHint(Lang)</p>
             }
             else
             {
-                <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+                @* condition-add-row: the same left padding the child nodes carry, so the add
+                   controls line up with the things they add rather than sitting a step to the left. *@
+                <div class="condition-add-row d-flex align-items-center gap-2 flex-wrap mt-2">
                     @* Picking a role adds the leaf in one action — the "any of these eight tags"
                        case is otherwise an add-then-pick round trip per tag. *@
                     <div class="condition-operand">

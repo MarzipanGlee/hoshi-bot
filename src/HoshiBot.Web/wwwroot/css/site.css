@@ -106,9 +106,13 @@ a, .btn-link {
     max-width: 46rem;
 }
 
+.condition-node-nested,
+.condition-add-row {
+    padding-left: 0.75rem;
+}
+
 .condition-node-nested {
     margin-top: 0.5rem;
-    padding-left: 0.75rem;
 }
 
 .condition-children {
@@ -131,10 +135,12 @@ a, .btn-link {
     min-width: 0;
 }
 
-/* The operand pickers sit inline in a flex row, so their default bottom margin would knock the
-   row out of alignment. */
+/* RolePicker wraps its select in a .mb-2, and with align-items:center that half-rem of bottom
+   margin is counted into the item's box — so the select itself ends up sitting visibly higher than
+   the operator select beside it. !important because Bootstrap's spacing utilities are themselves
+   !important; without it this rule loses however specific it is. */
 .condition-node .condition-operand > div {
-    margin-bottom: 0;
+    margin-bottom: 0 !important;
 }
 
 /* RolePicker renders a plain .form-select, but everything beside it in the row is form-select-sm /

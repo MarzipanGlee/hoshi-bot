@@ -21,9 +21,12 @@
         <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "rules")</h1>
         <p class="text-muted">@Msg.WebConditionalRoles.RulesIntro(Lang)</p>
 
+        @* SettingsCard renders `card h-100`; outside a card-grid that resolves
+           against the page and stretches every card to the viewport. *@
+        <div class="card-grid">
         @foreach (var rule in rules)
         {
-            <SettingsCard @key="rule">
+            <SettingsCard @key="rule" Class="card-span-full">
                 <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
                     <input class="form-control condition-name-input" maxlength="100" placeholder="@Msg.WebConditionalRoles.RuleNamePlaceholder(Lang)"
                            @bind="rule.Name" @bind:after="() => rule.Dirty = true" />
@@ -57,7 +60,7 @@
             </SettingsCard>
         }
 
-        <SettingsCard Title="@Msg.WebConditionalRoles.AddRuleCardTitle(Lang)">
+        <SettingsCard Title="@Msg.WebConditionalRoles.AddRuleCardTitle(Lang)" Class="card-span-full">
             <div class="d-flex align-items-end gap-2 flex-wrap">
                 <div class="condition-name-input">
                     <label class="form-label">@Msg.WebConditionalRoles.RuleNamePlaceholder(Lang)</label>
@@ -68,6 +71,7 @@
                 </button>
             </div>
         </SettingsCard>
+        </div>
     }
 </AuthorizedGuildView>
 

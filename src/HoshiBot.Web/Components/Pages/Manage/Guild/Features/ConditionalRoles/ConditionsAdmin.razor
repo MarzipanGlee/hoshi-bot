@@ -26,9 +26,12 @@
             <p class="text-danger">@saveError</p>
         }
 
+        @* SettingsCard renders `card h-100`; outside a card-grid that resolves
+           against the page and stretches every card to the viewport. *@
+        <div class="card-grid">
         @foreach (var condition in conditions)
         {
-            <SettingsCard @key="condition">
+            <SettingsCard @key="condition" Class="card-span-full">
                 <input class="form-control condition-name-input mb-3" maxlength="100"
                        placeholder="@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)"
                        @bind="condition.Name" @bind:after="() => condition.Dirty = true" />
@@ -52,7 +55,7 @@
             </SettingsCard>
         }
 
-        <SettingsCard Title="@Msg.WebConditionalRoles.AddConditionCardTitle(Lang)">
+        <SettingsCard Title="@Msg.WebConditionalRoles.AddConditionCardTitle(Lang)" Class="card-span-full">
             <div class="d-flex align-items-end gap-2 flex-wrap">
                 <div class="condition-name-input">
                     <label class="form-label">@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)</label>
@@ -63,6 +66,7 @@
                 </button>
             </div>
         </SettingsCard>
+        </div>
     }
 </AuthorizedGuildView>
 
