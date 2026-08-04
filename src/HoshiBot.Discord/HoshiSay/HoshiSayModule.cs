@@ -54,10 +54,15 @@ public class HoshiSayModule(
                 return disabled;
 
             // Role gate: only members holding the configured allowed role may run the command.
+            //
+            // The pattern variable is `actor`, NOT `member`: C# lets a local declared inside this
+            // lambda shadow the enclosing method's parameter of the same name, with no warning, and
+            // naming it `member` here silently rebound every later use — the composed text and the
+            // ping both went to whoever ran the command instead of the member they picked.
             var allowedRole = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.HoshiSay, GuildAudience.Guild, null, HoshiSaySettingKeys.AllowedRole);
             if (allowedRole is not { } roleId)
                 return Msg.Say.NoRoleConfigured(lang);
-            if (Context.User is not GuildUser member || !member.RoleIds.Contains(roleId))
+            if (Context.User is not GuildUser actor || !actor.RoleIds.Contains(roleId))
                 return Msg.Say.RoleRequired(lang, $"<@&{roleId}>");
 
             var text = await aiChat.ComposeMessageAsync(
