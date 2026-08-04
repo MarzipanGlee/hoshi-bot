@@ -14,15 +14,24 @@ public class ConditionEvaluatorTests
 
     private static MemberFacts Member(params ulong[] roles) => MemberFacts.FromRoles(roles);
 
-    private static bool Eval(ConditionNode node, MemberFacts facts, Dictionary<int, ConditionNode>? conditions = null) =>
+    // A member the bot has player data for.
+    private static MemberFacts Linked(bool inHomeAlliance, bool onHomeServer, params ulong[] roles) =>
+        new(roles.ToHashSet(), new PlayerFacts(inHomeAlliance, onHomeServer));
+
+    private static ConditionOutcome Eval(ConditionNode node, MemberFacts facts, Dictionary<int, ConditionNode>? conditions = null) =>
         ConditionEvaluator.Evaluate(node, facts, conditions ?? NoConditions);
+
+    // Most cases are about "does this grant the role", where Unknown and NoMatch are both "no" —
+    // the tests that care about the difference assert on the outcome directly.
+    private static bool Grants(ConditionNode node, MemberFacts facts, Dictionary<int, ConditionNode>? conditions = null) =>
+        Eval(node, facts, conditions) == ConditionOutcome.Match;
 
     [Fact]
     public void HasRole_MatchesOnlyWhenHeld()
     {
-        Assert.True(Eval(ConditionNode.HasRole(Server164), Member(Server164)));
-        Assert.False(Eval(ConditionNode.HasRole(Server164), Member(Guest)));
-        Assert.False(Eval(ConditionNode.HasRole(Server164), Member()));
+        Assert.True(Grants(ConditionNode.HasRole(Server164), Member(Server164)));
+        Assert.False(Grants(ConditionNode.HasRole(Server164), Member(Guest)));
+        Assert.False(Grants(ConditionNode.HasRole(Server164), Member()));
     }
 
     [Fact]
@@ -30,9 +39,9 @@ public class ConditionEvaluatorTests
     {
         var node = ConditionNode.And(ConditionNode.HasRole(Server164), ConditionNode.HasRole(TagKaos));
 
-        Assert.True(Eval(node, Member(Server164, TagKaos)));
-        Assert.False(Eval(node, Member(Server164)));
-        Assert.False(Eval(node, Member(TagKaos)));
+        Assert.True(Grants(node, Member(Server164, TagKaos)));
+        Assert.False(Grants(node, Member(Server164)));
+        Assert.False(Grants(node, Member(TagKaos)));
     }
 
     [Fact]
@@ -40,10 +49,10 @@ public class ConditionEvaluatorTests
     {
         var node = ConditionNode.Or(ConditionNode.HasRole(TagKaos), ConditionNode.HasRole(TagBctk));
 
-        Assert.True(Eval(node, Member(TagKaos)));
-        Assert.True(Eval(node, Member(TagBctk)));
-        Assert.True(Eval(node, Member(TagKaos, TagBctk)));
-        Assert.False(Eval(node, Member(Server164)));
+        Assert.True(Grants(node, Member(TagKaos)));
+        Assert.True(Grants(node, Member(TagBctk)));
+        Assert.True(Grants(node, Member(TagKaos, TagBctk)));
+        Assert.False(Grants(node, Member(Server164)));
     }
 
     [Fact]
@@ -51,8 +60,8 @@ public class ConditionEvaluatorTests
     {
         var node = ConditionNode.Not(ConditionNode.HasRole(Guest));
 
-        Assert.True(Eval(node, Member(Server164)));
-        Assert.False(Eval(node, Member(Guest)));
+        Assert.True(Grants(node, Member(Server164)));
+        Assert.False(Grants(node, Member(Guest)));
     }
 
     // The motivating pair: "on 164 and carries one of our tags" grants one role, the same with NOT
@@ -65,17 +74,17 @@ public class ConditionEvaluatorTests
         var guest = ConditionNode.And(ConditionNode.HasRole(Server164), ConditionNode.Not(tags));
 
         var tagged = Member(Server164, TagKaos);
-        Assert.True(Eval(verified, tagged));
-        Assert.False(Eval(guest, tagged));
+        Assert.True(Grants(verified, tagged));
+        Assert.False(Grants(guest, tagged));
 
         var untagged = Member(Server164);
-        Assert.False(Eval(verified, untagged));
-        Assert.True(Eval(guest, untagged));
+        Assert.False(Grants(verified, untagged));
+        Assert.True(Grants(guest, untagged));
 
         // Not on 164 at all: neither rule applies, so neither role is granted.
         var outsider = Member(TagKaos);
-        Assert.False(Eval(verified, outsider));
-        Assert.False(Eval(guest, outsider));
+        Assert.False(Grants(verified, outsider));
+        Assert.False(Grants(guest, outsider));
     }
 
     // Every one of these is a shape an admin can leave behind mid-edit. None may grant the role,
@@ -85,8 +94,8 @@ public class ConditionEvaluatorTests
     public void IncompleteNodes_GrantNothing(ConditionNode node)
     {
         Assert.False(ConditionEvaluator.IsComplete(node, NoConditions));
-        Assert.False(Eval(node, Member(Server164, TagKaos)));
-        Assert.False(Eval(node, Member()));
+        Assert.False(Grants(node, Member(Server164, TagKaos)));
+        Assert.False(Grants(node, Member()));
     }
 
     public static TheoryData<ConditionNode> IncompleteNodes() =>
@@ -124,7 +133,7 @@ public class ConditionEvaluatorTests
         var node = ConditionNode.Not(ConditionNode.Matches(404));
 
         Assert.False(ConditionEvaluator.IsComplete(node, conditions));
-        Assert.False(Eval(node, Member(Server164), conditions));
+        Assert.False(Grants(node, Member(Server164), conditions));
     }
 
     [Fact]
@@ -136,8 +145,8 @@ public class ConditionEvaluatorTests
         };
         var node = ConditionNode.And(ConditionNode.HasRole(Server164), ConditionNode.Matches(7));
 
-        Assert.True(Eval(node, Member(Server164, TagBctk), conditions));
-        Assert.False(Eval(node, Member(Server164), conditions));
+        Assert.True(Grants(node, Member(Server164, TagBctk), conditions));
+        Assert.False(Grants(node, Member(Server164), conditions));
     }
 
     [Fact]
@@ -147,7 +156,7 @@ public class ConditionEvaluatorTests
         // than silently dropping that part of the expression.
         var node = ConditionNode.And(ConditionNode.HasRole(Server164), ConditionNode.Matches(999));
 
-        Assert.False(Eval(node, Member(Server164)));
+        Assert.False(Grants(node, Member(Server164)));
     }
 
     [Fact]
@@ -155,7 +164,7 @@ public class ConditionEvaluatorTests
     {
         var conditions = new Dictionary<int, ConditionNode> { [1] = ConditionNode.Matches(1) };
 
-        Assert.False(Eval(ConditionNode.Matches(1), Member(Server164), conditions));
+        Assert.False(Grants(ConditionNode.Matches(1), Member(Server164), conditions));
     }
 
     [Fact]
@@ -168,7 +177,7 @@ public class ConditionEvaluatorTests
             [3] = ConditionNode.Matches(1),
         };
 
-        Assert.False(Eval(ConditionNode.Matches(1), Member(Server164), conditions));
+        Assert.False(Grants(ConditionNode.Matches(1), Member(Server164), conditions));
     }
 
     [Fact]
@@ -179,7 +188,7 @@ public class ConditionEvaluatorTests
         var conditions = new Dictionary<int, ConditionNode> { [1] = ConditionNode.HasRole(TagKaos) };
         var node = ConditionNode.And(ConditionNode.Matches(1), ConditionNode.Or(ConditionNode.Matches(1)));
 
-        Assert.True(Eval(node, Member(TagKaos), conditions));
+        Assert.True(Grants(node, Member(TagKaos), conditions));
     }
 
     [Fact]
@@ -192,9 +201,9 @@ public class ConditionEvaluatorTests
                 ConditionNode.Or(ConditionNode.HasRole(TagKaos), ConditionNode.HasRole(TagBctk))),
             ConditionNode.Not(ConditionNode.HasRole(Guest)));
 
-        Assert.True(Eval(node, Member(Server164, TagKaos)));
-        Assert.False(Eval(node, Member(Server164, TagKaos, Guest)));
-        Assert.False(Eval(node, Member(Server164)));
+        Assert.True(Grants(node, Member(Server164, TagKaos)));
+        Assert.False(Grants(node, Member(Server164, TagKaos, Guest)));
+        Assert.False(Grants(node, Member(Server164)));
     }
 
     [Fact]
@@ -203,6 +212,89 @@ public class ConditionEvaluatorTests
         // A row written by a newer build with a leaf kind this one doesn't know.
         var node = new ConditionNode((ConditionNodeKind)99, []);
 
-        Assert.False(Eval(node, Member(Server164, TagKaos)));
+        Assert.False(Grants(node, Member(Server164, TagKaos)));
+    }
+
+    [Fact]
+    public void HasLinkedPlayer_IsAnswerableEitherWay()
+    {
+        var node = ConditionNode.Leaf(ConditionNodeKind.HasLinkedPlayer);
+
+        // Never Unknown — which is exactly what lets it guard the two facts that can be.
+        Assert.Equal(ConditionOutcome.Match, Eval(node, Linked(inHomeAlliance: true, onHomeServer: true)));
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Member()));
+    }
+
+    [Theory]
+    [InlineData(ConditionNodeKind.InHomeAlliance)]
+    [InlineData(ConditionNodeKind.OnHomeServer)]
+    public void PlayerFacts_AreUnknownWithoutALinkedPlayer(ConditionNodeKind kind)
+    {
+        var node = ConditionNode.Leaf(kind);
+
+        Assert.Equal(ConditionOutcome.Match, Eval(node, Linked(inHomeAlliance: true, onHomeServer: true)));
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Linked(inHomeAlliance: false, onHomeServer: false)));
+
+        // The distinction the whole three-valued design exists for: nobody linked means no answer,
+        // NOT "no". The caller leaves such a member exactly as they are.
+        Assert.Equal(ConditionOutcome.Unknown, Eval(node, Member()));
+    }
+
+    // If Unknown were false, this would grant the role to every member whose player data hasn't
+    // imported yet — the negation trap, in its second form.
+    [Fact]
+    public void Not_OfAnUnknownFact_StaysUnknown()
+    {
+        var node = ConditionNode.Not(ConditionNode.Leaf(ConditionNodeKind.InHomeAlliance));
+
+        Assert.Equal(ConditionOutcome.Unknown, Eval(node, Member()));
+        Assert.Equal(ConditionOutcome.Match, Eval(node, Linked(inHomeAlliance: false, onHomeServer: true)));
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Linked(inHomeAlliance: true, onHomeServer: true)));
+    }
+
+    [Fact]
+    public void And_ADefiniteFailureBeatsAnUnknownBesideIt()
+    {
+        // Not holding @164 settles it regardless of what we don't know about their player.
+        var node = ConditionNode.And(ConditionNode.HasRole(Server164), ConditionNode.Leaf(ConditionNodeKind.InHomeAlliance));
+
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Member()));
+        // Holding it leaves the answer resting on the fact we don't have.
+        Assert.Equal(ConditionOutcome.Unknown, Eval(node, Member(Server164)));
+    }
+
+    [Fact]
+    public void Or_ADefiniteMatchBeatsAnUnknownBesideIt()
+    {
+        var node = ConditionNode.Or(ConditionNode.HasRole(Server164), ConditionNode.Leaf(ConditionNodeKind.InHomeAlliance));
+
+        Assert.Equal(ConditionOutcome.Match, Eval(node, Member(Server164)));
+        Assert.Equal(ConditionOutcome.Unknown, Eval(node, Member(Guest)));
+    }
+
+    // Guarding with HasLinkedPlayer is how an admin turns an Unknown into a decided answer.
+    [Fact]
+    public void HasLinkedPlayerGuard_RemovesTheUnknown()
+    {
+        var rogues = ConditionNode.Or(
+            ConditionNode.Not(ConditionNode.Leaf(ConditionNodeKind.HasLinkedPlayer)),
+            ConditionNode.And(
+                ConditionNode.Leaf(ConditionNodeKind.HasLinkedPlayer),
+                ConditionNode.Not(ConditionNode.Leaf(ConditionNodeKind.InHomeAlliance))));
+
+        // Nobody linked: the first branch decides it, so no Unknown survives.
+        Assert.Equal(ConditionOutcome.Match, Eval(rogues, Member()));
+        // Linked and foreign.
+        Assert.Equal(ConditionOutcome.Match, Eval(rogues, Linked(inHomeAlliance: false, onHomeServer: true)));
+        // Linked and one of ours.
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(rogues, Linked(inHomeAlliance: true, onHomeServer: true)));
+    }
+
+    [Fact]
+    public void PlayerFactLeaves_AreAlwaysComplete()
+    {
+        // They take no operand, so there is nothing an admin can leave half-filled.
+        foreach (var kind in new[] { ConditionNodeKind.HasLinkedPlayer, ConditionNodeKind.InHomeAlliance, ConditionNodeKind.OnHomeServer })
+            Assert.True(ConditionEvaluator.IsComplete(ConditionNode.Leaf(kind), NoConditions));
     }
 }

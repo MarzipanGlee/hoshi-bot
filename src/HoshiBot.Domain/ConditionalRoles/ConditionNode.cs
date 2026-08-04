@@ -13,6 +13,17 @@ public enum ConditionNodeKind
     Not,
     HasRole,
     MatchesCondition,
+
+    // Player-data leaves. None of them takes an operand: "one of ours" is asked against the guild's
+    // own scope (GuildServerScope) rather than a named alliance or server, so a rule keeps meaning
+    // what it said when the guild links another alliance.
+    //
+    // The last two are UNKNOWN for a member with no linked player, which is not the same as false —
+    // see ConditionEvaluator's three-valued logic. HasLinkedPlayer is always answerable, which is
+    // what makes it usable as a guard.
+    HasLinkedPlayer,
+    InHomeAlliance,
+    OnHomeServer,
 }
 
 // One node of a condition tree, free of EF and Discord so the semantics can be unit-tested on its
@@ -37,4 +48,6 @@ public sealed record ConditionNode(
 
     public static ConditionNode Matches(int conditionId) =>
         new(ConditionNodeKind.MatchesCondition, [], ReferencedConditionId: conditionId);
+
+    public static ConditionNode Leaf(ConditionNodeKind kind) => new(kind, []);
 }

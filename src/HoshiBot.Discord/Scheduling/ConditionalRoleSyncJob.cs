@@ -24,9 +24,11 @@ namespace HoshiBot.Discord.Scheduling;
 //   - A rule may read a role another rule grants. That converges, but two rules written to
 //     contradict each other would flip a member back and forth once per sweep.
 public class ConditionalRoleSyncJob(
+    HoshiBotDbContext db,
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     ConditionalRoleService conditionalRoles,
+    PlayerLinkService playerLinkService,
     ILogger<ConditionalRoleSyncJob> logger) : IJob
 {
     public Task Execute(IJobExecutionContext context) =>
@@ -42,6 +44,11 @@ public class ConditionalRoleSyncJob(
         // matches nobody — that is precisely how it gets taken off the members still holding it.
         var managedRoleIds = snapshot.Rules.Select(r => r.TargetRoleId).ToHashSet();
 
+        // The player side of MemberFacts. "One of ours" is asked against the same GuildServerScope
+        // the tag-role features use, so a rule means the same thing everywhere.
+        var scope = await GuildServerScope.ResolveAsync(db, guildId);
+        var players = await playerLinkService.GetGuildPrimaryPlayersAsync(guildId);
+
         var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);
         var granted = 0;
         var removed = 0;
@@ -51,15 +58,29 @@ public class ConditionalRoleSyncJob(
             if (guildUser.IsBot)
                 continue;
 
-            var facts = MemberFacts.FromRoles(guildUser.RoleIds);
+            // No linked player → Player stays null, and the player-fact leaves answer Unknown rather
+            // than "no" (see ConditionEvaluator).
+            var facts = new MemberFacts(
+                guildUser.RoleIds.ToHashSet(),
+                players.TryGetValue(guildUser.Id, out var player)
+                    ? new PlayerFacts(
+                        player.AllianceId is { } allianceId && scope.AllianceIds.Contains(allianceId),
+                        scope.ServerIds.Contains(player.ServerId))
+                    : null);
 
-            // A role is granted if ANY enabled rule targeting it matches; several rules may target
-            // the same role deliberately.
-            var target = managedRoleIds.ToDictionary(id => id, _ => false);
+            // Per role: a definite match from any rule grants it, and only a definite no from every
+            // rule removes it. An Unknown anywhere leaves the role exactly as it is — a member whose
+            // player data hasn't imported must not lose roles over a question we couldn't answer.
+            var target = managedRoleIds.ToDictionary(id => id, _ => ConditionOutcome.NoMatch);
             foreach (var rule in snapshot.Rules)
             {
-                if (rule.Root is not null && ConditionEvaluator.Evaluate(rule.Root, facts, snapshot.Conditions))
-                    target[rule.TargetRoleId] = true;
+                if (rule.Root is null)
+                    continue;
+
+                var outcome = ConditionEvaluator.Evaluate(rule.Root, facts, snapshot.Conditions);
+                var current = target[rule.TargetRoleId];
+                if (outcome == ConditionOutcome.Match || current == ConditionOutcome.NoMatch)
+                    target[rule.TargetRoleId] = outcome == ConditionOutcome.Match ? ConditionOutcome.Match : outcome;
             }
 
             var (added, took) = await SyncMemberAsync(guildId, guildUser, target);
@@ -78,15 +99,20 @@ public class ConditionalRoleSyncJob(
     // Same add/remove-within-the-managed-set shape as the other role syncs; the difference is that
     // several roles can apply at once, so this walks the whole map rather than matching one winner.
     private async Task<(int Granted, int Removed)> SyncMemberAsync(
-        ulong guildId, GuildUser guildUser, Dictionary<ulong, bool> targetByRole)
+        ulong guildId, GuildUser guildUser, Dictionary<ulong, ConditionOutcome> targetByRole)
     {
         var granted = 0;
         var removed = 0;
 
         try
         {
-            foreach (var (roleId, shouldHave) in targetByRole)
+            foreach (var (roleId, outcome) in targetByRole)
             {
+                // Unknown means "we couldn't tell" — not a reason to touch anything.
+                if (outcome == ConditionOutcome.Unknown)
+                    continue;
+
+                var shouldHave = outcome == ConditionOutcome.Match;
                 var hasRole = guildUser.RoleIds.Contains(roleId);
                 if (shouldHave && !hasRole)
                 {

@@ -1,25 +1,43 @@
 namespace HoshiBot.Domain.ConditionalRoles;
 
+// What a rule concluded about one member.
+public enum ConditionOutcome
+{
+    // Definitely does not satisfy the rule — the role should come off.
+    NoMatch,
+
+    // Definitely satisfies it — the role should go on.
+    Match,
+
+    // Can't be decided, because the rule asks about player data this member doesn't have. The
+    // caller must leave them exactly as they are: neither granting nor removing.
+    Unknown,
+}
+
 // Decides whether one member satisfies a condition tree.
 //
-// FAIL-CLOSED IS THE RULE HERE, and it is why completeness is checked separately from truth rather
-// than folded into it. Boolean logic alone gets this wrong in one specific, dangerous way: an And
-// with no children is vacuously TRUE, and even if you define it as false, wrapping it in a Not
-// flips it back to true — so an admin who adds an empty "NOT (…)" group and walks away would grant
-// the target role to the whole guild. Negation means "unfinished" cannot be expressed as a truth
-// value at all; it has to short-circuit the entire rule.
+// Two things here refuse to be truth values, and both for the same reason — negation:
 //
-// So: IsComplete walks the tree first and any unfinished or unresolvable node anywhere makes the
-// whole rule match nobody, whatever the logic above it would have done. The editor calls the same
-// method to tell an admin their rule currently grants nothing.
+//   UNFINISHED. An And with no children is vacuously true, and even defining it as false doesn't
+//   help, because a Not above it flips it back. An admin who adds an empty "NOT (…)" group and
+//   walks away would grant the role to the whole guild. So IsComplete walks the tree first and any
+//   unfinished node anywhere makes the rule match nobody, whatever the logic above it says.
+//
+//   UNKNOWN. "Is this member in one of our alliances?" has no answer when nobody is linked to them.
+//   Treating that as false means `not in one of our alliances` matches every member whose player
+//   data hasn't imported yet. So it propagates as its own outcome (Kleene three-valued logic) and
+//   the caller leaves those members alone.
+//
+// Fail-closed throughout: when in doubt, don't grant.
 public static class ConditionEvaluator
 {
-    // True only when the tree is fully built AND the member satisfies it.
-    public static bool Evaluate(
+    public static ConditionOutcome Evaluate(
         ConditionNode node,
         MemberFacts facts,
         IReadOnlyDictionary<int, ConditionNode> namedConditions) =>
-        IsComplete(node, namedConditions) && EvaluateCore(node, facts, namedConditions);
+        IsComplete(node, namedConditions)
+            ? EvaluateCore(node, facts, namedConditions)
+            : ConditionOutcome.NoMatch;
 
     // Whether every node is usable: operators have the children they need, leaves have their
     // operand, and every referenced condition exists and is itself complete and acyclic. An
@@ -45,6 +63,9 @@ public static class ConditionEvaluator
             ConditionNodeKind.HasRole => node.RoleId is not null,
 
             ConditionNodeKind.MatchesCondition => IsReferenceComplete(node, namedConditions, visiting),
+
+            // The player-data leaves take no operand, so there is nothing to leave unfinished.
+            ConditionNodeKind.HasLinkedPlayer or ConditionNodeKind.InHomeAlliance or ConditionNodeKind.OnHomeServer => true,
 
             // A kind this build doesn't know (a row written by a newer version) is not something to
             // guess at.
@@ -77,19 +98,65 @@ public static class ConditionEvaluator
         }
     }
 
-    // Plain boolean logic; only ever reached for a tree IsComplete has already accepted, so the
-    // degenerate shapes it would otherwise have to defend against cannot occur here.
-    private static bool EvaluateCore(
+    // Kleene three-valued logic. Only ever reached for a tree IsComplete has already accepted, so
+    // the degenerate shapes it defends against cannot occur here.
+    private static ConditionOutcome EvaluateCore(
         ConditionNode node,
         MemberFacts facts,
         IReadOnlyDictionary<int, ConditionNode> namedConditions) => node.Kind switch
         {
-            ConditionNodeKind.And => node.Children.All(c => EvaluateCore(c, facts, namedConditions)),
-            ConditionNodeKind.Or => node.Children.Any(c => EvaluateCore(c, facts, namedConditions)),
-            ConditionNodeKind.Not => !EvaluateCore(node.Children[0], facts, namedConditions),
-            ConditionNodeKind.HasRole => facts.RoleIds.Contains(node.RoleId!.Value),
+            // A definite failure settles an And even with unknowns beside it; only when everything
+            // else passes does an unknown leave the answer open. Mirror image for Or.
+            ConditionNodeKind.And => Combine(node, facts, namedConditions, decisive: ConditionOutcome.NoMatch),
+            ConditionNodeKind.Or => Combine(node, facts, namedConditions, decisive: ConditionOutcome.Match),
+
+            ConditionNodeKind.Not => EvaluateCore(node.Children[0], facts, namedConditions) switch
+            {
+                ConditionOutcome.Match => ConditionOutcome.NoMatch,
+                ConditionOutcome.NoMatch => ConditionOutcome.Match,
+                // Not knowing stays not knowing — this is the whole reason unknown isn't `false`.
+                _ => ConditionOutcome.Unknown,
+            },
+
+            ConditionNodeKind.HasRole => Known(facts.RoleIds.Contains(node.RoleId!.Value)),
+
             ConditionNodeKind.MatchesCondition =>
                 EvaluateCore(namedConditions[node.ReferencedConditionId!.Value], facts, namedConditions),
-            _ => false,
+
+            // Always answerable, which is what makes it usable as a guard in front of the two below.
+            ConditionNodeKind.HasLinkedPlayer => Known(facts.HasLinkedPlayer),
+
+            ConditionNodeKind.InHomeAlliance => facts.Player is { } inAlliance
+                ? Known(inAlliance.InHomeAlliance)
+                : ConditionOutcome.Unknown,
+
+            ConditionNodeKind.OnHomeServer => facts.Player is { } onServer
+                ? Known(onServer.OnHomeServer)
+                : ConditionOutcome.Unknown,
+
+            _ => ConditionOutcome.NoMatch,
         };
+
+    private static ConditionOutcome Combine(
+        ConditionNode node,
+        MemberFacts facts,
+        IReadOnlyDictionary<int, ConditionNode> namedConditions,
+        ConditionOutcome decisive)
+    {
+        var sawUnknown = false;
+        foreach (var child in node.Children)
+        {
+            var outcome = EvaluateCore(child, facts, namedConditions);
+            if (outcome == decisive)
+                return decisive;
+            if (outcome == ConditionOutcome.Unknown)
+                sawUnknown = true;
+        }
+
+        return sawUnknown
+            ? ConditionOutcome.Unknown
+            : decisive == ConditionOutcome.NoMatch ? ConditionOutcome.Match : ConditionOutcome.NoMatch;
+    }
+
+    private static ConditionOutcome Known(bool value) => value ? ConditionOutcome.Match : ConditionOutcome.NoMatch;
 }

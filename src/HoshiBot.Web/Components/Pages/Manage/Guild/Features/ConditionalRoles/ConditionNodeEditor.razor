@@ -113,6 +113,10 @@
         ConditionNodeKind.Not,
         ConditionNodeKind.HasRole,
         ConditionNodeKind.MatchesCondition,
+        // Player-data leaves: no operand to pick, so they render as the select alone.
+        ConditionNodeKind.HasLinkedPlayer,
+        ConditionNodeKind.InHomeAlliance,
+        ConditionNodeKind.OnHomeServer,
     ];
 
     private string KindLabel(ConditionNodeKind kind) => kind switch
@@ -121,6 +125,9 @@
         ConditionNodeKind.Or => Msg.WebConditionalRoles.KindOr(Lang),
         ConditionNodeKind.Not => Msg.WebConditionalRoles.KindNot(Lang),
         ConditionNodeKind.HasRole => Msg.WebConditionalRoles.KindHasRole(Lang),
+        ConditionNodeKind.HasLinkedPlayer => Msg.WebConditionalRoles.KindHasLinkedPlayer(Lang),
+        ConditionNodeKind.InHomeAlliance => Msg.WebConditionalRoles.KindInHomeAlliance(Lang),
+        ConditionNodeKind.OnHomeServer => Msg.WebConditionalRoles.KindOnHomeServer(Lang),
         _ => Msg.WebConditionalRoles.KindMatchesCondition(Lang),
     };
 

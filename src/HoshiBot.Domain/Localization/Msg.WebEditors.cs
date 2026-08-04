@@ -518,6 +518,20 @@ public static partial class Msg
         public static string KindMatchesCondition(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindMatchesCondition");
 
+        public static string KindHasLinkedPlayer(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindHasLinkedPlayer");
+
+        public static string KindInHomeAlliance(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindInHomeAlliance");
+
+        public static string KindOnHomeServer(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindOnHomeServer");
+
+        // Explains the third outcome an admin can't see in the tree: a player fact is unanswerable
+        // for a member with no linked player, so the rule leaves them alone rather than deciding.
+        public static string PlayerFactsHint(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.PlayerFactsHint");
+
         public static string ChooseCondition(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ChooseCondition");
 
