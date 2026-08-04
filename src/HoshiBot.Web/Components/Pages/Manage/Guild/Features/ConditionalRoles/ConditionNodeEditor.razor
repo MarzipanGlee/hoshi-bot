@@ -38,7 +38,9 @@
 
         @if (!IsRoot)
         {
-            <button type="button" class="btn btn-sm btn-outline-danger ms-auto" title="@Msg.WebCommon.Delete(Lang)"
+            @* Sits right after the operand rather than pushed to the far edge (no ms-auto): the row
+               is as wide as the tree allows, so a right-aligned button would strand itself. *@
+            <button type="button" class="btn btn-sm btn-outline-danger" title="@Msg.WebCommon.Delete(Lang)"
                     @onclick="() => OnRemove.InvokeAsync(Node)">✕</button>
         }
     </div>

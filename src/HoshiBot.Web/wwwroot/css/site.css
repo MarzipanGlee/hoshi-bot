@@ -137,6 +137,19 @@ a, .btn-link {
     margin-bottom: 0;
 }
 
+/* RolePicker renders a plain .form-select, but everything beside it in the row is form-select-sm /
+   btn-sm, so the two controls came out at different heights. These are Bootstrap's own
+   .form-select-sm metrics applied to the picker's inner select — padding-right is left alone, since
+   that is what makes room for the dropdown arrow. Done here rather than by adding a size parameter
+   to RolePicker, which is shared by a dozen editors that have no such need. */
+.condition-node .condition-operand .form-select {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    padding-left: 0.5rem;
+    font-size: 0.875rem;
+    border-radius: var(--bs-border-radius-sm);
+}
+
 .condition-name-input {
     max-width: 24rem;
 }
