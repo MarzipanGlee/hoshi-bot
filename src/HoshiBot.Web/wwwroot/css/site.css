@@ -254,3 +254,30 @@ a, .btn-link {
 .condition-search-result:focus {
     background: var(--bs-secondary-bg, #e9ecef);
 }
+
+/* Expandable rule rows: the chevron column stays narrow, and the detail row drops the top border so
+   it reads as part of the row above rather than as a row of its own. */
+.condition-expand-col {
+    width: 2rem;
+}
+
+.condition-expand {
+    padding: 0;
+    text-decoration: none;
+}
+
+.condition-detail-row > td {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.condition-summary,
+.condition-summary-children {
+    margin-bottom: 0;
+}
+
+.condition-summary-children {
+    margin-left: 1rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--bs-border-color, #dee2e6);
+}

@@ -78,6 +78,7 @@
                 <table class="table align-middle">
                     <thead>
                         <tr>
+                            <th class="condition-expand-col"></th>
                             <th>@Msg.WebConditionalRoles.ColName(Lang)</th>
                             <th>@Msg.WebConditionalRoles.ColTargetRole(Lang)</th>
                             <th>@Msg.WebConditionalRoles.ColStatus(Lang)</th>
@@ -88,6 +89,14 @@
                         @foreach (var listed in rules)
                         {
                             <tr @key="listed.Id">
+                                @* Several rules can be open at once — comparing two is the reason
+                                   to expand them at all, so this is a set rather than an accordion. *@
+                                <td class="condition-expand-col">
+                                    <button type="button" class="btn btn-sm btn-link condition-expand" @onclick="() => ToggleExpanded(listed.Id)"
+                                            aria-expanded="@expanded.Contains(listed.Id)" title="@listed.Name">
+                                        @(expanded.Contains(listed.Id) ? "▾" : "▸")
+                                    </button>
+                                </td>
                                 <td>@listed.Name</td>
                                 @* Shown here so a rule reads "Rogues → @Rogue" at a glance: the one
                                    mismatch that actually happened was invisible until you opened the
@@ -109,6 +118,18 @@
                                     <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteRuleAsync(listed.Id)">@Msg.WebCommon.Delete(Lang)</button>
                                 </td>
                             </tr>
+                            @if (expanded.Contains(listed.Id))
+                            {
+                                <tr @key="@($"detail-{listed.Id}")" class="condition-detail-row">
+                                    <td></td>
+                                    <td colspan="3">
+                                        <ul class="condition-summary list-unstyled mb-0">
+                                            <ConditionSummary Node="listed.Root" Roles="roles" Conditions="conditionOptions"
+                                                              PlayerLabels="playerLabels" AllianceLabels="allianceLabels" />
+                                        </ul>
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>
@@ -158,6 +179,7 @@
     private Dictionary<int, string> allianceLabels = [];
     private string? newRuleName;
     private bool subscribed;
+    private readonly HashSet<int> expanded = [];
 
     private string ListHref => Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0];
 
@@ -249,6 +271,12 @@
                 stack.Push(child);
         }
         return ids.ToList();
+    }
+
+    private void ToggleExpanded(int ruleId)
+    {
+        if (!expanded.Add(ruleId))
+            expanded.Remove(ruleId);
     }
 
     private string? TargetRoleName(RuleVm rule) =>

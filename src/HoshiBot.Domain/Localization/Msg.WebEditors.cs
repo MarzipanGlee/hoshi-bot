@@ -522,6 +522,9 @@ public static partial class Msg
         public static string NoTargetRole(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.NoTargetRole");
 
+        public static string NotSet(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.NotSet");
+
         public static string NoRulesYet(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.NoRulesYet");
 
@@ -550,6 +553,9 @@ public static partial class Msg
 
         public static string ConditionInUse(Language lang, string name, string usages) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.ConditionInUse", ("name", name), ("usages", usages));
+
+        public static string DuplicateName(Language lang, string name) =>
+            MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.DuplicateName", ("name", name));
 
         public static string KindAnd(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ConditionalRoles.KindAnd");

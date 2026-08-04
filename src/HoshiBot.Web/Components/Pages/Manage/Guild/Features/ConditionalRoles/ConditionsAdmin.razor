@@ -247,13 +247,42 @@
         if (stored is null)
             return;
 
-        if (!string.IsNullOrWhiteSpace(condition.Name))
-            stored.Name = condition.Name.Trim();
-        await db.SaveChangesAsync();
+        var name = string.IsNullOrWhiteSpace(condition.Name) ? stored.Name : condition.Name.Trim();
+        if (await IsNameTakenAsync(db, name, exceptId: condition.Id))
+        {
+            saveError = Msg.WebConditionalRoles.DuplicateName(Lang, name);
+            return;
+        }
+
+        stored.Name = name;
+        // The check above handles the ordinary case; this covers the race where someone else took
+        // the name in between. Either way the page reports it instead of dying.
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            saveError = Msg.WebConditionalRoles.DuplicateName(Lang, name);
+            return;
+        }
 
         await ConditionalRoles.SaveTreeAsync(null, condition.Id, root);
         condition.Dirty = false;
         await LoadAsync();
+    }
+
+    // Names are unique per guild (the index enforces it), and without this check the violation
+    // surfaced as an unhandled DbUpdateException — which tears down the Blazor circuit and reloads
+    // the page, losing whatever was being edited. Compared case-insensitively even though the index
+    // is not: two conditions differing only in case are indistinguishable in the picker.
+    //
+    // exceptId is 0 when adding, which matches no row.
+    private async Task<bool> IsNameTakenAsync(HoshiBotDbContext db, string name, int exceptId)
+    {
+        var lowered = name.ToLowerInvariant();
+        return await db.ConditionalRoleConditions.AnyAsync(c =>
+            c.GuildId == ParsedGuildId && c.Id != exceptId && c.Name.ToLower() == lowered);
     }
 
     private async Task DeleteConditionAsync(ConditionVm condition)
@@ -286,14 +315,31 @@
         if (string.IsNullOrWhiteSpace(newConditionName))
             return;
 
+        saveError = null;
+        var name = newConditionName.Trim();
+
         await using var db = await DbFactory.CreateDbContextAsync();
+        if (await IsNameTakenAsync(db, name, exceptId: 0))
+        {
+            saveError = Msg.WebConditionalRoles.DuplicateName(Lang, name);
+            return;
+        }
+
         var condition = new ConditionalRoleCondition
         {
             GuildId = ParsedGuildId,
-            Name = newConditionName.Trim(),
+            Name = name,
         };
         db.ConditionalRoleConditions.Add(condition);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            saveError = Msg.WebConditionalRoles.DuplicateName(Lang, name);
+            return;
+        }
 
         newConditionName = null;
         Nav.NavigateTo(EditHref(condition.Id));

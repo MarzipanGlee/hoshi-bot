@@ -1,0 +1,75 @@
+@using HoshiBot.Domain.ConditionalRoles
+@using NetCord
+
+@* Read-only rendering of one condition tree, so a rule can be read without opening its editor.
+   Recurses like ConditionNodeEditor but renders text, not controls. *@
+<li>
+    <span class="@(IsComplete ? "" : "text-warning")">@Label</span>
+
+    @if (Node.IsOperator && Node.Children.Count > 0)
+    {
+        <ul class="condition-summary-children list-unstyled">
+            @foreach (var child in Node.Children)
+            {
+                <ConditionSummary @key="child" Node="child" Roles="Roles" Conditions="Conditions"
+                                  PlayerLabels="PlayerLabels" AllianceLabels="AllianceLabels" />
+            }
+        </ul>
+    }
+</li>
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired] public EditableNode Node { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<Role> Roles { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<ConditionNodeEditor.ConditionOption> Conditions { get; set; } = [];
+    [Parameter] public IReadOnlyDictionary<int, string> PlayerLabels { get; set; } = new Dictionary<int, string>();
+    [Parameter] public IReadOnlyDictionary<int, string> AllianceLabels { get; set; } = new Dictionary<int, string>();
+
+    // Only this node, not its subtree: an operator with unfinished children shows its own children
+    // as the problem rather than colouring the whole branch.
+    private bool IsComplete => Node.Kind switch
+    {
+        ConditionNodeKind.And or ConditionNodeKind.Or => Node.Children.Count > 0,
+        ConditionNodeKind.Not => Node.Children.Count == 1,
+        ConditionNodeKind.HasRole => Node.RoleId is not null,
+        ConditionNodeKind.MatchesCondition => Node.ReferencedConditionId is not null,
+        ConditionNodeKind.IsPlayer => Node.StfcPlayerId is not null,
+        ConditionNodeKind.InAlliance => Node.StfcAllianceId is not null,
+        _ => true,
+    };
+
+    private string Label => Node.Kind switch
+    {
+        ConditionNodeKind.And => Msg.WebConditionalRoles.KindAnd(Lang),
+        ConditionNodeKind.Or => Msg.WebConditionalRoles.KindOr(Lang),
+        ConditionNodeKind.Not => Msg.WebConditionalRoles.KindNot(Lang),
+        ConditionNodeKind.HasRole => $"{Msg.WebConditionalRoles.KindHasRole(Lang)} {RoleName}",
+        ConditionNodeKind.MatchesCondition => $"{Msg.WebConditionalRoles.KindMatchesCondition(Lang)} «{ConditionName}»",
+        ConditionNodeKind.IsPlayer => $"{Msg.WebConditionalRoles.KindIsPlayer(Lang)}: {PlayerName}",
+        ConditionNodeKind.InAlliance => $"{Msg.WebConditionalRoles.KindInAlliance(Lang)}: {AllianceName}",
+        ConditionNodeKind.HasLinkedPlayer => Msg.WebConditionalRoles.KindHasLinkedPlayer(Lang),
+        ConditionNodeKind.InHomeAlliance => Msg.WebConditionalRoles.KindInHomeAlliance(Lang),
+        ConditionNodeKind.OnHomeServer => Msg.WebConditionalRoles.KindOnHomeServer(Lang),
+        _ => Node.Kind.ToString(),
+    };
+
+    // A deleted role, or a player/alliance whose id was cleared when it left the catalog, reads as
+    // "not set" rather than as a bare number — that is exactly the state that makes a rule inert.
+    private string RoleName => ulong.TryParse(Node.RoleId, out var id)
+        ? Roles.FirstOrDefault(r => r.Id == id)?.Name is { } name ? $"@{name}" : Msg.WebCommon.Unknown(Lang, Node.RoleId)
+        : Msg.WebConditionalRoles.NotSet(Lang);
+
+    private string ConditionName => Node.ReferencedConditionId is { } id
+        ? Conditions.FirstOrDefault(c => c.Id == id)?.Name ?? Msg.WebConditionalRoles.NotSet(Lang)
+        : Msg.WebConditionalRoles.NotSet(Lang);
+
+    private string PlayerName => Node.StfcPlayerId is { } id
+        ? PlayerLabels.GetValueOrDefault(id) ?? Msg.WebConditionalRoles.NotSet(Lang)
+        : Msg.WebConditionalRoles.NotSet(Lang);
+
+    private string AllianceName => Node.StfcAllianceId is { } id
+        ? AllianceLabels.GetValueOrDefault(id) ?? Msg.WebConditionalRoles.NotSet(Lang)
+        : Msg.WebConditionalRoles.NotSet(Lang);
+}
