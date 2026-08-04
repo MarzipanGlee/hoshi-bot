@@ -94,33 +94,47 @@ a, .btn-link {
     grid-column: 1 / -1;
 }
 
-/* Conditional Roles' rule builder. The indent and the left rule are the only thing conveying
+/* Conditional Roles' rule builder. Indentation and the left rule are the only thing conveying
    nesting depth, so an admin can see the shape of the expression they built; ConditionNodeEditor
-   renders itself once per level. */
+   renders itself once per level.
+
+   Every width rule below is written as .condition-node .x rather than .x: Bootstrap's .form-select
+   sets width:100%, and a bare single-class selector only beats it by load order — which it lost,
+   leaving every select stretched across the page. Two classes settle it regardless of order. */
+.condition-node {
+    /* A rule reads as a short statement, not a full-page banner. */
+    max-width: 46rem;
+}
+
 .condition-node-nested {
     margin-top: 0.5rem;
+    padding-left: 0.75rem;
 }
 
 .condition-children {
-    margin-left: 1.25rem;
-    padding-left: 0.75rem;
+    margin-left: 0.75rem;
     border-left: 2px solid var(--bs-border-color, #dee2e6);
 }
 
-.condition-kind-select {
-    width: auto;
-    min-width: 10rem;
+.condition-node .condition-row {
+    /* Room to breathe after the operator so it doesn't crowd the operand it applies to. */
+    column-gap: 0.75rem;
 }
 
-.condition-operand {
-    min-width: 14rem;
-    flex: 1 1 14rem;
+.condition-node .condition-kind-select {
+    flex: 0 0 auto;
+    width: 9.5rem;
+}
+
+.condition-node .condition-operand {
+    flex: 0 1 18rem;
+    min-width: 0;
 }
 
 /* The operand pickers sit inline in a flex row, so their default bottom margin would knock the
    row out of alignment. */
-.condition-operand > div {
-    margin-bottom: 0 !important;
+.condition-node .condition-operand > div {
+    margin-bottom: 0;
 }
 
 .condition-name-input {

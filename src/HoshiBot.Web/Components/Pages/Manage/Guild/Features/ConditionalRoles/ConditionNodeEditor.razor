@@ -5,7 +5,9 @@
    in this codebase. Indentation comes from the nesting, so an admin reads the shape of their rule
    the way it evaluates. *@
 <div class="condition-node @(Depth > 0 ? "condition-node-nested" : "")">
-    <div class="d-flex align-items-center gap-2 flex-wrap">
+    @* No flex-wrap: the kind select and its operand read as one statement ("has role — @164") and
+       must stay on one line; the row is sized so they fit rather than being allowed to break. *@
+    <div class="condition-row d-flex align-items-center gap-2">
         <select class="form-select form-select-sm condition-kind-select" value="@Node.Kind"
                 @onchange="OnKindChangedAsync">
             @foreach (var kind in SelectableKinds)
