@@ -64,7 +64,8 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
                 node.Kind,
                 byParent[node.Id].OrderBy(c => c.Position).Select(c => Build(c, byParent)!).ToList(),
                 node.RoleId,
-                node.ReferencedConditionId);
+                node.ReferencedConditionId,
+                node.StfcPlayerId);
 
     // Replaces an owner's whole tree. Trees are small and always edited as a unit, so this is
     // delete-everything-then-reinsert rather than a diff.
@@ -105,6 +106,7 @@ public class ConditionalRoleService(IDbContextFactory<HoshiBotDbContext> dbFacto
             Kind = node.Kind,
             RoleId = node.RoleId,
             ReferencedConditionId = node.ReferencedConditionId,
+            StfcPlayerId = node.StfcPlayerId,
             Position = position,
         };
 

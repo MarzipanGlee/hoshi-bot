@@ -22,6 +22,18 @@
                 <RolePicker ShowLabel="false" @bind-Value="Node.RoleId" @bind-Value:after="Changed" Roles="Roles" />
             </div>
         }
+        else if (Node.Kind == ConditionNodeKind.IsPlayer)
+        {
+            <div class="condition-operand">
+                <select class="form-select form-select-sm" value="@Node.StfcPlayerId" @onchange="OnPlayerChangedAsync">
+                    <option value="">@Msg.WebConditionalRoles.ChoosePlayer(Lang)</option>
+                    @foreach (var player in Players)
+                    {
+                        <option value="@player.Id">@player.Name</option>
+                    }
+                </select>
+            </div>
+        }
         else if (Node.Kind == ConditionNodeKind.MatchesCondition)
         {
             <div class="condition-operand">
@@ -50,7 +62,7 @@
         <div class="condition-children">
             @foreach (var child in Node.Children)
             {
-                <ConditionNodeEditor @key="child" Node="child" Roles="Roles" Conditions="Conditions"
+                <ConditionNodeEditor @key="child" Node="child" Roles="Roles" Conditions="Conditions" Players="Players"
                                      Depth="Depth + 1" OnRemove="RemoveChildAsync" OnChanged="Changed" />
             }
 
@@ -69,6 +81,20 @@
                         <RolePicker ShowLabel="false" PlaceholderText="@Msg.WebConditionalRoles.AddRoleOption(Lang)"
                                     @bind-Value="addRoleInput" @bind-Value:after="AddRoleChildAsync" Roles="Roles" />
                     </div>
+                    @if (Players.Count > 0)
+                    {
+                        @* Same one-action add as the role picker: a rogue listing is a dozen named
+                           players, which is a dozen add-then-pick round trips otherwise. *@
+                        <div class="condition-operand">
+                            <select class="form-select form-select-sm" value="" @onchange="AddPlayerChildAsync">
+                                <option value="">@Msg.WebConditionalRoles.AddPlayerOption(Lang)</option>
+                                @foreach (var player in Players)
+                                {
+                                    <option value="@player.Id">@player.Name</option>
+                                }
+                            </select>
+                        </div>
+                    }
                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AddGroupChildAsync">
                         @Msg.WebConditionalRoles.AddGroup(Lang)
                     </button>
@@ -91,6 +117,10 @@
     [Parameter, EditorRequired] public IReadOnlyList<Role> Roles { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlyList<ConditionOption> Conditions { get; set; } = [];
 
+    // The guild's linked players — the same set the sync compares a member against, so the picker
+    // can't offer someone a rule could never match.
+    [Parameter] public IReadOnlyList<PlayerOption> Players { get; set; } = [];
+
     [Parameter] public int Depth { get; set; }
 
     // The root has no remove button — a tree always has exactly one root; emptying it is done by
@@ -103,6 +133,8 @@
     [Parameter] public EventCallback OnChanged { get; set; }
 
     public record ConditionOption(int Id, string Name);
+
+    public record PlayerOption(int Id, string Name);
 
     private string? addRoleInput;
 
@@ -117,6 +149,7 @@
         ConditionNodeKind.HasLinkedPlayer,
         ConditionNodeKind.InHomeAlliance,
         ConditionNodeKind.OnHomeServer,
+        ConditionNodeKind.IsPlayer,
     ];
 
     private string KindLabel(ConditionNodeKind kind) => kind switch
@@ -128,6 +161,7 @@
         ConditionNodeKind.HasLinkedPlayer => Msg.WebConditionalRoles.KindHasLinkedPlayer(Lang),
         ConditionNodeKind.InHomeAlliance => Msg.WebConditionalRoles.KindInHomeAlliance(Lang),
         ConditionNodeKind.OnHomeServer => Msg.WebConditionalRoles.KindOnHomeServer(Lang),
+        ConditionNodeKind.IsPlayer => Msg.WebConditionalRoles.KindIsPlayer(Lang),
         _ => Msg.WebConditionalRoles.KindMatchesCondition(Lang),
     };
 
@@ -160,6 +194,21 @@
 
         Node.Children.Add(new EditableNode { Kind = ConditionNodeKind.HasRole, RoleId = roleId.ToString() });
         addRoleInput = null;
+        await Changed();
+    }
+
+    private async Task OnPlayerChangedAsync(ChangeEventArgs e)
+    {
+        Node.StfcPlayerId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        await Changed();
+    }
+
+    private async Task AddPlayerChildAsync(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var playerId))
+            return;
+
+        Node.Children.Add(new EditableNode { Kind = ConditionNodeKind.IsPlayer, StfcPlayerId = playerId });
         await Changed();
     }
 

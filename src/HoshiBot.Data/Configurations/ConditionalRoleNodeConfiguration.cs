@@ -47,5 +47,13 @@ public class ConditionalRoleNodeConfiguration : IEntityTypeConfiguration<Conditi
             .WithMany()
             .HasForeignKey(n => n.ReferencedConditionId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // SetNull rather than Restrict, unlike the condition above: players come and go with the
+        // roster import, and a rule must never be able to block one. The node is left unfinished
+        // instead, which makes its rule grant nothing until someone fixes it.
+        builder.HasOne(n => n.StfcPlayer)
+            .WithMany()
+            .HasForeignKey(n => n.StfcPlayerId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

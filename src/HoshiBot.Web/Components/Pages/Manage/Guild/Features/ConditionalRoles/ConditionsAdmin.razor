@@ -8,6 +8,7 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject ConditionalRoleService ConditionalRoles
 @inject DiscordGuildDataService DiscordData
+@inject PlayerLinkService PlayerLinks
 
 <PageTitle>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.ConditionalRoles, "conditions")</PageTitle>
 
@@ -36,7 +37,7 @@
                        placeholder="@Msg.WebConditionalRoles.ConditionNamePlaceholder(Lang)"
                        @bind="condition.Name" @bind:after="() => condition.Dirty = true" />
 
-                <ConditionNodeEditor Node="condition.Root" Roles="roles" Conditions="OptionsFor(condition.Id)" IsRoot="true"
+                <ConditionNodeEditor Node="condition.Root" Roles="roles" Conditions="OptionsFor(condition.Id)" Players="playerOptions" IsRoot="true"
                                      OnChanged="() => condition.Dirty = true" />
 
                 @if (!ConditionEvaluator.IsComplete(condition.Root.ToDomain(), conditionTrees))
@@ -84,6 +85,7 @@
     private bool loading = true;
     private List<ConditionVm> conditions = [];
     private List<Role> roles = [];
+    private List<ConditionNodeEditor.PlayerOption> playerOptions = [];
     private Dictionary<int, ConditionNode> conditionTrees = [];
     private List<ConditionNodeEditor.ConditionOption> allOptions = [];
     private string? newConditionName;
@@ -93,6 +95,15 @@
     {
         loading = true;
         roles = await DiscordData.GetRolesAsync(ParsedGuildId);
+
+        // Exactly the players the sync resolves members to, so a rule can never name someone it
+        // would then never match.
+        playerOptions = (await PlayerLinks.GetGuildPrimaryPlayersAsync(ParsedGuildId)).Values
+            .Select(p => new ConditionNodeEditor.PlayerOption(p.PlayerId, p.Name))
+            .DistinctBy(p => p.Id)
+            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         await LoadAsync();
         loading = false;
     }

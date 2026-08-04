@@ -43,6 +43,13 @@ public class ConditionalRoleNode
 
     public ConditionalRoleCondition? ReferencedCondition { get; set; }
 
+    // Set only for Kind == IsPlayer. SetNull if the player ever leaves the catalog: the node then
+    // reads as unfinished, which makes the whole rule grant nothing — visibly harmless rather than
+    // quietly matching the wrong person if an id were ever reused.
+    public int? StfcPlayerId { get; set; }
+
+    public StfcPlayer? StfcPlayer { get; set; }
+
     // Sibling order, so a rebuilt tree reads back the way the admin arranged it. Only meaningful
     // among nodes sharing a parent.
     public int Position { get; set; }

@@ -24,6 +24,10 @@ public enum ConditionNodeKind
     HasLinkedPlayer,
     InHomeAlliance,
     OnHomeServer,
+
+    // Whether the member's linked player IS one particular player. Unlike the two above this is
+    // never Unknown: it asks about the link itself, and "nobody is linked" answers it definitively.
+    IsPlayer,
 }
 
 // One node of a condition tree, free of EF and Discord so the semantics can be unit-tested on its
@@ -36,7 +40,8 @@ public sealed record ConditionNode(
     ConditionNodeKind Kind,
     IReadOnlyList<ConditionNode> Children,
     ulong? RoleId = null,
-    int? ReferencedConditionId = null)
+    int? ReferencedConditionId = null,
+    int? StfcPlayerId = null)
 {
     public static ConditionNode And(params ConditionNode[] children) => new(ConditionNodeKind.And, children);
 
@@ -50,4 +55,7 @@ public sealed record ConditionNode(
         new(ConditionNodeKind.MatchesCondition, [], ReferencedConditionId: conditionId);
 
     public static ConditionNode Leaf(ConditionNodeKind kind) => new(kind, []);
+
+    public static ConditionNode Player(int stfcPlayerId) =>
+        new(ConditionNodeKind.IsPlayer, [], StfcPlayerId: stfcPlayerId);
 }

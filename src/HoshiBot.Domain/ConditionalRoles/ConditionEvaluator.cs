@@ -64,8 +64,12 @@ public static class ConditionEvaluator
 
             ConditionNodeKind.MatchesCondition => IsReferenceComplete(node, namedConditions, visiting),
 
-            // The player-data leaves take no operand, so there is nothing to leave unfinished.
+            // These player leaves take no operand, so there is nothing to leave unfinished.
             ConditionNodeKind.HasLinkedPlayer or ConditionNodeKind.InHomeAlliance or ConditionNodeKind.OnHomeServer => true,
+
+            // This one does — and its id is cleared if the player is ever removed from the catalog,
+            // which turns the rule incomplete and therefore harmless rather than silently wrong.
+            ConditionNodeKind.IsPlayer => node.StfcPlayerId is not null,
 
             // A kind this build doesn't know (a row written by a newer version) is not something to
             // guess at.
@@ -133,6 +137,12 @@ public static class ConditionEvaluator
             ConditionNodeKind.OnHomeServer => facts.Player is { } onServer
                 ? Known(onServer.OnHomeServer)
                 : ConditionOutcome.Unknown,
+
+            // Never Unknown, unlike the two above: this asks about the link itself rather than about
+            // the person behind it, and "nobody is linked" answers it — they are definitively not
+            // that player. The other two stay Unknown because an unlinked member might well be in
+            // our alliance; we simply haven't linked them yet.
+            ConditionNodeKind.IsPlayer => Known(facts.Player is { } who && who.PlayerId == node.StfcPlayerId),
 
             _ => ConditionOutcome.NoMatch,
         };

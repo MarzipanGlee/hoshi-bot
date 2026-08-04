@@ -17,6 +17,8 @@ public sealed class EditableNode
 
     public int? ReferencedConditionId { get; set; }
 
+    public int? StfcPlayerId { get; set; }
+
     public List<EditableNode> Children { get; } = [];
 
     public bool IsOperator => Kind is ConditionNodeKind.And or ConditionNodeKind.Or or ConditionNodeKind.Not;
@@ -30,6 +32,7 @@ public sealed class EditableNode
             Kind = node.Kind,
             RoleId = node.RoleId?.ToString(),
             ReferencedConditionId = node.ReferencedConditionId,
+            StfcPlayerId = node.StfcPlayerId,
         };
         foreach (var child in node.Children)
             editable.Children.Add(FromDomain(child));
@@ -44,5 +47,6 @@ public sealed class EditableNode
         Kind,
         Children.Select(c => c.ToDomain()).ToList(),
         ulong.TryParse(RoleId, out var roleId) ? roleId : null,
-        ReferencedConditionId);
+        ReferencedConditionId,
+        StfcPlayerId);
 }

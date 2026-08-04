@@ -14,9 +14,12 @@ public class ConditionEvaluatorTests
 
     private static MemberFacts Member(params ulong[] roles) => MemberFacts.FromRoles(roles);
 
+    private const int PlayerEvil = 4242;
+    private const int PlayerOther = 99;
+
     // A member the bot has player data for.
-    private static MemberFacts Linked(bool inHomeAlliance, bool onHomeServer, params ulong[] roles) =>
-        new(roles.ToHashSet(), new PlayerFacts(inHomeAlliance, onHomeServer));
+    private static MemberFacts Linked(bool inHomeAlliance, bool onHomeServer, int playerId = PlayerEvil, params ulong[] roles) =>
+        new(roles.ToHashSet(), new PlayerFacts(playerId, inHomeAlliance, onHomeServer));
 
     private static ConditionOutcome Eval(ConditionNode node, MemberFacts facts, Dictionary<int, ConditionNode>? conditions = null) =>
         ConditionEvaluator.Evaluate(node, facts, conditions ?? NoConditions);
@@ -296,5 +299,45 @@ public class ConditionEvaluatorTests
         // They take no operand, so there is nothing an admin can leave half-filled.
         foreach (var kind in new[] { ConditionNodeKind.HasLinkedPlayer, ConditionNodeKind.InHomeAlliance, ConditionNodeKind.OnHomeServer })
             Assert.True(ConditionEvaluator.IsComplete(ConditionNode.Leaf(kind), NoConditions));
+    }
+
+    // "Is this member linked to player X" is the one player fact that is never Unknown: it asks
+    // about the link, and "nobody is linked" answers it. The two scope facts stay Unknown because an
+    // unlinked member might well be in our alliance — we just haven't linked them yet.
+    [Fact]
+    public void IsPlayer_IsAnswerableEvenWithNoLink()
+    {
+        var node = ConditionNode.Player(PlayerEvil);
+
+        Assert.Equal(ConditionOutcome.Match, Eval(node, Linked(inHomeAlliance: false, onHomeServer: true, playerId: PlayerEvil)));
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Linked(inHomeAlliance: false, onHomeServer: true, playerId: PlayerOther)));
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(node, Member()));
+    }
+
+    [Fact]
+    public void IsPlayer_WithoutAPlayerIsIncomplete()
+    {
+        // What a node becomes when its player leaves the catalog (the FK is SetNull): unfinished,
+        // so the rule grants nothing rather than matching whoever inherits the id.
+        var node = new ConditionNode(ConditionNodeKind.IsPlayer, []);
+
+        Assert.False(ConditionEvaluator.IsComplete(node, NoConditions));
+        Assert.False(Grants(node, Linked(inHomeAlliance: true, onHomeServer: true)));
+    }
+
+    // The shape a rogue listing takes: a rogue alliance's tag role, plus the named individuals.
+    [Fact]
+    public void RogueListing_MatchesTagRoleOrNamedPlayer()
+    {
+        const ulong tagXf = 900;
+        var rogues = ConditionNode.Or(
+            ConditionNode.HasRole(tagXf),
+            ConditionNode.Player(PlayerEvil));
+
+        Assert.True(Grants(rogues, Member(tagXf)));
+        Assert.True(Grants(rogues, Linked(inHomeAlliance: true, onHomeServer: true, playerId: PlayerEvil)));
+        Assert.False(Grants(rogues, Linked(inHomeAlliance: true, onHomeServer: true, playerId: PlayerOther)));
+        // No link and no tag role: decided, not Unknown — nothing here needed player scope data.
+        Assert.Equal(ConditionOutcome.NoMatch, Eval(rogues, Member()));
     }
 }

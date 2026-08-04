@@ -64,6 +64,7 @@ public class ConditionalRoleSyncJob(
                 guildUser.RoleIds.ToHashSet(),
                 players.TryGetValue(guildUser.Id, out var player)
                     ? new PlayerFacts(
+                        player.PlayerId,
                         player.AllianceId is { } allianceId && scope.AllianceIds.Contains(allianceId),
                         scope.ServerIds.Contains(player.ServerId))
                     : null);
