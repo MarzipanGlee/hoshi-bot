@@ -787,7 +787,7 @@
   "Web.Audit.ServerPermissionsMissing": "\u274c Hoshis Rolle fehlt: {permissions}",
   "Web.Audit.ServerPermissionsNeededBy": "Ben\u00f6tigt von: {features}",
   "Web.Audit.ReauthorizeButton": "Hoshi neu autorisieren",
-  "Web.Audit.ReauthorizeNote": "Das \u00e4ndert nur Hoshis serverweite Rolle und entfernt nie eine Berechtigung, die Du bewusst vergeben hast. Berechtigungen einzelner Kan\u00e4le sind davon getrennt \u2014 daf\u00fcr sind die Reparieren-Schaltfl\u00e4chen unten da.",
+  "Web.Audit.ReauthorizeNote": "Diese Berechtigungen gibt es nur serverweit — Rollen an Mitglieder vergeben und sie umbenennen lässt sich nicht pro Kanal erlauben. Es gibt unten also nichts zu reparieren, eine Neuautorisierung ist der einzige Weg. Sie ändert nur Hoshis eigene Rolle und entfernt nie eine Berechtigung, die Du bewusst vergeben hast. Berechtigungen einzelner Kanäle sind davon getrennt — dafür sind die Reparieren-Schaltflächen unten da.",
   "Web.Audit.FeatureAccessTitle": "Zugriff pro Funktion",
   "Web.Audit.FeatureAccessIntro": "Was jede aktivierte Funktion in den Kan\u00e4len braucht, auf die Du sie gesetzt hast \u2014 und ob Hoshi das hat.",
   "Web.Audit.NothingConfiguredStatus": "Noch kein Kanal konfiguriert",
