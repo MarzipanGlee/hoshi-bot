@@ -1,6 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -50,8 +51,7 @@ public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient,
                 request.ThreadId, request.RequestedByDiscordUserId);
             // Admin notification — guild language, resolved only on this rare failure path.
             var lang = await languageResolver.ForGuildAsync(request.GuildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(request.GuildId, Msg.Cleanup.ActionRemoveThread(lang),
-                Msg.Cleanup.HintManageThreads(lang, $"<#{request.ThreadId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(request.GuildId, BotAction.RemoveThread, request.ThreadId, BotPermission.ManageThreads);
             return;
         }
 

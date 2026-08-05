@@ -167,7 +167,10 @@ public class RoeViolationService(
             db.RoeViolationReports.Remove(report);
             await db.SaveChangesAsync();
             var guildLang = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Roe.ActionReport(guildLang), Msg.Roe.HintCreateForumPost(guildLang, $"<#{channelId}>"));
+            // Creating a forum post is Send Messages ("Create Posts" in a forum's own permission
+            // UI), not Create Public Threads — see ChannelAccessProfile.ForumPosts.
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.CreateRoeForumPost, channelId,
+                BotPermission.ViewChannel | BotPermission.SendMessages | BotPermission.EmbedLinks);
             return await ResultEmbedAsync(guildId, Msg.Roe.Title(lang), Msg.Roe.Misconfigured(lang));
         }
 
@@ -184,7 +187,7 @@ public class RoeViolationService(
         {
             // The post exists even if this part fails — nothing to roll back, just report it.
             var guildLang = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Roe.ActionAddThreadUsers(guildLang), Msg.Roe.HintThreadPermission(guildLang, $"<#{thread.Id}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.AddRoeThreadUsers, thread.Id, BotPermission.SendMessagesInThreads);
         }
 
         return await ResultEmbedAsync(guildId, Msg.Roe.CreatedTitle(lang),
@@ -223,7 +226,8 @@ public class RoeViolationService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLang = await languageResolver.ForGuildAsync(report.GuildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, Msg.Roe.ActionSendThreadMessage(guildLang), Msg.Roe.HintThreadPermission(guildLang, $"<#{report.ThreadId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, BotAction.SendRoeThreadMessage, report.ThreadId,
+                BotPermission.SendMessagesInThreads | BotPermission.EmbedLinks);
             return Msg.Roe.SendFailed(callerLang);
         }
 
@@ -255,7 +259,7 @@ public class RoeViolationService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLang = await languageResolver.ForGuildAsync(report.GuildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, Msg.Roe.ActionCloseThread(guildLang), Msg.Roe.HintManageThreads(guildLang, $"<#{report.ThreadId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(report.GuildId, BotAction.CloseRoeThread, report.ThreadId, BotPermission.ManageThreads);
             return Msg.Roe.CloseFailed(callerLang);
         }
 

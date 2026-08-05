@@ -65,7 +65,8 @@ public class TicketService(
             db.Tickets.Remove(ticket);
             await db.SaveChangesAsync();
             var guildLang = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionCreate(guildLang), Msg.Ticket.HintCreateThreads(guildLang, $"<#{channelId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.CreateTicketThread, channelId,
+                BotPermission.ViewChannel | BotPermission.CreatePrivateThreads);
             return Msg.Ticket.Misconfigured(lang);
         }
 
@@ -89,7 +90,8 @@ public class TicketService(
             // The thread exists even if this part fails — staff with channel permissions
             // can still see/use it, so there's nothing to roll back, just report it.
             var guildLang = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Ticket.ActionSendWelcome(guildLang), Msg.Ticket.HintThreadPermission(guildLang, $"<#{thread.Id}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SendTicketWelcome, thread.Id,
+                BotPermission.SendMessagesInThreads | BotPermission.EmbedLinks);
         }
 
         return Msg.Ticket.Created(lang, $"<#{thread.Id}>");
@@ -112,7 +114,7 @@ public class TicketService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLang = await languageResolver.ForGuildAsync(ticket.GuildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionAddCommander(guildLang), Msg.Ticket.HintThreadPermission(guildLang, $"<#{ticket.ThreadId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, BotAction.AddTicketCommander, ticket.ThreadId, BotPermission.SendMessagesInThreads);
             return Msg.Ticket.AddFailed(callerLanguage);
         }
 
@@ -142,7 +144,7 @@ public class TicketService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLang = await languageResolver.ForGuildAsync(ticket.GuildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, Msg.Ticket.ActionClose(guildLang), Msg.Ticket.HintManageThreads(guildLang, $"<#{ticket.ThreadId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(ticket.GuildId, BotAction.CloseTicket, ticket.ThreadId, BotPermission.ManageThreads);
             return Msg.Ticket.CloseFailed(callerLang);
         }
 

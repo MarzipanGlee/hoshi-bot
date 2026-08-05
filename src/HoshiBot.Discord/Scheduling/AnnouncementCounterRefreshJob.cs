@@ -57,8 +57,8 @@ public class AnnouncementCounterRefreshJob(
                 logger.LogWarning("Could not refresh read-count button for announcement {AnnouncementId}: {StatusCode}",
                     announcement.Id, ex.StatusCode);
                 var guildLang = await languageResolver.ForGuildAsync(announcement.GuildId);
-                await dispatcher.NotifyAdminOfPermissionIssueAsync(announcement.GuildId, Msg.Announce.ActionUpdate(guildLang),
-                    Msg.Announce.HintChannelPermission(guildLang, $"<#{announcement.ChannelId}>"));
+                await dispatcher.NotifyAdminOfPermissionIssueAsync(announcement.GuildId, BotAction.UpdateAnnouncement, announcement.ChannelId,
+                    BotPermission.ViewChannel | BotPermission.SendMessages);
             }
 
             announcement.LastKnownReadCount = count;

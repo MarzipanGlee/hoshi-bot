@@ -529,7 +529,7 @@ public class AlertService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLang = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Alert.ActionToggleRole(guildLang), Msg.Alert.HintManageRoles(guildLang));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.ToggleOptInRole, null, BotPermission.ManageRoles);
             return Msg.Alert.RoleToggleFailed(lang);
         }
 

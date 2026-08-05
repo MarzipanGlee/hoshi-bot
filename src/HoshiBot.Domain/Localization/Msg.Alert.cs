@@ -110,11 +110,7 @@ public static partial class Msg
         public static string RoleUnavailable(Language lang) =>
             MessageCatalog.Format(lang, "Alert.RoleUnavailable");
 
-        public static string ActionToggleRole(Language lang) =>
-            MessageCatalog.Format(lang, "Alert.ActionToggleRole");
 
-        public static string HintManageRoles(Language lang) =>
-            MessageCatalog.Format(lang, "Alert.HintManageRoles");
 
         public static string RoleToggleFailed(Language lang) =>
             MessageCatalog.Format(lang, "Alert.RoleToggleFailed");

@@ -1,6 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Gateway;
@@ -44,7 +45,7 @@ public class BetaTesterService(HoshiBotDbContext db, GatewayClient gatewayClient
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLanguage = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Bridge.BetaActionAdjustRole(guildLanguage), Msg.Bridge.BetaHintManageRoles(guildLanguage));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.AdjustBetaTesterRole, null, BotPermission.ManageRoles);
             return Msg.Bridge.BetaToggleFailed(callerLanguage);
         }
 

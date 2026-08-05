@@ -52,7 +52,7 @@ public class AnonymousMessageService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLanguage = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Anon.ActionSend(guildLanguage), Msg.Anon.HintChannelPermission(guildLanguage, $"<#{channelId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SendAnonymousMessage, channelId, ChannelAccessProfile.Post.Permissions());
             return Msg.Anon.SendFailed(callerLanguage);
         }
 

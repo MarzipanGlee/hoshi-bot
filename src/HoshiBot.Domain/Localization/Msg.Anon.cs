@@ -12,11 +12,7 @@ public static partial class Msg
         public static string Body(Language lang, string message) =>
             MessageCatalog.Format(lang, "Anon.Body", ("message", message));
 
-        public static string ActionSend(Language lang) =>
-            MessageCatalog.Format(lang, "Anon.ActionSend");
 
-        public static string HintChannelPermission(Language lang, string channel) =>
-            MessageCatalog.Format(lang, "Anon.HintChannelPermission", ("channel", channel));
 
         public static string SendFailed(Language lang) =>
             MessageCatalog.Format(lang, "Anon.SendFailed");

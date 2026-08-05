@@ -82,12 +82,7 @@ public static partial class Msg
         public static string AlreadyRead(Language lang) =>
             MessageCatalog.Format(lang, "Announce.AlreadyRead");
 
-        // AnnouncementCounterRefreshJob's admin-notify action/hint pieces.
-        public static string ActionUpdate(Language lang) =>
-            MessageCatalog.Format(lang, "Announce.ActionUpdate");
 
-        public static string HintChannelPermission(Language lang, string channel) =>
-            MessageCatalog.Format(lang, "Announce.HintChannelPermission", ("channel", channel));
 
         // The forwarded-translation embed (AnnouncementForwarderService).
         public static string ForwardTitle(Language lang) =>

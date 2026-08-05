@@ -5,6 +5,7 @@ using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 
@@ -122,8 +123,7 @@ public class NotificationDispatcher(
             // this rare failure path stays cheap).
             var lang = await languageResolver.ForGuildAsync(guildId);
             await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode, lang);
-            await NotifyAdminOfPermissionIssueAsync(guildId, Msg.Notify.ActionSendAlert(lang),
-                Msg.Notify.HintChannelPermission(lang, $"<#{channelId}>"));
+            await NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SendAlert, channelId, ChannelAccessProfile.Post.Permissions());
             return null;
         }
     }
@@ -256,41 +256,99 @@ public class NotificationDispatcher(
     // single-instance bot, and a restart is itself a reasonable point to re-notify if the
     // problem is still there.
     private static readonly TimeSpan NotifyThrottle = TimeSpan.FromHours(1);
-    private static readonly ConcurrentDictionary<(ulong GuildId, string Context), DateTimeOffset> LastNotifiedAt = new();
+    // Keyed by (guild, action, channel). It used to be keyed by the LOCALIZED action text, which
+    // meant two different channels failing the same action shared one hourly slot — only the first
+    // was ever reported — and changing the guild's language silently reset every throttle.
+    private static readonly ConcurrentDictionary<(ulong GuildId, BotAction Action, ulong? ChannelId), DateTimeOffset> LastNotifiedAt = new();
 
-    // Surfaces a permission/configuration problem to a human in Discord instead of only a
-    // server-side log line nobody in the guild ever sees. Reactive (call this from a catch
-    // block once an action has actually failed), not a pre-check — resolving effective
-    // Discord permissions ourselves would be easy to get wrong; letting the real action
-    // fail and reporting that is simpler and just as accurate.
-    public async Task NotifyAdminOfPermissionIssueAsync(ulong guildId, string context, string missingPermissionHint)
+    // Surfaces a permission problem to a human in Discord instead of only a server-side log line
+    // nobody in the guild ever sees, naming the exact permission and channel rather than a
+    // hand-written guess at the cause.
+    //
+    // Still reactive: call it from a catch block once an action has actually failed. The existing
+    // rule this respects forbids PRE-checking — declining to act based on our own permission math,
+    // where being wrong silently drops a message. Narrowing the report below runs only after a real
+    // failure and only affects wording, where being wrong is cosmetic and the fallback is the full
+    // requirement.
+    //
+    // required: the bits THAT call needed, not the channel's whole profile — a Manage Threads
+    // failure should not tell an admin to grant Embed Links.
+    public async Task NotifyAdminOfPermissionIssueAsync(
+        ulong guildId, BotAction action, ulong? channelId, BotPermission required)
     {
-        var key = (guildId, context);
+        var key = (guildId, action, channelId);
         var now = DateTimeOffset.UtcNow;
         if (LastNotifiedAt.TryGetValue(key, out var lastSent) && now - lastSent < NotifyThrottle)
             return;
         LastNotifiedAt[key] = now;
 
         var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.AdminChannelId is not { } channelId)
+        if (settings?.AdminChannelId is not { } adminChannelId)
         {
-            logger.LogWarning("Permission issue in guild {GuildId} ({Context}, hint: {Hint}) but no AdminChannelId configured to report it to.",
-                guildId, context, missingPermissionHint);
+            logger.LogWarning("Permission issue in guild {GuildId} ({Action} in channel {ChannelId}, needs {Required}) but no AdminChannelId configured to report it to.",
+                guildId, action, channelId, required);
             return;
         }
 
         try
         {
             var lang = await languageResolver.ForGuildAsync(guildId);
+            var missing = await NarrowToActuallyMissingAsync(guildId, channelId, required);
+            var permissions = Msg.Perm.List(lang, missing);
+            var body = channelId is { } target
+                ? Msg.Notify.PermissionIssueChannel(lang, Msg.Notify.Action(lang, action), $"<#{target}>", permissions)
+                : Msg.Notify.PermissionIssueGuild(lang, Msg.Notify.Action(lang, action), permissions);
+
             var embed = await embedBranding.BuildBrandedAsync(guildId,
-                Msg.Notify.PermissionIssue(lang, context, missingPermissionHint),
+                $"{body}\n\n{Msg.Notify.PermissionIssueHelp(lang)}",
                 EmbedBranding.DangerColor);
-            await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties { Embeds = [embed] });
+            await gatewayClient.Rest.SendMessageAsync(adminChannelId, new MessageProperties { Embeds = [embed] });
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             logger.LogWarning("Could not notify admin channel {ChannelId} for guild {GuildId} about a permission issue: {StatusCode}",
-                channelId, guildId, ex.StatusCode);
+                adminChannelId, guildId, ex.StatusCode);
+        }
+    }
+
+    // Best-effort: report only the bits the bot genuinely lacks, so an admin isn't sent to grant
+    // four permissions when one is missing. Any failure to work it out returns the full requirement
+    // — which is exactly what this reported before, so a wrong answer degrades rather than lies.
+    //
+    // Threads are the awkward case: a ticket/report thread is not in the guild channel list and
+    // GetChannelPermissions does not accept one, so resolve the parent channel instead. If that
+    // cannot be found either, don't guess.
+    private async Task<BotPermission> NarrowToActuallyMissingAsync(ulong guildId, ulong? channelId, BotPermission required)
+    {
+        if (channelId is not { } target)
+            return required;
+
+        try
+        {
+            if (!gatewayClient.Cache.Guilds.TryGetValue(guildId, out var guild))
+                return required;
+
+            var bot = guild.Users.TryGetValue(gatewayClient.Id, out var cached)
+                ? cached
+                : await gatewayClient.Rest.GetGuildUserAsync(guildId, gatewayClient.Id);
+
+            // A thread is not in guild.Channels and GetChannelPermissions cannot take one, so
+            // resolve the channel it lives under. If neither is known, don't guess.
+            var resolved = guild.Channels.ContainsKey(target) ? target
+                : guild.ActiveThreads.TryGetValue(target, out var thread) && thread.ParentId is { } parentId ? parentId
+                : (ulong?)null;
+
+            if (resolved is not { } channelToCheck || !guild.Channels.ContainsKey(channelToCheck))
+                return required;
+
+            var missing = required & ~bot.GetChannelPermissions(guild, channelToCheck).ToDomain();
+
+            return missing == BotPermission.None ? required : missing;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not narrow the missing permissions for channel {ChannelId} in guild {GuildId}", target, guildId);
+            return required;
         }
     }
 }

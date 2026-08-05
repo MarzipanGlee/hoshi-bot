@@ -84,26 +84,11 @@ public static partial class Msg
         public static string UnknownReportType(Language lang) =>
             MessageCatalog.Format(lang, "Roe.UnknownReportType");
 
-        // Admin permission-issue notifications (NotificationDispatcher action/hint pairs).
-        public static string ActionReport(Language lang) =>
-            MessageCatalog.Format(lang, "Roe.ActionReport");
 
-        public static string ActionAddThreadUsers(Language lang) =>
-            MessageCatalog.Format(lang, "Roe.ActionAddThreadUsers");
 
-        public static string ActionSendThreadMessage(Language lang) =>
-            MessageCatalog.Format(lang, "Roe.ActionSendThreadMessage");
 
-        public static string ActionCloseThread(Language lang) =>
-            MessageCatalog.Format(lang, "Roe.ActionCloseThread");
 
-        public static string HintCreateForumPost(Language lang, string channel) =>
-            MessageCatalog.Format(lang, "Roe.HintCreateForumPost", ("channel", channel));
 
-        public static string HintThreadPermission(Language lang, string thread) =>
-            MessageCatalog.Format(lang, "Roe.HintThreadPermission", ("thread", thread));
 
-        public static string HintManageThreads(Language lang, string thread) =>
-            MessageCatalog.Format(lang, "Roe.HintManageThreads", ("thread", thread));
     }
 }

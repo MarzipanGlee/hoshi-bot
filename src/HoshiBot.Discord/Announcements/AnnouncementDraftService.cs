@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using NetCord.Gateway;
@@ -13,15 +14,17 @@ namespace HoshiBot.Discord.Announcements;
 // severity from a second prompt.
 //
 // Both halves are reaction-driven, so both need GatewayIntents.GuildMessageReactions (Host
-// Program.cs) and the Add Reactions permission in the draft channel (see PermissionAuditService).
-// Without the permission the decorating silently fails — logged, not thrown, since a draft channel
-// nobody can react in is a configuration problem for the audit page to surface, not a reason to
-// tear down message handling.
+// Program.cs) and the Add Reactions permission in the draft channel (declared as
+// ChannelAccessProfile.Draft). Missing the permission does not throw — a draft channel nobody can
+// react in is a configuration problem, not a reason to tear down message handling — but it is
+// reported to the guild's admin channel, because it is otherwise completely silent: nothing about
+// the draft looks wrong, staff just post into a channel where nothing ever happens.
 public class AnnouncementDraftService(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     LanguageResolver languageResolver,
+    NotificationDispatcher dispatcher,
     ILogger<AnnouncementDraftService> logger)
 {
     // Called from AiChatMessageHandler's single MESSAGE_CREATE path. Every non-bot message in a
@@ -44,7 +47,13 @@ public class AnnouncementDraftService(
         }
         catch (RestException ex)
         {
-            logger.LogWarning(ex, "Could not add announcement draft reactions in channel {ChannelId} (missing Add Reactions?)", message.ChannelId);
+            logger.LogWarning(ex, "Could not add announcement draft reactions in channel {ChannelId}", message.ChannelId);
+
+            // Worth telling an admin about rather than only logging: without the reactions there is
+            // no way to publish an announcement at all, and nothing else about the draft looks wrong
+            // — staff just post into a channel where nothing ever happens.
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.AddDraftReactions, message.ChannelId,
+                BotPermission.ViewChannel | BotPermission.AddReactions);
         }
     }
 

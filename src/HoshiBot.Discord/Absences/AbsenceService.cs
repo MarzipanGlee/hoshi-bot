@@ -261,25 +261,23 @@ public class AbsenceService(
             var publicEmbed = await BuildReportEmbedAsync(guildId, allianceId, active, upcoming, isStaffView: false, allianceLang);
             var staffEmbed = await BuildReportEmbedAsync(guildId, allianceId, active, upcoming, isStaffView: true, allianceLang);
 
-            await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportChannel, AbsencesSettingKeys.ReportMessageId,
-                publicEmbed, Msg.Absence.PublicReportContext(guildLang));
-            await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportStaffChannel, AbsencesSettingKeys.ReportStaffMessageId,
-                staffEmbed, Msg.Absence.StaffReportContext(guildLang));
+            await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportChannel, AbsencesSettingKeys.ReportMessageId, publicEmbed);
+            await RefreshOneAsync(guildId, allianceId, AbsencesSettingKeys.ReportStaffChannel, AbsencesSettingKeys.ReportStaffMessageId, staffEmbed);
         }
     }
 
-    private async Task RefreshOneAsync(ulong guildId, int guildAllianceId, string channelKey, string messageKey, EmbedProperties embed, string context)
+    private async Task RefreshOneAsync(ulong guildId, int guildAllianceId, string channelKey, string messageKey, EmbedProperties embed)
     {
         var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, guildAllianceId, channelKey);
         if (channelId is not { } channelIdValue)
             return;
 
         var existingMessageId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, guildAllianceId, messageKey);
-        var newMessageId = await PostOrEditAsync(guildId, channelIdValue, existingMessageId, embed, context);
+        var newMessageId = await PostOrEditAsync(guildId, channelIdValue, existingMessageId, embed);
         await settingsService.SetSnowflakeAsync(guildId, GuildFeature.Absences, GuildAudience.Alliance, guildAllianceId, messageKey, newMessageId);
     }
 
-    private async Task<ulong?> PostOrEditAsync(ulong guildId, ulong channelId, ulong? existingMessageId, EmbedProperties embed, string context)
+    private async Task<ulong?> PostOrEditAsync(ulong guildId, ulong channelId, ulong? existingMessageId, EmbedProperties embed)
     {
         if (existingMessageId is { } messageId)
         {
@@ -301,7 +299,7 @@ public class AbsenceService(
                 if (ex.StatusCode == HttpStatusCode.Forbidden)
                 {
                     var guildLang = await languageResolver.ForGuildAsync(guildId);
-                    await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Absence.ActionRefresh(guildLang, context), Msg.Absence.HintChannelPermission(guildLang, $"<#{channelId}>"));
+                    await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.RefreshAbsenceReport, channelId, ChannelAccessProfile.Post.Permissions());
                 }
                 return messageId;
             }
@@ -315,7 +313,7 @@ public class AbsenceService(
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             var guildLang = await languageResolver.ForGuildAsync(guildId);
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, Msg.Absence.ActionRefresh(guildLang, context), Msg.Absence.HintChannelPermission(guildLang, $"<#{channelId}>"));
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.RefreshAbsenceReport, channelId, ChannelAccessProfile.Post.Permissions());
             return null;
         }
     }

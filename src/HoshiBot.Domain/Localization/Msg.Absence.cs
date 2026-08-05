@@ -52,18 +52,9 @@ public static partial class Msg
         public static string Deleted(Language lang) =>
             MessageCatalog.Format(lang, "Absence.Deleted");
 
-        // NotificationDispatcher action/hint pieces for the report refresh.
-        public static string PublicReportContext(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.PublicReportContext");
 
-        public static string StaffReportContext(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.StaffReportContext");
 
-        public static string ActionRefresh(Language lang, string context) =>
-            MessageCatalog.Format(lang, "Absence.ActionRefresh", ("context", context));
 
-        public static string HintChannelPermission(Language lang, string channel) =>
-            MessageCatalog.Format(lang, "Absence.HintChannelPermission", ("channel", channel));
 
         // The pinned report embed.
         public static string BridgeFallback(Language lang) =>
