@@ -7,6 +7,7 @@
 @inject GuildFeatureService FeatureService
 @inject GuildFeatureSettingsService SettingsService
 @inject CurrentAllianceContext AllianceContext
+@inject GuildPermissionSnapshotService PermissionSnapshots
 @inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage Storage
 
 <PageTitle>@Heading()</PageTitle>
@@ -54,6 +55,13 @@
                                 BorderClass="@borderClass" Enabled="@enabled"
                                 EnabledChanged="e => ToggleFeatureAsync(feature.Feature, e)">
                         <Requirements>
+                            @if (enabled)
+                            {
+                                <div class="mb-2">
+                                    <PermissionStatusBadge Status="permissionSnapshot.For(feature.Feature, audience, Scope)"
+                                                           Href="@PermissionCheckHref(feature)" />
+                                </div>
+                            }
                             @if (deps is { Count: > 0 })
                             {
                                 var unmet = deps.Where(d => !d.Satisfied).ToList();
@@ -102,6 +110,10 @@
     // Per-visible-feature dependency states (only features that actually declare dependencies get
     // an entry) — drives both the "Requires: …" hint and the not-fully-configured border.
     private Dictionary<GuildFeature, IReadOnlyList<FeatureDependencyState>> dependencyStates = [];
+    // Whether Hoshi actually holds the Discord permissions each enabled feature needs. Costs no
+    // extra Discord calls — the channel/role/bot-member reads it derives from are already 60s
+    // cached per guild (see GuildPermissionSnapshotService).
+    private GuildPermissionSnapshot permissionSnapshot = GuildPermissionSnapshot.Unavailable;
     private bool hideInactive;
 
     private bool DependenciesSatisfied(GuildFeature feature) =>
@@ -120,6 +132,10 @@
 
     private GuildAlliance? AllianceLink =>
         scopeAllianceId is { } id ? AllianceContext.Alliances.FirstOrDefault(a => a.Id == id) : null;
+
+    // Deep-links to this feature's own card on the permission page (the cards carry an id).
+    private string PermissionCheckHref(IFeatureModule feature) =>
+        $"/manage/guild/{ParsedGuildId}/permission-check#feature-{feature.Feature}";
 
     private string FeatureHref(IFeatureModule feature) =>
         $"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, audience, scopeAllianceId)}/features/{feature.Slug}";
@@ -239,6 +255,7 @@
             : features;
 
         await LoadDependencyStatesAsync(context);
+        permissionSnapshot = await PermissionSnapshots.GetAsync(ParsedGuildId);
     }
 
     // Resolve dependency states for the currently-visible features. A dependency may live in a

@@ -529,6 +529,12 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
     {
         cache.Remove($"discord-guild-channels:{guildId}");
         cache.Remove($"discord-guild-roles:{guildId}");
+
+        // The permission snapshot is derived from both of the above, so it has to go with them —
+        // otherwise a Fix on the permission page leaves the feature badges showing the old state
+        // for up to a minute. Referenced by prefix rather than by injecting the service, which
+        // would be a cycle (the snapshot service reads channels/roles from here).
+        cache.Remove($"{GuildPermissionSnapshotService.CacheKeyPrefix}{guildId}");
     }
 }
 

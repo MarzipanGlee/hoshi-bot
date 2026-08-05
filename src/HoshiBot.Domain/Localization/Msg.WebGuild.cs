@@ -67,6 +67,24 @@ public static partial class Msg
         public static string SetupComplete(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.SetupComplete");
 
+        // Feature permission badges (PermissionStatusBadge) — shown on the Features index and on a
+        // feature's own settings page, so a missing Discord permission surfaces where the feature
+        // is configured instead of only on the Permission Check page.
+        public static string PermissionsMissingBadge(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.PermissionsMissingBadge");
+
+        public static string PermissionsChannelGoneBadge(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.PermissionsChannelGoneBadge");
+
+        public static string PermissionsUnknownBadge(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.PermissionsUnknownBadge");
+
+        public static string PermissionsMissingAlert(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.PermissionsMissingAlert");
+
+        public static string PermissionsCheckLink(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.PermissionsCheckLink");
+
         public static string NeedsSetupSubtitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.NeedsSetupSubtitle");
 

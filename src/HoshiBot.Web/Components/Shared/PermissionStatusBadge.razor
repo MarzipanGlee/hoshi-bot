@@ -1,0 +1,39 @@
+@* Whether Hoshi actually has the Discord permissions this feature needs, shown where the feature
+   is configured rather than only on a separate page. Renders nothing at all when there is nothing
+   to say — a feature that is fine, or one that has configured no channels yet (IsConfiguredAsync
+   already owns that message, and a second warning saying the same thing is just noise). *@
+@using HoshiBot.Domain.Entities
+
+@if (Href is { Length: > 0 })
+{
+    <a class="badge @CssClass text-decoration-none" href="@Href">@Label</a>
+}
+else if (Label is { Length: > 0 })
+{
+    <span class="badge @CssClass">@Label</span>
+}
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired]
+    public FeaturePermissionStatus Status { get; set; }
+
+    /// Links to the matching feature card on the Permission Check page when set.
+    [Parameter] public string? Href { get; set; }
+
+    private string? Label => Status switch
+    {
+        FeaturePermissionStatus.Missing => Msg.WebGuild.PermissionsMissingBadge(Lang),
+        FeaturePermissionStatus.ChannelMissing => Msg.WebGuild.PermissionsChannelGoneBadge(Lang),
+        FeaturePermissionStatus.Unknown => Msg.WebGuild.PermissionsUnknownBadge(Lang),
+        _ => null,
+    };
+
+    private string CssClass => Status switch
+    {
+        FeaturePermissionStatus.Missing => "bg-danger",
+        FeaturePermissionStatus.ChannelMissing => "bg-danger",
+        _ => "bg-secondary",
+    };
+}

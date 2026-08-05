@@ -7,6 +7,7 @@
 @inject GuildFeatureService FeatureService
 @inject GuildFeatureSettingsService SettingsService
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject GuildPermissionSnapshotService PermissionSnapshots
 
 <PageTitle>@(descriptor?.Title(Lang) ?? Msg.WebGuild.FeatureSettingsTitle(Lang))</PageTitle>
 
@@ -63,6 +64,15 @@
             </div>
         }
 
+        @if (permissionStatus is FeaturePermissionStatus.Missing or FeaturePermissionStatus.ChannelMissing)
+        {
+            <div class="alert alert-warning">
+                <span class="oi oi-lock-locked" aria-hidden="true"></span>
+                @Msg.WebGuild.PermissionsMissingAlert(Lang)
+                <a class="ms-1" href="@PermissionCheckHref()">@Msg.WebGuild.PermissionsCheckLink(Lang)</a>
+            </div>
+        }
+
         <DynamicComponent Type="descriptor.EditorComponentType" Parameters="editorParameters" @key="editorKey" />
     }
 </AuthorizedGuildView>
@@ -84,6 +94,9 @@
     private GuildAudience resolvedAudience;
     private int? resolvedAllianceId;
     private IReadOnlyList<FeatureDependencyState> dependencies = [];
+    // Whether Hoshi holds the Discord permissions this feature needs, at THIS page's exact scope —
+    // a guild-wide roll-up would show red on an alliance whose own setup is fine.
+    private FeaturePermissionStatus permissionStatus = FeaturePermissionStatus.Ok;
 
     protected override async Task OnAuthorizedParametersSetAsync()
     {
@@ -163,6 +176,8 @@
         resolvedAllianceId = guildAllianceId;
         var depContext = new FeatureModuleContext(FeatureService, SettingsService, DbFactory);
         dependencies = await descriptor.GetDependencyStatesAsync(ParsedGuildId, effectiveAudience, guildAllianceId, depContext);
+        permissionStatus = (await PermissionSnapshots.GetAsync(ParsedGuildId))
+            .For(descriptor.Feature, effectiveAudience, guildAllianceId);
     }
 
     // Configure link for a dependency, relative to this feature's context: the same audience/
@@ -186,6 +201,9 @@
     }
 
     // Route id if it's a real link of this guild; else the selected alliance; else the primary.
+    private string PermissionCheckHref() =>
+        $"/manage/guild/{ParsedGuildId}/permission-check#feature-{descriptor!.Feature}";
+
     private async Task<int?> ResolveAllianceIdAsync(int? routeId)
     {
         if (routeId is { } id && await AllianceService.FindByIdAsync(ParsedGuildId, id) is not null)

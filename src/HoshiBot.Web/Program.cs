@@ -144,6 +144,7 @@ builder.Services.AddScoped<DiscordUserGuildsService>();
 builder.Services.AddScoped<DiscordGuildDataService>();
 builder.Services.AddScoped<PermissionAuditService>();
 builder.Services.AddScoped<BotInviteService>();
+builder.Services.AddScoped<GuildPermissionSnapshotService>();
 builder.Services.AddScoped<StfcPlayerImportService>();
 builder.Services.AddScoped<StfcAllianceImportService>();
 builder.Services.AddScoped<StfcCatalogImportService>();
