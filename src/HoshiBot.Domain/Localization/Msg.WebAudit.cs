@@ -1,3 +1,5 @@
+using HoshiBot.Domain.Entities;
+
 namespace HoshiBot.Domain.Localization;
 
 public static partial class Msg
@@ -44,6 +46,54 @@ public static partial class Msg
             var label = MessageCatalog.Format(lang, key);
             return label == key ? name : label;
         }
+
+        // The same enum-keyed pattern for a channel's access profile ("Web.Audit.Profile.<Name>") —
+        // what the bot DOES in a channel, which is more use to an admin than a list of bits.
+        public static string Profile(Language lang, ChannelAccessProfile profile)
+        {
+            var key = $"Web.Audit.Profile.{profile}";
+            var label = MessageCatalog.Format(lang, key);
+            return label == key ? profile.ToString() : label;
+        }
+
+        public static string GuildWideGroup(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.GuildWideGroup");
+
+        public static string ServerPermissionsTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsTitle");
+
+        public static string ServerPermissionsOk(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsOk");
+
+        public static string ServerPermissionsMissing(Language lang, string permissions) =>
+            MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsMissing", ("permissions", permissions));
+
+        public static string ServerPermissionsNeededBy(Language lang, string features) =>
+            MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsNeededBy", ("features", features));
+
+        public static string ReauthorizeButton(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ReauthorizeButton");
+
+        public static string ReauthorizeNote(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ReauthorizeNote");
+
+        public static string FeatureAccessTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.FeatureAccessTitle");
+
+        public static string FeatureAccessIntro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.FeatureAccessIntro");
+
+        public static string NothingConfiguredStatus(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.NothingConfiguredStatus");
+
+        public static string ChannelGoneStatus(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ChannelGoneStatus");
+
+        public static string DoesColumn(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.DoesColumn");
+
+        public static string UnauditableNote(Language lang, string features) =>
+            MessageCatalog.Format(lang, "Web.Audit.UnauditableNote", ("features", features));
 
         public static string BotLacksManageRoles(Language lang) =>
             MessageCatalog.Format(lang, "Web.Audit.BotLacksManageRoles");

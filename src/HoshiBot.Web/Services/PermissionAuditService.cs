@@ -3,7 +3,6 @@ using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using NetCord;
 using NetCord.Rest;
 
@@ -23,8 +22,9 @@ public sealed class PermissionAuditService(
     IDbContextFactory<HoshiBotDbContext> dbFactory,
     DiscordGuildDataService discordData,
     BotChannelRequirementService requirementService,
+    GuildFeatureService featureService,
+    BotInviteService inviteService,
     RestClient botRestClient,
-    IMemoryCache cache,
     IConfiguration configuration)
 {
     public static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
@@ -257,6 +257,81 @@ public sealed class PermissionAuditService(
         return results.OrderBy(r => r.HasAccess).ThenBy(r => r.Sources, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    // The same audit, arranged the way an admin thinks about it: per feature, then per channel,
+    // rather than a flat channel list they have to reverse-engineer. Also carries the server-level
+    // card — the guild-wide bits (Manage Roles, Manage Nicknames) that no per-channel Fix can grant,
+    // which were not checked at all before.
+    //
+    // Note the deliberate asymmetry: a row shows what THIS feature needs in that channel, but the
+    // Fix button grants the union of everything pointing at it (BotAccessResult.Required), because
+    // granting less would leave another feature's row failing on the very next re-check.
+    public async Task<FeatureAccessReport> BuildFeatureReportAsync(PermissionAuditContext context, Language lang)
+    {
+        var requirements = ExpandCategories(await requirementService.LoadAsync(context.GuildId), context);
+        var findings = ChannelAccessEvaluator.Evaluate(requirements, channelId =>
+            context.Channels.FirstOrDefault(c => c.Id == channelId) is { } channel
+                ? context.BotChannelPermissions(channel).ToDomain()
+                : null);
+
+        var access = (await CheckBotAccessAsync(context, lang)).ToDictionary(r => r.ChannelId);
+
+        var enabled = await featureService.GetEnabledAsync(context.GuildId);
+        var scopes = enabled.Select(e => new FeatureScope(e.Feature, e.Audience, e.GuildAllianceId)).ToList();
+        var summaries = ChannelAccessEvaluator.GroupByFeature(findings, context.BotPermissions.ToDomain(), scopes);
+
+        // One card per feature even when a feature is configured per alliance — the scopes become
+        // labelled rows inside it, which is far easier to scan than three near-identical cards.
+        var groups = summaries
+            .GroupBy(s => s.Feature)
+            .Select(g => new FeatureAccessGroup(
+                g.Key,
+                GuildFeatureService.FeatureLabel(g.Key, lang),
+                WorstOf(g.Select(s => s.Status)),
+                g.Aggregate(BotPermission.None, (acc, s) => acc | s.MissingGuildPermissions),
+                [.. g.SelectMany(s => s.Findings).Select(f => Row(f, access, context, lang)).OrderBy(r => r.Ok)]))
+            .ToList();
+
+        // Channels that belong to the guild rather than to a feature (the activity log, the admin
+        // channel every failure report falls back to) get their own group at the end.
+        var guildWide = findings.Where(f => f.Requirement.Feature is null).ToList();
+        if (guildWide.Count > 0)
+        {
+            groups.Add(new FeatureAccessGroup(
+                null,
+                Msg.WebAudit.GuildWideGroup(lang),
+                guildWide.All(f => f.Ok) ? FeaturePermissionStatus.Ok : FeaturePermissionStatus.Missing,
+                BotPermission.None,
+                [.. guildWide.Select(f => Row(f, access, context, lang)).OrderBy(r => r.Ok)]));
+        }
+
+        var granted = context.BotPermissions.ToDomain();
+        var needed = await inviteService.NeededForAsync(context.GuildId);
+        var server = new ServerPermissionSummary(granted, needed, inviteService.AuthorizeUrl(context.GuildId, needed, granted));
+
+        return new FeatureAccessReport(
+            [.. groups.OrderBy(g => g.Status is FeaturePermissionStatus.Ok or FeaturePermissionStatus.NoChannelsConfigured).ThenBy(g => g.Title, StringComparer.CurrentCultureIgnoreCase)],
+            server,
+            GuildFeaturePermissions.UnauditableFeatures);
+    }
+
+    private static FeatureAccessRow Row(
+        ChannelAccessFinding finding, IReadOnlyDictionary<ulong, BotAccessResult> access, PermissionAuditContext context, Language lang)
+    {
+        var scope = finding.Requirement.GuildAllianceId is { } allianceId ? $"[{context.AllianceTag(allianceId)}]" : "";
+        return new FeatureAccessRow(finding, access[finding.Requirement.ChannelId], scope, Msg.WebAudit.Profile(lang, finding.Requirement.Profile));
+    }
+
+    // Ok and NoChannelsConfigured are both "nothing to do here"; everything else outranks them.
+    private static FeaturePermissionStatus WorstOf(IEnumerable<FeaturePermissionStatus> statuses)
+    {
+        var all = statuses.ToList();
+        if (all.Contains(FeaturePermissionStatus.Missing))
+            return FeaturePermissionStatus.Missing;
+        if (all.Contains(FeaturePermissionStatus.ChannelMissing))
+            return FeaturePermissionStatus.ChannelMissing;
+        return all.Contains(FeaturePermissionStatus.Ok) ? FeaturePermissionStatus.Ok : FeaturePermissionStatus.NoChannelsConfigured;
+    }
+
     // A configured entry may be a whole category (the AI chat knowledge tiers), where the bot works
     // on the child channels rather than the category node — so audit the children it would actually
     // read. Text + forum only; forum children are checked at the forum level since threads inherit
@@ -367,7 +442,7 @@ public sealed class PermissionAuditService(
                     Denied = existingDeny & ~result.Required,
                 });
 
-            cache.Remove($"discord-guild-channels:{context.GuildId}");
+            discordData.InvalidateCache(context.GuildId);
             var reloaded = await LoadContextAsync(context.GuildId, context, lang);
 
             var channelNow = reloaded.Channels.FirstOrDefault(c => c.Id == result.ChannelId);
@@ -417,7 +492,7 @@ public sealed class PermissionAuditService(
                     Denied = (Permissions)expectation.Deny,
                 });
 
-            cache.Remove($"discord-guild-channels:{context.GuildId}");
+            discordData.InvalidateCache(context.GuildId);
             return (await LoadContextAsync(context.GuildId, context, lang), null);
         }
         catch (RestException)
@@ -529,4 +604,34 @@ public sealed record BotAccessResult(
 public sealed record BotAccessFixOutcome(PermissionAuditContext Context, string Status, bool Applied);
 
 // What the expectation editor form hands back on save — Id null means "add new".
+// One channel inside a feature's card. Finding carries what THIS feature needs there; Access
+// carries the per-channel state and the Fix button's union (see BuildFeatureReportAsync).
+public sealed record FeatureAccessRow(ChannelAccessFinding Finding, BotAccessResult Access, string ScopeLabel, string ProfileLabel)
+{
+    public bool Ok => Finding.Ok;
+}
+
+public sealed record FeatureAccessGroup(
+    GuildFeature? Feature,
+    string Title,
+    FeaturePermissionStatus Status,
+    BotPermission MissingGuildPermissions,
+    IReadOnlyList<FeatureAccessRow> Rows);
+
+// The guild-wide bits, which no per-channel Fix can grant — re-authorizing is the only route.
+// The URL always requests Needed | Granted, never Needed alone: Discord's authorize flow REPLACES
+// the managed role's permissions, so asking for only what we calculate would strip a deliberate
+// extra grant (see BotInviteService).
+public sealed record ServerPermissionSummary(BotPermission Granted, BotPermission Needed, string ReauthorizeUrl)
+{
+    public BotPermission Missing => Needed & ~Granted;
+
+    public bool Ok => Missing == BotPermission.None;
+}
+
+public sealed record FeatureAccessReport(
+    IReadOnlyList<FeatureAccessGroup> Groups,
+    ServerPermissionSummary Server,
+    IReadOnlyList<GuildFeature> Unauditable);
+
 public sealed record ExpectationSaveRequest(int? Id, ulong ChannelId, ulong RoleId, ulong Allow, ulong Deny);

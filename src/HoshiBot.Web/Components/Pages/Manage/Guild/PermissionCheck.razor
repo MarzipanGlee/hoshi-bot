@@ -25,12 +25,12 @@
         }
     </div>
 
-    <BotAccessSection Context="context"
-                      Results="botAccessResults"
-                      Checking="checkingBotAccess"
-                      FixStatus="fixStatus"
-                      OnReCheck="ReCheckBotAccessAsync"
-                      OnFix="FixBotAccessAsync" />
+    <FeatureAccessSection Context="context"
+                          Report="featureReport"
+                          Checking="checkingBotAccess"
+                          FixStatus="fixStatus"
+                          OnReCheck="ReCheckBotAccessAsync"
+                          OnFix="FixBotAccessAsync" />
 
     <ExpectationEditor Context="context"
                        Expectations="expectations"
@@ -57,7 +57,7 @@
     private List<PermissionAuditResult>? auditResults;
 
     private bool checkingBotAccess;
-    private List<BotAccessResult>? botAccessResults;
+    private FeatureAccessReport? featureReport;
 
     // Per-channel outcome line from the last Fix, so the escalation (category → re-check →
     // channel) can explain each step in place. Keyed by the configured channel id.
@@ -88,10 +88,10 @@
     private async Task RunBotAccessCheckAsync()
     {
         checkingBotAccess = true;
-        botAccessResults = null;
+        featureReport = null;
         try
         {
-            botAccessResults = await Audit.CheckBotAccessAsync(context, Lang);
+            featureReport = await Audit.BuildFeatureReportAsync(context, Lang);
         }
         finally
         {

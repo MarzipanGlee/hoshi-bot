@@ -1,0 +1,213 @@
+@* The bot-access half of the Permission Check page, arranged per feature instead of as a flat
+   channel list — an admin thinks "is Announcements working", not "what is channel #1234 for".
+   Above it sits the server-level card, which covers the guild-wide bits (Manage Roles, Manage
+   Nicknames) that no per-channel Fix can grant.
+
+   Explicit @namespace: a folder-derived namespace ending in "PermissionCheck" would collide with
+   the PermissionCheck page class itself. *@
+@namespace HoshiBot.Web.Components.Pages.Manage.Guild
+@using HoshiBot.Domain.Entities
+@using NetCord
+
+<h2>@Msg.WebAudit.ServerPermissionsTitle(Lang)</h2>
+
+@if (Report is { } report)
+{
+    <div class="alert @(report.Server.Ok ? "alert-success" : "alert-warning")">
+        @if (report.Server.Ok)
+        {
+            <div>@Msg.WebAudit.ServerPermissionsOk(Lang)</div>
+        }
+        else
+        {
+            <div>@Msg.WebAudit.ServerPermissionsMissing(Lang, PermissionAuditService.PermissionListLabel(Lang, report.Server.Missing.ToNetCord()))</div>
+            @if (MissingGuildPermissionFeatures(report) is { Length: > 0 } features)
+            {
+                <div class="small mt-1">@Msg.WebAudit.ServerPermissionsNeededBy(Lang, features)</div>
+            }
+            <a class="btn btn-primary btn-sm mt-2" href="@report.Server.ReauthorizeUrl" target="_blank" rel="noopener">
+                @Msg.WebAudit.ReauthorizeButton(Lang)
+            </a>
+        }
+        <div class="small text-muted mt-2">@Msg.WebAudit.ReauthorizeNote(Lang)</div>
+    </div>
+}
+
+<h2>@Msg.WebAudit.FeatureAccessTitle(Lang)</h2>
+<p>@Msg.WebAudit.FeatureAccessIntro(Lang)</p>
+<button class="btn btn-primary" disabled="@Checking" @onclick="OnReCheck">@(Checking ? Msg.WebAudit.CheckingEllipsis(Lang) : Msg.WebAudit.ReCheck(Lang))</button>
+
+@if (Report is { } r)
+{
+    @if (r.Groups.Count == 0)
+    {
+        <p class="text-muted mt-3">@Msg.WebAudit.NoPostToChannelsConfigured(Lang)</p>
+    }
+    else
+    {
+        @* The bot cannot grant itself access to a channel it cannot even see — Discord returns
+           Missing Access on any edit there — so those rows need the manual walkthrough. *@
+        @if (r.Groups.SelectMany(g => g.Rows).Any(row => !row.Access.CanView))
+        {
+            <div class="alert alert-info mt-3">
+                <strong>@Msg.WebAudit.CantFixCalloutTitle(Lang)</strong>
+                <p class="mb-2 mt-1">@((MarkupString)Msg.WebAudit.CantFixCalloutIntro(Lang))</p>
+                <ol class="mb-2">
+                    <li>@((MarkupString)Msg.WebAudit.CantFixStep1(Lang))</li>
+                    <li>@((MarkupString)Msg.WebAudit.CantFixStep2(Lang))</li>
+                    <li>@((MarkupString)Msg.WebAudit.CantFixStep3(Lang))</li>
+                    <li>@((MarkupString)Msg.WebAudit.CantFixStep4(Lang))</li>
+                </ol>
+                <p class="mb-0">@((MarkupString)Msg.WebAudit.CantFixCalloutOutro(Lang))</p>
+            </div>
+        }
+
+        @foreach (var group in r.Groups)
+        {
+            <div class="card mt-3" id="@(group.Feature is { } f ? $"feature-{f}" : "guild-wide")">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <span>@StatusIcon(group.Status)</span>
+                    <strong>@group.Title</strong>
+                    @if (group.MissingGuildPermissions != BotPermission.None)
+                    {
+                        <span class="badge bg-danger">@PermissionAuditService.PermissionListLabel(Lang, group.MissingGuildPermissions.ToNetCord())</span>
+                    }
+                </div>
+
+                @if (group.Rows.Count == 0)
+                {
+                    <div class="card-body text-muted small">@Msg.WebAudit.NothingConfiguredStatus(Lang)</div>
+                }
+                else
+                {
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>@Msg.WebCommon.Channel(Lang)</th>
+                                <th>@Msg.WebAudit.DoesColumn(Lang)</th>
+                                <th>@Msg.WebAudit.StatusColumn(Lang)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in group.Rows)
+                            {
+                                var result = row.Access;
+                                <tr class="@(row.Ok ? "table-success" : "table-danger")">
+                                    <td>
+                                        @Context.ChannelName(Lang, result.ChannelId)
+                                        @if (row.ScopeLabel is { Length: > 0 })
+                                        {
+                                            <span class="badge bg-secondary ms-1">@row.ScopeLabel</span>
+                                        }
+                                    </td>
+                                    <td class="small">@row.ProfileLabel</td>
+                                    <td>
+                                        @if (row.Ok)
+                                        {
+                                            <span>@Msg.WebAudit.OkStatus(Lang)</span>
+                                        }
+                                        else if (!row.Finding.ChannelExists)
+                                        {
+                                            <span>@Msg.WebAudit.ChannelGoneStatus(Lang)</span>
+                                        }
+                                        else
+                                        {
+                                            <div>@Msg.WebAudit.MissingAccessStatus(Lang)</div>
+                                            @* This feature's own requirement, not the channel-wide union the
+                                               Fix button grants — otherwise a shared channel would blame this
+                                               feature for a permission another one needs. *@
+                                            <div class="small text-nowrap">@Msg.WebAudit.ChannelStatusLine(Lang, PermissionAuditService.PermsSummary(Lang, row.Finding.Required.ToNetCord(), result.ChannelEffective))</div>
+                                            @if (result.Category is { } cat)
+                                            {
+                                                <div class="small text-nowrap">@Msg.WebAudit.CategoryStatusLine(Lang, PermissionAuditService.PermsSummary(Lang, row.Finding.Required.ToNetCord(), cat.Effective))</div>
+                                            }
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!result.HasAccess)
+                                        {
+                                            @if (result.CanFix && (result.CanFixChannel || result.CanFixCategory))
+                                            {
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    @if (result.ParentCategoryId is { } categoryId && result.CanFixCategory)
+                                                    {
+                                                        <button class="btn btn-sm btn-primary" @onclick="() => OnFix.InvokeAsync((result, categoryId, true))">@Msg.WebAudit.FixOnCategoryButton(Lang, Context.CategoryName(Lang, categoryId))</button>
+                                                    }
+                                                    @if (result.CanFixChannel)
+                                                    {
+                                                        <button class="btn btn-sm @(result.CanFixCategory ? "btn-outline-dark" : "btn-primary")" @onclick="() => OnFix.InvokeAsync((result, result.ChannelId, false))">@Msg.WebAudit.FixOnChannelButton(Lang)</button>
+                                                    }
+                                                </div>
+                                            }
+                                            else if (result.CanFix)
+                                            {
+                                                <div class="small text-danger mt-1">@Msg.WebAudit.CantFixAutomaticallyNote(Lang)</div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-danger">⚠ @result.BlockReason</span>
+                                            }
+                                        }
+                                        @if (FixStatus.TryGetValue(result.ChannelId, out var status))
+                                        {
+                                            <div class="small mt-1">@status</div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        }
+
+        @* Without this, "no findings" reads as "fully covered" — these two genuinely cannot be
+           audited, because their target is whichever channel someone addressed Hoshi in. *@
+        @if (r.Unauditable.Count > 0)
+        {
+            <p class="small text-muted mt-3">
+                @Msg.WebAudit.UnauditableNote(Lang, string.Join(", ", r.Unauditable.Select(f => GuildFeatureService.FeatureLabel(f, Lang))))
+            </p>
+        }
+    }
+}
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired]
+    public PermissionAuditContext Context { get; set; } = PermissionAuditContext.Empty;
+
+    [Parameter]
+    public FeatureAccessReport? Report { get; set; }
+
+    [Parameter]
+    public bool Checking { get; set; }
+
+    // Per-channel outcome line from the last Fix, keyed by the configured channel id — owned by
+    // the page (it survives re-checks after a fix), only rendered here.
+    [Parameter, EditorRequired]
+    public IReadOnlyDictionary<ulong, string> FixStatus { get; set; } = new Dictionary<ulong, string>();
+
+    [Parameter]
+    public EventCallback OnReCheck { get; set; }
+
+    [Parameter]
+    public EventCallback<(BotAccessResult Result, ulong TargetId, bool ViaCategory)> OnFix { get; set; }
+
+    private static string StatusIcon(FeaturePermissionStatus status) => status switch
+    {
+        FeaturePermissionStatus.Ok => "✅",
+        FeaturePermissionStatus.Missing => "❌",
+        FeaturePermissionStatus.ChannelMissing => "🚫",
+        _ => "•",
+    };
+
+    // Which features are asking for the guild-wide bits that are missing — the answer to "why does
+    // Hoshi need Manage Roles at all?", which is the question the button otherwise raises.
+    private string MissingGuildPermissionFeatures(FeatureAccessReport report) =>
+        string.Join(", ", report.Groups
+            .Where(g => g.MissingGuildPermissions != BotPermission.None)
+            .Select(g => g.Title));
+}
