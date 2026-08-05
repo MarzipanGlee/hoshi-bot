@@ -10,9 +10,6 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.Channel)"
             @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.RemindersChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.RemindersChannel)"
-            @bind-Value="remindersChannelInput" @bind-Value:after="SaveRemindersChannelAsync" Channels="channels" />
-
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.DraftChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.DraftChannel)"
             @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
 
@@ -36,7 +33,6 @@
     private List<IGuildChannel> channels = [];
     private List<Role> roles = [];
     private string? channelInput;
-    private string? remindersChannelInput;
     private string? draftChannelInput;
     private string? warningsRoleInput;
     private string? notificationRoleInput;
@@ -46,7 +42,6 @@
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
         channelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.Channel))?.ToString();
-        remindersChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.RemindersChannel))?.ToString();
         draftChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.DraftChannel))?.ToString();
         warningsRoleInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.WarningsRole))?.ToString();
 
@@ -60,8 +55,6 @@
     private Task SaveChannelAsync() =>
         SetSnowflakeAsync(AnnouncementsSettingKeys.Channel, ParseId(channelInput));
 
-    private Task SaveRemindersChannelAsync() =>
-        SetSnowflakeAsync(AnnouncementsSettingKeys.RemindersChannel, ParseId(remindersChannelInput));
 
     private Task SaveDraftChannelAsync() =>
         SetSnowflakeAsync(AnnouncementsSettingKeys.DraftChannel, ParseId(draftChannelInput));

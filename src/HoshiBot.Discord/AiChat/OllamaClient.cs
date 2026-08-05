@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OllamaSharp;

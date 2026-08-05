@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Entities;
 namespace HoshiBot.Discord.AiChat;
 
 // The LLM backends the AI-chat feature can answer with. A guild picks one via the per-guild

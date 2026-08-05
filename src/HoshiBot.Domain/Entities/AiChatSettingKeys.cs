@@ -1,4 +1,4 @@
-namespace HoshiBot.Data;
+namespace HoshiBot.Domain.Entities;
 
 // Key strings for the AI-chat feature's per-audience behavioral settings in
 // GuildFeatureSettingsService (text values under GuildFeature.AiChat at the per-audience scope —

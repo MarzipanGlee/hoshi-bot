@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AspNet.Security.OAuth.Discord;
 using HoshiBot.Data;
 using HoshiBot.Data.Seeding;
+using HoshiBot.Domain.Entities;
 using HoshiBot.Web.Authorization;
 using HoshiBot.Web.Components;
 using HoshiBot.Web.Services;
@@ -142,6 +143,7 @@ builder.Services.AddScoped<GuildAccessService>();
 builder.Services.AddScoped<DiscordUserGuildsService>();
 builder.Services.AddScoped<DiscordGuildDataService>();
 builder.Services.AddScoped<PermissionAuditService>();
+builder.Services.AddScoped<BotInviteService>();
 builder.Services.AddScoped<StfcPlayerImportService>();
 builder.Services.AddScoped<StfcAllianceImportService>();
 builder.Services.AddScoped<StfcCatalogImportService>();
@@ -239,31 +241,19 @@ app.MapGet(DiscordAccountLink.ReturnPath, async (HttpContext http, PlayerLinkSer
 })
     .RequireAuthorization();
 
-// Public bot-installation link — redirects to Discord's own consent screen with the
-// permissions the bot actually needs pre-filled, so an admin adding it to a new guild
-// doesn't have to manually tick them (or under/over-grant). Keep this bitmask in sync
-// with what the bot's commands/jobs actually call: ManageRoles (notification/TC role
-// sync, and creating roles from the Setup Wizard), ManageChannels (creating channels/
-// categories from the Setup Wizard), ManageNicknames (nickname sync), PinMessages
-// (pinning the weekly TC digest — a bit Discord split out of Manage Messages; a bot with
-// only Manage Messages still gets a 403 on the pin call), ManageThreads (closing/removing
-// threads), EmbedLinks (digest/report embeds), ReadMessageHistory (reading announcement
-// drafts back to publish them), AddReactions (decorating announcement drafts with the
-// 🟩 🟨 🟥 🟦 severity reactions, which is how an announcement gets published),
-// MentionEveryone (pinging the — usually non-mentionable — TC/notification roles on the
-// daily/weekly digest), SendMessages/ViewChannel (posting at all).
+// Public bot-installation link — redirects to Discord's own consent screen. It asks for
+// GuildFeaturePermissions.InviteBaseline and nothing else: enough for the Setup Wizard to create
+// its channels and roles, and to post at all. Everything a specific feature needs on top (Add
+// Reactions, Mention Everyone, Pin Messages, Manage Nicknames, the thread bits) is requested later
+// through the per-guild re-authorize link on the Permission Check page, computed by
+// BotInviteService from the features that guild has actually enabled — so a guild that never runs
+// Nickname Sync is never asked for Manage Nicknames.
 //
-// Deliberately NOT here: ManageMessages. Clearing the clicked severity reaction would need it
-// (see AnnouncementDraftService), and a guild-wide "delete anyone's messages" grant is far too
-// much to ask for that — an admin who wants it can grant it on the draft channel alone.
-//
-// Guilds that installed the bot before a permission was added here keep their old grant: they
-// re-invite, or fix it per channel. The permission audit page is what surfaces that.
+// This is no longer a hand-maintained bitmask: it is derived from the same per-feature declaration
+// the permission audit and the runtime failure reports read, so the three can't drift apart again.
 app.MapGet("/invite", (IConfiguration config, ulong? guildId) =>
 {
-    const Permissions botPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.EmbedLinks |
-        Permissions.PinMessages | Permissions.ManageThreads | Permissions.ManageRoles | Permissions.ManageNicknames |
-        Permissions.ManageChannels | Permissions.ReadMessageHistory | Permissions.AddReactions | Permissions.MentionEveryone;
+    var botPermissions = GuildFeaturePermissions.InviteBaseline.ToNetCord();
 
     var clientId = config["Discord:ClientId"];
     var url = $"https://discord.com/oauth2/authorize?client_id={clientId}&permissions={(ulong)botPermissions}&scope=bot%20applications.commands";

@@ -1,3 +1,4 @@
+using HoshiBot.Domain.Entities;
 using Pgvector;
 
 namespace HoshiBot.Discord.AiChat;

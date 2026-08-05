@@ -1,4 +1,4 @@
-namespace HoshiBot.Data;
+namespace HoshiBot.Domain.Entities;
 
 // Key strings for the guild-wide AI backend feature's settings in GuildFeatureSettingsService
 // (stored under GuildFeature.AiBackend at the Guild/null scope — one AI account per guild). These

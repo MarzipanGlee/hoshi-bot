@@ -531,6 +531,31 @@ result). The editor's Services-role and Member-role pickers are live shared view
 `ServicesRole` setting and `GuildAlliance.MemberRoleId` (editing there or here is the same value) — the
 feature owns no settings of its own.
 
+## Channel settings with no consumer — delete the columns and their pickers
+
+Surfaced while building the per-feature permission declaration (`GuildFeaturePermissions`). Eight
+configured channels have **no bot code reading them at all** — they exist only as pickers in the
+admin UI, in `GuildSettingsSeedData`, and (until now) in the permission audit, which demanded
+View + Send + Embed Links on every one of them:
+
+- Seven `GuildAlliance` columns: `AllianceBoardingChannelId`, `RemindersAlliesChannelId`,
+  `RulesDeChannelId`, `RulesEnChannelId`, `UserNotificationsChannelId`, `BotSupportChannelId`,
+  `CommandStaffJobsChannelId`. Only the three Command Bridge columns are live.
+- `GuildSettings.UserLogChannelId` (still rendered by `SettingsEditor.razor`).
+
+They no longer appear in the audit. Remaining work: delete the columns, their pickers in
+`Alliance/Settings.razor` / `SettingsEditor.razor`, and their seed rows, with an EF migration. Left
+out of the permission rework itself because a schema migration doesn't belong bolted onto it.
+
+Two more turned up in the same sweep and were decided at the time:
+
+- **`AnnouncementsSettingKeys.RemindersChannel`** — a legacy-bot leftover (reminder pings for unread
+  announcements, which are DMs now or will be). Removed outright: the key, the picker, the seed row
+  and the catalog wording. Existing `GuildFeatureSettingSnowflakes` rows with `Key = 'RemindersChannel'`
+  are now inert and can be deleted alongside the columns above.
+- **`DiplomacySettingKeys.Channel`** — kept. Nothing reads it yet, but the feature is planned, so
+  the slot is declared now rather than added later and forgotten.
+
 ## Contested player claims — admin approval queue
 
 `/me` lets a member connect a player account themselves, but **blocks** a player already linked to a

@@ -72,8 +72,6 @@ public static partial class Msg
         public static string SourceAlert(Language lang, object kind) =>
             MessageCatalog.Format(lang, "Web.Audit.SourceAlert", ("kind", kind));
 
-        public static string SourceAllianceBoarding(Language lang, string tag) =>
-            MessageCatalog.Format(lang, "Web.Audit.SourceAllianceBoarding", ("tag", tag));
 
         public static string SourceCommandBridge(Language lang, string tag) =>
             MessageCatalog.Format(lang, "Web.Audit.SourceCommandBridge", ("tag", tag));
@@ -84,23 +82,11 @@ public static partial class Msg
         public static string SourceFriendsCommandBridge(Language lang, string tag) =>
             MessageCatalog.Format(lang, "Web.Audit.SourceFriendsCommandBridge", ("tag", tag));
 
-        public static string SourceRemindersAllies(Language lang, string tag) =>
-            MessageCatalog.Format(lang, "Web.Audit.SourceRemindersAllies", ("tag", tag));
 
-        public static string SourceRulesDe(Language lang, string tag) =>
-            MessageCatalog.Format(lang, "Web.Audit.SourceRulesDe", ("tag", tag));
 
-        public static string SourceRulesEn(Language lang, string tag) =>
-            MessageCatalog.Format(lang, "Web.Audit.SourceRulesEn", ("tag", tag));
 
-        public static string SourceUserNotifications(Language lang, string tag) =>
-            MessageCatalog.Format(lang, "Web.Audit.SourceUserNotifications", ("tag", tag));
 
-        public static string SourceBotSupport(Language lang, string tag) =>
-            MessageCatalog.Format(lang, "Web.Audit.SourceBotSupport", ("tag", tag));
 
-        public static string SourceCommandStaffJobs(Language lang, string tag) =>
-            MessageCatalog.Format(lang, "Web.Audit.SourceCommandStaffJobs", ("tag", tag));
 
         public static string FixedViaCategory(Language lang) =>
             MessageCatalog.Format(lang, "Web.Audit.FixedViaCategory");

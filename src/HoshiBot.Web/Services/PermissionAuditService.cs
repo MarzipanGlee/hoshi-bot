@@ -22,44 +22,11 @@ namespace HoshiBot.Web.Services;
 public sealed class PermissionAuditService(
     IDbContextFactory<HoshiBotDbContext> dbFactory,
     DiscordGuildDataService discordData,
+    BotChannelRequirementService requirementService,
     RestClient botRestClient,
     IMemoryCache cache,
     IConfiguration configuration)
 {
-    // The bot's messages are branded embeds (EmbedBranding) almost everywhere, and sending or
-    // editing a rich embed needs Embed Links — a channel that grants Send but denies Embed Links
-    // (common where @everyone is locked down) would pass a View+Send check yet fail at post time.
-    private const Permissions PostPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.EmbedLinks;
-
-    // The Announcements draft channel is read (staff post drafts, the bot reads them back to
-    // publish) as well as written — View + Send + Read Message History. Add Reactions on top: the
-    // bot decorates every draft with the 🟩 🟨 🟥 🟦 severity reactions, and clicking one is the only
-    // way to publish an announcement (AnnouncementDraftService). Without it the drafts simply never
-    // get decorated — nothing errors, staff just have no way in. Embed Links is needed too: the
-    // publish confirm posted back into this channel carries the preview as an embed.
-    private const Permissions DraftPermissions = Permissions.ViewChannel | Permissions.SendMessages |
-        Permissions.EmbedLinks | Permissions.ReadMessageHistory | Permissions.AddReactions;
-
-    // AiChat listen channels: the bot reads recent messages back (Read Message History — this is
-    // what lets it see any content at all) and posts plain-text replies (Send, no embeds). A
-    // listen channel missing Read Message History is the classic "the bot stays silent for no
-    // obvious reason" case.
-    private const Permissions AiChatListenPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.ReadMessageHistory;
-
-    // AiChat knowledge-source channels are only ever read, never posted to — View + Read Message
-    // History. (A knowledge entry can also be a whole category; granting these on the category
-    // propagates to its synced child channels.)
-    private const Permissions AiChatKnowledgePermissions = Permissions.ViewChannel | Permissions.ReadMessageHistory;
-
-    // The Territory Capture digest channel also gets its weekly message pinned (see
-    // TerritoryCaptureDigestService.SendDigestAsync) — Pin Messages on top of the normal post
-    // permissions. Discord split pinning out of Manage Messages into its own bit; a bot that
-    // only has Manage Messages still gets a 403 on the pin call. Missing it doesn't block the
-    // digest from posting, but silently fails the pin and (before that failure was isolated
-    // from the send) once caused the whole digest to be treated as failed and resent every
-    // 30 minutes, double-pinging the alliance's role.
-    private const Permissions TerritoryCaptureDigestPermissions = PostPermissions | Permissions.PinMessages;
-
     public static readonly Permissions[] AllPermissions = Enum.GetValues<Permissions>();
 
     private static bool IsManage(Permissions perms) =>
@@ -102,11 +69,17 @@ public sealed class PermissionAuditService(
             var botUserId = ulong.Parse(configuration["Discord:ClientId"]!);
             var status = await discordData.GetBotRoleStatusAsync(guildId, botUserId);
 
+            await using var db = await dbFactory.CreateDbContextAsync();
+            var allianceTags = await db.GuildAlliances
+                .Where(a => a.GuildId == guildId)
+                .Select(a => new { a.Id, a.StfcAlliance.Tag })
+                .ToDictionaryAsync(a => a.Id, a => a.Tag);
+
             return new PermissionAuditContext(
                 guildId, channels, roles, allRolesById,
                 status.BotMember, status.BotPermissions, status.HighestRolePosition,
                 status.TopRoleId, status.TopRoleName, status.RolesAbove, status.NonAdminRolesAbove,
-                DiscordDataError: null);
+                DiscordDataError: null, AllianceTags: allianceTags);
         }
         catch (RestException)
         {
@@ -228,137 +201,34 @@ public sealed class PermissionAuditService(
         return (true, null);
     }
 
-    // The read-only knowledge buckets (AiChatKnowledge is the Normal tier); a configured entry here
-    // may be a whole category that the bot expands to its child channels at read time.
-    private static bool IsKnowledgeFeature(GuildFeature feature) => feature is
-        GuildFeature.AiChatKnowledge or GuildFeature.AiChatKnowledgePreferred or GuildFeature.AiChatKnowledgeLastResort;
-
-    // Every channel the bot is configured to post to (feature channel lists, alert channel
-    // rows, and the guild-wide GuildSettings slots), audited for the bot's own View Channel +
-    // Send Messages access — the check that would have surfaced the "message only reached one
-    // channel" ClientRelease case (a second channel the bot silently couldn't post to).
+    // Every channel the bot is configured to use, audited against what it actually has there.
+    // Discovery (which channels, from which of the five storage shapes) is
+    // BotChannelRequirementService's job and the required permissions come from the per-feature
+    // declaration; this method is left with the Discord-side work — resolving effective
+    // permissions, expanding configured categories, and deciding what can be fixed from here.
     public async Task<List<BotAccessResult>> CheckBotAccessAsync(PermissionAuditContext context, Language lang)
     {
-        var guildId = context.GuildId;
-        var sources = new Dictionary<ulong, SortedSet<string>>();
-        var required = new Dictionary<ulong, Permissions>();
-        void Add(ulong? id, string label, Permissions perms)
-        {
-            if (id is not { } channelId || channelId == 0)
-                return;
-            if (!sources.TryGetValue(channelId, out var set))
-                sources[channelId] = set = [];
-            set.Add(label);
-            required[channelId] = required.GetValueOrDefault(channelId) | perms;
-        }
+        var requirements = ExpandCategories(await requirementService.LoadAsync(context.GuildId), context);
+        var findings = ChannelAccessEvaluator.Evaluate(requirements, channelId =>
+            context.Channels.FirstOrDefault(c => c.Id == channelId) is { } channel
+                ? context.BotChannelPermissions(channel).ToDomain()
+                : null);
 
-        await using (var db = await dbFactory.CreateDbContextAsync())
-        {
-            var featureChannels = await db.GuildFeatureChannels
-                .Where(c => c.GuildId == guildId)
-                .Select(c => new { c.ChannelId, c.Feature })
-                .ToListAsync();
-            foreach (var fc in featureChannels)
-            {
-                // Most features post embeds; AiChat instead reads message history (and, for
-                // its listen channels, posts plain-text replies) — so it needs Read Message
-                // History rather than Embed Links. All three knowledge buckets are read-only.
-                var perms = fc.Feature switch
-                {
-                    GuildFeature.AiChat => AiChatListenPermissions,
-                    GuildFeature.AiChatKnowledge
-                        or GuildFeature.AiChatKnowledgePreferred
-                        or GuildFeature.AiChatKnowledgeLastResort => AiChatKnowledgePermissions,
-                    _ => PostPermissions,
-                };
-                var label = Msg.WebAudit.SourceFeature(lang, fc.Feature);
-
-                // A knowledge entry can be a whole category; the bot reads its child channels
-                // (AiChatIndexService.ResolveSourcesAsync), not the category node — so expand a
-                // configured category to the children the bot would actually read (text + forum;
-                // skip voice/stage/nested categories) and check each. Forum children are checked
-                // at the forum level, since threads inherit the forum's read permissions.
-                if (IsKnowledgeFeature(fc.Feature)
-                    && context.Channels.FirstOrDefault(c => c.Id == fc.ChannelId) is CategoryGuildChannel category)
-                {
-                    foreach (var child in context.Channels.Where(c =>
-                        DiscordGuildDataService.GetParentCategoryId(c) == category.Id
-                        && c is TextGuildChannel or ForumGuildChannel))
-                    {
-                        Add(child.Id, Msg.WebAudit.SourceCategoryChild(lang, label, category.Name), perms);
-                    }
-                }
-                else
-                {
-                    Add(fc.ChannelId, label, perms);
-                }
-            }
-
-            var alertChannels = await db.GuildAlertChannels
-                .Where(c => c.GuildId == guildId)
-                .Select(c => new { c.ChannelId, c.Kind })
-                .ToListAsync();
-            foreach (var ac in alertChannels)
-                Add(ac.ChannelId, Msg.WebAudit.SourceAlert(lang, ac.Kind), PostPermissions);
-
-            // Per-feature channel settings (Absences report channels, Territory Capture
-            // digest, Announcements/Tickets/etc.) live in the generic settings table, not a
-            // dedicated channel table — by convention every channel-typed key ends in
-            // "Channel" (role keys end in "Role", message-id keys in "MessageId"), so that's
-            // how we tell a channel value apart from the roles stored alongside it. Most are
-            // post targets; the Announcements draft is also read back by the bot, so it needs
-            // Read Message History on top of View + Send.
-            var settingChannels = await db.GuildFeatureSettingSnowflakes
-                .Where(s => s.GuildId == guildId && s.Key.EndsWith("Channel"))
-                .Select(s => new { s.Feature, s.Key, s.Value })
-                .ToListAsync();
-            foreach (var sc in settingChannels)
-            {
-                var perms = sc switch
-                {
-                    { Feature: GuildFeature.Announcements, Key: AnnouncementsSettingKeys.DraftChannel } => DraftPermissions,
-                    { Feature: GuildFeature.TerritoryCapture, Key: TerritoryCaptureSettingKeys.DigestChannel } => TerritoryCaptureDigestPermissions,
-                    _ => PostPermissions,
-                };
-                Add(sc.Value, Msg.WebAudit.SourceFeatureSetting(lang, sc.Feature, sc.Key), perms);
-            }
-
-            var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == guildId);
-            if (settings is not null)
-            {
-                Add(settings.LogChannelId, Msg.WebGuild.LogTitle(lang), PostPermissions);
-                Add(settings.AdminChannelId, Msg.WebGuild.AdminTitle(lang), PostPermissions);
-                Add(settings.UserLogChannelId, Msg.WebGuild.UserLogTitle(lang), PostPermissions);
-            }
-
-            // Alliance-scoped channels + Command Bridge now live per linked alliance.
-            var allianceChannels = await db.GuildAlliances
-                .Where(a => a.GuildId == guildId)
-                .Include(a => a.StfcAlliance)
-                .ToListAsync();
-            foreach (var a in allianceChannels)
-            {
-                var tag = a.StfcAlliance.Tag;
-                Add(a.AllianceBoardingChannelId, Msg.WebAudit.SourceAllianceBoarding(lang, tag), PostPermissions);
-                Add(a.CommandBridgeChannelId, Msg.WebAudit.SourceCommandBridge(lang, tag), PostPermissions);
-                Add(a.StaffCommandBridgeChannelId, Msg.WebAudit.SourceStaffCommandBridge(lang, tag), PostPermissions);
-                Add(a.FriendsCommandBridgeChannelId, Msg.WebAudit.SourceFriendsCommandBridge(lang, tag), PostPermissions);
-                Add(a.RemindersAlliesChannelId, Msg.WebAudit.SourceRemindersAllies(lang, tag), PostPermissions);
-                // Reminders (Services) moved to the TerritoryCaptureServiceReminders feature settings (ServicesChannel);
-                // the generic per-feature-Channel loop above already covers it.
-                Add(a.RulesDeChannelId, Msg.WebAudit.SourceRulesDe(lang, tag), PostPermissions);
-                Add(a.RulesEnChannelId, Msg.WebAudit.SourceRulesEn(lang, tag), PostPermissions);
-                Add(a.UserNotificationsChannelId, Msg.WebAudit.SourceUserNotifications(lang, tag), PostPermissions);
-                Add(a.BotSupportChannelId, Msg.WebAudit.SourceBotSupport(lang, tag), PostPermissions);
-                Add(a.CommandStaffJobsChannelId, Msg.WebAudit.SourceCommandStaffJobs(lang, tag), PostPermissions);
-            }
-        }
+        // The page shows one row per channel, so several features pointing at the same channel
+        // collapse into one row whose requirement is the union of theirs — which is also exactly
+        // what the Fix button has to grant, or fixing from one row would leave the others failing.
+        var requiredByChannel = ChannelAccessEvaluator.RequiredByChannel(findings);
 
         var results = new List<BotAccessResult>();
-        foreach (var (channelId, labels) in sources)
+        foreach (var group in findings.GroupBy(f => f.Requirement.ChannelId))
         {
-            var sourceLabel = string.Join(", ", labels);
-            var req = required[channelId];
+            var channelId = group.Key;
+            var sourceLabel = string.Join(", ", group
+                .Select(f => SourceLabel(f.Requirement, context, lang))
+                .Distinct()
+                .OrderBy(l => l, StringComparer.OrdinalIgnoreCase));
+            var req = requiredByChannel[channelId].ToNetCord();
+
             var channel = context.Channels.FirstOrDefault(c => c.Id == channelId);
             if (channel is null)
             {
@@ -385,6 +255,58 @@ public sealed class PermissionAuditService(
 
         // Problems first, then alphabetically by what points at the channel.
         return results.OrderBy(r => r.HasAccess).ThenBy(r => r.Sources, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    // A configured entry may be a whole category (the AI chat knowledge tiers), where the bot works
+    // on the child channels rather than the category node — so audit the children it would actually
+    // read. Text + forum only; forum children are checked at the forum level since threads inherit
+    // the forum's read permissions. A category with no eligible children keeps its own row, or the
+    // feature would silently look unconfigured.
+    private static List<ChannelAccessRequirement> ExpandCategories(
+        IReadOnlyList<ChannelAccessRequirement> requirements, PermissionAuditContext context)
+    {
+        var expanded = new List<ChannelAccessRequirement>();
+        foreach (var requirement in requirements)
+        {
+            if (!requirement.CategoryExpands
+                || context.Channels.FirstOrDefault(c => c.Id == requirement.ChannelId) is not CategoryGuildChannel category)
+            {
+                expanded.Add(requirement);
+                continue;
+            }
+
+            var children = context.Channels
+                .Where(c => DiscordGuildDataService.GetParentCategoryId(c) == category.Id && c is TextGuildChannel or ForumGuildChannel)
+                .Select(c => requirement with { ChannelId = c.Id, ViaCategoryId = category.Id })
+                .ToList();
+
+            expanded.AddRange(children.Count > 0 ? children : [requirement]);
+        }
+
+        return expanded;
+    }
+
+    // What points at this channel, for the "Used by" column. Alliance-scoped rows carry the tag so
+    // a coalition guild can tell three otherwise identical rows apart.
+    private static string SourceLabel(ChannelAccessRequirement requirement, PermissionAuditContext context, Language lang)
+    {
+        var label = requirement switch
+        {
+            { Feature: null, Key: nameof(GuildChannelColumn.Log) } => Msg.WebGuild.LogTitle(lang),
+            { Feature: null } => Msg.WebGuild.AdminTitle(lang),
+            { Source: ChannelSlotSource.Setting, Feature: { } setting } => Msg.WebAudit.SourceFeatureSetting(lang, setting, requirement.Key),
+            { Source: ChannelSlotSource.AlertChannel } => Msg.WebAudit.SourceAlert(lang, Enum.Parse<GuildAlertChannelKind>(requirement.Key)),
+            { Source: ChannelSlotSource.AllianceColumn, Key: nameof(AllianceChannelColumn.StaffCommandBridge) } =>
+                Msg.WebAudit.SourceStaffCommandBridge(lang, context.AllianceTag(requirement.GuildAllianceId)),
+            { Source: ChannelSlotSource.AllianceColumn, Key: nameof(AllianceChannelColumn.FriendsCommandBridge) } =>
+                Msg.WebAudit.SourceFriendsCommandBridge(lang, context.AllianceTag(requirement.GuildAllianceId)),
+            { Source: ChannelSlotSource.AllianceColumn } => Msg.WebAudit.SourceCommandBridge(lang, context.AllianceTag(requirement.GuildAllianceId)),
+            { Feature: { } feature } => Msg.WebAudit.SourceFeature(lang, feature),
+        };
+
+        return requirement.ViaCategoryId is { } categoryId
+            ? Msg.WebAudit.SourceCategoryChild(lang, label, context.ChannelName(lang, categoryId))
+            : label;
     }
 
     // The Fix grants the bot's own top role the required permissions via a channel overwrite,
@@ -521,10 +443,16 @@ public sealed record PermissionAuditContext(
     string? BotTopRoleName,
     int BotRolesAbove,
     int BotNonAdminRolesAbove,
-    string? DiscordDataError)
+    string? DiscordDataError,
+    // Tag per linked alliance, so an alliance-scoped row can say WHICH alliance it belongs to —
+    // a coalition guild otherwise gets three identical-looking Command Bridge rows.
+    IReadOnlyDictionary<int, string>? AllianceTags = null)
 {
     public static readonly PermissionAuditContext Empty =
         new(0, [], [], new Dictionary<ulong, Role>(), null, default, 0, null, null, 0, 0, null);
+
+    public string AllianceTag(int? guildAllianceId) =>
+        guildAllianceId is { } id && AllianceTags?.TryGetValue(id, out var tag) == true ? tag : "?";
 
     public bool BotHasManageRoles =>
         BotPermissions.HasFlag(Permissions.Administrator) || BotPermissions.HasFlag(Permissions.ManageRoles);

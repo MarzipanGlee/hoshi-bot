@@ -69,7 +69,6 @@ public static class GuildSettingsSeedData
         (GuildFeature.Absences, AbsencesSettingKeys.ReportChannel, 793380668682928129),
         (GuildFeature.Absences, AbsencesSettingKeys.ReportStaffChannel, 1269303372423368826),
         (GuildFeature.Announcements, AnnouncementsSettingKeys.Channel, 793377058809577492),
-        (GuildFeature.Announcements, AnnouncementsSettingKeys.RemindersChannel, 942406102325264474),
         (GuildFeature.Diplomacy, DiplomacySettingKeys.Channel, 1180100541670498365),
         (GuildFeature.Diplomacy, DiplomacySettingKeys.DiplomatRole, 829693359874375710),
         (GuildFeature.RaidAlerts, "Channel", 1268360555564105921),

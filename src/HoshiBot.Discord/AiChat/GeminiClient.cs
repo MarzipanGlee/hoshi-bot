@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Google.GenAI;
 using Google.GenAI.Types;
 using HoshiBot.Data;
+using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace HoshiBot.Discord.AiChat;

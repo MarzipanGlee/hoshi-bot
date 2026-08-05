@@ -1,6 +1,4 @@
-using HoshiBot.Domain.Entities;
-
-namespace HoshiBot.Data;
+namespace HoshiBot.Domain.Entities;
 
 // Key string constants for GuildFeatureSettingsService, shared between the Web editor that
 // writes a setting and the Discord-side code that reads it — only defined here for
@@ -33,7 +31,6 @@ public static class RoeViolationReportsSettingKeys
 public static class AnnouncementsSettingKeys
 {
     public const string Channel = "Channel";
-    public const string RemindersChannel = "RemindersChannel";
     public const string DraftChannel = "DraftChannel";
 
     // The role pinged on a High-severity announcement — moved off GuildSettings.WarningsRoleId
