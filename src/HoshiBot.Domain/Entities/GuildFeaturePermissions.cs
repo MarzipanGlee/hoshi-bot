@@ -225,21 +225,33 @@ public static class GuildFeaturePermissions
     public static IReadOnlyList<GuildFeature> UnauditableFeatures { get; } =
         [GuildFeature.HoshiSay, GuildFeature.AiChat];
 
-    // What /invite asks a brand-new guild for, before any feature exists.
+    // What /invite asks a brand-new guild for, before any feature exists. Three bits.
     //
-    // Manage Channels and Manage Roles look heavy for a baseline, and they are the exact bits this
-    // whole exercise set out to stop demanding — but the first thing a new admin does is the Setup
-    // Wizard, which creates a category, two channels and two roles. Under-granting there means the
-    // wizard 403s on first run, which is the worst possible first impression. Everything genuinely
-    // feature-conditional is gone from here and arrives via the per-guild re-authorize link
-    // instead: Add Reactions, Mention Everyone, Pin Messages, Manage Nicknames and the three thread
-    // bits.
+    // The reason it can be this small is that a member's effective permissions are the OR of
+    // @everyone's and their roles' (see DiscordGuildDataService.GetBotRoleStatusAsync), and View
+    // Channel, Send Messages, Embed Links and Read Message History are all @everyone defaults — so
+    // in any normal guild the bot already holds them without the invite asking. A baseline only has
+    // to carry what @everyone won't have.
+    //
+    // What's left is the two the Setup Wizard needs on first run, before there is anything else:
+    // ManageChannels (it creates a category and two channels) and ManageRoles (two roles). Manage
+    // Roles is doubly load-bearing — the permission audit's Fix button writes channel overwrites,
+    // which needs it. View Channel stays because it is the one @everyone default that guilds
+    // routinely deny at category level, and without it the bot cannot even see what it manages.
+    //
+    // Everything feature-conditional arrives later via the per-guild re-authorize link
+    // (BotInviteService): Add Reactions, Mention Everyone, Pin Messages, Manage Nicknames and the
+    // three thread bits.
+    //
+    // The one case this leaves thin: a locked-down guild that denies @everyone Send Messages. The
+    // Fix button cannot repair that either — it refuses to grant permissions the bot does not hold
+    // itself (EvaluateBotAccessFixability) — so re-authorizing is the only route, which is why that
+    // link has to stay easy to find.
     //
     // Deliberately NOT here: ManageMessages. Clearing the clicked severity reaction on an
     // announcement draft would need it (see AnnouncementDraftService), and a guild-wide "delete
     // anyone's messages" grant is far too much to ask for that — an admin who wants it can grant it
     // on the draft channel alone.
     public static BotPermission InviteBaseline { get; } =
-        BotPermission.ViewChannel | BotPermission.SendMessages | BotPermission.EmbedLinks
-        | BotPermission.ReadMessageHistory | BotPermission.ManageChannels | BotPermission.ManageRoles;
+        BotPermission.ViewChannel | BotPermission.ManageChannels | BotPermission.ManageRoles;
 }
