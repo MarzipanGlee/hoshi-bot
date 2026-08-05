@@ -116,10 +116,16 @@ folders; update usings):
   `StationHousingSystemAutocompleteProvider.cs` (goes with the feature that uses it —
   verify at move time).
 
+(Done, and since overtaken: `AlertModule`, `AbsenceModule`, `AllianceModule`, `PlayerModule`
+and `StationHousingSystemAutocompleteProvider` were deleted outright in the 2026-08 slash-command
+cleanup — every one of those commands was a worse duplicate of a Command Bridge button or a Web
+page. `/hoshi-say` is the only application command left.)
+
 Stay at root (genuinely cross-cutting): `EmbedBranding`, `EmbedBrandingOptions`,
 `EphemeralReply`, `InteractionResponseExtensions`, `CommanderName`, `HoshiPersona`,
-`PingModule`, `PendingModalInputService`, `BetaTesterService`, `ShieldLossVariant` (or
-fold into its feature folder if it's single-feature — check usage).
+`PendingModalInputService`, `BetaTesterService`, `ShieldLossVariant` (or fold into its
+feature folder if it's single-feature — check usage). `CommanderName` is also the anchor
+`Host.AddModules(typeof(…).Assembly)` uses, so it stays put for that reason too.
 
 ### Web → Data service relocation
 

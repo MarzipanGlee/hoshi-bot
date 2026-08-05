@@ -32,8 +32,13 @@ public sealed class PermissionAuditService(
     private const Permissions PostPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.EmbedLinks;
 
     // The Announcements draft channel is read (staff post drafts, the bot reads them back to
-    // publish) as well as written — View + Send + Read Message History, but no embeds posted there.
-    private const Permissions DraftPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.ReadMessageHistory;
+    // publish) as well as written — View + Send + Read Message History. Add Reactions on top: the
+    // bot decorates every draft with the 🟩 🟨 🟥 🟦 severity reactions, and clicking one is the only
+    // way to publish an announcement (AnnouncementDraftService). Without it the drafts simply never
+    // get decorated — nothing errors, staff just have no way in. Embed Links is needed too: the
+    // publish confirm posted back into this channel carries the preview as an embed.
+    private const Permissions DraftPermissions = Permissions.ViewChannel | Permissions.SendMessages |
+        Permissions.EmbedLinks | Permissions.ReadMessageHistory | Permissions.AddReactions;
 
     // AiChat listen channels: the bot reads recent messages back (Read Message History — this is
     // what lets it see any content at all) and posts plain-text replies (Send, no embeds). A

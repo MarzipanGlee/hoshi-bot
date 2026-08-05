@@ -62,27 +62,26 @@ builder.Services
         GatewayIntents.Guilds | GatewayIntents.GuildUsers | GatewayIntents.GuildMessages | GatewayIntents.MessageContent
         // DirectMessages: receive MESSAGE_CREATE for DMs (member-lore interview replies). Not a
         // privileged intent (no portal toggle); DM content always arrives without MessageContent.
-        | GatewayIntents.DirectMessages)
-    // Two application-command services, one per interaction kind (NetCord's "multiple services"
-    // pattern): the plain AddApplicationCommands() only ever collects ApplicationCommandContext
-    // modules, so AnnouncementMessageCommandModule (MessageCommandContext — a sibling context, not
-    // a subtype) was silently never registered — the startup log said "12 command(s) registered",
-    // i.e. the 12 slash commands without the "Create preview" context-menu command. The TInteraction
-    // arguments are narrowed (SlashCommandInteraction/MessageCommandInteraction) so each handler
-    // only picks up its own interactions — with the broad default, the slash service would also
-    // receive message-command interactions, fail the lookup, and race an error response against the
-    // real one.
+        | GatewayIntents.DirectMessages
+        // GuildMessageReactions: receive MESSAGE_REACTION_ADD, which is how an announcement draft
+        // is published (AnnouncementDraftReactionHandler). Also not privileged.
+        | GatewayIntents.GuildMessageReactions)
+    // One application-command service: /hoshi-say is the only application command left (everything
+    // else moved to the Command Bridge, the Web admin, or — for announcements — the draft-channel
+    // reactions), so the startup log should say "1 command(s) registered". There used to be a second
+    // AddApplicationCommands<MessageCommandInteraction, MessageCommandContext> for the "Create
+    // preview" context-menu command, whose MessageCommandContext is a sibling of
+    // ApplicationCommandContext rather than a subtype and so was invisible to this service. Should a
+    // context-menu command ever return, it needs its own service back.
     //
     // LocalizationsProvider (shared instance, so the JSON files are only loaded once): localizes
-    // command metadata (descriptions, option names/descriptions, enum choices — names stay English
-    // except "Create preview", see Localizations/de.json) from Localizations/{locale}.json, anchored
-    // to the app directory so it works regardless of the process working directory. The files load
-    // lazily on the first localization lookup during startup command registration: a malformed file
-    // or a missing directory throws there and fails startup, but a mistyped command/parameter key is
-    // silently ignored (the provider only looks up keys the registered commands actually have).
+    // command metadata (descriptions, option names/descriptions, enum choices — names stay English)
+    // from Localizations/{locale}.json, anchored to the app directory so it works regardless of the
+    // process working directory. The files load lazily on the first localization lookup during
+    // startup command registration: a malformed file or a missing directory throws there and fails
+    // startup, but a mistyped command/parameter key is silently ignored (the provider only looks up
+    // keys the registered commands actually have).
     .AddApplicationCommands<SlashCommandInteraction, ApplicationCommandContext, AutocompleteInteractionContext>(
-        options => options.LocalizationsProvider = commandLocalizations)
-    .AddApplicationCommands<MessageCommandInteraction, MessageCommandContext>(
         options => options.LocalizationsProvider = commandLocalizations)
     .AddComponentInteractions<ButtonInteraction, ButtonInteractionContext>()
     .AddComponentInteractions<UserMenuInteraction, UserMenuInteractionContext>()
@@ -98,6 +97,7 @@ builder.Services.AddScoped<NotificationDispatcher>();
 builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<TerritoryCaptureDigestService>();
 builder.Services.AddScoped<AnnouncementService>();
+builder.Services.AddScoped<AnnouncementDraftService>();
 builder.Services.AddScoped<TicketService>();
 builder.Services.AddScoped<RoeViolationService>();
 builder.Services.AddScoped<AbsenceService>();
@@ -296,7 +296,10 @@ var digestScheduler = await host.Services.GetRequiredService<ISchedulerFactory>(
 foreach (var obsoleteJob in new[] { "TerritoryCaptureWeeklyDigestJob", "TerritoryCaptureDailyDigestJob" })
     await digestScheduler.DeleteJob(new JobKey(obsoleteJob));
 
-host.AddModules(typeof(PingModule).Assembly);
+// Anchored to CommanderName — any type in HoshiBot.Discord would do, and this one is deliberately
+// *not* a command/interaction module: the previous anchor (PingModule) took module discovery for the
+// whole assembly down with it when its command was retired.
+host.AddModules(typeof(CommanderName).Assembly);
 
 await host.Services.SeedHoshiBotDatabaseAsync();
 

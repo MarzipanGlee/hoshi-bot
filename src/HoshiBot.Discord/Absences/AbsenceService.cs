@@ -75,17 +75,6 @@ public class AbsenceService(
         string? reason, AbsenceVisibility visibility, bool suppressNotifications) =>
         InsertAsync(guildId, userId, startsAt, endsAt, reason, visibility, suppressNotifications, AbsenceStatus.Draft);
 
-    // Used by the /absence slash command, which has no review-before-submit gap to
-    // close (the command's arguments are the review) — saves straight to Confirmed,
-    // no draft/confirm step.
-    public async Task<Absence> CreateAsync(ulong guildId, ulong userId, DateTimeOffset startsAt, DateTimeOffset endsAt,
-        string? reason, AbsenceVisibility visibility, bool suppressNotifications)
-    {
-        var absence = await InsertAsync(guildId, userId, startsAt, endsAt, reason, visibility, suppressNotifications, AbsenceStatus.Confirmed);
-        await RefreshReportsAsync(guildId);
-        return absence;
-    }
-
     private async Task<Absence> InsertAsync(ulong guildId, ulong userId, DateTimeOffset startsAt, DateTimeOffset endsAt,
         string? reason, AbsenceVisibility visibility, bool suppressNotifications, AbsenceStatus status)
     {

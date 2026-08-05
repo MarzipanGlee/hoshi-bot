@@ -20,8 +20,8 @@ public enum CommandBridgePublishResult
 }
 
 // Builds and (re)posts one linked alliance's Command Bridge hub message for a given bridge. The
-// single publish path, shared by the /post-command-bridge slash command and the Web-triggered
-// CommandBridgeRepublishJob. Command Bridges are per-alliance: each linked alliance has its own
+// single publish path, used by the Web admin's publish action via CommandBridgeRepublishJob.
+// (It was also the /post-command-bridge slash command's path, until that command was retired.) Command Bridges are per-alliance: each linked alliance has its own
 // channels + posted hub messages (on GuildAlliance). Buttons come from the shared
 // CommandBridgeCatalog, gated by this alliance's feature enablement (GuildFeatureService) — the
 // same visibility rule the Web overview mirrors.

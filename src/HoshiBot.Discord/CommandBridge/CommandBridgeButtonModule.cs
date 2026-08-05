@@ -128,9 +128,9 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         return InteractionCallback.ModifyMessage(m => { m.Content = ""; m.Embeds = [embed]; m.Components = []; });
     }
 
-    // The hub has one "Führungsstab kontaktieren" button per configured audience (see
-    // CommandBridgeAdminModule.GetConfiguredContactAudiencesAsync) — this intermediate step
-    // explains the two options (matching legacy's own two-step flow exactly) before the
+    // The hub has one "Führungsstab kontaktieren" button per configured audience (built in
+    // CommandBridgeHubService from CommandBridgeCatalog's ContactStaff entry) — this
+    // intermediate step explains the two options (matching legacy's own two-step flow exactly) before the
     // actual ticket-open/anonymous-message buttons below, now scoped to whichever audience
     // the member clicked. Only offers whichever of the two is actually enabled for that
     // audience — the hub button itself is hidden entirely if neither is.
@@ -235,19 +235,12 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
                 .ToList();
 
             var lines = unread.Select(a =>
-                $"{SeverityEmoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
+                $"{AnnouncementSeverities.Emoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
 
             var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsUnreadIntro(lang, CommanderName.Of(Context.User), string.Join('\n', lines)), title: Msg.Bridge.AnnouncementsUnreadTitle(lang));
             return m => { m.Embeds = [finalEmbed]; m.Components = rows; };
         });
     }
-
-    private static string SeverityEmoji(AnnouncementSeverity severity) => severity switch
-    {
-        AnnouncementSeverity.Elevated => "🟨",
-        AnnouncementSeverity.High => "🟥",
-        _ => "🟩",
-    };
 
     [ComponentInteraction("roe-violation-report")]
     public async Task<InteractionMessageProperties> ReportRoeViolationPrompt()

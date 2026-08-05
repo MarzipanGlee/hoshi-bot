@@ -1,5 +1,6 @@
 using HoshiBot.Discord.AiChat;
 using HoshiBot.Discord.AnnouncementForwarder;
+using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.MemberLore;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
@@ -53,6 +54,12 @@ public class AiChatMessageHandler(IServiceScopeFactory scopeFactory, GatewayClie
             // crossposted news) into the configured destination channel. Independent of replying.
             var forwarder = scope.ServiceProvider.GetRequiredService<AnnouncementForwarderService>();
             await forwarder.MaybeForwardAsync(message.GuildId.Value, message, CancellationToken.None);
+
+            // Decorate announcement drafts with the 🟩 🟨 🟥 🟦 severity reactions, which is how an
+            // announcement is published (AnnouncementDraftReactionHandler picks the click up).
+            // Independent of replying.
+            var drafts = scope.ServiceProvider.GetRequiredService<AnnouncementDraftService>();
+            await drafts.MaybeAddDraftReactionsAsync(message.GuildId.Value, message, CancellationToken.None);
 
             // Only *answer* real members — never bots/webhooks (their content is still indexed above).
             if (message.Author.IsBot)

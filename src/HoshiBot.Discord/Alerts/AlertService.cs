@@ -11,9 +11,9 @@ using NetCord.Rest;
 
 namespace HoshiBot.Discord.Alerts;
 
-// Core raid/shield-reminder logic shared between the slash commands (AlertModule) and
-// the Command Bridge button/modal flow (CommandBridgeModule) — both are valid entry
-// points to the same operations.
+// Core raid/shield-reminder logic behind the Command Bridge button/modal flow and the
+// notification buttons on the alerts themselves. It used to be shared with a set of slash
+// commands (/raid, /shield-reminder, ...) too, which were retired in favour of the bridge.
 public class AlertService(
     HoshiBotDbContext db,
     NotificationDispatcher dispatcher,

@@ -556,14 +556,20 @@ Needs care on cost: that check hits the user's OAuth guild list, so it must reus
 `DiscordUserGuildsService`'s existing 60s cache rather than firing a fresh call per page render, and
 it renders in a layout that's on every public page.
 
-## Slash commands — prune what the web admin replaced
+## Slash commands — prune what the web admin replaced — ✅ done (2026-08-05)
 
-Several slash commands predate the web admin and the Command Bridge hub and are no longer the way
-anyone does the thing (e.g. `/set-my-alliance`, which lets any member rewrite a shared catalog row —
-see the note in `PlayerModule`). Go through the modules in `HoshiBot.Discord`, decide per command
-whether it's still the best surface for that action, and delete the ones that aren't; every command
-kept costs Discord command-registration slots and a piece of UI to keep correct. Note deletions need a
-command re-registration to actually disappear from Discord.
+Twelve of the thirteen application commands were deleted; `/hoshi-say` is the only one left. Each was
+either a worse duplicate of a Command Bridge button or a Web page, or actively harmful
+(`/set-my-alliance` let any member rewrite a shared catalog row; `/link-player` inserted a duplicate
+`StfcPlayer` on a case-sensitive miss). `/shield-reminder-disable` was replaced by the terminate
+button that every reminder DM already carried, and the `Create preview` message command by
+🟩 🟨 🟥 🟦 reactions on the announcement draft channel (`AnnouncementDraftService`).
+
+Correction to what this entry used to claim: deletions do **not** need a manual command
+re-registration. `ApplicationCommandServiceManager` (NetCord source, `:55-79`) gathers the commands
+from every registered service into one array and issues a single
+`BulkOverwriteGlobalApplicationCommandsAsync`, so a command whose module is gone disappears from
+Discord on the next start by itself.
 
 ## Localization: nothing verifies dynamic `Msg.WebEditor.*` keys against the catalog
 
@@ -624,12 +630,11 @@ back the five paths where a name is searched or matched: the auto-link matcher, 
 both conditional-role operand pickers, and the onboarding "type your name" modal. Eight more places
 still compare names directly, and each is its own small failure:
 
-- **`/link-player`** (`PlayerModule.cs:25,29`) — case-sensitive, and on a miss it *inserts a new
-  `StfcPlayer`*. Typing `speed` when the catalog holds `Speed` silently creates a duplicate ghost row
-  with `ExternalId = 0`, which then collides with the unique index if it ever happens twice. This is
-  a live data-corruption path, not just a search annoyance.
-- **`/set-my-alliance`** (`PlayerModule.cs:62`) and **`/set-diplomacy`** (`AllianceModule.cs:25,39`)
-  — case-sensitive tag lookups.
+- ~~**`/link-player`**, **`/set-my-alliance`**, **`/set-diplomacy`**~~ — resolved by deletion in the
+  2026-08 slash-command cleanup. `/link-player`'s "insert a new `StfcPlayer` on a miss" was the worst
+  of these (a live data-corruption path: typing `speed` where the catalog holds `Speed` created a
+  duplicate ghost row with `ExternalId = 0`). Linking now goes through the `/me` page and the
+  onboarding modal, both of which search by key.
 - **Alliance-by-tag resolution in three importers** — `StfcPlayerImportService.cs:36,70`,
   `SeedExtensions.cs:386,393`, `StfcTerritoryOwnershipImportService.cs:31,65`. All case-sensitive
   `ToDictionary`, so a feed whose tag case differs from the catalog silently drops the player's
@@ -643,15 +648,18 @@ still compare names directly, and each is its own small failure:
 Note these want the *key*, not merely a `ToLower()`: the tag lookups in particular are comparing
 catalog data to catalog data, where homoglyphs are exactly as likely as case differences.
 
-## Slash commands: a review and cleanup pass
+## Slash commands: a review and cleanup pass — ✅ done (2026-08-05)
 
-Flagged while doing the name normalization. Every command wants going through once for: name
-arguments that should be normalized or (better) autocompleted, commands that write on a miss instead
-of failing, and commands that no longer earn their registration slot. `/link-player` is the worst of
-these (see above). `StationHousingSystemAutocompleteProvider` is the only autocomplete in the
-codebase and is the model to copy for any name-taking option.
+Flagged while doing the name normalization, and answered by deleting twelve of the thirteen commands
+(see the section above) — the name-taking options that wanted normalizing went with them.
 
-There is also a shadowing hazard worth checking for while in there: every module wraps its body in
-`SendDelayedEmbedAsync(… async () => …)`, and a pattern variable declared inside that lambda can
-shadow a command parameter of the same name with no warning — that is what made `/hoshi-say` ping the
-invoker instead of the chosen member (fixed 2026-08-04).
+Two things worth keeping from it:
+
+- **Autocomplete.** `StationHousingSystemAutocompleteProvider` was the codebase's only one and was
+  deleted with `/raid`/`/shield-reminder`. If an autocompleting option is ever needed again, the
+  model to copy is in git history (`src/HoshiBot.Discord/Alerts/`, removed 2026-08-05), not on disk.
+- **A shadowing hazard.** Every module wraps its body in `SendDelayedEmbedAsync(… async () => …)`,
+  and a pattern variable declared inside that lambda can shadow a command parameter of the same name
+  with no warning — that is what made `/hoshi-say` ping the invoker instead of the chosen member
+  (fixed 2026-08-04). `/hoshi-say` is now the only command, but the same lambda shape is all over the
+  button/modal modules.

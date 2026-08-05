@@ -248,13 +248,22 @@ app.MapGet(DiscordAccountLink.ReturnPath, async (HttpContext http, PlayerLinkSer
 // (pinning the weekly TC digest — a bit Discord split out of Manage Messages; a bot with
 // only Manage Messages still gets a 403 on the pin call), ManageThreads (closing/removing
 // threads), EmbedLinks (digest/report embeds), ReadMessageHistory (reading announcement
-// drafts back to publish them), MentionEveryone (pinging the — usually non-mentionable —
-// TC/notification roles on the daily/weekly digest), SendMessages/ViewChannel (posting at all).
+// drafts back to publish them), AddReactions (decorating announcement drafts with the
+// 🟩 🟨 🟥 🟦 severity reactions, which is how an announcement gets published),
+// MentionEveryone (pinging the — usually non-mentionable — TC/notification roles on the
+// daily/weekly digest), SendMessages/ViewChannel (posting at all).
+//
+// Deliberately NOT here: ManageMessages. Clearing the clicked severity reaction would need it
+// (see AnnouncementDraftService), and a guild-wide "delete anyone's messages" grant is far too
+// much to ask for that — an admin who wants it can grant it on the draft channel alone.
+//
+// Guilds that installed the bot before a permission was added here keep their old grant: they
+// re-invite, or fix it per channel. The permission audit page is what surfaces that.
 app.MapGet("/invite", (IConfiguration config, ulong? guildId) =>
 {
     const Permissions botPermissions = Permissions.ViewChannel | Permissions.SendMessages | Permissions.EmbedLinks |
         Permissions.PinMessages | Permissions.ManageThreads | Permissions.ManageRoles | Permissions.ManageNicknames |
-        Permissions.ManageChannels | Permissions.ReadMessageHistory | Permissions.MentionEveryone;
+        Permissions.ManageChannels | Permissions.ReadMessageHistory | Permissions.AddReactions | Permissions.MentionEveryone;
 
     var clientId = config["Discord:ClientId"];
     var url = $"https://discord.com/oauth2/authorize?client_id={clientId}&permissions={(ulong)botPermissions}&scope=bot%20applications.commands";

@@ -125,28 +125,6 @@ public static partial class Msg
         public static string AlertsIntro(Language lang, string list) =>
             MessageCatalog.Format(lang, "Bridge.AlertsIntro", ("list", list));
 
-        // /post-command-bridge results (CommandBridgeAdminModule).
-        public static string NoAllianceLinked(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.NoAllianceLinked");
-
-        public static string HubUpdated(Language lang, string tag, string kind) =>
-            MessageCatalog.Format(lang, "Bridge.HubUpdated", ("tag", tag), ("kind", kind));
-
-        public static string HubPosted(Language lang, string tag, string kind) =>
-            MessageCatalog.Format(lang, "Bridge.HubPosted", ("tag", tag), ("kind", kind));
-
-        public static string HubNoChannel(Language lang, string tag, string kind) =>
-            MessageCatalog.Format(lang, "Bridge.HubNoChannel", ("tag", tag), ("kind", kind));
-
-        public static string KindUser(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.KindUser");
-
-        public static string KindStaff(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.KindStaff");
-
-        public static string KindFriends(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.KindFriends");
-
         // The hub message itself (CommandBridgeHubService).
         public static string HubDescription(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.HubDescription");

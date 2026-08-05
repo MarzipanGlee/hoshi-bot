@@ -56,8 +56,12 @@ public static partial class Msg
         public static string AudiencePrompt(Language lang) =>
             MessageCatalog.Format(lang, "Announce.AudiencePrompt");
 
-        public static string SeverityPrompt(Language lang) =>
-            MessageCatalog.Format(lang, "Announce.SeverityPrompt");
+        // {severity} is the emoji + label of the reaction that opened the prompt.
+        public static string PublishPrompt(Language lang, string severity) =>
+            MessageCatalog.Format(lang, "Announce.PublishPrompt", ("severity", severity));
+
+        public static string PublishButton(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.PublishButton");
 
         public static string CancelButton(Language lang) =>
             MessageCatalog.Format(lang, "Announce.CancelButton");

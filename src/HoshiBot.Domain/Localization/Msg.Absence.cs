@@ -181,17 +181,5 @@ public static partial class Msg
 
         public static string NotFoundOrNoPermission(Language lang) =>
             MessageCatalog.Format(lang, "Absence.NotFoundOrNoPermission");
-
-        // The /absence slash command's replies (previously English; German authored per
-        // plan decision U4).
-        public static string HoursMustBePositive(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.HoursMustBePositive");
-
-        // end is unix seconds rendered as a Discord <t:…> stamp (per-viewer local time).
-        public static string Recorded(Language lang, long end) =>
-            MessageCatalog.Format(lang, "Absence.Recorded", ("end", end));
-
-        public static string RecordedNotifySuffix(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.RecordedNotifySuffix");
     }
 }

@@ -8,9 +8,10 @@ using NetCord.Rest;
 
 namespace HoshiBot.Discord.Announcements;
 
-// Core Announcements logic — creation via a message-command preview (see
-// AnnouncementMessageCommandModule) since staff need plain-message drafting for
-// attachments/length/template-reuse, not a modal (see the Phase 7 plan section for why).
+// Core Announcements logic — creation starts from a draft posted in the draft channel and one of
+// the severity reactions the bot adds to it (see AnnouncementDraftService), since staff need
+// plain-message drafting for attachments/length/template-reuse, not a modal (see the Phase 7 plan
+// section for why).
 public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService,
     LanguageResolver languageResolver)
 {
@@ -63,8 +64,9 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
 
     public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId)
     {
-        // The status strings go back ephemerally to the publishing staff member — their
-        // language; the published post itself renders in its target channel's owning scope.
+        // The status strings replace the publish prompt in the draft channel and are addressed to
+        // the staff member who triggered it — their language; the published post itself renders in
+        // its target channel's owning scope.
         var callerLang = await languageResolver.ForUserAsync(triggeredByUserId, scopeGuildId: guildId);
 
         var settings = await db.GuildSettings.FindAsync(guildId);
@@ -99,7 +101,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
 
         var fields = new List<EmbedFieldProperties>
         {
-            new() { Name = Msg.Announce.FieldSeverity(scopeLang), Value = SeverityLabel(severity, scopeLang), Inline = true },
+            new() { Name = Msg.Announce.FieldSeverity(scopeLang), Value = AnnouncementSeverities.Label(severity, scopeLang), Inline = true },
         };
         if (severity != AnnouncementSeverity.Direct)
             fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldOnBehalfOf(scopeLang), Value = attribution, Inline = true });
@@ -220,11 +222,4 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
             return Msg.Announce.AttributionFallback(lang);
         }
     }
-
-    private static string SeverityLabel(AnnouncementSeverity severity, Language lang) => severity switch
-    {
-        AnnouncementSeverity.Elevated => Msg.Announce.SeverityElevated(lang),
-        AnnouncementSeverity.High => Msg.Announce.SeverityHigh(lang),
-        _ => Msg.Announce.SeverityNormal(lang),
-    };
 }

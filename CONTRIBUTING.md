@@ -41,7 +41,7 @@ that matter most when deciding where new code goes:
   slash-command/button/modal/menu module, every per-feature service, every Quartz job.
   `Host` is the composition root: `Program.cs` wires up DI, Quartz triggers, the Discord
   gateway connection, and seeding, plus exactly one gateway handler of its own
-  (`GuildSyncHandler`). `Host.AddModules(typeof(PingModule).Assembly)` explicitly scans
+  (`GuildSyncHandler`). `Host.AddModules(typeof(CommanderName).Assembly)` explicitly scans
   `Discord`'s assembly for modules — this is a real assembly boundary NetCord.Hosting
   relies on, not just an organizational nicety.
 

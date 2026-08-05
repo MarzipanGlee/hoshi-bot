@@ -22,7 +22,7 @@ public class Announcement
     public AnnouncementSeverity Severity { get; set; }
 
     // Which audience this was published for — resolved at publish time from the draft
-    // channel it was created in (see AnnouncementMessageCommandModule). Audit/reporting
+    // channel it was created in (see AnnouncementDraftService). Audit/reporting
     // only; doesn't affect delivery (already decided by the time this row is created).
     public GuildAudience Audience { get; set; }
 
