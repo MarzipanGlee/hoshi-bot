@@ -36,11 +36,14 @@ public enum BotPermission : ulong
     ReadMessageHistory = 1UL << 16,
     MentionEveryone = 1UL << 17,
 
-    // Threads. Discord splits these finely: ManageThreads covers archiving/locking but NOT
-    // creating a thread or posting in one, which is why the invite asking only for ManageThreads
-    // left Tickets and RoE Violations relying on whatever broader grant a guild happened to give.
+    // Threads. Discord splits these finely: ManageThreads covers archiving/locking but NOT creating
+    // a thread or posting in one, which is why the invite asking only for ManageThreads left
+    // Tickets and RoE Violations relying on whatever broader grant a guild happened to give.
+    //
+    // CreatePublicThreads (1UL << 35) is deliberately absent: nothing creates a public thread on a
+    // text channel, and it is NOT what a forum post needs — that's SendMessages, see
+    // ChannelAccessProfile.ForumPosts. Discord doesn't even offer the bit on a forum channel.
     ManageThreads = 1UL << 34,
-    CreatePublicThreads = 1UL << 35,
     CreatePrivateThreads = 1UL << 36,
     SendMessagesInThreads = 1UL << 38,
 

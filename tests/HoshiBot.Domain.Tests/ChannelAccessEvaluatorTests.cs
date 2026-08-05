@@ -65,16 +65,33 @@ public class ChannelAccessEvaluatorTests
         Assert.Equal(BotPermission.None, required & BotPermission.EmbedLinks);
     }
 
-    // Threads: the bot posts inside the thread, never in the parent channel.
-    [Theory]
-    [InlineData(ChannelAccessProfile.PrivateThreads)]
-    [InlineData(ChannelAccessProfile.PublicThreads)]
-    public void Thread_profiles_do_not_demand_send_on_the_parent(ChannelAccessProfile profile)
+    // A private thread on a text channel is created with CreatePrivateThreads; the bot then posts
+    // inside the thread, never in the parent channel, so SendMessages is not required.
+    [Fact]
+    public void Private_threads_do_not_demand_send_on_the_parent()
     {
-        var required = profile.Permissions();
+        var required = ChannelAccessProfile.PrivateThreads.Permissions();
 
         Assert.Equal(BotPermission.None, required & BotPermission.SendMessages);
+        Assert.Equal(BotPermission.CreatePrivateThreads, required & BotPermission.CreatePrivateThreads);
         Assert.Equal(BotPermission.SendMessagesInThreads, required & BotPermission.SendMessagesInThreads);
+    }
+
+    // Forums are the exception, and getting it wrong is what this test exists for: creating a forum
+    // post is SendMessages ("Create Posts" in the forum's own permission UI), NOT
+    // CreatePublicThreads — which Discord doesn't even offer on a forum channel. Demanding the
+    // latter sent an admin looking for a permission that isn't there while ignoring the one they
+    // had already granted.
+    [Fact]
+    public void Creating_a_forum_post_needs_send_messages_not_create_public_threads()
+    {
+        var required = ChannelAccessProfile.ForumPosts.Permissions();
+
+        Assert.Equal(BotPermission.SendMessages, required & BotPermission.SendMessages);
+        Assert.Equal(BotPermission.SendMessagesInThreads, required & BotPermission.SendMessagesInThreads);
+        Assert.False(Enum.IsDefined(typeof(BotPermission), "CreatePublicThreads"),
+            "CreatePublicThreads is unused — nothing creates a public thread on a text channel. "
+            + "If that changes, re-add it AND check no forum slot picked it up by mistake.");
     }
 
     // Two features sharing one channel: the Fix button has to grant the union, or fixing from one

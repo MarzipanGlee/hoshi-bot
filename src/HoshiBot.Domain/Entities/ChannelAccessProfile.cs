@@ -44,13 +44,20 @@ public enum ChannelAccessProfile
     // drafts simply never get decorated and staff have no way to publish at all.
     Draft,
 
-    // Opens a private thread per ticket and talks inside it. Note what is NOT here: SendMessages on
-    // the parent channel. The bot posts in the thread, never in the channel itself.
+    // Opens a private thread per ticket on a normal text channel and talks inside it. Note what is
+    // NOT here: SendMessages on the parent channel. The bot posts in the thread, never in the
+    // channel itself.
     PrivateThreads,
 
-    // Opens a forum post per report, talks inside it and pings the diplomat role there. Same
-    // parent-channel note as PrivateThreads.
-    PublicThreads,
+    // Opens a forum post per report, talks inside it and pings a role there.
+    //
+    // Forums do NOT work like text channels here, and the difference is easy to get wrong: creating
+    // a forum post is SendMessages, not CreatePublicThreads. Discord's own flag doc says so —
+    // "Allows for sending messages in a channel and creating threads in a forum" — and a forum
+    // channel's permission UI reflects it by labelling SendMessages "Create Posts" and not offering
+    // Create Public Threads at all. Requiring CreatePublicThreads here made the audit ask for a
+    // permission the admin could not find, while ignoring the one they had already granted.
+    ForumPosts,
 }
 
 public static class ChannelAccessProfiles
@@ -79,9 +86,9 @@ public static class ChannelAccessProfiles
             BotPermission.ViewChannel | BotPermission.EmbedLinks | BotPermission.CreatePrivateThreads
             | BotPermission.SendMessagesInThreads | BotPermission.ManageThreads,
 
-        ChannelAccessProfile.PublicThreads =>
-            BotPermission.ViewChannel | BotPermission.EmbedLinks | BotPermission.MentionEveryone
-            | BotPermission.CreatePublicThreads | BotPermission.SendMessagesInThreads | BotPermission.ManageThreads,
+        ChannelAccessProfile.ForumPosts =>
+            BotPermission.ViewChannel | BotPermission.SendMessages | BotPermission.EmbedLinks
+            | BotPermission.MentionEveryone | BotPermission.SendMessagesInThreads | BotPermission.ManageThreads,
 
         _ => BotPermission.None,
     };

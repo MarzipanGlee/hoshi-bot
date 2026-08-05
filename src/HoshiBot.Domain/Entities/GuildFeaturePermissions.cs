@@ -119,7 +119,8 @@ public static class GuildFeaturePermissions
         GuildFeature.Tickets => [FeatureChannelSlot.Setting(TicketsSettingKeys.Channel, ChannelAccessProfile.PrivateThreads)],
 
         // A forum: each report is a forum post, with the diplomat role pinged inside the thread.
-        GuildFeature.RoeViolationReports => [FeatureChannelSlot.Setting(RoeViolationReportsSettingKeys.Channel, ChannelAccessProfile.PublicThreads)],
+        // See ForumPosts — creating the post is SendMessages, not CreatePublicThreads.
+        GuildFeature.RoeViolationReports => [FeatureChannelSlot.Setting(RoeViolationReportsSettingKeys.Channel, ChannelAccessProfile.ForumPosts)],
 
         GuildFeature.AnonymousMessaging => [FeatureChannelSlot.Setting(AnonymousMessagingSettingKeys.Channel, ChannelAccessProfile.Post)],
 
