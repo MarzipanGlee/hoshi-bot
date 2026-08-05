@@ -13,23 +13,45 @@
 
 @if (Report is { } report)
 {
-    <div class="alert @(report.Server.Ok ? "alert-success" : "alert-warning")">
-        @if (report.Server.Ok)
+    var server = report.Server;
+
+    @* Two independent asks, because they are a different kind of decision. The required half has
+       no channel alternative at all; the optional half is a convenience an admin is entitled to
+       decline if they'd rather grant the bot access channel by channel. *@
+    <div class="alert @(server.RequiredOk ? "alert-success" : "alert-warning")">
+        <strong>@Msg.WebAudit.RequiredPermsHeading(Lang)</strong>
+        @if (server.RequiredOk)
         {
-            <div>@Msg.WebAudit.ServerPermissionsOk(Lang)</div>
+            <div>@Msg.WebAudit.RequiredPermsOk(Lang)</div>
         }
         else
         {
-            <div>@Msg.WebAudit.ServerPermissionsMissing(Lang, PermissionAuditService.PermissionListLabel(Lang, report.Server.Missing.ToNetCord()))</div>
+            <div>@Msg.WebAudit.ServerPermissionsMissing(Lang, PermissionAuditService.PermissionListLabel(Lang, server.MissingRequired.ToNetCord()))</div>
             @if (MissingGuildPermissionFeatures(report) is { Length: > 0 } features)
             {
                 <div class="small mt-1">@Msg.WebAudit.ServerPermissionsNeededBy(Lang, features)</div>
             }
-            <a class="btn btn-primary btn-sm mt-2" href="@report.Server.ReauthorizeUrl" target="_blank" rel="noopener">
-                @Msg.WebAudit.ReauthorizeButton(Lang)
+            <a class="btn btn-primary btn-sm mt-2" href="@server.RequiredUrl" target="_blank" rel="noopener">
+                @Msg.WebAudit.ReauthorizeRequiredButton(Lang)
             </a>
         }
-        <div class="small text-muted mt-2">@Msg.WebAudit.ReauthorizeNote(Lang)</div>
+        <div class="small text-muted mt-2">@Msg.WebAudit.RequiredPermsNote(Lang)</div>
+    </div>
+
+    <div class="alert @(server.OptionalOk ? "alert-success" : "alert-secondary")">
+        <strong>@Msg.WebAudit.OptionalPermsHeading(Lang)</strong>
+        @if (server.OptionalOk)
+        {
+            <div>@Msg.WebAudit.OptionalPermsOk(Lang)</div>
+        }
+        else
+        {
+            <div>@Msg.WebAudit.OptionalPermsMissing(Lang, PermissionAuditService.PermissionListLabel(Lang, server.MissingOptional.ToNetCord()))</div>
+            <a class="btn btn-outline-secondary btn-sm mt-2" href="@server.OptionalUrl" target="_blank" rel="noopener">
+                @Msg.WebAudit.ReauthorizeOptionalButton(Lang)
+            </a>
+        }
+        <div class="small text-muted mt-2">@Msg.WebAudit.OptionalPermsNote(Lang)</div>
     </div>
 }
 

@@ -285,7 +285,7 @@ public sealed class PermissionAuditService(
             .GroupBy(s => s.Feature)
             .Select(g => new FeatureAccessGroup(
                 g.Key,
-                GuildFeatureService.FeatureLabel(g.Key, lang),
+                Msg.WebFeature.Title(lang, g.Key),
                 WorstOf(g.Select(s => s.Status)),
                 g.Aggregate(BotPermission.None, (acc, s) => acc | s.MissingGuildPermissions),
                 [.. g.SelectMany(s => s.Findings).Select(f => Row(f, access, context, lang)).OrderBy(r => r.Ok)]))
@@ -305,8 +305,11 @@ public sealed class PermissionAuditService(
         }
 
         var granted = context.BotPermissions.ToDomain();
-        var needed = await inviteService.NeededForAsync(context.GuildId);
-        var server = new ServerPermissionSummary(granted, needed, inviteService.AuthorizeUrl(context.GuildId, needed, granted));
+        var (required, optional) = await inviteService.NeededForAsync(context.GuildId);
+        var server = new ServerPermissionSummary(
+            granted, required, optional,
+            inviteService.AuthorizeUrl(context.GuildId, required, granted),
+            inviteService.AuthorizeUrl(context.GuildId, required | optional, granted));
 
         return new FeatureAccessReport(
             [.. groups.OrderBy(g => g.Status is FeaturePermissionStatus.Ok or FeaturePermissionStatus.NoChannelsConfigured).ThenBy(g => g.Title, StringComparer.CurrentCultureIgnoreCase)],
@@ -622,11 +625,32 @@ public sealed record FeatureAccessGroup(
 // The URL always requests Needed | Granted, never Needed alone: Discord's authorize flow REPLACES
 // the managed role's permissions, so asking for only what we calculate would strip a deliberate
 // extra grant (see BotInviteService).
-public sealed record ServerPermissionSummary(BotPermission Granted, BotPermission Needed, string ReauthorizeUrl)
+// Split in two, because the two halves are a different kind of ask.
+//
+// Required is GuildFeaturePermissions.ServerOnly: no channel overwrite can grant these, so a
+// feature needing one is simply broken until the role has it. Optional is the channel-level half —
+// an overwrite can grant those, so holding them server-wide only buys convenience (the bot works in
+// any channel without setup, and the Fix buttons below can self-serve, since they refuse to grant
+// anything the bot doesn't already hold). An admin who doesn't want to give the bot blanket access
+// can decline the optional half and grant per channel instead.
+//
+// Both URLs request their set OR'd with what is already granted, never the set alone: Discord's
+// authorize flow REPLACES the managed role's permissions, so asking for only what we calculate
+// would strip a deliberate extra grant. The optional URL therefore also carries the required half.
+public sealed record ServerPermissionSummary(
+    BotPermission Granted,
+    BotPermission Required,
+    BotPermission Optional,
+    string RequiredUrl,
+    string OptionalUrl)
 {
-    public BotPermission Missing => Needed & ~Granted;
+    public BotPermission MissingRequired => Required & ~Granted;
 
-    public bool Ok => Missing == BotPermission.None;
+    public BotPermission MissingOptional => Optional & ~Granted;
+
+    public bool RequiredOk => MissingRequired == BotPermission.None;
+
+    public bool OptionalOk => MissingOptional == BotPermission.None;
 }
 
 public sealed record FeatureAccessReport(

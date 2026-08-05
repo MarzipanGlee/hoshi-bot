@@ -62,20 +62,38 @@ public static partial class Msg
         public static string ServerPermissionsTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsTitle");
 
-        public static string ServerPermissionsOk(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsOk");
-
         public static string ServerPermissionsMissing(Language lang, string permissions) =>
             MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsMissing", ("permissions", permissions));
 
         public static string ServerPermissionsNeededBy(Language lang, string features) =>
             MessageCatalog.Format(lang, "Web.Audit.ServerPermissionsNeededBy", ("features", features));
 
-        public static string ReauthorizeButton(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Audit.ReauthorizeButton");
+        public static string RequiredPermsHeading(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.RequiredPermsHeading");
 
-        public static string ReauthorizeNote(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Audit.ReauthorizeNote");
+        public static string RequiredPermsOk(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.RequiredPermsOk");
+
+        public static string RequiredPermsNote(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.RequiredPermsNote");
+
+        public static string ReauthorizeRequiredButton(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ReauthorizeRequiredButton");
+
+        public static string OptionalPermsHeading(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.OptionalPermsHeading");
+
+        public static string OptionalPermsOk(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.OptionalPermsOk");
+
+        public static string OptionalPermsMissing(Language lang, string permissions) =>
+            MessageCatalog.Format(lang, "Web.Audit.OptionalPermsMissing", ("permissions", permissions));
+
+        public static string OptionalPermsNote(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.OptionalPermsNote");
+
+        public static string ReauthorizeOptionalButton(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ReauthorizeOptionalButton");
 
         public static string FeatureAccessTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Audit.FeatureAccessTitle");

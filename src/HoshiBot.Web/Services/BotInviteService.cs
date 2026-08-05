@@ -17,10 +17,18 @@ namespace HoshiBot.Web.Services;
 // URL that has to be built per guild anyway.
 public class BotInviteService(GuildFeatureService featureService, IConfiguration configuration)
 {
-    // Baseline plus everything this guild's enabled features declare. Channel-profile bits are
-    // included on purpose: granting them on the bot's role covers every channel at once, which is
-    // the whole point of offering a top-up instead of making an admin fix twenty channels by hand.
-    public async Task<BotPermission> NeededForAsync(ulong guildId)
+    // Baseline plus everything this guild's enabled features declare, split into the two halves an
+    // admin should be allowed to decide separately:
+    //
+    //   Required — GuildFeaturePermissions.ServerOnly. No channel overwrite can grant these, so a
+    //              feature that needs one simply does not work until the role has it.
+    //   Optional — the channel-level bits. An overwrite CAN grant these, so holding them
+    //              server-wide is a convenience: it makes the bot work in any channel without
+    //              per-channel setup, and it is what lets the permission page's Fix buttons
+    //              self-serve (they refuse to grant anything the bot doesn't already hold).
+    //              An admin who doesn't want to hand the bot blanket access can decline this half
+    //              and grant per channel instead.
+    public async Task<(BotPermission Required, BotPermission Optional)> NeededForAsync(ulong guildId)
     {
         var needed = GuildFeaturePermissions.InviteBaseline;
 
@@ -32,9 +40,9 @@ public class BotInviteService(GuildFeatureService featureService, IConfiguration
         }
 
         // The AiChatKnowledge* tiers are never in GuildEnabledFeature (they ride AiChat's
-        // enablement), but their Read profile is View + Read Message History, both already in the
-        // baseline — so there is nothing to add for them here.
-        return needed;
+        // enablement), but their Read profile is View + Read Message History — channel-level bits
+        // that AiChat's own slots already contribute, so there is nothing to add for them here.
+        return (needed & GuildFeaturePermissions.ServerOnly, needed & ~GuildFeaturePermissions.ServerOnly);
     }
 
     // Discord's authorize flow REPLACES the bot's managed-role permissions with exactly what is

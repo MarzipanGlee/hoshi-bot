@@ -226,6 +226,23 @@ public static class GuildFeaturePermissions
     public static IReadOnlyList<GuildFeature> UnauditableFeatures { get; } =
         [GuildFeature.HoshiSay, GuildFeature.AiChat];
 
+    // The permissions the bot can only ever get from its server-wide role, because a channel
+    // overwrite either cannot express them or means something else there:
+    //
+    //   ManageNicknames  — not a channel overwrite permission at all; Discord doesn't offer it.
+    //   ManageRoles      — on a channel it governs THAT channel's overwrites; assigning a role to a
+    //                      member is the server-wide meaning, and that's what the role-sync
+    //                      features do.
+    //   ManageChannels   — on a channel it governs editing that channel; CREATING a category or
+    //                      channel (the Setup Wizard) is the server-wide meaning.
+    //
+    // Everything else the bot needs is channel-grantable: an overwrite can grant a permission the
+    // role does not hold guild-wide, so a cautious admin can decline it server-wide and grant it
+    // per channel instead. That distinction is what splits the permission page's re-authorize into
+    // a required and an optional half.
+    public static BotPermission ServerOnly { get; } =
+        BotPermission.ManageRoles | BotPermission.ManageNicknames | BotPermission.ManageChannels;
+
     // What /invite asks a brand-new guild for, before any feature exists. Three bits.
     //
     // The reason it can be this small is that a member's effective permissions are the OR of
