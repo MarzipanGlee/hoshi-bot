@@ -792,6 +792,7 @@
   "Web.Audit.OptionalPermsOk": "✅ Hoshi can repair channel permissions itself.",
   "Web.Audit.OptionalPermsMissing": "Not granted server-wide: {permissions}",
   "Web.Audit.OptionalPermsNote": "Entirely your call. These can also be granted per channel, and a channel can grant Hoshi something its role doesn't have — so declining here costs nothing except convenience. Granting them means Hoshi works in any channel without setup, and the Fix buttons below can repair a channel on their own (they can never grant a permission Hoshi doesn't already hold).",
+  "Web.Audit.ReauthorizeOptionalButton": "Grant optional permissions",
   "Web.Audit.ServerPermissionsNeededBy": "Needed by: {features}",
   "Web.Audit.FeatureAccessTitle": "Access per feature",
   "Web.Audit.FeatureAccessIntro": "What each enabled feature needs in the channels you pointed it at, and whether Hoshi has it.",

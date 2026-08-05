@@ -792,6 +792,7 @@
   "Web.Audit.OptionalPermsOk": "✅ Hoshi kann Kanalberechtigungen selbst reparieren.",
   "Web.Audit.OptionalPermsMissing": "Serverweit nicht vergeben: {permissions}",
   "Web.Audit.OptionalPermsNote": "Ganz Deine Entscheidung. Diese Rechte lassen sich auch pro Kanal vergeben, und ein Kanal kann Hoshi etwas erlauben, das ihre Rolle nicht hat — ein Verzicht kostet also nur Bequemlichkeit. Vergibst Du sie, funktioniert Hoshi ohne Einrichtung in jedem Kanal und die Reparieren-Schaltflächen unten kommen allein zurecht (sie können nie ein Recht vergeben, das Hoshi selbst nicht hat).",
+  "Web.Audit.ReauthorizeOptionalButton": "Optionale Rechte vergeben",
   "Web.Audit.ServerPermissionsNeededBy": "Ben\u00f6tigt von: {features}",
   "Web.Audit.FeatureAccessTitle": "Zugriff pro Funktion",
   "Web.Audit.FeatureAccessIntro": "Was jede aktivierte Funktion in den Kan\u00e4len braucht, auf die Du sie gesetzt hast \u2014 und ob Hoshi das hat.",
