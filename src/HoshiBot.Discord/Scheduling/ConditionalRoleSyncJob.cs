@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain.ConditionalRoles;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -29,6 +31,8 @@ public class ConditionalRoleSyncJob(
     GuildFeatureService featureService,
     ConditionalRoleService conditionalRoles,
     PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger<ConditionalRoleSyncJob> logger) : IJob
 {
     public Task Execute(IJobExecutionContext context) =>
@@ -36,6 +40,18 @@ public class ConditionalRoleSyncJob(
 
     private async Task SyncGuildAsync(ulong guildId)
     {
+        // One check before a roster of hundreds: without Manage Roles every call below would 403,
+        // and Discord counts each toward a ban threshold measured over the same window this job
+        // runs on. Null from the guard means "couldn't tell" — carry on exactly as before.
+        if (permissionGuard.For(guildId) is { CanManageRoles: false })
+        {
+            permissionGuard.LogSkip(guildId, "Conditional Roles needs Manage Roles, which the bot's role doesn't have");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SyncRoles, null, BotPermission.ManageRoles);
+            return;
+        }
+
+        NotificationDispatcher.ClearPermissionIssue(guildId, BotAction.SyncRoles, null);
+
         var snapshot = await conditionalRoles.LoadAsync(guildId);
         if (snapshot.Rules.Count == 0)
             return;

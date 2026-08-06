@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -26,6 +28,8 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger logger) : IJob
     where TTier : struct
 {
@@ -77,6 +81,19 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
 
     private async Task SyncGuildAsync(ulong guildId)
     {
+        // Ask once, before touching a roster of hundreds. Without Manage Roles every single
+        // AddGuildUserRoleAsync below would 403, and Discord counts each one toward a ban threshold
+        // it measures over the same 10 minutes this job runs on. Null means the guard could not work
+        // it out — carry on exactly as before (see PermissionGuard.For).
+        if (permissionGuard.For(guildId) is { CanManageRoles: false })
+        {
+            permissionGuard.LogSkip(guildId, $"{Feature} needs Manage Roles, which the bot's role doesn't have");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SyncRoles, null, BotPermission.ManageRoles);
+            return;
+        }
+
+        NotificationDispatcher.ClearPermissionIssue(guildId, BotAction.SyncRoles, null);
+
         // The tier comes from whichever player represents the member in *this* guild.
         var players = (await playerLinkService.GetGuildPrimaryPlayersAsync(guildId)).Values.ToList();
 
@@ -109,6 +126,27 @@ public abstract class ExclusiveTierRoleSyncJob<TTier>(
         var managedRoleIds = roleIdsByTier.Values.ToList();
         if (noTierRoleId is { } noTier)
             managedRoleIds.Add(noTier);
+
+        // Drop any role the bot cannot reach because it sits at or above the bot's own — a per-role
+        // fact, so checking it here costs one comparison instead of one 403 per member. The outcome
+        // for that role is the same as today (untouched); what changes is that we stop asking.
+        if (permissionGuard.For(guildId) is { } permissions)
+        {
+            var unreachable = managedRoleIds.Where(id => !permissions.CanAssign(id)).ToList();
+            if (unreachable.Count > 0)
+            {
+                permissionGuard.LogSkip(guildId, $"{Feature}: {unreachable.Count} role(s) sit at or above the bot's own role and cannot be assigned");
+                await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SyncRoles, null, BotPermission.ManageRoles);
+                managedRoleIds.RemoveAll(id => !permissions.CanAssign(id));
+                foreach (var key in roleIdsByTier.Where(kv => !permissions.CanAssign(kv.Value)).Select(kv => kv.Key).ToList())
+                    roleIdsByTier.Remove(key);
+                if (noTierRoleId is { } n && !permissions.CanAssign(n))
+                    noTierRoleId = null;
+            }
+        }
+
+        if (managedRoleIds.Count == 0)
+            return;
 
         foreach (var player in players)
         {

@@ -44,6 +44,14 @@ public enum BotAction
     /// ThreadCleanupJob deleting a queued thread.
     RemoveThread,
 
+    /// Assigning or removing a member role — the role-sync jobs. Reported once per guild per run
+    /// rather than per member: without Manage Roles, or with a target role sitting above the bot's
+    /// own, every member in the roster would otherwise fail identically.
+    SyncRoles,
+
+    /// Renaming members to match their linked player (Nickname Sync).
+    SyncNicknames,
+
     /// Decorating an announcement draft with the severity reactions — without them there is no way
     /// to publish at all, so a silent failure here is invisible until someone asks why.
     AddDraftReactions,

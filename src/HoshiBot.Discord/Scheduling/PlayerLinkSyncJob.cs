@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -25,6 +27,8 @@ public class PlayerLinkSyncJob(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger<PlayerLinkSyncJob> logger) : IJob
 {
     public Task Execute(IJobExecutionContext context) =>
@@ -37,6 +41,18 @@ public class PlayerLinkSyncJob(
     {
         if (!await featureService.IsEnabledAsync(guildId, GuildFeature.PlayerLink))
             return;
+
+        // The unlinked-role assignment below runs per member; without Manage Roles that is one 403
+        // each, every 10 minutes. The matching work itself needs no permission, but there is nothing
+        // to do with the result, so skip the guild rather than walk the roster for nothing.
+        if (permissionGuard.For(guildId) is { CanManageRoles: false })
+        {
+            permissionGuard.LogSkip(guildId, "Player Assignment needs Manage Roles to maintain the unlinked role");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SyncRoles, null, BotPermission.ManageRoles);
+            return;
+        }
+
+        NotificationDispatcher.ClearPermissionIssue(guildId, BotAction.SyncRoles, null);
 
         var linked = 0;
         var queued = 0;

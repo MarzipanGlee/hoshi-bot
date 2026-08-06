@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,7 +17,13 @@ namespace HoshiBot.Discord.Scheduling;
 // absence that suppresses notifications (starting within 15 min or already ongoing), added
 // back otherwise. The role is owned by the Absences feature but pinged by the Territory
 // Capture weekly digest and Announcements — see AbsencesSettingKeys.NotificationRole.
-public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gatewayClient, PlayerLinkService playerLinkService, ILogger<NotificationRoleSyncJob> logger) : IJob
+public class NotificationRoleSyncJob(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
+    ILogger<NotificationRoleSyncJob> logger) : IJob
 {
     private static readonly TimeSpan LookAhead = TimeSpan.FromMinutes(15);
 
@@ -33,6 +41,17 @@ public class NotificationRoleSyncJob(HoshiBotDbContext db, GatewayClient gateway
         // a GetGuildUserAsync per member.
         foreach (var guildGroup in settings.GroupBy(s => s.GuildId))
         {
+            // Checked before the roster fetch: a guild without Manage Roles would otherwise 403 once
+            // per member per alliance, every 10 minutes, forever.
+            if (permissionGuard.For(guildGroup.Key) is { CanManageRoles: false })
+            {
+                permissionGuard.LogSkip(guildGroup.Key, "Absence notification roles need Manage Roles, which the bot's role doesn't have");
+                await dispatcher.NotifyAdminOfPermissionIssueAsync(guildGroup.Key, BotAction.SyncRoles, null, BotPermission.ManageRoles);
+                continue;
+            }
+
+            NotificationDispatcher.ClearPermissionIssue(guildGroup.Key, BotAction.SyncRoles, null);
+
             var roster = await GuildRoster.FetchAsync(gatewayClient, guildGroup.Key);
             // Resolved once per guild, not per alliance: which player represents each member here.
             var primaries = await playerLinkService.GetGuildPrimaryPlayersAsync(guildGroup.Key);

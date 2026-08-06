@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Discord.TerritoryCapture;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
@@ -24,6 +26,8 @@ public class TerritoryCaptureRoleSyncJob(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger<TerritoryCaptureRoleSyncJob> logger) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -40,6 +44,17 @@ public class TerritoryCaptureRoleSyncJob(
             var links = await digestService.GetTcEnabledLinksAsync(guildId);
             if (links.Count == 0)
                 continue;
+
+            // Checked before the roster fetch: five zone-slot roles per alliance across the whole
+            // roster is a lot of identical 403s if Manage Roles is missing.
+            if (permissionGuard.For(guildId) is { CanManageRoles: false })
+            {
+                permissionGuard.LogSkip(guildId, "Territory Capture zone-slot roles need Manage Roles, which the bot's role doesn't have");
+                await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SyncRoles, null, BotPermission.ManageRoles);
+                continue;
+            }
+
+            NotificationDispatcher.ClearPermissionIssue(guildId, BotAction.SyncRoles, null);
 
             // Fetch the roster once (bulk) instead of a GetGuildUserAsync per member.
             var roster = await GuildRoster.FetchAsync(gatewayClient, guildId);

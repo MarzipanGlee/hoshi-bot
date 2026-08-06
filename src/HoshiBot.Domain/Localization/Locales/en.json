@@ -270,6 +270,8 @@
   "News.EditButton": "Edit",
 
   "Notify.Action.SendAlert": "send an alert message",
+  "Notify.Action.SyncRoles": "keep member roles in sync",
+  "Notify.Action.SyncNicknames": "keep member nicknames in sync",
   "Notify.Action.CreateTicketThread": "open a ticket thread",
   "Notify.Action.SendTicketWelcome": "post the ticket's welcome message",
   "Notify.Action.AddTicketCommander": "add a commander to a ticket",

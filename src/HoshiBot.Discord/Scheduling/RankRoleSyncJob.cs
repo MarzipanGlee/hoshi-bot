@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using NetCord.Gateway;
@@ -17,8 +19,10 @@ public class RankRoleSyncJob(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger<RankRoleSyncJob> logger)
-    : ExclusiveTierRoleSyncJob<StfcPlayerRank>(gatewayClient, featureService, settingsService, playerLinkService, logger)
+    : ExclusiveTierRoleSyncJob<StfcPlayerRank>(gatewayClient, featureService, settingsService, playerLinkService, permissionGuard, dispatcher, logger)
 {
     protected override GuildFeature Feature => GuildFeature.RankRoles;
 

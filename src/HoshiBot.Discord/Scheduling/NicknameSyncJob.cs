@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +25,8 @@ public class NicknameSyncJob(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger<NicknameSyncJob> logger) : IJob
 {
     public Task Execute(IJobExecutionContext context) =>
@@ -32,6 +36,17 @@ public class NicknameSyncJob(
 
     private async Task ProcessGuildAsync(ulong guildId)
     {
+        // Manage Nicknames here, not Manage Roles — and it is the one permission no channel override
+        // can grant, so without it every ModifyGuildUserAsync below is a guaranteed 403 per member.
+        if (permissionGuard.For(guildId) is { CanManageNicknames: false })
+        {
+            permissionGuard.LogSkip(guildId, "Nickname Sync needs Manage Nicknames, which the bot's role doesn't have");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SyncNicknames, null, BotPermission.ManageNicknames);
+            return;
+        }
+
+        NotificationDispatcher.ClearPermissionIssue(guildId, BotAction.SyncNicknames, null);
+
         var allianceTagMode = ParseMode(await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.AllianceTagMode));
         var serverTagMode = ParseMode(await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.ServerTagMode));
         var excludedRoles = (await settingsService.GetSnowflakeListAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.ExcludedRoles)).ToHashSet();

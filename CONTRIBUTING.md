@@ -195,6 +195,48 @@ File placement rules:
   infrastructure (currently without a producer) — a future thread-owning feature should
   wire a feature-specific button into that queue, not reintroduce a standalone command.
 
+## Discord API limits
+
+- **Discord bans the IP after 10,000 invalid responses in 10 minutes, and 401, 403 and
+  429 all count.** It is a temporary Cloudflare ban on the whole bot, every guild — not a
+  per-route throttle. The bot measures its own rate: `InvalidRequestTrackingHandler` wraps
+  NetCord's request handler and logs a warning once the rolling 10-minute count crosses
+  10% of the ceiling, so a guild that starts generating volume says so before the ban does.
+- **Never hand-roll 429 handling — NetCord owns it completely.** It keeps per-route and
+  global buckets, *sleeps before sending* when one is exhausted rather than firing and
+  failing, honours `Retry-After`, and treats `X-RateLimit-Scope: shared` separately. Do
+  know that its retry is **unbounded** by default: a pathological route retries forever,
+  and the only escapes are the `CancellationToken` every REST call takes and
+  `RestRequestProperties.RateLimitHandling = NoRetry`.
+- **Pre-check *guild-level* permissions before a call that would 403; do NOT pre-check
+  channel permissions.** Discord asks for this explicitly ("403 responses are avoided by
+  inspecting role or channel permissions"). The distinction is what makes it safe: a
+  guild-level bit and a role's position are simple facts, and `PermissionGuard` reads both
+  from the gateway cache for free. Channel access needs overwrite resolution and category
+  inheritance — being wrong there silently drops a message, so channel 403s stay reactive
+  (`NotifyAdminOfPermissionIssueAsync`). Note **Administrator does not bypass role
+  hierarchy**, and nobody can rename the guild owner — `RoleSyncEligibility` holds those.
+- **A guard must fail open.** `PermissionGuard.For` returns null when it cannot work the
+  answer out, and every caller must then behave exactly as it would have. A wrong "no"
+  stops roles syncing silently, which is worse than the 403s the guard exists to prevent.
+- **A `catch` inside a per-item loop repeats forever unless the item's state advances.**
+  This is the shape that turns one misconfiguration into thousands of invalid requests:
+  the loop swallows the failure, nothing is marked done, and the next run does it all
+  again. Good precedent: `TerritoryCaptureDigestService.SweepExpiredMessagesAsync` removes
+  its row even when the delete fails. Bad precedent: `CommandBridgeRepublishJob` skips the
+  dequeue on failure and re-fires every 5 seconds forever.
+- **Report a permission failure per guild, not per member**, and let the throttle escalate
+  (`NotifyAdminOfPermissionIssueAsync`: immediately, then 10 min, 30 min, hourly). Call
+  `NotificationDispatcher.ClearPermissionIssue` when the thing works again so a problem
+  that returns is reported at once instead of resuming at the back of the backoff.
+- **Use `ex.Error?.Code` for Discord's numeric error codes** (50013 = Missing Permissions),
+  not just the HTTP status — a 403 for a missing permission and a 403 for something else
+  want different handling. `Error` is **nullable**: it is null whenever the body was not
+  parseable JSON.
+- The measured analysis behind all of this — which jobs, how many members, how close to the
+  ceiling — is in [docs/backlog.md](docs/backlog.md) under "Role sync 403s"; don't
+  re-derive it here.
+
 ## Known gotchas
 
 - **NetCord component-interaction handlers always post a *new* message unless you

@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using NetCord.Gateway;
@@ -18,8 +20,10 @@ public class OpsLevelRoleSyncJob(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger<OpsLevelRoleSyncJob> logger)
-    : ExclusiveTierRoleSyncJob<StfcOpsGroup>(gatewayClient, featureService, settingsService, playerLinkService, logger)
+    : ExclusiveTierRoleSyncJob<StfcOpsGroup>(gatewayClient, featureService, settingsService, playerLinkService, permissionGuard, dispatcher, logger)
 {
     protected override GuildFeature Feature => GuildFeature.OpsLevelRoles;
 

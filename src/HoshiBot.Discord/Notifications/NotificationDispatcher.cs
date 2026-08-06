@@ -248,18 +248,34 @@ public class NotificationDispatcher(
         }
     }
 
-    // Throttles repeat admin notifications for the same (guild, context) pair — this is
-    // now called from recurring Quartz jobs (every 5-15 min) as well as one-shot user
-    // actions (Tickets, RoE), and a persistent misconfiguration (e.g. a permanently
-    // missing "Manage Threads" grant) would otherwise re-notify on every single run
-    // forever. Static/process-lifetime is deliberate and sufficient here — a hobby-scale,
-    // single-instance bot, and a restart is itself a reasonable point to re-notify if the
-    // problem is still there.
-    private static readonly TimeSpan NotifyThrottle = TimeSpan.FromHours(1);
+    // Throttles repeat admin notifications for the same (guild, action, channel) — called from
+    // recurring Quartz jobs (every 5-15 min) as well as one-shot user actions (Tickets, RoE), so a
+    // persistent misconfiguration would otherwise re-notify on every single run forever.
+    //
+    // Escalating rather than a flat interval, because the two audiences pull in opposite directions:
+    // an admin watching the channel wants to know NOW, and a guild that is going to ignore it for a
+    // week should not collect 144 identical embeds a day. So: immediately, then 10 minutes, 30, an
+    // hour, and hourly after that.
+    private static readonly TimeSpan[] NotifyBackoff =
+    [
+        TimeSpan.Zero,
+        TimeSpan.FromMinutes(10),
+        TimeSpan.FromMinutes(30),
+        TimeSpan.FromHours(1),
+    ];
+
     // Keyed by (guild, action, channel). It used to be keyed by the LOCALIZED action text, which
     // meant two different channels failing the same action shared one hourly slot — only the first
     // was ever reported — and changing the guild's language silently reset every throttle.
-    private static readonly ConcurrentDictionary<(ulong GuildId, BotAction Action, ulong? ChannelId), DateTimeOffset> LastNotifiedAt = new();
+    //
+    // Static/process-lifetime is deliberate and sufficient — a hobby-scale, single-instance bot, and
+    // a restart is itself a reasonable point to re-notify if the problem is still there.
+    private static readonly ConcurrentDictionary<(ulong GuildId, BotAction Action, ulong? ChannelId), (DateTimeOffset SentAt, int Count)> LastNotifiedAt = new();
+
+    // Called when the thing that was failing works again, so a problem that comes back is reported
+    // straight away instead of resuming at the back of the backoff.
+    public static void ClearPermissionIssue(ulong guildId, BotAction action, ulong? channelId) =>
+        LastNotifiedAt.TryRemove((guildId, action, channelId), out _);
 
     // Surfaces a permission problem to a human in Discord instead of only a server-side log line
     // nobody in the guild ever sees, naming the exact permission and channel rather than a
@@ -284,9 +300,11 @@ public class NotificationDispatcher(
     {
         var key = (guildId, action, channelId);
         var now = DateTimeOffset.UtcNow;
-        if (LastNotifiedAt.TryGetValue(key, out var lastSent) && now - lastSent < NotifyThrottle)
+        var previous = LastNotifiedAt.TryGetValue(key, out var last) ? last : default;
+        if (previous.Count > 0 && now - previous.SentAt < NotifyBackoff[Math.Min(previous.Count - 1, NotifyBackoff.Length - 1)])
             return;
-        LastNotifiedAt[key] = now;
+
+        LastNotifiedAt[key] = (now, previous.Count + 1);
 
         var settings = await db.GuildSettings.FindAsync(guildId);
         if (settings?.AdminChannelId is not { } adminChannelId)

@@ -1,5 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +29,8 @@ public class AllianceTagRoleSyncJob(
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     PlayerLinkService playerLinkService,
+    PermissionGuard permissionGuard,
+    NotificationDispatcher dispatcher,
     ILogger<AllianceTagRoleSyncJob> logger) : IJob
 {
     // Discord's per-guild role cap. Worth respecting explicitly: a coalition Discord tracking many
@@ -39,6 +43,18 @@ public class AllianceTagRoleSyncJob(
 
     private async Task SyncGuildAsync(ulong guildId)
     {
+        // One check before a roster of hundreds: without Manage Roles every call below would 403,
+        // and Discord counts each toward a ban threshold measured over the same window this job
+        // runs on. Null from the guard means "couldn't tell" — carry on exactly as before.
+        if (permissionGuard.For(guildId) is { CanManageRoles: false })
+        {
+            permissionGuard.LogSkip(guildId, "Alliance Tag Roles needs Manage Roles, which the bot's role doesn't have");
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SyncRoles, null, BotPermission.ManageRoles);
+            return;
+        }
+
+        NotificationDispatcher.ClearPermissionIssue(guildId, BotAction.SyncRoles, null);
+
         var createMissing = IsOn(await GetAsync(guildId, AllianceTagRolesSettingKeys.CreateMissing), defaultOn: true);
         var latinize = IsOn(await GetAsync(guildId, AllianceTagRolesSettingKeys.Latinize), defaultOn: false);
         var lowercase = IsOn(await GetAsync(guildId, AllianceTagRolesSettingKeys.Lowercase), defaultOn: false);

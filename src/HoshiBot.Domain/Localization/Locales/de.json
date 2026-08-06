@@ -270,6 +270,8 @@
   "News.EditButton": "Bearbeiten",
 
   "Notify.Action.SendAlert": "eine Alarmnachricht senden",
+  "Notify.Action.SyncRoles": "die Mitgliederrollen synchron halten",
+  "Notify.Action.SyncNicknames": "die Mitglieder-Nicknamen synchron halten",
   "Notify.Action.CreateTicketThread": "einen Ticket-Thread öffnen",
   "Notify.Action.SendTicketWelcome": "die Willkommensnachricht des Tickets posten",
   "Notify.Action.AddTicketCommander": "einen Commander zu einem Ticket hinzufügen",

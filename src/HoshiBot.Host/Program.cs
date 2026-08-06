@@ -11,6 +11,7 @@ using HoshiBot.Discord.CommandBridge;
 using HoshiBot.Discord.MemberLore;
 using HoshiBot.Discord.MemberOnboarding;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.Permissions;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Discord.Scheduling;
 using HoshiBot.Discord.StfcNews;
@@ -24,6 +25,7 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
+using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 using NetCord.Services.ComponentInteractions;
 using Quartz;
@@ -58,14 +60,29 @@ builder.Services
     // arbitrary member messages). MessageContent is a PRIVILEGED intent — it must also be
     // enabled for this bot application in the Discord Developer Portal, or message.Content
     // arrives empty and the AI never sees anything to answer.
-    .AddDiscordGateway(options => options.Intents =
-        GatewayIntents.Guilds | GatewayIntents.GuildUsers | GatewayIntents.GuildMessages | GatewayIntents.MessageContent
-        // DirectMessages: receive MESSAGE_CREATE for DMs (member-lore interview replies). Not a
-        // privileged intent (no portal toggle); DM content always arrives without MessageContent.
-        | GatewayIntents.DirectMessages
-        // GuildMessageReactions: receive MESSAGE_REACTION_ADD, which is how an announcement draft
-        // is published (AnnouncementDraftReactionHandler). Also not privileged.
-        | GatewayIntents.GuildMessageReactions)
+    .AddDiscordGateway((options, services) =>
+    {
+        options.Intents =
+            GatewayIntents.Guilds | GatewayIntents.GuildUsers | GatewayIntents.GuildMessages | GatewayIntents.MessageContent
+            // DirectMessages: receive MESSAGE_CREATE for DMs (member-lore interview replies). Not a
+            // privileged intent (no portal toggle); DM content always arrives without MessageContent.
+            | GatewayIntents.DirectMessages
+            // GuildMessageReactions: receive MESSAGE_REACTION_ADD, which is how an announcement draft
+            // is published (AnnouncementDraftReactionHandler). Also not privileged.
+            | GatewayIntents.GuildMessageReactions;
+
+        // Every REST response the bot gets passes through this one handler, so the 401 kill switch
+        // and the invalid-request meter need no changes at any call site. NetCord owns 429 entirely
+        // (pre-emptive buckets, Retry-After aware) but tracks nothing about Discord's
+        // 10,000-invalid-responses-per-10-minutes ban threshold, and does nothing at all on 401.
+        options.RestClientConfiguration = new RestClientConfiguration
+        {
+            RequestHandler = new InvalidRequestTrackingHandler(
+                new RestRequestHandler(),
+                services.GetRequiredService<DiscordApiHealth>(),
+                services.GetRequiredService<ILogger<InvalidRequestTrackingHandler>>()),
+        };
+    })
     // One application-command service: /hoshi-say is the only application command left (everything
     // else moved to the Command Bridge, the Web admin, or — for announcements — the draft-channel
     // reactions), so the startup log should say "1 command(s) registered". There used to be a second
@@ -98,6 +115,11 @@ builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<TerritoryCaptureDigestService>();
 builder.Services.AddScoped<AnnouncementService>();
 builder.Services.AddScoped<AnnouncementDraftService>();
+// Singletons: both outlive the per-fire Quartz scopes they serve. DiscordApiHealth holds the 401
+// kill switch and the rolling invalid-request count; PermissionGuard caches each guild's role
+// standing for 60s so a sync job resolves it once per run instead of once per member.
+builder.Services.AddSingleton<DiscordApiHealth>();
+builder.Services.AddSingleton<PermissionGuard>();
 builder.Services.AddScoped<TicketService>();
 builder.Services.AddScoped<RoeViolationService>();
 builder.Services.AddScoped<AbsenceService>();
@@ -155,6 +177,10 @@ var digestTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Zurich");
 
 builder.Services.AddQuartz(quartz =>
 {
+    // Vetoes every job while the Discord token is invalid — one place, instead of each job
+    // discovering it mid-run and burning invalid requests on the way (see DiscordTokenJobListener).
+    quartz.AddTriggerListener<DiscordTokenTriggerListener>();
+
     // Persist jobs/triggers in Postgres so a fire missed while the host is down (deploys, crashes)
     // is replayed once on the next startup instead of lost. This matters most for the low-frequency
     // Territory Capture digests (daily 19:00, weekly 09:00): with the default in-memory RAMJobStore
@@ -282,6 +308,7 @@ builder.Services.Configure<QuartzOptions>(options =>
     options.Scheduling.OverWriteExistingData = false;
 });
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+builder.Services.AddSingleton<DiscordTokenTriggerListener>();
 
 var host = builder.Build();
 

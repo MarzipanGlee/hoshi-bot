@@ -531,7 +531,7 @@ result). The editor's Services-role and Member-role pickers are live shared view
 `ServicesRole` setting and `GuildAlliance.MemberRoleId` (editing there or here is the same value) — the
 feature owns no settings of its own.
 
-## Role sync 403s: pre-check instead of failing per member (Cloudflare-ban risk)
+## Role sync 403s: pre-check instead of failing per member — ✅ done (2026-08-06)
 
 Discord's rate-limit guide has an **Invalid Request Limit**: 10,000 responses of 401/403/429 in any
 10 minutes gets the IP temporarily banned from the API — for the whole bot, all guilds. The guide is
@@ -569,12 +569,42 @@ degrades to the current behaviour rather than silently stopping role sync (which
 the problem). Log every skip loudly for the same reason. `NicknameSyncJob` is the same story with
 Manage Nicknames, plus the rule that nobody can rename the guild owner.
 
-**This contradicts a stated rule**, and that rule should be narrowed rather than kept: the comment on
-`NotificationDispatcher.NotifyAdminOfPermissionIssueAsync` says resolving effective permissions
+**This contradicted a stated rule**, and that rule was narrowed rather than kept: the comment on
+`NotificationDispatcher.NotifyAdminOfPermissionIssueAsync` said resolving effective permissions
 ourselves "would be easy to get wrong". That is fair for *channel* permissions (overwrite resolution,
 category inheritance) but not for these two — guild-level permission bits and role positions are
-simple, and Discord asks applications to check them. The rule to keep is: don't pre-check channel
-overwrites; do pre-check the guild-level facts.
+simple, and Discord asks applications to check them. The rule kept is: don't pre-check channel
+overwrites; do pre-check the guild-level facts. It now lives in CONTRIBUTING "Discord API limits".
+
+**Shipped.** `RoleSyncEligibility` (Domain, pure + tested) holds the decisions; `PermissionGuard`
+(singleton, 60s cache over the gateway cache — no API calls) resolves them per guild; all seven
+role/nickname jobs check once per run instead of once per member, and report per guild through the
+now-escalating admin throttle. `InvalidRequestTrackingHandler` wraps NetCord's request handler so the
+rolling 10-minute invalid-request count is measured rather than estimated, and trips a process-wide
+kill switch on the first 401 (a revoked token otherwise leaves every job firing 401s forever, since
+NetCord stops the gateway on close code 4004 but never the REST client). A Quartz trigger listener
+vetoes all jobs while that switch is set.
+
+### Still open: the channel-level offenders
+
+The same treatment has not been applied to the channel-based repeat-forever loops, which need
+`ChannelAccessEvaluator`'s overwrite math rather than the simple guild-level facts:
+
+- **`CommandBridgeRepublishJob`** — the worst of the lot: runs **every 5 seconds**, and on a 403 the
+  `continue` skips the `RemoveRange` that would dequeue the row, so a stuck bridge re-fires forever.
+  `CommandBridgeHubService.PublishAsync` compounds it by swallowing the failed edit and falling
+  through to a send — two invalid requests every five seconds per stuck row. **The dequeue bug is
+  worth fixing on its own, independently of any permission work.**
+- **`AiChatIndexJob`** — up to ~2,000 `GetMessagesAsync` per guild per run (500 sources × 4 pages);
+  each unreadable channel 403s every 20 minutes and no channel is ever marked bad.
+- **`StfcNewsNotifyJob`** — never inserts its `StfcNewsPostGuildMessage` row on a 403, so the guild
+  looks "missing" again and retries every 30 minutes forever.
+- **`AbsenceReportRefreshJob`** — deliberately keeps the message id on a 403 (correct: it must not
+  orphan a duplicate), which means the same failing edit every 15 minutes.
+
+Also unfixed: `NotificationDispatcher.TrySendToChannelAsync` turns one 403 into **three** REST calls —
+the failed send, a log-channel send, and an admin-channel send — and in a guild-wide permission gap
+the latter two fail too. Only the third is throttled.
 
 ## Channel settings with no consumer — delete the columns and their pickers
 
