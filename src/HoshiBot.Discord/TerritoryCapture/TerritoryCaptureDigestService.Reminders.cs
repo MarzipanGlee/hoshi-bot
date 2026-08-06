@@ -42,8 +42,9 @@ public partial class TerritoryCaptureDigestService
             foreach (var link in await GetTcEnabledLinksAsync(guildId))
             {
                 // Both reminder kinds are this alliance's own public posts — its language.
+                // Sign-off doesn't come into it: neither reminder carries a button (the daily and
+                // weekly digests do).
                 var lang = await languageResolver.ForAllianceAsync(link.Id);
-                var signOff = await IsSignOffEnabledAsync(guildId, link);
 
                 var channelId = await settingsService.GetSnowflakeAsync(
                     guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.DigestChannel);
@@ -62,7 +63,7 @@ public partial class TerritoryCaptureDigestService
                     if (await db.TerritoryCaptureSentMessages.AnyAsync(m => m.GuildAllianceId == link.Id && m.DedupKey == dedupKey))
                         continue;
 
-                    var messageId = await SendCaptureReminderAsync(guildId, channelIdValue, link, slot, lang, signOff);
+                    var messageId = await SendCaptureReminderAsync(guildId, channelIdValue, link, slot, lang);
                     if (messageId is { } mid)
                         await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Single, dedupKey, channelIdValue, mid, now, slot.End);
                 }
@@ -101,8 +102,17 @@ public partial class TerritoryCaptureDigestService
         await SweepExpiredMessagesAsync(now);
     }
 
+    // The 30-minute pre-capture reminder, rebuilt to match the legacy bot's exactly (see
+    // hoshi-bot-yagpdb/Commands/notifications/send-territory-capture-reminder.yag, ReminderType.Single):
+    // the tier note, then the same aligned #/Zone/Tier/Neighbours/Day/Time table the weekly digest
+    // uses, and the live relative start in the title.
+    //
+    // No sign-off button, deliberately — legacy attaches buttons only when the reminder is NOT the
+    // single-zone one (`if and $buttons (not …Single)`). Signing off still lives on the daily/weekly
+    // digest and the Command Bridge; a button 30 minutes before the window is too late to be the
+    // point anyway.
     private async Task<ulong?> SendCaptureReminderAsync(ulong guildId, ulong channelId, GuildAlliance link,
-        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot, Language lang, bool signOff)
+        (int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End) slot, Language lang)
     {
         var startUnix = slot.Start.ToUnixTimeSeconds();
         var endUnix = slot.End.ToUnixTimeSeconds();
@@ -110,14 +120,23 @@ public partial class TerritoryCaptureDigestService
         var roleId = await settingsService.GetSnowflakeAsync(
             guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slot.SlotIndex));
 
-        // Without sign-off the body is just the window — no "please sign off" ask, no button.
-        var embed = await embedBranding.BuildBrandedAsync(guildId,
-            signOff ? Msg.Tc.ReminderBody(lang, startUnix, endUnix) : Msg.Tc.ReminderBodyNoSignOff(lang, startUnix, endUnix),
-            title: Msg.Tc.ReminderTitle(lang, slot.Territory.Name));
+        // Same construction as SendDigestAsync's schedule: the columns stay inside their own inline
+        // code span and the times sit outside it, because Discord won't render <t:…> inside a code
+        // fence and each reader should see their own timezone.
+        var neighbours = await GetNeighbourOwnerTagsAsync(slot.Territory.Id, link.StfcAlliance.ServerId, link.StfcAlliance.Tag);
+        var day = slot.Start.ToString("ddd", Languages.ToCulture(lang));
+        var row = Msg.Tc.ScheduleRow(lang, slot.SlotIndex, $"{slot.Territory.Name,-9}", slot.Territory.Tier,
+            $"{string.Join(", ", neighbours),-22}", day, startUnix, endUnix);
 
-        var button = new ButtonProperties(
-            $"territory-capture-unsubscribe:{slot.Territory.Id}:{startUnix}:{endUnix}",
-            Msg.Tc.UnsubscribeButton(lang, slot.Territory.Name), EmojiProperties.Standard(DigitEmoji(slot.SlotIndex)), ButtonStyle.Primary);
+        // Which alliances may contest this zone at all — a tier fact, and the one piece of context
+        // that tells the reader whether to expect a fight. Empty for tiers legacy never described.
+        var tierNote = Msg.Tc.TierDescription(lang, slot.Territory.Tier);
+        var body = string.IsNullOrEmpty(tierNote)
+            ? $"{Msg.Tc.ScheduleHeader(lang)}\n{row}"
+            : $"{tierNote}\n\n{Msg.Tc.ScheduleHeader(lang)}\n{row}";
+
+        var embed = await embedBranding.BuildBrandedAsync(guildId, body,
+            title: Msg.Tc.ReminderTitle(lang, slot.Territory.Name, startUnix));
 
         try
         {
@@ -125,7 +144,6 @@ public partial class TerritoryCaptureDigestService
             {
                 Content = roleId is { } rid ? $"<@&{rid}>" : null,
                 Embeds = [embed],
-                Components = signOff ? [new ActionRowProperties([button])] : null,
                 AllowedMentions = roleId is { } r
                     ? new AllowedMentionsProperties { Everyone = false, AllowedRoles = new[] { r } }
                     : AllowedMentionsProperties.None,

@@ -47,15 +47,20 @@ public static partial class Msg
         public static string UnsubscribeButton(Language lang, string zone) =>
             MessageCatalog.Format(lang, "Tc.UnsubscribeButton", ("zone", zone));
 
-        public static string ReminderTitle(Language lang, string zone) =>
-            MessageCatalog.Format(lang, "Tc.ReminderTitle", ("zone", zone));
+        public static string ReminderTitle(Language lang, string zone, long start) =>
+            MessageCatalog.Format(lang, "Tc.ReminderTitle", ("zone", zone), ("start", start));
 
-        public static string ReminderBody(Language lang, long start, long end) =>
-            MessageCatalog.Format(lang, "Tc.ReminderBody", ("start", start), ("end", end));
+        // Who may contest a zone, by tier. Only the tiers legacy described have text; anything else
+        // returns "" and the reminder simply omits the line rather than inventing a rule.
+        public static string TierDescription(Language lang, int tier)
+        {
+            var key = $"Tc.TierDescription{tier}";
+            var text = MessageCatalog.Format(lang, key);
+            return text == key ? "" : text;
+        }
+
 
         // Sign-off-free counterpart of ReminderBody — just the window, no "please sign off" ask.
-        public static string ReminderBodyNoSignOff(Language lang, long start, long end) =>
-            MessageCatalog.Format(lang, "Tc.ReminderBodyNoSignOff", ("start", start), ("end", end));
 
         public static string ServicesTitle(Language lang, string zone) =>
             MessageCatalog.Format(lang, "Tc.ServicesTitle", ("zone", zone));
