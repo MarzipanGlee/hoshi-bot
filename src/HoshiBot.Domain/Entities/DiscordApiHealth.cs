@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace HoshiBot.Discord.Permissions;
+namespace HoshiBot.Domain.Entities;
 
 // Process-wide state about how Discord is answering us. A singleton, because it has to outlive the
 // per-fire Quartz scopes it protects (same reason LanguageCache is one).

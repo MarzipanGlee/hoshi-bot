@@ -17,6 +17,7 @@ using HoshiBot.Discord.Scheduling;
 using HoshiBot.Discord.StfcNews;
 using HoshiBot.Discord.TerritoryCapture;
 using HoshiBot.Discord.Tickets;
+using HoshiBot.Domain.Entities;
 using HoshiBot.Host;
 using Microsoft.Extensions.Hosting;
 using NetCord;

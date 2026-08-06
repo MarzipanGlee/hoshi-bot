@@ -1,4 +1,5 @@
 using HoshiBot.Discord.Permissions;
+using HoshiBot.Domain.Entities;
 using Quartz;
 using Quartz.Listener;
 

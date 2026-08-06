@@ -1,4 +1,5 @@
 using System.Net;
+using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using NetCord.Rest;
 
