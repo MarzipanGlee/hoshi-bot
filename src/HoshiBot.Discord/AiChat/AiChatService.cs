@@ -177,7 +177,7 @@ public partial class AiChatService(
                 // it's a continuation of a conversation Hoshi is already in, so she keeps engaging
                 // without needing a fresh @mention or a standalone question. Without this, a passive
                 // banter follow-up right after Hoshi spoke was dropped by the gate (observed live).
-                var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken);
+                var history = await indexService.FetchRecentAsync(message.ChannelId, provider.HistoryLimit, cancellationToken) ?? [];
                 history.Reverse(); // chronological
                 var botSpokeBefore = history.Any(m => m.Author.Id == botId && m.Id != message.Id);
 

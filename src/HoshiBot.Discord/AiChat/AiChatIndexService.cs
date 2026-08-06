@@ -179,6 +179,12 @@ public partial class AiChatIndexService(
         {
             // 1. Recent catch-up: newest page (new messages + recent edits).
             var recent = await FetchRecentAsync(channelId, HistoryPageSize, cancellationToken);
+
+            // Null means the fetch failed, not that the channel is empty. Skip this source entirely
+            // rather than reasoning from a count we never got — see the history leg below.
+            if (recent is null)
+                continue;
+
             recentCount += await UpsertMessagesAsync(db, guildId, channelId, channelName, recent, now, seen, cancellationToken);
 
             var cursor = cursors.GetValueOrDefault(channelId);
@@ -198,6 +204,15 @@ public partial class AiChatIndexService(
             }
 
             var older = await FetchBeforeAsync(channelId, anchor, MaxHistoryPerChannelPerRun, cancellationToken);
+
+            // A failed page must NOT be read as "we reached the start of the channel". It used to
+            // be: the helper returned an empty list on any RestException, 0 < 300 said "complete",
+            // and one 403 or one transient 429 permanently ended that channel's backfill — silent,
+            // unrecoverable, and logged only at debug level. Leave the cursor untouched and try
+            // again next run.
+            if (older is null)
+                continue;
+
             historyCount += await UpsertMessagesAsync(db, guildId, channelId, channelName, older, now, seen, cancellationToken);
 
             // Fewer than the per-run cap came back ⇒ no older messages remain ⇒ channel is complete.

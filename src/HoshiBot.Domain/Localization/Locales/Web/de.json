@@ -205,6 +205,7 @@
   "Web.Editor.CommandBridge.StatusQueued": "In der Warteschlange — warte auf den Bot…",
   "Web.Editor.CommandBridge.StatusPosted": "✅ Gepostet.",
   "Web.Editor.CommandBridge.StatusStillQueued": "Immer noch in der Warteschlange — läuft der Bot?",
+  "Web.Editor.CommandBridge.StatusFailed": "❌ Discord hat es abgelehnt: {error}. Prüfe Hoshis Rechte in diesem Kanal und veröffentliche dann erneut.",
   "Web.Editor.CommandBridge.ButtonsHeading": "Schaltflächen auf dieser Brücke",
   "Web.Editor.CommandBridge.NoButtons": "Dieser Brücke sind keine Schaltflächen zugeordnet.",
   "Web.Editor.CommandBridge.Hidden": "(ausgeblendet)",

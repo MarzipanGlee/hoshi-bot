@@ -11,6 +11,9 @@ public class CommandBridgeRepublishRequestConfiguration : IEntityTypeConfigurati
         builder.HasKey(r => r.Id);
         builder.HasIndex(r => r.RequestedAt);
 
+        // Bounded because it holds a Discord error message, which we don't control the length of.
+        builder.Property(r => r.LastError).HasMaxLength(500);
+
         builder.HasOne(r => r.Guild)
             .WithMany(g => g.CommandBridgeRepublishRequests)
             .HasForeignKey(r => r.GuildId)

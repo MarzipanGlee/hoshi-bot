@@ -22,6 +22,7 @@ public class AbsenceService(
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
+    ChannelCooldown cooldown,
     LanguageResolver languageResolver)
 {
     private static readonly TimeSpan DraftTtl = TimeSpan.FromMinutes(15);
@@ -279,11 +280,17 @@ public class AbsenceService(
 
     private async Task<ulong?> PostOrEditAsync(ulong guildId, ulong channelId, ulong? existingMessageId, EmbedProperties embed)
     {
+        // A channel that just refused us is not going to accept the same edit 15 minutes later.
+        // Keep the stored id untouched so the message isn't orphaned when access returns.
+        if (cooldown.IsCoolingDown(channelId, BotAction.RefreshAbsenceReport))
+            return existingMessageId;
+
         if (existingMessageId is { } messageId)
         {
             try
             {
                 await gatewayClient.Rest.ModifyMessageAsync(channelId, messageId, m => m.Embeds = [embed]);
+                cooldown.RecordSuccess(channelId, BotAction.RefreshAbsenceReport);
                 return messageId;
             }
             catch (RestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
@@ -296,11 +303,10 @@ public class AbsenceService(
                 // re-post: a momentary hiccup would orphan the still-present message with a duplicate
                 // (seen in the wild — the report reposting instead of editing). Keep the id and let the
                 // next refresh retry the edit; surface a genuine permission problem to admins.
+                cooldown.RecordFailure(channelId, BotAction.RefreshAbsenceReport);
                 if (ex.StatusCode == HttpStatusCode.Forbidden)
-                {
-                    var guildLang = await languageResolver.ForGuildAsync(guildId);
                     await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.RefreshAbsenceReport, channelId, ChannelAccessProfile.Post.Permissions());
-                }
+
                 return messageId;
             }
         }
@@ -308,11 +314,12 @@ public class AbsenceService(
         try
         {
             var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties { Embeds = [embed] });
+            cooldown.RecordSuccess(channelId, BotAction.RefreshAbsenceReport);
             return message.Id;
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            var guildLang = await languageResolver.ForGuildAsync(guildId);
+            cooldown.RecordFailure(channelId, BotAction.RefreshAbsenceReport);
             await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.RefreshAbsenceReport, channelId, ChannelAccessProfile.Post.Permissions());
             return null;
         }

@@ -208,23 +208,35 @@ File placement rules:
   know that its retry is **unbounded** by default: a pathological route retries forever,
   and the only escapes are the `CancellationToken` every REST call takes and
   `RestRequestProperties.RateLimitHandling = NoRetry`.
-- **Pre-check *guild-level* permissions before a call that would 403; do NOT pre-check
-  channel permissions.** Discord asks for this explicitly ("403 responses are avoided by
-  inspecting role or channel permissions"). The distinction is what makes it safe: a
-  guild-level bit and a role's position are simple facts, and `PermissionGuard` reads both
-  from the gateway cache for free. Channel access needs overwrite resolution and category
-  inheritance — being wrong there silently drops a message, so channel 403s stay reactive
-  (`NotifyAdminOfPermissionIssueAsync`). Note **Administrator does not bypass role
-  hierarchy**, and nobody can rename the guild owner — `RoleSyncEligibility` holds those.
-- **A guard must fail open.** `PermissionGuard.For` returns null when it cannot work the
-  answer out, and every caller must then behave exactly as it would have. A wrong "no"
-  stops roles syncing silently, which is worse than the 403s the guard exists to prevent.
+- **Never reissue a call that just failed — back off.** This is the first line of defence,
+  because it needs no knowledge of *why* the call failed and so covers 429s, 5xx, deleted
+  channels and permission changes alike, and because it only ever acts after a real failure
+  it cannot wrongly suppress something that would have worked. `ChannelCooldown` keyed by
+  `(channelId, BotAction)`, ladder 1/5/15/30 min, cleared on success. Where the retry state
+  belongs in the database instead — a queued row that survives a restart — use
+  `ChannelCooldown.WaitAfter` so there is one ladder; `CommandBridgeRepublishJob` does.
 - **A `catch` inside a per-item loop repeats forever unless the item's state advances.**
-  This is the shape that turns one misconfiguration into thousands of invalid requests:
-  the loop swallows the failure, nothing is marked done, and the next run does it all
-  again. Good precedent: `TerritoryCaptureDigestService.SweepExpiredMessagesAsync` removes
-  its row even when the delete fails. Bad precedent: `CommandBridgeRepublishJob` skips the
-  dequeue on failure and re-fires every 5 seconds forever.
+  This is the shape that turns one misconfiguration into thousands of invalid requests: the
+  loop swallows the failure, nothing is marked done, and the next run does it all again. It
+  is also why `ThreadCleanupJob` used to stall its whole queue on one undeletable thread.
+  Good precedent: `TerritoryCaptureDigestService.SweepExpiredMessagesAsync` removes its row
+  even when the delete fails.
+- **An empty result and a failed call must never be the same value.** `[]` from a catch
+  block reads as "there was nothing", and somebody will act on that: `AiChatIndexService`
+  returned an empty page on `RestException`, `0 < 300` was taken as "reached the start of
+  the channel", and one 403 permanently ended that channel's backfill. Return `null` (or a
+  result type) on failure and make callers say what they mean.
+- **Pre-checking a permission is encouraged where the fact is cheap and certain** — Discord
+  asks for it in as many words ("403 responses are avoided by inspecting role **or channel**
+  permissions"). Guild-level bits and role positions qualify: `PermissionGuard` reads them
+  from the gateway cache for free, and `RoleSyncEligibility` holds the two rules that catch
+  people out — **Administrator does not bypass role hierarchy**, and nobody can rename the
+  guild owner. Channel permissions are available too (`ChannelAccessEvaluator`, proven on
+  the Web permission page); the channel-level jobs don't pre-check simply because the
+  cooldown above already removes almost all of the volume, not because checking is wrong.
+- **Any pre-check must fail open.** `PermissionGuard.For` returns null when it cannot work
+  the answer out, and every caller must then behave exactly as it would have. A wrong "no"
+  stops work silently, which is worse than the 403 it was trying to avoid.
 - **Report a permission failure per guild, not per member**, and let the throttle escalate
   (`NotifyAdminOfPermissionIssueAsync`: immediately, then 10 min, 30 min, hourly). Call
   `NotificationDispatcher.ClearPermissionIssue` when the thing works again so a problem

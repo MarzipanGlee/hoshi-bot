@@ -154,8 +154,10 @@
 
     // Enqueue a republish request for the bot to pick up (Web can't post to Discord itself —
     // it doesn't reference HoshiBot.Discord). CommandBridgeRepublishJob drains the queue: it
-    // DELETES the row once the hub is posted, so we poll for the row's disappearance to show
-    // completion (there's no status column by design — an empty queue means "all done").
+    // DELETES the row once the hub is posted, so a vanished row means done. A row that is still
+    // there but carries LastError means the bot tried and Discord refused — surface that instead
+    // of polling out, which is what used to happen (the job retried forever and the button just
+    // spun).
     private async Task PublishAsync(CommandBridgeKind bridge)
     {
         if (GuildAllianceId is not { } allianceId)
@@ -184,13 +186,27 @@
         {
             await Task.Delay(TimeSpan.FromSeconds(2));
 
+            string? lastError;
             bool stillPending;
             await using (var db = await DbFactory.CreateDbContextAsync())
-                stillPending = await db.CommandBridgeRepublishRequests.AnyAsync(r => r.Id == requestId);
+            {
+                var row = await db.CommandBridgeRepublishRequests
+                    .Where(r => r.Id == requestId)
+                    .Select(r => new { r.LastError })
+                    .FirstOrDefaultAsync();
+                stillPending = row is not null;
+                lastError = row?.LastError;
+            }
 
             if (!stillPending)
             {
                 statuses[bridge] = new PublishStatus(Msg.WebCommandBridge.StatusPosted(Lang), true);
+                return;
+            }
+
+            if (lastError is { Length: > 0 })
+            {
+                statuses[bridge] = new PublishStatus(Msg.WebCommandBridge.StatusFailed(Lang, lastError), true);
                 return;
             }
         }

@@ -265,7 +265,7 @@ public partial class AiChatService
         {
             try
             {
-                foreach (var message in await indexService.FetchRecentAsync(channelId, LatestAnnouncementsFetchPerChannel, cancellationToken))
+                foreach (var message in await indexService.FetchRecentAsync(channelId, LatestAnnouncementsFetchPerChannel, cancellationToken) ?? [])
                 {
                     if (message.Author.Id == gatewayClient.Id)
                         continue;

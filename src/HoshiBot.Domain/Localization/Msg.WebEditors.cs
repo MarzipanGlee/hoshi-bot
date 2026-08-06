@@ -194,6 +194,11 @@ public static partial class Msg
         public static string StatusStillQueued(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.CommandBridge.StatusStillQueued");
 
+        // {error} is Discord's own status + message, so the admin sees the real cause rather than
+        // a spinner that never resolves.
+        public static string StatusFailed(Language lang, string error) =>
+            MessageCatalog.Format(lang, "Web.Editor.CommandBridge.StatusFailed", ("error", error));
+
         public static string ButtonsHeading(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.CommandBridge.ButtonsHeading");
 

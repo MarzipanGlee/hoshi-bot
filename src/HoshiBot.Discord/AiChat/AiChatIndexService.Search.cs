@@ -213,7 +213,9 @@ public partial class AiChatIndexService
         var sb = new StringBuilder();
         foreach (var (channelId, channelName) in sources.Take(MaxKnowledgeSources))
         {
-            var messages = await FetchRecentAsync(channelId, FallbackPerChannelLimit, cancellationToken);
+            // `?? []` is right here: this is a best-effort search fallback, so an unreadable
+            // channel simply contributes nothing.
+            var messages = await FetchRecentAsync(channelId, FallbackPerChannelLimit, cancellationToken) ?? [];
             messages.Reverse();
             foreach (var m in messages)
             {

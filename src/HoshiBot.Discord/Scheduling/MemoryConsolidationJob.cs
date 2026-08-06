@@ -94,7 +94,7 @@ public class MemoryConsolidationJob(
         var newest = watermark;
         foreach (var channelId in channels)
         {
-            var recent = await indexService.FetchRecentAsync(channelId, MaxMessagesPerChannel, cancellationToken);
+            var recent = await indexService.FetchRecentAsync(channelId, MaxMessagesPerChannel, cancellationToken) ?? [];
             foreach (var message in recent.Where(m => m.CreatedAt > watermark).OrderBy(m => m.CreatedAt))
             {
                 if (message.Author.IsBot)

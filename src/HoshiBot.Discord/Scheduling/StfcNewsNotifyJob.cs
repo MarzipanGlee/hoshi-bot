@@ -40,6 +40,10 @@ public class StfcNewsNotifyJob(
 {
     private const string FeedUrl = "https://startrekfleetcommand.com/feed/";
 
+    // How far back CatchUpNewlyEnabledGuildsAsync will still try to ping a guild about an
+    // unresolved post. Bounds a set that would otherwise grow without limit — see there.
+    private static readonly TimeSpan CatchUpWindow = TimeSpan.FromDays(14);
+
     // Title substring -> StfcEventStatus.EventGroup. Do not add <category>-based matching
     // here without re-confirming Infinite Incursions posts reliably carry a dedicated
     // category (they didn't, as of this writing).
@@ -100,9 +104,14 @@ public class StfcNewsNotifyJob(
     // later doesn't shift the target out from under guilds already confirming.
     private async Task CatchUpNewlyEnabledGuildsAsync(List<ulong> enabledGuildIds, CancellationToken ct)
     {
+        // Bounded by age. ResolvedAt is only set once a date quorum is reached, so a post nobody
+        // ever confirms stays unresolved forever — and this loop retries every (post × guild with no
+        // message row) pair on every run, a set that only grows. A guild that has not been pinged
+        // about a three-week-old post is not waiting for one.
+        var catchUpCutoff = DateTimeOffset.UtcNow - CatchUpWindow;
         var unresolvedPosts = await db.StfcNewsPosts
             .Include(p => p.GuildMessages)
-            .Where(p => p.ResolvedAt == null)
+            .Where(p => p.ResolvedAt == null && p.DetectedAt >= catchUpCutoff)
             .ToListAsync(ct);
 
         foreach (var post in unresolvedPosts)

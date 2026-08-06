@@ -118,9 +118,13 @@ public partial class AiChatIndexService
             .ToList();
     }
 
-    // Newest-first list of up to `limit` recent messages; empty on any REST error (missing
-    // permissions etc. must never crash the message pump or the backfill job).
-    public async Task<List<RestMessage>> FetchRecentAsync(ulong channelId, int limit, CancellationToken cancellationToken)
+    // Newest-first list of up to `limit` recent messages. NULL on a REST error — not an empty
+    // list. The distinction is load-bearing: BackfillGuildAsync reads "fewer than the cap came
+    // back" as "no older messages remain" and marks the channel permanently complete, so an empty
+    // list from a failed fetch used to end that channel's history backfill forever after a single
+    // 403 or one transient 429. Callers that only want messages can use `?? []`; callers that make
+    // decisions from the count must not.
+    public async Task<List<RestMessage>?> FetchRecentAsync(ulong channelId, int limit, CancellationToken cancellationToken)
     {
         var messages = new List<RestMessage>();
         try
@@ -134,15 +138,20 @@ public partial class AiChatIndexService
         }
         catch (RestException ex)
         {
-            logger.LogDebug(ex, "Could not fetch messages from channel {ChannelId}", channelId);
+            // Warning, not debug: a knowledge/listen channel the bot cannot read is a configuration
+            // problem an operator should see, and at debug level nobody ever did.
+            logger.LogWarning(ex, "Could not fetch messages from channel {ChannelId}", channelId);
+            return null;
         }
 
         return messages;
     }
 
     // Pages BACKWARD (older) from beforeMessageId — or from the newest message when null — up to
-    // `limit`. The backbone of the progressive history backfill. Empty on any REST error.
-    public async Task<List<RestMessage>> FetchBeforeAsync(ulong channelId, ulong? beforeMessageId, int limit, CancellationToken cancellationToken)
+    // `limit`. The backbone of the progressive history backfill. NULL on a REST error, for the
+    // reason spelled out on FetchRecentAsync: an empty list here means "we reached the start of the
+    // channel", and a failure must never be mistaken for that.
+    public async Task<List<RestMessage>?> FetchBeforeAsync(ulong channelId, ulong? beforeMessageId, int limit, CancellationToken cancellationToken)
     {
         var messages = new List<RestMessage>();
         var pagination = new PaginationProperties<ulong> { Direction = PaginationDirection.Before };
@@ -160,7 +169,8 @@ public partial class AiChatIndexService
         }
         catch (RestException ex)
         {
-            logger.LogDebug(ex, "Could not fetch messages before {Before} from channel {ChannelId}", beforeMessageId, channelId);
+            logger.LogWarning(ex, "Could not fetch messages before {Before} from channel {ChannelId}", beforeMessageId, channelId);
+            return null;
         }
 
         return messages;

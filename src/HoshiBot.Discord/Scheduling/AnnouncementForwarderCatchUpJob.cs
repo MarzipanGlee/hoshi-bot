@@ -63,7 +63,7 @@ public class AnnouncementForwarderCatchUpJob(
         var candidates = new List<RestMessage>();
         foreach (var channelId in sourceChannels)
         {
-            var recent = await indexService.FetchRecentAsync(channelId, MessagesPerChannel, cancellationToken);
+            var recent = await indexService.FetchRecentAsync(channelId, MessagesPerChannel, cancellationToken) ?? [];
             candidates.AddRange(recent.Where(m => m.CreatedAt >= cutoff));
         }
 

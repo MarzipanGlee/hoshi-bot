@@ -19,6 +19,7 @@ public class NotificationDispatcher(
     ILogger<NotificationDispatcher> logger,
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
+    ChannelCooldown cooldown,
     LanguageResolver languageResolver)
 {
     // Plain-string overload for callers whose content is language-independent or already
@@ -104,6 +105,11 @@ public class NotificationDispatcher(
     private async Task<ulong?> TrySendToChannelAsync(ulong guildId, ulong channelId, string content,
         ButtonProperties? terminateButton, EmbedProperties? embed, string channelKind)
     {
+        // Alert fan-out runs on 15-second and 1-minute triggers, so an undeliverable channel was
+        // the highest-frequency repeat in the app after the Command Bridge queue.
+        if (cooldown.IsCoolingDown(channelId, BotAction.SendAlert))
+            return null;
+
         try
         {
             var message = await gatewayClient.Rest.SendMessageAsync(channelId,
@@ -113,10 +119,12 @@ public class NotificationDispatcher(
                     Embeds = embed is null ? null : [embed],
                     Components = terminateButton is null ? null : [new ActionRowProperties([terminateButton])],
                 });
+            cooldown.RecordSuccess(channelId, BotAction.SendAlert);
             return message.Id;
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
+            cooldown.RecordFailure(channelId, BotAction.SendAlert);
             logger.LogWarning("Skipped {ChannelKind} channel {ChannelId} for guild {GuildId}: {StatusCode}",
                 channelKind, channelId, guildId, ex.StatusCode);
             // Admin-facing follow-ups render in the guild language (the resolver caches, so
@@ -158,6 +166,12 @@ public class NotificationDispatcher(
         if (settings?.AdminChannelId is not { } channelId)
             return null;
 
+        // StfcNewsNotifyJob's catch-up re-tries every unresolved post × every guild with no message
+        // row on it, and that set only grows — so an unwritable admin channel repeated forever and
+        // got steadily worse. Callers already treat null as "didn't send".
+        if (cooldown.IsCoolingDown(channelId, BotAction.SendAlert))
+            return null;
+
         try
         {
             var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties
@@ -166,10 +180,12 @@ public class NotificationDispatcher(
                 Embeds = embed is null ? null : [embed],
                 Components = buttons is null ? null : [new ActionRowProperties(buttons)],
             });
+            cooldown.RecordSuccess(channelId, BotAction.SendAlert);
             return (channelId, message.Id);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
+            cooldown.RecordFailure(channelId, BotAction.SendAlert);
             logger.LogWarning("Could not send admin channel notification to {ChannelId} for guild {GuildId}: {StatusCode}",
                 channelId, guildId, ex.StatusCode);
             return null;
@@ -230,6 +246,12 @@ public class NotificationDispatcher(
         if (settings?.LogChannelId is not { } logChannelId)
             return;
 
+        // One failed send used to cost three REST calls: the send itself, this log line, and the
+        // admin notification — and in a guild-wide permission gap the latter two were failing too,
+        // so a broken channel tripled its own damage. Only the admin notification was throttled.
+        if (cooldown.IsCoolingDown(logChannelId, BotAction.SendAlert))
+            return;
+
         var reason = statusCode == HttpStatusCode.Forbidden
             ? Msg.Notify.SkipReasonForbidden(lang)
             : Msg.Notify.SkipReasonNotFound(lang);
@@ -240,6 +262,7 @@ public class NotificationDispatcher(
                 Msg.Notify.SkippedChannelLog(lang, $"<#{channelId}>", reason),
                 EmbedBranding.DangerColor);
             await gatewayClient.Rest.SendMessageAsync(logChannelId, new MessageProperties { Embeds = [embed] });
+            cooldown.RecordSuccess(logChannelId, BotAction.SendAlert);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
@@ -281,17 +304,15 @@ public class NotificationDispatcher(
     // nobody in the guild ever sees, naming the exact permission and channel rather than a
     // hand-written guess at the cause.
     //
-    // Still reactive: call it from a catch block once an action has actually failed. The rule this
-    // respects forbids PRE-checking *channel* permissions — declining to act based on our own
-    // overwrite/category-inheritance math, where being wrong silently drops a message. Narrowing the
-    // report below runs only after a real failure and only affects wording, where being wrong is
-    // cosmetic and the fallback is the full requirement.
+    // Call it from a catch block once an action has actually failed — this reports, it does not
+    // decide. The narrowing below runs only after a real failure and only affects wording, where
+    // being wrong is cosmetic and the fallback is the full requirement.
     //
-    // That rule is deliberately narrower than it used to read. Discord's own rate-limit guide asks
-    // applications to avoid 403s "by inspecting role or channel permissions", and counts them toward
-    // a 10,000-per-10-minutes ban threshold — which the per-member role-sync loops can genuinely
-    // approach on a misconfigured guild. Guild-level bits and role positions are simple enough to
-    // check up front and SHOULD be; see docs/backlog.md ("Role sync 403s").
+    // Reporting is the LAST line of defence, not the only one. Before it come: don't reissue a call
+    // that just failed (ChannelCooldown), and don't make one you already know will fail
+    // (PermissionGuard for guild-level facts, ChannelAccessEvaluator where a channel check is worth
+    // it). Discord's rate-limit guide asks for both, and counts 401/403/429 toward a
+    // 10,000-per-10-minutes ban threshold. See CONTRIBUTING "Discord API limits".
     //
     // required: the bits THAT call needed, not the channel's whole profile — a Manage Threads
     // failure should not tell an admin to grant Embed Links.

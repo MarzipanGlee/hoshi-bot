@@ -14,7 +14,12 @@ namespace HoshiBot.Discord.Scheduling;
 // Processes the thread-removal queue one request at a time (rate-limit-conscious,
 // matching the original bot's behavior) once a request's grace period has elapsed —
 // gives requesters a window to reconsider before the thread is actually deleted.
-public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient, NotificationDispatcher dispatcher, LanguageResolver languageResolver, ILogger<ThreadCleanupJob> logger) : IJob
+public class ThreadCleanupJob(
+    HoshiBotDbContext db,
+    GatewayClient gatewayClient,
+    NotificationDispatcher dispatcher,
+    ChannelCooldown cooldown,
+    ILogger<ThreadCleanupJob> logger) : IJob
 {
     private static readonly TimeSpan GracePeriod = TimeSpan.FromMinutes(5);
 
@@ -22,12 +27,18 @@ public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient,
     {
         var cutoff = DateTimeOffset.UtcNow - GracePeriod;
 
-        // Oldest request that's past its grace period, if any.
-        var request = await db.ThreadRemovalRequests
+        // Oldest request that's past its grace period AND isn't in a failure cooldown.
+        //
+        // The cooldown filter is what stops one undeletable thread from blocking the queue: this
+        // job takes a single row per run, and on failure it used to return with that row still at
+        // the head — so every other queued removal behind it waited forever on a thread that was
+        // never going to be deletable, with nothing recording why.
+        var candidates = await db.ThreadRemovalRequests
             .Where(r => r.RequestedAt <= cutoff)
             .OrderBy(r => r.RequestedAt)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
+        var request = candidates.FirstOrDefault(r => !cooldown.IsCoolingDown(r.ThreadId, BotAction.RemoveThread));
         if (request is null)
             return;
 
@@ -44,16 +55,18 @@ public class ThreadCleanupJob(HoshiBotDbContext db, GatewayClient gatewayClient,
         }
         catch (RestException ex)
         {
-            // Leave it queued for retry on the next run (e.g. the bot is missing
-            // "Manage Threads" permission) instead of crashing the whole job.
+            // Stays queued (e.g. the bot is missing "Manage Threads"), but now behind a cooldown so
+            // the identical delete isn't reissued every 15 minutes, and the next run moves on to the
+            // rows behind it instead of stalling on this one.
+            cooldown.RecordFailure(request.ThreadId, BotAction.RemoveThread);
             logger.LogWarning(ex,
-                "Failed to remove thread {ThreadId} requested by {RequestedBy}; will retry next run",
+                "Failed to remove thread {ThreadId} requested by {RequestedBy}; backing off and moving on",
                 request.ThreadId, request.RequestedByDiscordUserId);
-            // Admin notification — guild language, resolved only on this rare failure path.
-            var lang = await languageResolver.ForGuildAsync(request.GuildId);
             await dispatcher.NotifyAdminOfPermissionIssueAsync(request.GuildId, BotAction.RemoveThread, request.ThreadId, BotPermission.ManageThreads);
             return;
         }
+
+        cooldown.RecordSuccess(request.ThreadId, BotAction.RemoveThread);
 
         db.ThreadRemovalRequests.Remove(request);
         await db.SaveChangesAsync();

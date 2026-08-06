@@ -205,6 +205,7 @@
   "Web.Editor.CommandBridge.StatusQueued": "Queued — waiting for the bot…",
   "Web.Editor.CommandBridge.StatusPosted": "✅ Posted.",
   "Web.Editor.CommandBridge.StatusStillQueued": "Still queued — is the bot running?",
+  "Web.Editor.CommandBridge.StatusFailed": "❌ Discord rejected it: {error}. Check the bot's permissions on that channel, then publish again.",
   "Web.Editor.CommandBridge.ButtonsHeading": "Buttons on this bridge",
   "Web.Editor.CommandBridge.NoButtons": "No buttons are assigned to this bridge.",
   "Web.Editor.CommandBridge.Hidden": "(hidden)",

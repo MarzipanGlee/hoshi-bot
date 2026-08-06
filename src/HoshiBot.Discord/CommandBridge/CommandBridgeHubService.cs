@@ -1,3 +1,4 @@
+using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
@@ -64,10 +65,16 @@ public class CommandBridgeHubService(
                 });
                 return CommandBridgePublishResult.Updated;
             }
-            catch (RestException)
+            catch (RestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
-                // Message was deleted or otherwise unreachable — fall through and re-post.
+                // The message is genuinely gone — fall through and re-post.
             }
+            // Anything else (403, 429, 5xx) deliberately propagates instead of falling through.
+            // Re-posting on those was wrong twice over: it turned every failed edit into a SECOND
+            // Discord call — 240 invalid requests per 10 minutes on this job's 5-second schedule —
+            // and on a merely transient failure it posted a duplicate hub and orphaned the live one,
+            // exactly the bug AbsenceService.PostOrEditAsync documents as "seen in the wild" and
+            // guards against. The two files now agree: only a 404 means re-post.
         }
 
         var message = await gatewayClient.Rest.SendMessageAsync(channelId, new MessageProperties

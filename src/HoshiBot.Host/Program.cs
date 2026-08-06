@@ -121,6 +121,9 @@ builder.Services.AddScoped<AnnouncementDraftService>();
 // standing for 60s so a sync job resolves it once per run instead of once per member.
 builder.Services.AddSingleton<DiscordApiHealth>();
 builder.Services.AddSingleton<PermissionGuard>();
+// Also a singleton: a per-fire Quartz scope would forget the backoff between runs, which is the
+// whole point — the Command Bridge queue fires every 5 seconds.
+builder.Services.AddSingleton<ChannelCooldown>();
 builder.Services.AddScoped<TicketService>();
 builder.Services.AddScoped<RoeViolationService>();
 builder.Services.AddScoped<AbsenceService>();

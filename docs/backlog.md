@@ -585,26 +585,39 @@ kill switch on the first 401 (a revoked token otherwise leaves every job firing 
 NetCord stops the gateway on close code 4004 but never the REST client). A Quartz trigger listener
 vetoes all jobs while that switch is set.
 
-### Still open: the channel-level offenders
+### The channel-level offenders — ✅ done (2026-08-06)
 
-The same treatment has not been applied to the channel-based repeat-forever loops, which need
-`ChannelAccessEvaluator`'s overwrite math rather than the simple guild-level facts:
+Fixed by backing off after a failure rather than pre-checking channel permissions. The defect they
+shared was never specifically about permissions: a failed call left no trace, so the next run made
+the identical call, whether it had failed on 403, 429 or a 5xx. `ChannelCooldown` (Domain, ladder
+1/5/15/30 min, cleared on success) now gates the alert fan-out, the admin channel, the absence
+report refresh and the thread-removal queue; `CommandBridgeRepublishJob` keeps the same ladder on
+its queued row, where it survives a restart.
 
-- **`CommandBridgeRepublishJob`** — the worst of the lot: runs **every 5 seconds**, and on a 403 the
-  `continue` skips the `RemoveRange` that would dequeue the row, so a stuck bridge re-fires forever.
-  `CommandBridgeHubService.PublishAsync` compounds it by swallowing the failed edit and falling
-  through to a send — two invalid requests every five seconds per stuck row. **The dequeue bug is
-  worth fixing on its own, independently of any permission work.**
-- **`AiChatIndexJob`** — up to ~2,000 `GetMessagesAsync` per guild per run (500 sources × 4 pages);
-  each unreadable channel 403s every 20 minutes and no channel is ever marked bad.
-- **`StfcNewsNotifyJob`** — never inserts its `StfcNewsPostGuildMessage` row on a 403, so the guild
-  looks "missing" again and retries every 30 minutes forever.
-- **`AbsenceReportRefreshJob`** — deliberately keeps the message id on a 403 (correct: it must not
-  orphan a duplicate), which means the same failing edit every 15 minutes.
+Three real bugs came out with it:
 
-Also unfixed: `NotificationDispatcher.TrySendToChannelAsync` turns one 403 into **three** REST calls —
-the failed send, a log-channel send, and an admin-channel send — and in a guild-wide permission gap
-the latter two fail too. Only the third is throttled.
+- **`CommandBridgeHubService.PublishAsync` caught every `RestException` and fell through to a
+  re-post.** That doubled the invalid requests *and*, on a merely transient failure, posted a
+  duplicate hub message orphaning the live one — the same bug `AbsenceService` documents as "seen in
+  the wild". Only a 404 re-posts now.
+- **`AiChatIndexService` marked a channel's history permanently complete when a fetch failed.** The
+  helpers returned `[]` on `RestException`, `0 < 300` read as "reached the start of the channel", and
+  one 403 silently ended that channel's backfill forever. They return `null` on failure now, and the
+  cursor is left alone.
+- **`ThreadCleanupJob` head-of-line blocked**: it took the oldest row and returned on failure, so one
+  undeletable thread stalled every removal behind it. It now skips rows in cooldown.
+
+Also: `StfcNewsNotifyJob`'s catch-up is bounded to 14 days (it iterated every unresolved post ×
+every guild without a message row, a set that only grew), and the Web publish button reports the
+Discord error from `CommandBridgeRepublishRequest.LastError` instead of spinning forever.
+
+**The rule this originally proposed was wrong and has been rewritten.** "Do not pre-check channel
+permissions" contradicted Discord's own guidance — *"403 responses are avoided by inspecting role
+**or channel** permissions"* — and its stated justification ("resolving effective permissions
+ourselves would be easy to get wrong", from the initial commit) had already expired, since
+`ChannelAccessEvaluator` does exactly that and is proven on the Web permission page. CONTRIBUTING now
+ranks the defences instead: back off after a failure first, pre-check where the fact is cheap and
+certain, and fail open either way.
 
 ## Channel settings with no consumer — delete the columns and their pickers
 
