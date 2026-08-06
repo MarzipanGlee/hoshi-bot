@@ -269,6 +269,11 @@
   "News.ConfirmButton": "Bestätigen",
   "News.EditButton": "Bearbeiten",
 
+  "MemberLog.Joined": "{user} ist dem Server beigetreten.",
+  "MemberLog.Left": "{user} hat den Server verlassen.",
+  "MemberLog.FieldUserId": "User ID",
+  "MemberLog.FieldGlobalName": "Globalname",
+  "MemberLog.FieldUsername": "Username",
   "Notify.Action.SendAlert": "eine Alarmnachricht senden",
   "Notify.Action.SyncRoles": "die Mitgliederrollen synchron halten",
   "Notify.Action.SyncNicknames": "die Mitglieder-Nicknamen synchron halten",

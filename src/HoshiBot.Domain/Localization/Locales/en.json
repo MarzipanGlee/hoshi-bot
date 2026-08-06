@@ -269,6 +269,11 @@
   "News.ConfirmButton": "Confirm",
   "News.EditButton": "Edit",
 
+  "MemberLog.Joined": "{user} joined the server.",
+  "MemberLog.Left": "{user} left the server.",
+  "MemberLog.FieldUserId": "User ID",
+  "MemberLog.FieldGlobalName": "Global name",
+  "MemberLog.FieldUsername": "Username",
   "Notify.Action.SendAlert": "send an alert message",
   "Notify.Action.SyncRoles": "keep member roles in sync",
   "Notify.Action.SyncNicknames": "keep member nicknames in sync",

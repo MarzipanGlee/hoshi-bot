@@ -27,6 +27,13 @@ public static partial class Msg
         public static string SettingsLead(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.SettingsLead");
 
+        // Prefixed onto every channel picker whose feature exists in the legacy bot but has not
+        // been ported yet. The columns and the values admins already set are deliberately kept (a
+        // future port needs both) — this just stops someone configuring a channel that does nothing
+        // and wondering why it is silent.
+        public static string NotImplementedYet(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Alliance.NotImplementedYet");
+
         public static string BoardingChannelTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.BoardingChannelTitle");
 

@@ -8,6 +8,7 @@ using HoshiBot.Discord.AnnouncementForwarder;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.AnonymousMessages;
 using HoshiBot.Discord.CommandBridge;
+using HoshiBot.Discord.MemberLog;
 using HoshiBot.Discord.MemberLore;
 using HoshiBot.Discord.MemberOnboarding;
 using HoshiBot.Discord.Notifications;
@@ -116,6 +117,7 @@ builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<TerritoryCaptureDigestService>();
 builder.Services.AddScoped<AnnouncementService>();
 builder.Services.AddScoped<AnnouncementDraftService>();
+builder.Services.AddScoped<MemberLogService>();
 // Singletons: both outlive the per-fire Quartz scopes they serve. DiscordApiHealth holds the 401
 // kill switch and the rolling invalid-request count; PermissionGuard caches each guild's role
 // standing for 60s so a sync job resolves it once per run instead of once per member.

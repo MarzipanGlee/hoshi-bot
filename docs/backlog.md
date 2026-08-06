@@ -619,30 +619,38 @@ ourselves would be easy to get wrong", from the initial commit) had already expi
 ranks the defences instead: back off after a failure first, pre-check where the fact is cheap and
 certain, and fail open either way.
 
-## Channel settings with no consumer — delete the columns and their pickers
+## Channel settings with no consumer — they are unported features, not dead schema
 
-Surfaced while building the per-feature permission declaration (`GuildFeaturePermissions`). Eight
-configured channels have **no bot code reading them at all** — they exist only as pickers in the
-admin UI, in `GuildSettingsSeedData`, and (until now) in the permission audit, which demanded
-View + Send + Embed Links on every one of them:
+Filed while building the per-feature permission declaration, on the reasoning that eight configured
+channels had **no bot code reading them**, so the columns and pickers should be deleted. Checking the
+legacy bot before doing it showed that reasoning conflated *dead* with *not yet ported*:
 
-- Seven `GuildAlliance` columns: `AllianceBoardingChannelId`, `RemindersAlliesChannelId`,
-  `RulesDeChannelId`, `RulesEnChannelId`, `UserNotificationsChannelId`, `BotSupportChannelId`,
-  `CommandStaffJobsChannelId`. Only the three Command Bridge columns are live.
-- `GuildSettings.UserLogChannelId` (still rendered by `SettingsEditor.razor`).
+| Column | What legacy did with it | Status |
+|---|---|---|
+| `GuildSettings.UserLogChannelId` | member join/leave entries (`Notifications/join-message.yag`, `leave-message.yag`) | ✅ **ported 2026-08-06** |
+| `CommandStaffJobsChannelId` | the member-case queue for staff (`tasks/open-member-case.yag`) | unported |
+| `AllianceBoardingChannelId` | the welcome menu (`static_data/menu-welcome.yag`) | unported |
+| `BotSupportChannelId` | "get help" pointer on the Command Bridge (`command_bridge/common-ch.yag`) | unported |
+| `RemindersAlliesChannelId` | TC reminders for *allied* alliances' captures | unported |
+| `UserNotificationsChannelId` | public shield-mute notices — the rewrite DMs these instead | superseded |
+| `RulesDeChannelId` / `RulesEnChannelId` | nothing, even in legacy | genuinely dead |
 
-They no longer appear in the audit. Remaining work: delete the columns, their pickers in
-`Alliance/Settings.razor` / `SettingsEditor.razor`, and their seed rows, with an EF migration. Left
-out of the permission rework itself because a schema migration doesn't belong bolted onto it.
+So the columns are not junk: they hold the channels admins already picked for features that exist in
+the legacy bot and haven't been rebuilt. Deleting them would discard that configuration and the only
+remaining trace that the features were ever intended.
 
-Two more turned up in the same sweep and were decided at the time:
+**Decision (2026-08-06): keep the columns, label the pickers.** All seven alliance pickers now carry
+"⚠ Not implemented yet — setting this has no effect" (`Msg.WebAlliance.NotImplementedYet`), so nobody
+configures a channel and waits for something to happen. Nothing was dropped, no migration needed.
 
-- **`AnnouncementsSettingKeys.RemindersChannel`** — a legacy-bot leftover (reminder pings for unread
-  announcements, which are DMs now or will be). Removed outright: the key, the picker, the seed row
-  and the catalog wording. Existing `GuildFeatureSettingSnowflakes` rows with `Key = 'RemindersChannel'`
-  are now inert and can be deleted alongside the columns above.
-- **`DiplomacySettingKeys.Channel`** — kept. Nothing reads it yet, but the feature is planned, so
-  the slot is declared now rather than added later and forgotten.
+Remaining work is per feature, not a schema cleanup: port the member-case queue, the welcome menu,
+the bot-support pointer and the allies TC reminder — or decide against each and remove that column
+then. `RulesDe`/`RulesEn` can go whenever something else touches `GuildAlliance`.
+
+Still true from the original sweep: **`AnnouncementsSettingKeys.RemindersChannel`** was removed
+outright (a legacy leftover for unread-announcement pings, which are DMs now); its inert
+`GuildFeatureSettingSnowflakes` rows can be deleted whenever convenient. **`DiplomacySettingKeys.Channel`**
+was kept — nothing reads it yet, but the feature is planned.
 
 ## Contested player claims — admin approval queue
 
