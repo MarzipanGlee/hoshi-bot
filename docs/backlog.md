@@ -531,6 +531,51 @@ result). The editor's Services-role and Member-role pickers are live shared view
 `ServicesRole` setting and `GuildAlliance.MemberRoleId` (editing there or here is the same value) — the
 feature owns no settings of its own.
 
+## Role sync 403s: pre-check instead of failing per member (Cloudflare-ban risk)
+
+Discord's rate-limit guide has an **Invalid Request Limit**: 10,000 responses of 401/403/429 in any
+10 minutes gets the IP temporarily banned from the API — for the whole bot, all guilds. The guide is
+explicit about what it expects instead:
+
+> 403 responses are avoided by **inspecting role or channel permissions** and by not making requests
+> that are restricted by such permissions.
+
+The nine role-touching jobs all run every 10 minutes — the same window Discord measures — and every
+one of them catches `Forbidden` **inside** its per-member loop (`ExclusiveTierRoleSyncJob.SyncMemberAsync`,
+`ConditionalRoleSyncJob`, `AllianceTagRoleSyncJob`, `NicknameSyncJob`, `PlayerLinkSyncJob`,
+`NotificationRoleSyncJob`, `TerritoryCaptureRoleSyncJob`). So a single misconfiguration produces one
+403 **per member, per job, per run**, indefinitely.
+
+Measured against the live guilds (2026-08-06): EU 164 = 525 members, BASE OF SHADØW = 235,
+Lost Falcons = 196 — 956 total. One role dragged above the bot's role in EU 164 alone is 525 invalid
+requests per 10 minutes from one job. If the bot's own role is moved below the roles several jobs
+manage, ~956 × 9 ≈ **8,600 per 10 minutes**, sustained — against a 10,000 ceiling. And the trigger is
+the most common Discord admin mistake there is; `ConditionalRoleSyncJob`'s own comment notes it "has
+bitten this community before on a legacy bot".
+
+**The fix.** Two guild-level facts, resolved once per job run from the gateway cache (no REST calls),
+both of which the permission declaration work already has the pieces for:
+
+1. **Manage Roles** — if the bot's role doesn't have it, skip the guild entirely and report once via
+   `NotifyAdminOfPermissionIssueAsync` (which now names the permission) instead of N 403s.
+2. **Role hierarchy** — a role at or above the bot's highest position can never be assigned, whatever
+   the permissions say (Administrator does **not** bypass role hierarchy). Comparing `RawPosition` is
+   a per-role check, not per-member, and it is the actual cause of nearly all of these.
+
+Suggested shape: pure comparison logic in Domain (`RoleSyncEligibility`, unit-testable), a thin
+`RoleSyncGuard` in `HoshiBot.Discord` resolving it from `gatewayClient.Cache.Guilds`. **Fail open** —
+if the guild, bot member or roles can't be resolved, behave exactly as today, so a bug in the guard
+degrades to the current behaviour rather than silently stopping role sync (which would be worse than
+the problem). Log every skip loudly for the same reason. `NicknameSyncJob` is the same story with
+Manage Nicknames, plus the rule that nobody can rename the guild owner.
+
+**This contradicts a stated rule**, and that rule should be narrowed rather than kept: the comment on
+`NotificationDispatcher.NotifyAdminOfPermissionIssueAsync` says resolving effective permissions
+ourselves "would be easy to get wrong". That is fair for *channel* permissions (overwrite resolution,
+category inheritance) but not for these two — guild-level permission bits and role positions are
+simple, and Discord asks applications to check them. The rule to keep is: don't pre-check channel
+overwrites; do pre-check the guild-level facts.
+
 ## Channel settings with no consumer — delete the columns and their pickers
 
 Surfaced while building the per-feature permission declaration (`GuildFeaturePermissions`). Eight

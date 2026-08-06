@@ -265,11 +265,17 @@ public class NotificationDispatcher(
     // nobody in the guild ever sees, naming the exact permission and channel rather than a
     // hand-written guess at the cause.
     //
-    // Still reactive: call it from a catch block once an action has actually failed. The existing
-    // rule this respects forbids PRE-checking — declining to act based on our own permission math,
-    // where being wrong silently drops a message. Narrowing the report below runs only after a real
-    // failure and only affects wording, where being wrong is cosmetic and the fallback is the full
-    // requirement.
+    // Still reactive: call it from a catch block once an action has actually failed. The rule this
+    // respects forbids PRE-checking *channel* permissions — declining to act based on our own
+    // overwrite/category-inheritance math, where being wrong silently drops a message. Narrowing the
+    // report below runs only after a real failure and only affects wording, where being wrong is
+    // cosmetic and the fallback is the full requirement.
+    //
+    // That rule is deliberately narrower than it used to read. Discord's own rate-limit guide asks
+    // applications to avoid 403s "by inspecting role or channel permissions", and counts them toward
+    // a 10,000-per-10-minutes ban threshold — which the per-member role-sync loops can genuinely
+    // approach on a misconfigured guild. Guild-level bits and role positions are simple enough to
+    // check up front and SHOULD be; see docs/backlog.md ("Role sync 403s").
     //
     // required: the bits THAT call needed, not the channel's whole profile — a Manage Threads
     // failure should not tell an admin to grant Embed Links.
