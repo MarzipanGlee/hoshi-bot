@@ -215,6 +215,22 @@ public static partial class Msg
         public static string StaffMuteEnableButton(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.StaffMuteEnableButton");
 
+        // The staff bridge's roster-gap list: who is in the alliance in-game but not in this Discord.
+        public static string MissingPlayersTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.MissingPlayersTitle");
+
+        public static string MissingPlayersIntro(Language lang, string tag, int missing, int total) =>
+            MessageCatalog.Format(lang, "Bridge.MissingPlayersIntro", ("tag", tag), ("missing", missing), ("total", total));
+
+        public static string MissingPlayersNone(Language lang, string tag) =>
+            MessageCatalog.Format(lang, "Bridge.MissingPlayersNone", ("tag", tag));
+
+        public static string MissingPlayersNoAlliance(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.MissingPlayersNoAlliance");
+
+        public static string MissingPlayersMore(Language lang, int count) =>
+            MessageCatalog.Format(lang, "Bridge.MissingPlayersMore", ("count", count));
+
         public static string StaffMuteDisableButton(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.StaffMuteDisableButton");
     }

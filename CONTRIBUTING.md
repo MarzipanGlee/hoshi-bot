@@ -116,6 +116,11 @@ File placement rules:
   up. If the dependency is only usable from a subset of audiences, verify
   `GetDependencyStatesAsync` actually resolves via one of the dependency's
   genuinely-enabled audiences (see `IFeatureModule.cs`).
+- **Bulleted lists in Discord text use `-`, never `*`.** Both render, and mixing them is the
+  only way to get it wrong — the catalog and every list built in code already use `-`
+  (`AbsenceService.BuildOwnListText`, `AiChatService.Context`, the staff bridge's
+  players-not-in-Discord list). Embeds render markdown lists properly, so prefer one item
+  per line over a comma-joined string whenever the list is more than a few entries.
 - Use `CommanderName.Of(Context.User)` (strips a leading `[TAG]` bracket group) instead
   of `Context.User.Username` whenever building a "Commander {name}, ..." message — guild
   nicknames often carry an alliance-tag prefix.

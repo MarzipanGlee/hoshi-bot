@@ -211,6 +211,12 @@
   "BridgeItem.StaffShieldTerritoryReset": "Schildverlust Gebietsreset",
   "BridgeItem.StaffShieldMute": "Öffentliche Schildablaufwarnungen verwalten",
   "BridgeItem.StaffBetaTests": "Beta-Tests verwalten",
+  "BridgeItem.StaffMissingPlayers": "Nicht im Discord",
+  "Bridge.MissingPlayersTitle": "Spieler ohne Discord-Account",
+  "Bridge.MissingPlayersIntro": "**[{tag}]** — {missing} von {total} Allianzspielern haben hier keinen Account:",
+  "Bridge.MissingPlayersNone": "**[{tag}]** — alle Allianzspieler sind in diesem Discord. ✅",
+  "Bridge.MissingPlayersNoAlliance": "Diesem Server ist noch keine Allianz zugeordnet, es gibt also keinen Kader zum Vergleichen.",
+  "Bridge.MissingPlayersMore": "…und {count} weitere.",
 
 
   "Client.NewVersionTitle": "Neue {platform}-Version",

@@ -59,6 +59,9 @@ public static class CommandBridgeCatalog
         // Beta-tests toggles only the caller's own role — always shown on the staff bridge,
         // not gated by a GuildFeature.
         new(CommandBridgeKind.Staff, 1, "staff-beta-tests", "BridgeItem.StaffBetaTests", "👷", null),
+        // Reads the roster gap out of the player links, so it follows Player Assignment's toggle:
+        // without those links every player would look missing.
+        new(CommandBridgeKind.Staff, 1, "staff-missing-players", "BridgeItem.StaffMissingPlayers", "🕵️", GuildFeature.PlayerLink),
 
         // ---- Friends bridge ("Kommandobrücke Freunde") — a trimmed user subset ----
         new(CommandBridgeKind.Friends, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", "⏰", GuildFeature.ShieldReminders),

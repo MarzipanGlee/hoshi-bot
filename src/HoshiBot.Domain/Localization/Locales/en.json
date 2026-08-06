@@ -211,6 +211,12 @@
   "BridgeItem.StaffShieldTerritoryReset": "Shield loss territory reset",
   "BridgeItem.StaffShieldMute": "Manage public shield expiration warnings",
   "BridgeItem.StaffBetaTests": "Manage beta tests",
+  "BridgeItem.StaffMissingPlayers": "Players not in Discord",
+  "Bridge.MissingPlayersTitle": "Players not in this Discord",
+  "Bridge.MissingPlayersIntro": "**[{tag}]** — {missing} of {total} alliance players have no account here:",
+  "Bridge.MissingPlayersNone": "**[{tag}]** — every alliance player is in this Discord. ✅",
+  "Bridge.MissingPlayersNoAlliance": "No alliance is linked to this server yet, so there is no roster to compare against.",
+  "Bridge.MissingPlayersMore": "…and {count} more.",
 
 
   "Client.NewVersionTitle": "New {platform} Version",

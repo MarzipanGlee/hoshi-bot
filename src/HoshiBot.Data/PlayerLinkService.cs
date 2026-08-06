@@ -138,6 +138,53 @@ public class PlayerLinkService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         return result;
     }
 
+    // Who is in the alliance in-game but has no Discord member here — the staff bridge's roster gap
+    // list. "No Discord member HERE" is the load-bearing part: a player linked to an account that has
+    // since left the guild counts as missing, which is exactly the case nobody notices otherwise.
+    //
+    // stfcAllianceId narrows it to one alliance (the staff bridge is posted per alliance, so the
+    // channel the click came from identifies it); null covers every alliance this guild has linked.
+    public async Task<List<MissingFromDiscord>> GetPlayersMissingFromDiscordAsync(ulong guildId, int? stfcAllianceId = null)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var alliances = await db.GuildAlliances
+            .Where(a => a.GuildId == guildId && (stfcAllianceId == null || a.StfcAllianceId == stfcAllianceId))
+            .Select(a => new { a.StfcAllianceId, a.StfcAlliance.Tag })
+            .ToListAsync();
+
+        if (alliances.Count == 0)
+            return [];
+
+        // Players reachable from this guild: linked to a Discord account that is still a member here.
+        var membersHere = db.GuildMembers.Where(m => m.GuildId == guildId).Select(m => m.DiscordUserId);
+        var present = (await db.UserPlayers
+            .Where(up => membersHere.Contains(up.DiscordUserId))
+            .Select(up => up.StfcPlayerId)
+            .Distinct()
+            .ToListAsync())
+            .ToHashSet();
+
+        var result = new List<MissingFromDiscord>();
+        foreach (var alliance in alliances)
+        {
+            var roster = await db.StfcPlayers
+                .Where(p => p.AllianceId == alliance.StfcAllianceId)
+                .Select(p => new { p.Id, p.Name })
+                .ToListAsync();
+
+            var missing = roster
+                .Where(p => !present.Contains(p.Id))
+                .Select(p => p.Name)
+                .OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+
+            result.Add(new MissingFromDiscord(alliance.Tag, missing, roster.Count));
+        }
+
+        return result;
+    }
+
     // Single-member form of the above, for the Discord-side callers that resolve one member at a time.
     public async Task<int?> GetGuildPrimaryPlayerIdAsync(ulong guildId, ulong userId)
     {
@@ -523,6 +570,10 @@ public enum PlayerLinkOutcome
 }
 
 public record PlayerSearchResult(int Id, string Name, string ServerName, string? AllianceTag);
+
+// One linked alliance's roster gap: who is in the alliance in-game but not in this Discord.
+// TotalPlayers is the alliance's whole roster, so the reader gets "12 of 98" rather than a bare 12.
+public record MissingFromDiscord(string AllianceTag, IReadOnlyList<string> MissingNames, int TotalPlayers);
 
 public record MemberPlayerLink(int PlayerId, string Name, string ServerName, string? AllianceTag, bool IsGuildPrimary);
 
