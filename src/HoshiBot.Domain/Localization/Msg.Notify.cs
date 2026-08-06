@@ -22,14 +22,8 @@ public static partial class Msg
             return label == key ? action.ToString() : label;
         }
 
-        public static string SkipReasonForbidden(Language lang) =>
-            MessageCatalog.Format(lang, "Notify.SkipReasonForbidden");
 
-        public static string SkipReasonNotFound(Language lang) =>
-            MessageCatalog.Format(lang, "Notify.SkipReasonNotFound");
 
-        public static string SkippedChannelLog(Language lang, string channel, string reason) =>
-            MessageCatalog.Format(lang, "Notify.SkippedChannelLog", ("channel", channel), ("reason", reason));
 
         public static string PermissionIssueChannel(Language lang, string action, string channel, string permissions) =>
             MessageCatalog.Format(lang, "Notify.PermissionIssueChannel", ("action", action), ("channel", channel), ("permissions", permissions));

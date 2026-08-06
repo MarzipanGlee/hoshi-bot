@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NetCord.Gateway;
 using NetCord.Rest;
 
@@ -17,7 +18,7 @@ public enum StfcNewsActionOutcome { NotFound, AlreadyResolved, CannotConfirmOwnS
 // outcome returned here — it is never the same message as the shared post embed, so updating
 // the shared message (via RefreshAllGuildMessagesAsync, below) can always go through a plain
 // direct REST edit with no risk of conflicting with the interaction's own response.
-public class StfcNewsService(HoshiBotDbContext db, GatewayClient gatewayClient, LanguageResolver languageResolver)
+public class StfcNewsService(HoshiBotDbContext db, GatewayClient gatewayClient, LanguageResolver languageResolver, ILogger<StfcNewsService> logger)
 {
     public async Task<StfcNewsActionOutcome> SubmitDateAsync(int postId, DateOnly date, ulong submitterId)
     {
@@ -159,10 +160,14 @@ public class StfcNewsService(HoshiBotDbContext db, GatewayClient gatewayClient, 
                     m.Components = buttons is null ? [] : [new ActionRowProperties(buttons)];
                 });
             }
-            catch (RestException)
+            catch (RestException ex)
             {
                 // Channel/message gone or permission revoked since it was sent — skip, same
-                // best-effort tolerance NotificationDispatcher's own edits use.
+                // best-effort tolerance NotificationDispatcher's own edits use. Logged because it
+                // was entirely silent: a guild's confirmation counter would stop updating with
+                // nothing anywhere saying why.
+                logger.LogWarning(ex, "Could not refresh the news message {MessageId} in channel {ChannelId} for guild {GuildId}",
+                    guildMessage.MessageId, guildMessage.ChannelId, guildMessage.GuildId);
             }
         }
 

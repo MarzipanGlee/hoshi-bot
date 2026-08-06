@@ -215,8 +215,18 @@ public partial class AiChatIndexService
         var cached = GetGuildChannelsFromCache(guildId);
         if (cached.Count > 0)
             return cached;
-        try { return await gatewayClient.Rest.GetGuildChannelsAsync(guildId, cancellationToken: cancellationToken); }
-        catch (RestException) { return []; }
+        try
+        {
+            return await gatewayClient.Rest.GetGuildChannelsAsync(guildId, cancellationToken: cancellationToken);
+        }
+        catch (RestException ex)
+        {
+            // An empty list here reads downstream as "this guild has no channels", which would
+            // quietly disable indexing for the whole guild. Say so rather than letting it look
+            // like a correctly-empty result.
+            logger.LogWarning(ex, "Could not list channels for guild {GuildId}; treating as no sources this run", guildId);
+            return [];
+        }
     }
 
     // Forum posts are threads, and NetCord's gateway cache tracks those in a separate

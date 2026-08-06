@@ -306,9 +306,6 @@
   "Notify.PermissionIssueChannel": "⚠️ Hoshi could not {action} — she is missing **{permissions}** in {channel}.",
   "Notify.PermissionIssueGuild": "⚠️ Hoshi could not {action} — her role is missing **{permissions}** on this server.",
   "Notify.PermissionIssueHelp": "The permission check on the web admin shows what to grant and can fix most channels for you.",
-  "Notify.SkipReasonForbidden": "missing permission (the bot cannot write there)",
-  "Notify.SkipReasonNotFound": "the channel was not found",
-  "Notify.SkippedChannelLog": "⚠️ A message could not be sent to {channel} — {reason}. Please check the bot's channel permissions (Permission Check).",
 
   "Onboarding.OutreachGuess": "🖖 Hi! So I can give you the right roles automatically, I'd like to match you to your player. I think you are **{player}**. Is that right?",
   "Onboarding.OutreachAsk": "🖖 Hi! So I can give you the right roles automatically, I'd like to match you to your player. What's your in-game name?",

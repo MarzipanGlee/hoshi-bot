@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
@@ -13,7 +14,7 @@ namespace HoshiBot.Discord.Announcements;
 // plain-message drafting for attachments/length/template-reuse, not a modal (see the Phase 7 plan
 // section for why).
 public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService,
-    LanguageResolver languageResolver)
+    LanguageResolver languageResolver, ILogger<AnnouncementService> logger)
 {
     public static ButtonProperties ReadButton(int announcementId, int count, Language lang) =>
         new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(lang, count), EmojiProperties.Standard("✅"), ButtonStyle.Secondary);
@@ -217,8 +218,11 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
             var roles = await gatewayClient.Rest.GetGuildRolesAsync(guildId);
             return roles.FirstOrDefault(r => r.Id == roleId)?.Name ?? Msg.Announce.AttributionFallback(lang);
         }
-        catch (RestException)
+        catch (RestException ex)
         {
+            // Silently degrading the published "on behalf of" line to a generic label is the kind
+            // of thing nobody reports and nobody can explain later.
+            logger.LogWarning(ex, "Could not resolve the command staff role for guild {GuildId}; using the generic attribution", guildId);
             return Msg.Announce.AttributionFallback(lang);
         }
     }

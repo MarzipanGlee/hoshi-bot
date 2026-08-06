@@ -127,10 +127,11 @@ public class NotificationDispatcher(
             cooldown.RecordFailure(channelId, BotAction.SendAlert);
             logger.LogWarning("Skipped {ChannelKind} channel {ChannelId} for guild {GuildId}: {StatusCode}",
                 channelKind, channelId, guildId, ex.StatusCode);
-            // Admin-facing follow-ups render in the guild language (the resolver caches, so
-            // this rare failure path stays cheap).
-            var lang = await languageResolver.ForGuildAsync(guildId);
-            await LogSkippedChannelAsync(guildId, channelId, ex.StatusCode, lang);
+
+            // One report, not two. There used to be a separate "a message could not be sent to
+            // #x" activity-log line alongside this; now that the permission report goes to the same
+            // log channel and names the actual missing permission, that line was a strictly worse
+            // duplicate of it — and a third REST call on a path that had just failed twice.
             await NotifyAdminOfPermissionIssueAsync(guildId, BotAction.SendAlert, channelId, ChannelAccessProfile.Post.Permissions());
             return null;
         }
@@ -233,44 +234,6 @@ public class NotificationDispatcher(
         }
     }
 
-    // Records a skipped (undeliverable) channel send in the guild's general activity log
-    // channel (GuildSettings.LogChannelId), separate from the throttled, admin-facing
-    // NotifyAdminOfPermissionIssueAsync above: this is an untimed, per-occurrence activity-log
-    // line so a guild admin watching that channel sees exactly which posts didn't go out and
-    // where. No-op when no LogChannelId is configured, and a Forbidden/NotFound on the log
-    // channel itself is swallowed (it's very likely the same guild-wide permission gap that
-    // caused the original skip).
-    private async Task LogSkippedChannelAsync(ulong guildId, ulong channelId, HttpStatusCode statusCode, Language lang)
-    {
-        var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.LogChannelId is not { } logChannelId)
-            return;
-
-        // One failed send used to cost three REST calls: the send itself, this log line, and the
-        // admin notification — and in a guild-wide permission gap the latter two were failing too,
-        // so a broken channel tripled its own damage. Only the admin notification was throttled.
-        if (cooldown.IsCoolingDown(logChannelId, BotAction.SendAlert))
-            return;
-
-        var reason = statusCode == HttpStatusCode.Forbidden
-            ? Msg.Notify.SkipReasonForbidden(lang)
-            : Msg.Notify.SkipReasonNotFound(lang);
-
-        try
-        {
-            var embed = await embedBranding.BuildBrandedAsync(guildId,
-                Msg.Notify.SkippedChannelLog(lang, $"<#{channelId}>", reason),
-                EmbedBranding.DangerColor);
-            await gatewayClient.Rest.SendMessageAsync(logChannelId, new MessageProperties { Embeds = [embed] });
-            cooldown.RecordSuccess(logChannelId, BotAction.SendAlert);
-        }
-        catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-        {
-            logger.LogWarning("Could not write a skipped-channel entry to log channel {LogChannelId} for guild {GuildId}: {StatusCode}",
-                logChannelId, guildId, ex.StatusCode);
-        }
-    }
-
     // Throttles repeat admin notifications for the same (guild, action, channel) — called from
     // recurring Quartz jobs (every 5-15 min) as well as one-shot user actions (Tickets, RoE), so a
     // persistent misconfiguration would otherwise re-notify on every single run forever.
@@ -304,6 +267,10 @@ public class NotificationDispatcher(
     // nobody in the guild ever sees, naming the exact permission and channel rather than a
     // hand-written guess at the cause.
     //
+    // Goes to the LOG channel, not the admin channel: this is bot activity, and it belongs with the
+    // rest of the activity record. The admin channel is for things asking a human to act (the STFC
+    // news date confirmations), and a permission report burying those was the wrong trade.
+    //
     // Call it from a catch block once an action has actually failed — this reports, it does not
     // decide. The narrowing below runs only after a real failure and only affects wording, where
     // being wrong is cosmetic and the fallback is the full requirement.
@@ -319,6 +286,13 @@ public class NotificationDispatcher(
     public async Task NotifyAdminOfPermissionIssueAsync(
         ulong guildId, BotAction action, ulong? channelId, BotPermission required)
     {
+        // Logged unconditionally, before the throttle and before any channel lookup. Thirteen catch
+        // blocks call this and then return without logging anything themselves — they were relying
+        // entirely on the Discord message getting through. When it doesn't (no log channel set, or
+        // the log channel is part of the same permission gap) the failure was invisible everywhere.
+        logger.LogWarning("Permission issue in guild {GuildId}: cannot {Action}{Channel}, needs {Required}",
+            guildId, action, channelId is { } c ? $" in channel {c}" : "", required);
+
         var key = (guildId, action, channelId);
         var now = DateTimeOffset.UtcNow;
         var previous = LastNotifiedAt.TryGetValue(key, out var last) ? last : default;
@@ -328,12 +302,12 @@ public class NotificationDispatcher(
         LastNotifiedAt[key] = (now, previous.Count + 1);
 
         var settings = await db.GuildSettings.FindAsync(guildId);
-        if (settings?.AdminChannelId is not { } adminChannelId)
-        {
-            logger.LogWarning("Permission issue in guild {GuildId} ({Action} in channel {ChannelId}, needs {Required}) but no AdminChannelId configured to report it to.",
-                guildId, action, channelId, required);
+        if (settings?.LogChannelId is not { } logChannelId)
             return;
-        }
+
+        // The log channel being in the same permission gap is the common case, not an edge one.
+        if (cooldown.IsCoolingDown(logChannelId, BotAction.SendAlert))
+            return;
 
         try
         {
@@ -347,12 +321,14 @@ public class NotificationDispatcher(
             var embed = await embedBranding.BuildBrandedAsync(guildId,
                 $"{body}\n\n{Msg.Notify.PermissionIssueHelp(lang)}",
                 EmbedBranding.DangerColor);
-            await gatewayClient.Rest.SendMessageAsync(adminChannelId, new MessageProperties { Embeds = [embed] });
+            await gatewayClient.Rest.SendMessageAsync(logChannelId, new MessageProperties { Embeds = [embed] });
+            cooldown.RecordSuccess(logChannelId, BotAction.SendAlert);
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
-            logger.LogWarning("Could not notify admin channel {ChannelId} for guild {GuildId} about a permission issue: {StatusCode}",
-                adminChannelId, guildId, ex.StatusCode);
+            cooldown.RecordFailure(logChannelId, BotAction.SendAlert);
+            logger.LogWarning("Could not write the permission issue to log channel {ChannelId} for guild {GuildId}: {StatusCode}",
+                logChannelId, guildId, ex.StatusCode);
         }
     }
 
