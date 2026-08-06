@@ -50,8 +50,10 @@ public static partial class Msg
         public static string ReminderTitle(Language lang, string zone, long start) =>
             MessageCatalog.Format(lang, "Tc.ReminderTitle", ("zone", zone), ("start", start));
 
-        // Who may contest a zone, by tier. Only the tiers legacy described have text; anything else
-        // returns "" and the reminder simply omits the line rather than inventing a rule.
+        // Who may contest a zone, by tier. Tiers 1-4 are covered, which is every tier the territory
+        // catalog actually contains — legacy's own table stopped at 3 and simply said nothing for a
+        // 4* zone. An unknown tier still returns "" so the reminder omits the line rather than
+        // inventing a rule for a tier the game hasn't shipped.
         public static string TierDescription(Language lang, int tier)
         {
             var key = $"Tc.TierDescription{tier}";

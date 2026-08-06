@@ -374,6 +374,7 @@
   "Tc.TierDescription1": "This is a 1* zone, which any alliance without a current territory — or a neighbour — can contest.",
   "Tc.TierDescription2": "This is a 2* zone, which only the neighbours can contest.",
   "Tc.TierDescription3": "This is a 3* zone, which only the neighbours can contest.",
+  "Tc.TierDescription4": "This is a 4* zone, which only the neighbours can contest.",
   "Tc.TimesUnknown": "Time still unknown: {zones}",
   "Tc.BridgeFallback": "Command Bridge",
   "Tc.DigestIntro": "Please keep these dates free if at all possible, or sign off for individual dates here or in general on the {bridge}!",
