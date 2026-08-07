@@ -50,7 +50,7 @@ public class AnnouncementCounterRefreshJob(
                 // used (PostLanguageAsync re-derives it from the row's audience/channel).
                 var postLang = await announcementService.PostLanguageAsync(announcement);
                 await gatewayClient.Rest.ModifyMessageAsync(announcement.ChannelId, announcement.MessageId,
-                    m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcement.Id, count, postLang)])]);
+                    m => m.Components = [AnnouncementService.PostButtons(announcement.Id, count, postLang)]);
             }
             catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {

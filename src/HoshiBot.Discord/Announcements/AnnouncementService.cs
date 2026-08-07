@@ -18,7 +18,20 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
     LanguageResolver languageResolver, ILogger<AnnouncementService> logger)
 {
     public static ButtonProperties ReadButton(int announcementId, int count, Language lang) =>
-        new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(lang, count), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Secondary);
+        new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(lang, count), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Primary);
+
+    // The row under a published announcement: confirm you have read THIS one, and see whatever you
+    // still haven't — legacy's two buttons. The second is the same action, custom id and icon as the
+    // Command Bridge's own unread button, so a member meets one control in two places rather than
+    // two controls that happen to do the same thing.
+    //
+    // Not used for the unread LIST itself (CommandBridgeButtonModule), where every row already sits
+    // under a heading of unread announcements and a "show unread" button per row would be circular.
+    public static ActionRowProperties PostButtons(int announcementId, int count, Language lang) => new(
+    [
+        ReadButton(announcementId, count, lang),
+        new ButtonProperties("announcement-show-unread", Msg.Bridge.AnnouncementsUnread(lang), EmojiProperties.Standard(Icons.Unread), ButtonStyle.Primary),
+    ]);
 
     // First line of the draft = title, remainder = body — matches legacy's exact convention.
     public static (string Title, string Body) ParseDraft(string content)
@@ -171,13 +184,13 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         };
 
         var content = mentionRoleId is { } roleId ? $"<@&{roleId}>" : null;
-        var readButton = ReadButton(0, 0, scopeLang); // placeholder id, replaced after the row is created
+        var buttons = PostButtons(0, 0, scopeLang); // placeholder id, replaced after the row is created
 
         var message = await gatewayClient.Rest.SendMessageAsync(channelIdValue, new MessageProperties
         {
             Content = content,
             Embeds = [embed],
-            Components = [new ActionRowProperties([readButton])],
+            Components = [buttons],
         });
 
         var announcement = new Announcement
@@ -200,7 +213,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
 
         // The button's custom-id needs the real announcement Id — edit it in now that we have one.
         await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
-            m => m.Components = [new ActionRowProperties([ReadButton(announcement.Id, 0, scopeLang)])]);
+            m => m.Components = [PostButtons(announcement.Id, 0, scopeLang)]);
 
         // The clicking staff member, not the draft's author — this is the ephemeral reply to their
         // button press. Resolved through the cache because draft.Author is REST-fetched and so

@@ -201,6 +201,12 @@ public static partial class Msg
 
         // The two help buttons. The channel guide's body is admin-authored (a setting, not a
         // catalog entry) — only its title and the not-yet-written placeholder live here.
+        // The Command Bridge button's own label, also used on every published announcement so the
+        // same action reads the same way in both places (CommandBridgeCatalog renders it from the
+        // key generically; this is the typed way in).
+        public static string AnnouncementsUnread(Language lang) =>
+            MessageCatalog.Format(lang, "BridgeItem.AnnouncementsUnread");
+
         public static string ChannelGuideTitle(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.ChannelGuideTitle");
 

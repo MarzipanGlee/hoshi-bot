@@ -86,7 +86,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
                 // the post's own scope language, not the clicking user's.
                 var postLang = await announcementService.PostLanguageAsync(announcementId, Context.Guild!.Id);
                 await gatewayClient.Rest.ModifyMessageAsync(Context.Channel.Id, Context.Message.Id,
-                    m => m.Components = [new ActionRowProperties([AnnouncementService.ReadButton(announcementId, count, postLang)])]);
+                    m => m.Components = [AnnouncementService.PostButtons(announcementId, count, postLang)]);
             }
             catch (RestException)
             {
