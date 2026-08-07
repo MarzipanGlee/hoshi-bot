@@ -176,4 +176,35 @@ public class PlayerNameKeyTests
         Assert.Equal(expected, PlayerNameKey.Compute(smallCaps));
     }
 
+
+    // Hangul compatibility jamo standing in for Latin letters. Every expectation here is taken from
+    // the alliance's own NAME rather than from how the shape looks to me: ㅌVㅁ is "ㅌVㅁlution",
+    // ㅇVㅌ is "Overwatch", ㄴVㅌ is "LasVegas Empire". Before this the jamo dropped as decoration and
+    // each of these tags keyed to a single letter, which is no key worth having.
+    [Theory]
+    [InlineData("\u314CV\u3141", "evo")]        // ㅌVㅁ  — ㅌVㅁlution
+    [InlineData("\u3147V\u314C", "ove")]        // ㅇVㅌ  — Overwatch
+    [InlineData("\u3134V\u314C", "lve")]        // ㄴVㅌ  — LasVegas Empire
+    [InlineData("\u3134\u3142\u3139T", "last")] // ㄴㅂㄹT
+    public void Hangul_jamo_used_as_latin_folds_to_the_letters_it_depicts(string tag, string expected)
+    {
+        Assert.Equal(expected, PlayerNameKey.Compute(tag));
+    }
+
+    // Real Korean is written in precomposed syllables, not the compatibility jamo block, so folding
+    // those to Latin can't corrupt an actual Korean name — it stays decoration and drops out, as it
+    // did before.
+    [Fact]
+    public void Precomposed_korean_is_untouched_by_the_jamo_map()
+    {
+        Assert.Equal("", PlayerNameKey.Compute("대한민국"));
+    }
+
+    // Framing rather than spelling: the wrap is decoration and dropping it is what makes the tag
+    // typeable, exactly as for the CJK wraps.
+    [Fact]
+    public void Jamo_framing_a_name_is_still_dropped()
+    {
+        Assert.Equal("w", PlayerNameKey.Compute("\u3145W\u3145")); // ㅅWㅅ — "Wrath"
+    }
 }

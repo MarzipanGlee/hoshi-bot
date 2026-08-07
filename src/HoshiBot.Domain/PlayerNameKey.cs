@@ -210,6 +210,29 @@ public static class PlayerNameKey
         ['刃'] = "r",
     };
 
+    // Hangul COMPATIBILITY JAMO used as Latin lookalikes, not as Korean. ㅌVㅁ is "EVO", ㄴVㅌ is
+    // "LVE" — and the alliance names prove it rather than the shapes merely suggesting it:
+    // ㅌVㅁ is "ㅌVㅁlution", ㅇVㅌ is "Overwatch", ㄴVㅌ is "LasVegas Empire". Without these the
+    // Latin letters around them survived alone and the tag keyed to a single character.
+    //
+    // Safe to fold precisely because it IS the compatibility block (U+3131-U+3163). Real Korean
+    // writes precomposed syllables — 대한민국 is U+B300 U+D55C U+BBFC U+AD6D — so a bare jamo
+    // standing in a tag is already the signal that it was picked for its shape. Only 14 alliances
+    // in the whole catalogue use them, and every one is decorative.
+    //
+    // Deliberately partial: ㄲ ㄷ ㅅ ㅜ appear too, but once each or as framing (ㅅWㅅ is "Wrath",
+    // where the ㅅ wrap is decoration and dropping it is right), and a lookalike guessed wrong is
+    // worse than a character left alone.
+    private static readonly Dictionary<char, string> HangulLookalikes = new()
+    {
+        ['ㄴ'] = "l",
+        ['ㄹ'] = "s",
+        ['ㅁ'] = "o",
+        ['ㅂ'] = "a",
+        ['ㅇ'] = "o",
+        ['ㅌ'] = "e",
+    };
+
     // SMALL CAPITAL letters, the one styled alphabet compatibility decomposition can't reach:
     // Unicode classes these as phonetic letters in their own right rather than styled duplicates of
     // A/L/E, so FormKD leaves them alone and ᴀʟᴇx reduced to "x" — the player unfindable, which is
@@ -268,7 +291,8 @@ public static class PlayerNameKey
                 || Cyrillic.TryGetValue(c, out mapped)
                 || Greek.TryGetValue(c, out mapped)
                 || CjkLetters.TryGetValue(c, out mapped)
-                || SmallCapitals.TryGetValue(c, out mapped))
+                || SmallCapitals.TryGetValue(c, out mapped)
+                || HangulLookalikes.TryGetValue(c, out mapped))
             {
                 builder.Append(mapped);
                 continue;
