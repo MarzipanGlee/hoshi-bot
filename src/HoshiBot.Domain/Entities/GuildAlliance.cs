@@ -43,7 +43,6 @@ public class GuildAlliance
     public ulong? RulesDeChannelId { get; set; }
     public ulong? RulesEnChannelId { get; set; }
     public ulong? UserNotificationsChannelId { get; set; }
-    public ulong? BotSupportChannelId { get; set; }
     public ulong? CommandStaffJobsChannelId { get; set; }
 
     // The category new channels get auto-created under (e.g. by the Setup Wizard) when none is

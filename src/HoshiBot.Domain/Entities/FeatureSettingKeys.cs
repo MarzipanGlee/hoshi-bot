@@ -323,3 +323,20 @@ public static class HoshiSaySettingKeys
     // (nobody qualifies), so the editor requires setting it.
     public const string AllowedRole = "AllowedRole";
 }
+
+public static class BotSupportSettingKeys
+{
+    // The channel members are pointed at for help with the bot itself. Only ever rendered as a
+    // "<#id>" mention — the bot never posts here — so it deliberately declares no channel permission
+    // slot in GuildFeaturePermissions. Was GuildAlliance.BotSupportChannelId before the feature
+    // existed; MoveBotSupportChannelToFeature carries those values over.
+    public const string Channel = "Channel";
+}
+
+public static class ChannelGuideSettingKeys
+{
+    // The whole message the "Help with something else" button shows, authored by the admins. Free
+    // text so it can carry "<#id>" channel mentions and markdown; "{commander}" is substituted with
+    // the clicking member's name. Unset -> the button says so rather than showing an empty embed.
+    public const string Message = "Message";
+}

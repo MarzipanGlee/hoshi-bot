@@ -80,6 +80,11 @@ public static class Icons
     public const string ContactStaff = "✉️";
     public const string Unread = "📬";
     public const string Ticket = "🎟️";
+
+    // The two help buttons on the user Command Bridge: 🆘 asks other members ("help with something
+    // else" — the channel guide), ❓ asks about the bot itself (bot support).
+    public const string ChannelGuide = "🆘";
+    public const string Help = "❓";
     public const string Absence = "⛺";
     public const string BetaTests = "👷";
     public const string MissingPlayers = "🕵️";
@@ -96,6 +101,7 @@ public static class Icons
     // 1-5 in practice; the fallback only guards an unexpected value.
     public static string Keycap(int digit) => digit switch
     {
+        0 => "0️⃣",
         1 => "1️⃣",
         2 => "2️⃣",
         3 => "3️⃣",
@@ -105,6 +111,7 @@ public static class Icons
         7 => "7️⃣",
         8 => "8️⃣",
         9 => "9️⃣",
+        10 => "🔟",
         _ => "🔢",
     };
 

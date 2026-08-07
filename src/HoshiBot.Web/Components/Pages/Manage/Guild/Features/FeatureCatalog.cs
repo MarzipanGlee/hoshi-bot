@@ -8,6 +8,8 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AllianceTournament;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AnnouncementForwarder;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Announcements;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AnonymousMessaging;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.BotSupport;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ChannelGuide;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ClientRelease;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.CommandBridge;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ConditionalRoles;
@@ -57,6 +59,8 @@ public static class FeatureCatalog
         new ClientReleaseFeature(),
         new CommandBridgeFeature(),
         new ConditionalRolesFeature(),
+        new BotSupportFeature(),
+        new ChannelGuideFeature(),
         new DiplomacyFeature(),
         new HoshiSayFeature(),
         new InfiniteIncursionsFeature(),

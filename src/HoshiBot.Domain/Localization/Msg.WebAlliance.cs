@@ -55,11 +55,7 @@ public static partial class Msg
         public static string UserNotificationsUsage(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.UserNotificationsUsage");
 
-        public static string BotSupportTitle(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Alliance.BotSupportTitle");
 
-        public static string BotSupportUsage(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Alliance.BotSupportUsage");
 
         public static string CommandStaffJobsTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.CommandStaffJobsTitle");

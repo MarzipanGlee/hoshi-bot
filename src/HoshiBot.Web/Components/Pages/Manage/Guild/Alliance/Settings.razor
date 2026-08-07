@@ -27,7 +27,6 @@
             <ChannelPicker CardTitle="@Msg.WebAlliance.RulesDeTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesDeChannelId = ParseId(rulesDeChannelIdInput))" Channels="channels" />
             <ChannelPicker CardTitle="@Msg.WebAlliance.RulesEnTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesEnChannelId = ParseId(rulesEnChannelIdInput))" Channels="channels" />
             <ChannelPicker CardTitle="@Msg.WebAlliance.UserNotificationsTitle(Lang)" Usage="@($"{Msg.WebAlliance.NotImplementedYet(Lang)} {Msg.WebAlliance.UserNotificationsUsage(Lang)}")" @bind-Value="userNotificationsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.UserNotificationsChannelId = ParseId(userNotificationsChannelIdInput))" Channels="channels" />
-            <ChannelPicker CardTitle="@Msg.WebAlliance.BotSupportTitle(Lang)" Usage="@($"{Msg.WebAlliance.NotImplementedYet(Lang)} {Msg.WebAlliance.BotSupportUsage(Lang)}")" @bind-Value="botSupportChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.BotSupportChannelId = ParseId(botSupportChannelIdInput))" Channels="channels" />
             <ChannelPicker CardTitle="@Msg.WebAlliance.CommandStaffJobsTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="commandStaffJobsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.CommandStaffJobsChannelId = ParseId(commandStaffJobsChannelIdInput))" Channels="channels" />
             <ChannelPicker CardTitle="@Msg.WebAlliance.DefaultCategoryTitle(Lang)" Usage="@Msg.WebAlliance.DefaultCategoryUsage(Lang)" CategorySelect="true" CreateChannelName="Hoshi Bot" @bind-Value="defaultChannelCategoryIdInput" @bind-Value:after="SaveDefaultChannelCategoryAsync" Channels="categories" PlaceholderText="@Msg.WebAlliance.ServerRootPlaceholder(Lang)" />
         </div>
@@ -80,7 +79,6 @@
     private string? rulesDeChannelIdInput;
     private string? rulesEnChannelIdInput;
     private string? userNotificationsChannelIdInput;
-    private string? botSupportChannelIdInput;
     private string? commandStaffJobsChannelIdInput;
     private string? defaultChannelCategoryIdInput;
     private string? memberRoleIdInput;
@@ -128,7 +126,6 @@
         rulesDeChannelIdInput = alliance.RulesDeChannelId?.ToString();
         rulesEnChannelIdInput = alliance.RulesEnChannelId?.ToString();
         userNotificationsChannelIdInput = alliance.UserNotificationsChannelId?.ToString();
-        botSupportChannelIdInput = alliance.BotSupportChannelId?.ToString();
         commandStaffJobsChannelIdInput = alliance.CommandStaffJobsChannelId?.ToString();
         defaultChannelCategoryIdInput = alliance.DefaultChannelCategoryId?.ToString();
         memberRoleIdInput = alliance.MemberRoleId?.ToString();

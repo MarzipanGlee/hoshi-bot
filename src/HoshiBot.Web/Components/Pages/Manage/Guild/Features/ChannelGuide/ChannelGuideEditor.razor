@@ -1,0 +1,29 @@
+@inherits FeatureEditorBase
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<p class="form-text">
+    @((MarkupString)Msg.WebChannelGuide.Intro(Lang))
+</p>
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ChannelGuideSettingKeys.Message)">
+        <label for="channelGuideMessage" class="form-label">
+            @Msg.WebEditor.Label(Lang, Feature, ChannelGuideSettingKeys.Message)
+        </label>
+        <textarea id="channelGuideMessage" class="form-control flex-grow-1" rows="8"
+                  @bind="messageInput" @bind:after="SaveMessageAsync"></textarea>
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.ChannelGuide;
+
+    private string? messageInput;
+
+    protected override async Task OnSettingsLoadedAsync() =>
+        messageInput = await GetTextAsync(ChannelGuideSettingKeys.Message);
+
+    private Task SaveMessageAsync() =>
+        SetTextAsync(ChannelGuideSettingKeys.Message, messageInput);
+}

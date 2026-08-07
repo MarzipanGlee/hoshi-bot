@@ -762,6 +762,20 @@ public static partial class Msg
 
     // The settings-free Capture Sign-Off feature — its editor is the enable switch plus this one
     // explanatory paragraph.
+    public static class WebBotSupport
+    {
+        // Contains inline <strong> markup — render via MarkupString.
+        public static string Intro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.BotSupport.Intro");
+    }
+
+    public static class WebChannelGuide
+    {
+        // Contains inline <strong> markup — render via MarkupString.
+        public static string Intro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.Intro");
+    }
+
     public static class WebTerritoryCaptureSignOff
     {
         // Contains inline <strong> markup — render via MarkupString.

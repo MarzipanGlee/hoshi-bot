@@ -135,4 +135,19 @@ public enum GuildFeature
     // (ConditionalRoleRule/Condition/Node) rather than the settings store, since a tree needs
     // ordering and referential integrity. Keep last so existing enum ordinals/DB rows don't shift.
     ConditionalRoles,
+
+    // Alliance-audience: a "Help" button on the user Command Bridge that points members at the
+    // channel where they can ask about the bot itself. One channel setting and nothing else — the
+    // bot never posts there, it only mentions it, which is why the channel carries no permission
+    // slot. Ported from legacy's command_bridge/common-ch.yag; the channel it reads used to be
+    // GuildAlliance.BotSupportChannelId, migrated into this feature's settings.
+    // Keep last so existing enum ordinals/DB rows don't shift.
+    BotSupport,
+
+    // Alliance-audience: a "Help with something else" button on the user Command Bridge that shows
+    // an admin-authored message pointing at the channels a question actually belongs in. The text is
+    // the whole feature — legacy hardcoded one alliance's channel list into the bot
+    // (command_bridge/common-ch.yag), which is exactly the thing a setting should own.
+    // Keep last so existing enum ordinals/DB rows don't shift.
+    ChannelGuide,
 }

@@ -1,0 +1,34 @@
+@inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<p class="form-text">
+    @((MarkupString)Msg.WebBotSupport.Intro(Lang))
+</p>
+
+<div class="card-grid mt-1">
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, BotSupportSettingKeys.Channel)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, BotSupportSettingKeys.Channel)"
+            @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.BotSupport;
+
+    // No CreateChannelName: this points at a channel that already exists (it is where admins ask
+    // about the bot), so offering to create one would invent a channel nobody staffs.
+    private List<IGuildChannel> channels = [];
+    private string? channelIdInput;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        channelIdInput = (await GetSnowflakeAsync(BotSupportSettingKeys.Channel))?.ToString();
+    }
+
+    private Task SaveChannelAsync() =>
+        SetSnowflakeAsync(BotSupportSettingKeys.Channel, ParseId(channelIdInput));
+}

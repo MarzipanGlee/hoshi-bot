@@ -78,6 +78,10 @@ public static class GuildFeatureAudiences
         GuildFeature.AllianceTagRoles => GuildAudience.Guild,
         GuildFeature.ServerTagRoles => GuildAudience.Guild,
         GuildFeature.ConditionalRoles => GuildAudience.Guild,
+        // Both ride on the user Command Bridge, which is per-alliance — and both point at channels
+        // that differ per alliance, so they toggle per linked alliance like the other bridge buttons.
+        GuildFeature.BotSupport => GuildAudience.Alliance,
+        GuildFeature.ChannelGuide => GuildAudience.Alliance,
         _ => GuildAudience.None,
     };
 

@@ -630,7 +630,7 @@ legacy bot before doing it showed that reasoning conflated *dead* with *not yet 
 | `GuildSettings.UserLogChannelId` | member join/leave entries (`Notifications/join-message.yag`, `leave-message.yag`) | ✅ **ported 2026-08-06** |
 | `CommandStaffJobsChannelId` | the member-case queue for staff (`tasks/open-member-case.yag`) | unported |
 | `AllianceBoardingChannelId` | the welcome menu (`static_data/menu-welcome.yag`) | unported |
-| `BotSupportChannelId` | "get help" pointer on the Command Bridge (`command_bridge/common-ch.yag`) | unported |
+| `BotSupportChannelId` | "get help" pointer on the Command Bridge (`command_bridge/common-ch.yag`) | ✅ **ported 2026-08-07** as `GuildFeature.BotSupport`; column dropped, value migrated into the feature's settings |
 | `RemindersAlliesChannelId` | TC reminders for *allied* alliances' captures | unported |
 | `UserNotificationsChannelId` | public shield-mute notices — the rewrite DMs these instead | superseded |
 | `RulesDeChannelId` / `RulesEnChannelId` | nothing, even in legacy | genuinely dead |
@@ -643,9 +643,34 @@ remaining trace that the features were ever intended.
 "⚠ Not implemented yet — setting this has no effect" (`Msg.WebAlliance.NotImplementedYet`), so nobody
 configures a channel and waits for something to happen. Nothing was dropped, no migration needed.
 
-Remaining work is per feature, not a schema cleanup: port the member-case queue, the welcome menu,
-the bot-support pointer and the allies TC reminder — or decide against each and remove that column
-then. `RulesDe`/`RulesEn` can go whenever something else touches `GuildAlliance`.
+Remaining work is per feature, not a schema cleanup: port the member-case queue, the welcome menu
+and the allies TC reminder — or decide against each and remove that column then. `RulesDe`/`RulesEn`
+can go whenever something else touches `GuildAlliance`.
+
+The legacy "Hilfe bei was anderem" button was ported alongside the bot-support pointer as
+`GuildFeature.ChannelGuide` (2026-08-07). It had no column of its own — legacy hardcoded one
+alliance's channel ids into the bot — so it became a plain text setting instead.
+
+## Channel Guide — derive the channel list instead of typing it
+
+`GuildFeature.ChannelGuide` currently shows exactly what an admin wrote, `<#id>` mentions and all.
+That is the right first version (it works for any server, needs no conventions, and beats legacy's
+hardcoded ids), but it is still a list somebody has to keep in sync by hand: rename or archive a
+channel and the guide silently points at the wrong place.
+
+Worth automating later, roughly in order of payoff:
+
+- **Validate what is there.** The stored text is just a string, so nothing notices when a mentioned
+  channel is deleted or the bot loses sight of it. The editor could resolve every `<#id>` on load and
+  flag the dead ones — cheap, and it catches the actual failure mode.
+- **Offer the channels rather than making them type ids.** A picker that inserts a mention at the
+  cursor, so an admin never has to find a channel id by hand.
+- **Suggest a default.** The chat-ish channels the member can actually see, ranked by recent
+  activity, as a starting text they then edit. Note the per-member part is the hard bit: the message
+  is built once and shown to everyone, so "channels *you* can see" would need building it per click.
+
+Deliberately not doing any of this now — the text setting is the whole feature until somebody
+actually finds the manual list annoying.
 
 Still true from the original sweep: **`AnnouncementsSettingKeys.RemindersChannel`** was removed
 outright (a legacy leftover for unread-announcement pings, which are DMs now); its inert

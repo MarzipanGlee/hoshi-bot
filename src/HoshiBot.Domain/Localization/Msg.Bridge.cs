@@ -231,6 +231,23 @@ public static partial class Msg
         public static string MissingPlayersMore(Language lang, int count) =>
             MessageCatalog.Format(lang, "Bridge.MissingPlayersMore", ("count", count));
 
+        // The two help buttons. The channel guide's body is admin-authored (a setting, not a
+        // catalog entry) — only its title and the not-yet-written placeholder live here.
+        public static string ChannelGuideTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.ChannelGuideTitle");
+
+        public static string ChannelGuideNotConfigured(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.ChannelGuideNotConfigured");
+
+        public static string BotSupportTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.BotSupportTitle");
+
+        public static string BotSupportBody(Language lang, string commander, string channel) =>
+            MessageCatalog.Format(lang, "Bridge.BotSupportBody", ("commander", commander), ("channel", channel));
+
+        public static string BotSupportNoChannel(Language lang, string commander) =>
+            MessageCatalog.Format(lang, "Bridge.BotSupportNoChannel", ("commander", commander));
+
         public static string StaffMuteDisableButton(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.StaffMuteDisableButton");
     }

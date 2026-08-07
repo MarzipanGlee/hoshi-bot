@@ -51,6 +51,8 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
         new(CommandBridgeKind.User, 1, "absence-manage", "Feature.Absences", Icons.Absence, GuildFeature.Absences),
         new(CommandBridgeKind.User, 2, "contact-command-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
+        new(CommandBridgeKind.User, 2, "channel-guide", "BridgeItem.ChannelGuide", Icons.ChannelGuide, GuildFeature.ChannelGuide),
+        new(CommandBridgeKind.User, 2, "bot-support", "BridgeItem.BotSupport", Icons.Help, GuildFeature.BotSupport),
 
         // ---- Staff bridge ("Kommandobrücke Führungsstab") ----
         new(CommandBridgeKind.Staff, 0, "staff-shield-report", "BridgeItem.StaffShieldReport", Icons.Alert, GuildFeature.ShieldReminders),

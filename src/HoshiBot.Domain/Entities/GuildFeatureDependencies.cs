@@ -62,6 +62,8 @@ public static class GuildFeatureDependencies
         GuildFeature.RoeViolationReports => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.Tickets => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.AnonymousMessaging => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.BotSupport => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.ChannelGuide => [new(GuildFeature.CommandBridge, HasNote: true)],
 
         // Assigns the Services role to the alliance's Admiral/Commodore members — it needs the
         // service-reminders feature to own that role ("Provides the Services role to assign.") and

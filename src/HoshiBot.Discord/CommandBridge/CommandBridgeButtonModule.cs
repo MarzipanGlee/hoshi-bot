@@ -5,6 +5,7 @@ using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
+using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -13,7 +14,7 @@ namespace HoshiBot.Discord.CommandBridge;
 
 public class CommandBridgeButtonModule(AlertService alertService, AnnouncementService announcementService, RoeViolationService roeViolationService,
     PendingModalInputService pendingModalInputService, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding,
-    LanguageResolver languageResolver)
+    LanguageResolver languageResolver, HoshiBotDbContext db, GuildFeatureSettingsService settingsService)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
     // Ephemeral prompts and modals follow the acting user's language.
@@ -332,4 +333,70 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
         return (description, [new ActionRowProperties(buttons)]);
     }
+
+    // ---- Help buttons -----------------------------------------------------------------------
+    //
+    // Two buttons, two different questions, which is why they are two features: "help with
+    // something else" points at the members who can answer an in-game question, "help" points at
+    // whoever looks after the bot. Both only ever *mention* a channel and post nothing, so neither
+    // declares a channel permission slot — a couple of indexed reads, answered inline rather than
+    // through the deferred path.
+
+    [ComponentInteraction("channel-guide")]
+    public async Task<InteractionMessageProperties> ChannelGuide()
+    {
+        var lang = await ActingUserLanguageAsync();
+        var allianceId = await ClickedAllianceIdAsync();
+        if (await AllianceScopedGuardAsync(GuildFeature.ChannelGuide, allianceId, lang) is { } disabled)
+            return await EphemeralEmbedAsync(disabled);
+
+        var message = await settingsService.GetTextAsync(
+            Context.Guild!.Id, GuildFeature.ChannelGuide, GuildAudience.Alliance, allianceId, ChannelGuideSettingKeys.Message);
+
+        // An enabled feature with no text written yet would otherwise render an empty embed, which
+        // reads as the bot being broken rather than as the admins not having filled it in.
+        var body = string.IsNullOrWhiteSpace(message)
+            ? Msg.Bridge.ChannelGuideNotConfigured(lang)
+            : message.Replace(CommanderPlaceholder, CommanderName.Of(Context.User));
+
+        return await EphemeralEmbedAsync(body, title: Msg.Bridge.ChannelGuideTitle(lang));
+    }
+
+    [ComponentInteraction("bot-support")]
+    public async Task<InteractionMessageProperties> BotSupport()
+    {
+        var lang = await ActingUserLanguageAsync();
+        var allianceId = await ClickedAllianceIdAsync();
+        if (await AllianceScopedGuardAsync(GuildFeature.BotSupport, allianceId, lang) is { } disabled)
+            return await EphemeralEmbedAsync(disabled);
+
+        var channelId = await settingsService.GetSnowflakeAsync(
+            Context.Guild!.Id, GuildFeature.BotSupport, GuildAudience.Alliance, allianceId, BotSupportSettingKeys.Channel);
+
+        var commander = CommanderName.Of(Context.User);
+        var body = channelId is { } id
+            ? Msg.Bridge.BotSupportBody(lang, commander, $"<#{id}>")
+            : Msg.Bridge.BotSupportNoChannel(lang, commander);
+
+        return await EphemeralEmbedAsync(body, title: Msg.Bridge.BotSupportTitle(lang));
+    }
+
+    // What an admin writes in the channel-guide text to address the member by name.
+    private const string CommanderPlaceholder = "{commander}";
+
+    // Both features are Alliance-audience, so "enabled" is per linked alliance.
+    private async Task<string?> AllianceScopedGuardAsync(GuildFeature feature, int? guildAllianceId, Language lang) =>
+        await featureService.IsEnabledAsync(Context.Guild!.Id, feature, GuildAudience.Alliance, guildAllianceId)
+            ? null
+            : GuildFeatureService.DisabledMessage(feature, lang);
+
+    // The user bridge is posted once per linked alliance, so the channel the click came from
+    // identifies it. Null when the click came from somewhere else (a moved message, a shared
+    // channel): the settings lookup then finds nothing and the caller falls back to its "not
+    // configured" copy rather than showing another alliance's channels.
+    private async Task<int?> ClickedAllianceIdAsync() =>
+        await db.GuildAlliances
+            .Where(a => a.GuildId == Context.Guild!.Id && a.CommandBridgeChannelId == Context.Channel.Id)
+            .Select(a => (int?)a.Id)
+            .FirstOrDefaultAsync();
 }
