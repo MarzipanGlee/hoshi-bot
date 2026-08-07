@@ -74,7 +74,11 @@ public static class Icons
     public const string Date = "📅";
     public const string Alert = "🚨";
     public const string Reminder = "⏰";
-    public const string ContactStaff = "📮";
+    // The two halves of the Command Bridge's mail metaphor, kept deliberately distinct: an envelope
+    // is a message going OUT to the command staff, a mailbox with its flag up is announcements
+    // waiting to be read. They used to be 📮 and 📬 — two postboxes on one bridge.
+    public const string ContactStaff = "✉️";
+    public const string Unread = "📬";
     public const string Ticket = "🎟️";
     public const string Absence = "⛺";
     public const string BetaTests = "👷";

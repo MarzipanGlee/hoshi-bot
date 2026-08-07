@@ -47,7 +47,7 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.User, 0, "roe-violation-report", "Feature.RoeViolationReports", Icons.RoeViolation, GuildFeature.RoeViolationReports),
         new(CommandBridgeKind.User, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", Icons.Reminder, GuildFeature.ShieldReminders),
         new(CommandBridgeKind.User, 0, "raid-report", "Feature.RaidAlerts", Icons.Alert, GuildFeature.RaidAlerts),
-        new(CommandBridgeKind.User, 1, "announcement-show-unread", "BridgeItem.AnnouncementsUnread", Icons.SeverityNormal, GuildFeature.Announcements),
+        new(CommandBridgeKind.User, 1, "announcement-show-unread", "BridgeItem.AnnouncementsUnread", Icons.Unread, GuildFeature.Announcements),
         new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
         new(CommandBridgeKind.User, 1, "absence-manage", "Feature.Absences", Icons.Absence, GuildFeature.Absences),
         new(CommandBridgeKind.User, 2, "contact-command-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
