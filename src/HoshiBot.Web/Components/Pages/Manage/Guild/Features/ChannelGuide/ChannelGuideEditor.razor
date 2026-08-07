@@ -18,16 +18,21 @@
         <textarea id="channelGuideMessage" class="form-control flex-grow-1" rows="10"
                   @bind="messageInput" @bind:after="SaveMessageAsync"></textarea>
 
-        <label for="channelGuideInsert" class="form-label mt-2">
-            @Msg.WebChannelGuide.InsertLabel(Lang)
-        </label>
-        <select id="channelGuideInsert" class="form-select" value="" @onchange="InsertMentionAsync">
-            <option value="">@Msg.WebChannelGuide.InsertPlaceholder(Lang)</option>
-            @foreach (var channel in channels)
-            {
-                <option value="@channel.Id">#@channel.Name</option>
-            }
-        </select>
+        @* Label and select wrapped together: SettingsCard's body is a flex column with gap-3, so
+           every direct child is spaced a further 1rem apart. Left loose, the label's own
+           margin-bottom stacked on that gap and the picker drifted away from its own label. *@
+        <div>
+            <label for="channelGuideInsert" class="form-label">
+                @Msg.WebChannelGuide.InsertLabel(Lang)
+            </label>
+            <select id="channelGuideInsert" class="form-select" value="" @onchange="InsertMentionAsync">
+                <option value="">@Msg.WebChannelGuide.InsertPlaceholder(Lang)</option>
+                @foreach (var channel in channels)
+                {
+                    <option value="@channel.Id">#@channel.Name</option>
+                }
+            </select>
+        </div>
     </SettingsCard>
 </div>
 
