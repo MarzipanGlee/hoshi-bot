@@ -124,17 +124,43 @@ public class PlayerNameKeyTests
         "ㅌFFㅌX", "Speed", "EvilXP", "F1N3G31ST",
     ];
 
-    // Found live: PlayerLinkSyncJob died on a member whose nickname carried an astral character.
-    // Compute walks UTF-16 code units, so anything outside the BMP arrives as half a surrogate pair,
-    // and String.Normalize throws ArgumentException on a lone surrogate. One such nickname aborted
-    // the whole guild's sync — every member after it, on every run, indefinitely.
+    // Found live: PlayerLinkSyncJob died on a member whose nickname carried an astral character,
+    // aborting the whole guild's sync — every member after it, on every run. Compute walked UTF-16
+    // code units, so anything outside the BMP reached String.Normalize as half a surrogate pair,
+    // which it refuses. It reads runes now, and an unpaired surrogate becomes U+FFFD instead of an
+    // exception.
     [Theory]
-    [InlineData("Kip🚀Com", "kipcom")]                 // emoji
-    [InlineData("𝔊𝔬𝔱𝔥𝔦𝔠", "")]                        // astral "fancy" letters: all decoration
-    [InlineData("Alex\ud83d", "alex")]                 // an unpaired surrogate on its own
-    [InlineData("\udca9Bob\ud83d", "bob")]             // unpaired on both ends
-    public void Astral_characters_do_not_throw(string name, string expected)
+    [InlineData("Kip\U0001F680Com", "kipcom")]          // emoji: decoration, dropped
+    [InlineData("Alex\ud83d", "alex")]                  // unpaired surrogate on its own
+    [InlineData("\udca9Bob\ud83d", "bob")]              // unpaired at both ends
+    public void Astral_decoration_is_dropped_without_throwing(string name, string expected)
     {
         Assert.Equal(expected, PlayerNameKey.Compute(name));
     }
+
+    // Styled Latin is the NAME, not decoration around it. Dropping it left the player with an empty
+    // key and therefore no way to be found at all — the exact opposite of what the key is for.
+    // Compatibility decomposition (FormKD) reads these as the letters they depict; canonical (FormD)
+    // only strips accents and leaves them untouched.
+    [Theory]
+    [InlineData("\U0001D50A\U0001D52C\U0001D531\U0001D525\U0001D526\U0001D520", "gothic")]  // Mathematical Fraktur
+    [InlineData("\U0001D5D4\U0001D5DF\U0001D5D8\U0001D5EB", "alex")]                          // Mathematical Sans-Serif Bold
+    [InlineData("\uFF21\uFF4C\uFF45\uFF58", "alex")]                                          // full width
+    [InlineData("Alex\u2460", "alex1")]                                                          // circled digit
+    public void Styled_latin_folds_back_to_the_letters_it_depicts(string name, string expected)
+    {
+        Assert.Equal(expected, PlayerNameKey.Compute(name));
+    }
+
+    // Not everything decorative is reachable this way, and it's worth pinning what isn't. Unicode
+    // gives SMALL CAPITAL letters no compatibility decomposition — it classes them as phonetic
+    // letters in their own right rather than styled duplicates of A/L/E — so ᴀʟᴇx still reduces to
+    // "x". Closing that needs entries in LatinLookalikes, the same way the Cyrillic and Greek
+    // lookalikes are handled; this test exists so the gap is a known one rather than a surprise.
+    [Fact]
+    public void Small_capitals_are_a_known_gap()
+    {
+        Assert.Equal("x", PlayerNameKey.Compute("\u1D00\u029F\u1D07x"));
+    }
+
 }

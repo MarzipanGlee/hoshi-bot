@@ -216,8 +216,14 @@ public static class PlayerNameKey
     {
         var builder = new StringBuilder(name.Length);
 
-        foreach (var c in name)
+        // Runes, not chars. Iterating UTF-16 code units hands String.Normalize half a surrogate
+        // pair for anything outside the BMP, which it refuses outright — one emoji or one 𝔊𝔬𝔱𝔥𝔦𝔠
+        // letter in a nickname was enough to abort a whole guild's player-link sync. Runes also make
+        // an unpaired surrogate harmless: EnumerateRunes yields U+FFFD rather than throwing, and
+        // U+FFFD is not a letter, so it drops out below like any other decoration.
+        foreach (var rune in name.EnumerateRunes())
         {
+            var c = rune.IsBmp ? (char)rune.Value : '\0';
             if (LatinLookalikes.TryGetValue(c, out var mapped)
                 || Cyrillic.TryGetValue(c, out mapped)
                 || Greek.TryGetValue(c, out mapped)
@@ -227,19 +233,13 @@ public static class PlayerNameKey
                 continue;
             }
 
-            // Anything outside the Basic Multilingual Plane arrives here as one half of a surrogate
-            // pair, and String.Normalize throws ArgumentException on a lone surrogate. That is not an
-            // edge case: an emoji or a 𝔊𝔬𝔱𝔥𝔦𝔠 letter in a nickname is enough, and the throw took down
-            // the whole guild's player-link sync — every member after the offending one, every run.
-            //
-            // Skipping is also the right answer semantically. No astral character is a Latin letter
-            // or digit, so it would have been dropped as decoration two lines below anyway; this
-            // just drops it without asking ICU to normalize something it refuses to look at.
-            if (char.IsSurrogate(c))
-                continue;
-
-            // Ordinary accented Latin: decompose and drop the marks, so é becomes e.
-            foreach (var d in c.ToString().Normalize(NormalizationForm.FormD))
+            // COMPATIBILITY decomposition (FormKD), not canonical (FormD). Canonical only strips
+            // accents — é to e. Compatibility also folds the styled Latin that Discord nicknames are
+            // full of back to the letters they depict: 𝔊𝔬𝔱𝔥𝔦𝔠 is the word "Gothic" written in
+            // Mathematical Fraktur, and reading it as decoration to be dropped left that player with
+            // no key at all and therefore no way to be found. Same for ᴀ small caps, Ａ full width,
+            // ① circled digits and the ﬁ ligature.
+            foreach (var d in rune.ToString().Normalize(NormalizationForm.FormKD))
             {
                 if (CharUnicodeInfo.GetUnicodeCategory(d) == UnicodeCategory.NonSpacingMark)
                     continue;
