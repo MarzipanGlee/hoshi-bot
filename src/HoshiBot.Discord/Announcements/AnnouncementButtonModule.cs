@@ -10,7 +10,7 @@ using NetCord.Services.ComponentInteractions;
 namespace HoshiBot.Discord.Announcements;
 
 public class AnnouncementButtonModule(AnnouncementService announcementService, AnnouncementDraftService draftService, GatewayClient gatewayClient,
-    GuildFeatureService featureService, GuildAllianceService allianceService, GuildFeatureSettingsService settingsService, EmbedBranding embedBranding,
+    GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding,
     LanguageResolver languageResolver)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
@@ -24,9 +24,12 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
     // channel, so ModifyMessage edits that prompt — never the public hub, and never the draft
     // itself. Leaving the outcome ("Published in #x" / "Discarded.") in place of the prompt is
     // deliberate: the prep channel keeps a record of what was published from which draft.
+    // The standard flow used everywhere else: an ephemeral "working on it" goes back immediately,
+    // then gets edited with the outcome. Publishing does real work (fetch the draft, post, write the
+    // row, edit the button in) and Discord's three seconds don't cover it.
     [ComponentInteraction("announcement-publish")]
     public Task Publish(ulong channelId, ulong messageId, string audience, string severity, string target) =>
-        Context.Interaction.ModifyDelayedResponseAsync(() =>
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, () =>
             PublishAsync(channelId, messageId, audience, Enum.Parse<AnnouncementSeverity>(severity), target == TestTarget));
 
     // Cancelling removes the preview entirely rather than editing it into a tombstone: the draft
@@ -61,13 +64,12 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
     public async Task<InteractionCallbackProperties<MessageOptions>> PickAudience(ulong channelId, ulong messageId, string severity, string audience) =>
         InteractionCallback.ModifyMessage(BuildPublishPromptModifier(
             channelId, messageId, Enum.Parse<GuildAudience>(audience), Enum.Parse<AnnouncementSeverity>(severity),
-            await HasTestChannelAsync(Enum.Parse<GuildAudience>(audience)), await ActingUserLanguageAsync()));
+            await TargetsAsync(Enum.Parse<GuildAudience>(audience)), await ActingUserLanguageAsync()));
 
-    private async Task<bool> HasTestChannelAsync(GuildAudience audience)
+    private async Task<(string? LiveName, string? TestName)> TargetsAsync(GuildAudience audience)
     {
         var (_, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience.ToString());
-        return !scopeMissing
-            && await settingsService.GetSnowflakeAsync(Context.Guild!.Id, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.TestChannel) is not null;
+        return scopeMissing ? (null, null) : await announcementService.PublishTargetNamesAsync(Context.Guild!.Id, audience, guildAllianceId);
     }
 
     [ComponentInteraction("announcement-read")]
@@ -99,21 +101,41 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
     private const string TestTarget = "test";
     private const string LiveTarget = "live";
 
-    private async Task<Action<MessageOptions>> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity, bool toTestChannel)
+    private async Task<string> PublishAsync(ulong channelId, ulong messageId, string audience, AnnouncementSeverity severity, bool toTestChannel)
     {
         var (parsedAudience, guildAllianceId, scopeMissing) = await allianceService.ResolveScopeAsync(Context.Guild!.Id, audience);
         if (scopeMissing || !await featureService.IsEnabledAsync(Context.Guild!.Id, GuildFeature.Announcements, parsedAudience, guildAllianceId))
-        {
-            var disabledMessage = GuildFeatureService.DisabledMessage(GuildFeature.Announcements, await ActingUserLanguageAsync());
-            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, disabledMessage);
-        }
+            return GuildFeatureService.DisabledMessage(GuildFeature.Announcements, await ActingUserLanguageAsync());
 
         // Re-fetching live (rather than carrying the draft's content in the custom-id,
         // which is far too small for a full announcement body) means an edit made
         // between preview and publish is naturally picked up.
         var draft = await gatewayClient.Rest.GetMessageAsync(channelId, messageId);
-        var result = await announcementService.PublishAsync(Context.Guild!.Id, parsedAudience, guildAllianceId, draft, severity, Context.User.Id, toTestChannel);
-        return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
+        var (published, message) = await announcementService.PublishAsync(Context.Guild!.Id, parsedAudience, guildAllianceId, draft, severity, Context.User.Id, toTestChannel);
+
+        // Both the prompt and the draft it was built from have done their job. Leaving them turns
+        // the prep channel into a pile of published drafts and dead confirm dialogs, and a leftover
+        // draft still carrying reactions invites a second publish of the same announcement.
+        if (published)
+        {
+            await TryDeleteAsync(Context.Channel.Id, Context.Message.Id);
+            await TryDeleteAsync(channelId, messageId);
+        }
+
+        return message;
+    }
+
+    private async Task TryDeleteAsync(ulong channelId, ulong messageId)
+    {
+        try
+        {
+            await gatewayClient.Rest.DeleteMessageAsync(channelId, messageId);
+        }
+        catch (RestException)
+        {
+            // Already gone, or the channel is. The announcement is published either way, which is
+            // the outcome the member is waiting on — this is tidying, not the job.
+        }
     }
 
     // Built for AnnouncementDraftService, which starts this flow from a draft-channel reaction —
@@ -140,25 +162,27 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
         };
     }
 
-    internal static MessageProperties BuildPublishPrompt(RestMessage draft, EmbedProperties preview, string commander, GuildAudience audience, AnnouncementSeverity severity, bool hasTestChannel, Language lang) =>
+    internal static MessageProperties BuildPublishPrompt(RestMessage draft, EmbedProperties preview, string commander, GuildAudience audience, AnnouncementSeverity severity,
+        (string? LiveName, string? TestName) targets, Language lang) =>
         new()
         {
             Content = null,
             Embeds = [preview, BuildPreviewCard(commander, severity, lang)],
             AllowedMentions = AllowedMentionsProperties.None,
             MessageReference = MessageReferenceProperties.Reply(draft.Id, failIfNotExists: false),
-            Components = [BuildPublishButtonRow(draft.ChannelId, draft.Id, audience, severity, hasTestChannel, lang)],
+            Components = [BuildPublishButtonRow(draft.ChannelId, draft.Id, audience, severity, targets, lang)],
         };
 
     // PickAudience only has channelId/messageId (from its own custom-id), not the
     // RestMessage draft BuildPublishPrompt wants — re-fetching isn't worth it here since
     // ModifyMessage's action just needs to replace the button row, not rebuild the embed.
-    private static Action<MessageOptions> BuildPublishPromptModifier(ulong channelId, ulong messageId, GuildAudience audience, AnnouncementSeverity severity, bool hasTestChannel, Language lang) => m =>
+    private static Action<MessageOptions> BuildPublishPromptModifier(ulong channelId, ulong messageId, GuildAudience audience, AnnouncementSeverity severity,
+        (string? LiveName, string? TestName) targets, Language lang) => m =>
     {
         // Only the button row changes on the audience step — the preview embeds above it are
         // already correct, and rebuilding them would mean re-fetching the draft for nothing.
         m.Content = null;
-        m.Components = [BuildPublishButtonRow(channelId, messageId, audience, severity, hasTestChannel, lang)];
+        m.Components = [BuildPublishButtonRow(channelId, messageId, audience, severity, targets, lang)];
     };
 
     // The card under the preview: what staff are being asked to confirm, and what the severity they
@@ -181,23 +205,29 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
     // then the live channel.
     //
     // Cancel uses ✖️ rather than ❌ — a red-on-red cross on the danger button is barely legible.
-    private static ActionRowProperties BuildPublishButtonRow(ulong channelId, ulong messageId, GuildAudience audience, AnnouncementSeverity severity, bool hasTestChannel, Language lang)
+    private static ActionRowProperties BuildPublishButtonRow(ulong channelId, ulong messageId, GuildAudience audience, AnnouncementSeverity severity,
+        (string? LiveName, string? TestName) targets, Language lang)
     {
         var idPart = $"{channelId}:{messageId}:{audience}:{severity}";
         var buttons = new List<ButtonProperties>();
 
-        if (hasTestChannel)
+        if (targets.TestName is { } testName)
         {
-            buttons.Add(new ButtonProperties($"announcement-publish:{idPart}:{TestTarget}", Msg.Announce.PublishTestButton(lang),
-                EmojiProperties.Standard(AnnouncementSeverities.Emoji(severity)), ButtonStyle.Secondary));
+            buttons.Add(new ButtonProperties($"announcement-publish:{idPart}:{TestTarget}", Label(testName),
+                EmojiProperties.Standard(Icons.Public), ButtonStyle.Primary));
         }
 
-        buttons.Add(new ButtonProperties($"announcement-publish:{idPart}:{LiveTarget}", Msg.Announce.PublishButton(lang),
-            EmojiProperties.Standard(AnnouncementSeverities.Emoji(severity)), ButtonStyle.Success));
+        buttons.Add(new ButtonProperties($"announcement-publish:{idPart}:{LiveTarget}", Label(targets.LiveName),
+            EmojiProperties.Standard(Icons.Public), ButtonStyle.Success));
         buttons.Add(new ButtonProperties($"announcement-cancel:{channelId}:{messageId}",
             Msg.Announce.CancelButton(lang), EmojiProperties.Standard(Icons.Cancel), ButtonStyle.Danger));
 
         return new ActionRowProperties(buttons);
+
+        // A channel the bot can't name (unconfigured, or missing from its cache) gets the plain
+        // label rather than a made-up name.
+        string Label(string? channelName) =>
+            channelName is null ? Msg.Announce.PublishButton(lang) : Msg.Announce.PublishToButton(lang, channelName);
     }
 
 }

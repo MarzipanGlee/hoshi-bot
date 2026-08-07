@@ -127,7 +127,9 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         return (embed, attribution);
     }
 
-    public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId, bool toTestChannel = false)
+    // (Published, Message): the caller has to know whether it worked, because a successful publish
+    // is what licenses deleting the draft and its prompt. A bare string can't say that.
+    public async Task<(bool Published, string Message)> PublishAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId, bool toTestChannel = false)
     {
         // The status strings replace the publish prompt in the draft channel and are addressed to
         // the staff member who triggered it — their language; the published post itself renders in
@@ -139,7 +141,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         var channelKey = toTestChannel ? AnnouncementsSettingKeys.TestChannel : AnnouncementsSettingKeys.Channel;
         var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, channelKey);
         if (channelId is not { } channelIdValue)
-            return Msg.Announce.ChannelNotConfigured(callerLang);
+            return (false, Msg.Announce.ChannelNotConfigured(callerLang));
 
         var scopeLang = await ScopeLanguageAsync(guildId, audience, guildAllianceId);
 
@@ -193,8 +195,24 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
             m => m.Components = [new ActionRowProperties([ReadButton(announcement.Id, 0, scopeLang)])]);
 
-        return Msg.Announce.Published(callerLang, $"<#{channelIdValue}>");
+        return (true, Msg.Announce.Published(callerLang, CommanderName.Of(draft.Author), $"<#{channelIdValue}>"));
     }
+
+    // The display names behind the publish buttons — legacy named its two destinations on the
+    // buttons themselves, which is the only thing that makes a dry run distinguishable from the
+    // real one at a glance. Null where a channel isn't configured or isn't in the cache; the caller
+    // falls back to a generic label rather than inventing a name.
+    public async Task<(string? LiveName, string? TestName)> PublishTargetNamesAsync(ulong guildId, GuildAudience audience, int? guildAllianceId)
+    {
+        var live = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.Channel);
+        var test = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.TestChannel);
+        return (ChannelName(guildId, live), ChannelName(guildId, test));
+    }
+
+    private string? ChannelName(ulong guildId, ulong? channelId) =>
+        channelId is { } id && gatewayClient.Cache.Guilds.TryGetValue(guildId, out var guild) && guild.Channels.TryGetValue(id, out var channel)
+            ? channel.Name
+            : null;
 
     public async Task<(bool WasNew, int Count)> MarkReadAsync(int announcementId, ulong guildId, ulong userId)
     {

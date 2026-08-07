@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 
@@ -110,14 +111,17 @@ public class AnnouncementDraftService(
             // a preview of something that will never exist.
             var scopeLang = await languageResolver.ForGuildAsync(guildId);
             var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang);
-            var commander = CommanderName.Of(draft.Author);
+
+            // draft.Author is a plain User — a message's author carries no guild nickname — so the
+            // salutation would fall back to the global name. Fetch the member to address them the
+            // way the rest of the bot does, by their tag-stripped nickname.
+            var commander = CommanderName.Of(await ResolveMemberAsync(guildId, draft.Author, cancellationToken));
 
             MessageProperties prompt;
             if (audiences.Count == 1)
             {
-                var hasTestChannel = await settingsService.GetSnowflakeAsync(
-                    guildId, GuildFeature.Announcements, audiences[0], scopes[0].GuildAllianceId, AnnouncementsSettingKeys.TestChannel) is not null;
-                prompt = AnnouncementButtonModule.BuildPublishPrompt(draft, preview, commander, audiences[0], severity, hasTestChannel, lang);
+                var targets = await announcementService.PublishTargetNamesAsync(guildId, audiences[0], scopes[0].GuildAllianceId);
+                prompt = AnnouncementButtonModule.BuildPublishPrompt(draft, preview, commander, audiences[0], severity, targets, lang);
             }
             else
             {
@@ -171,6 +175,21 @@ public class AnnouncementDraftService(
         catch (RestException ex)
         {
             logger.LogWarning(ex, "Could not clear the bot's draft reactions in channel {ChannelId}", channelId);
+        }
+    }
+
+    // Falls back to the plain User when the member can't be fetched (they left, or the call fails):
+    // a slightly less personal salutation beats failing the whole publish flow over a name.
+    private async Task<User> ResolveMemberAsync(ulong guildId, User author, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await gatewayClient.Rest.GetGuildUserAsync(guildId, author.Id, cancellationToken: cancellationToken);
+        }
+        catch (RestException ex)
+        {
+            logger.LogDebug(ex, "Could not resolve the draft author {UserId} in guild {GuildId} for the salutation", author.Id, guildId);
+            return author;
         }
     }
 

@@ -70,8 +70,8 @@ public static partial class Msg
             MessageCatalog.Format(lang, "Announce.FieldSeverityExplanation");
 
         // Publish success result (previously English; German authored per plan decision U4).
-        public static string Published(Language lang, string channel) =>
-            MessageCatalog.Format(lang, "Announce.Published", ("channel", channel));
+        public static string Published(Language lang, string commander, string channel) =>
+            MessageCatalog.Format(lang, "Announce.Published", ("commander", commander), ("channel", channel));
 
         // Severity names double as the embed's severity-field value and the publish-button
         // labels (Direct only appears as a button; its published embed shows Normal, as legacy did).
@@ -91,8 +91,11 @@ public static partial class Msg
         public static string Discarded(Language lang, string commander) =>
             MessageCatalog.Format(lang, "Announce.Discarded", ("commander", commander));
 
-        public static string PublishTestButton(Language lang) =>
-            MessageCatalog.Format(lang, "Announce.PublishTestButton");
+        // The publish buttons name their destination, which is the only thing that tells a dry run
+        // apart from the real thing at a glance. PublishButton is the fallback for a channel the
+        // bot can't name (unconfigured, or not in its cache).
+        public static string PublishToButton(Language lang, string channel) =>
+            MessageCatalog.Format(lang, "Announce.PublishToButton", ("channel", channel));
 
         public static string AudiencePrompt(Language lang) =>
             MessageCatalog.Format(lang, "Announce.AudiencePrompt");
