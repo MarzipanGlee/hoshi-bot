@@ -40,25 +40,21 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
     // The draft's four squares go back on, or the draft would be stranded: no reactions, no way to
     // publish it, and no sign of why.
     [ComponentInteraction("announcement-cancel")]
-    public async Task<InteractionMessageProperties> Cancel(ulong channelId, ulong messageId)
-    {
-        var lang = await ActingUserLanguageAsync();
-
-        await draftService.AddDraftReactionsAsync(Context.Guild!.Id, channelId, messageId);
-
-        try
+    public Task Cancel(ulong channelId, ulong messageId) =>
+        // Deferred like every other slow handler, and this one is slower than it looks: restoring
+        // the four squares is four REST calls that MUST go in sequence (Discord orders reactions by
+        // when they arrived), plus the delete. Answering only after all that risks blowing Discord's
+        // three-second acknowledgement window, and a blown window shows the member "This interaction
+        // failed" even though the cancel worked perfectly.
+        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
         {
-            await gatewayClient.Rest.DeleteMessageAsync(Context.Channel.Id, Context.Message.Id);
-        }
-        catch (RestException)
-        {
-            // Someone deleted it first, or the channel went away — the reactions are restored
-            // either way, which is the part that matters.
-        }
+            var lang = await ActingUserLanguageAsync();
 
-        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Announce.Discarded(lang, CommanderName.Of(Context.User)));
-        return new InteractionMessageProperties { Embeds = [embed], Flags = MessageFlags.Ephemeral };
-    }
+            await draftService.AddDraftReactionsAsync(Context.Guild!.Id, channelId, messageId);
+            await TryDeleteAsync(Context.Channel.Id, Context.Message.Id);
+
+            return Msg.Announce.Discarded(lang, CommanderName.Of(Context.User));
+        });
 
     [ComponentInteraction("announcement-pick-audience")]
     public async Task<InteractionCallbackProperties<MessageOptions>> PickAudience(ulong channelId, ulong messageId, string severity, string audience) =>
