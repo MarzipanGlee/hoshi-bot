@@ -128,7 +128,7 @@ namespace HoshiBot.Data.Migrations
             // announcement audiences that guild uses.
             migrationBuilder.Sql("""
                 INSERT INTO "GuildEnabledFeatures" ("GuildId", "Feature", "Audience", "GuildAllianceId")
-                SELECT DISTINCT e."GuildId", 37, 16, NULL
+                SELECT DISTINCT e."GuildId", 37, 16, NULL::integer
                 FROM "GuildEnabledFeatures" e
                 WHERE e."Feature" = 3
                 ON CONFLICT DO NOTHING;
@@ -136,7 +136,7 @@ namespace HoshiBot.Data.Migrations
 
             migrationBuilder.Sql("""
                 INSERT INTO "GuildFeatureSettingTexts" ("GuildId", "Feature", "Audience", "GuildAllianceId", "Key", "Value")
-                SELECT DISTINCT e."GuildId", 37, 16, NULL, 'Kind.Announcement', 'true'
+                SELECT DISTINCT e."GuildId", 37, 16, NULL::integer, 'Kind.Announcement', 'true'
                 FROM "GuildEnabledFeatures" e
                 WHERE e."Feature" = 3
                 ON CONFLICT DO NOTHING;
