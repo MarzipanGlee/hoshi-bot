@@ -82,6 +82,12 @@ public class CommandBridgeHubService(
         {
             Embeds = [embed],
             Components = components,
+            // Discord's "@silent": posted without a notification, like the legacy bridge was. The
+            // hub is a permanent control panel, not news — every member is already looking at it
+            // when they need it, and a (re)publish is an admin turning a button on, which is not an
+            // event anybody should be pinged about. Only the initial post can notify at all; the
+            // edit path above never does.
+            Flags = MessageFlags.SuppressNotifications,
         });
 
         SetMessageId(alliance, bridge, message.Id);
