@@ -775,11 +775,17 @@ public static partial class Msg
         public static string Intro(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.Intro");
 
-        public static string InsertLabel(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertLabel");
+        public static string InsertChannelLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertChannelLabel");
 
-        public static string InsertPlaceholder(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertPlaceholder");
+        public static string InsertChannelPlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertChannelPlaceholder");
+
+        public static string InsertRoleLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertRoleLabel");
+
+        public static string InsertRolePlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertRolePlaceholder");
     }
 
     public static class WebTerritoryCaptureSignOff

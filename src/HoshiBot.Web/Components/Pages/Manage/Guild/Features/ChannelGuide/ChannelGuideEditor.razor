@@ -18,18 +18,31 @@
         <textarea id="channelGuideMessage" class="form-control flex-grow-1" rows="10"
                   @bind="messageInput" @bind:after="SaveMessageAsync"></textarea>
 
-        @* Label and select wrapped together: SettingsCard's body is a flex column with gap-3, so
-           every direct child is spaced a further 1rem apart. Left loose, the label's own
-           margin-bottom stacked on that gap and the picker drifted away from its own label. *@
+        @* Each label is wrapped with its own select: SettingsCard's body is a flex column with
+           gap-3, so every direct child is spaced a further 1rem apart, and a loose label drifts
+           away from the control it names. *@
         <div>
-            <label for="channelGuideInsert" class="form-label">
-                @Msg.WebChannelGuide.InsertLabel(Lang)
+            <label for="channelGuideInsertChannel" class="form-label">
+                @Msg.WebChannelGuide.InsertChannelLabel(Lang)
             </label>
-            <select id="channelGuideInsert" class="form-select" value="" @onchange="InsertMentionAsync">
-                <option value="">@Msg.WebChannelGuide.InsertPlaceholder(Lang)</option>
+            <select id="channelGuideInsertChannel" class="form-select" value="" @onchange="InsertChannelAsync">
+                <option value="">@Msg.WebChannelGuide.InsertChannelPlaceholder(Lang)</option>
                 @foreach (var channel in channels)
                 {
                     <option value="@channel.Id">#@channel.Name</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="channelGuideInsertRole" class="form-label">
+                @Msg.WebChannelGuide.InsertRoleLabel(Lang)
+            </label>
+            <select id="channelGuideInsertRole" class="form-select" value="" @onchange="InsertRoleAsync">
+                <option value="">@Msg.WebChannelGuide.InsertRolePlaceholder(Lang)</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@@@role.Name</option>
                 }
             </select>
         </div>
@@ -40,6 +53,7 @@
     protected override GuildFeature Feature => GuildFeature.ChannelGuide;
 
     private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
     private string? messageInput;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -48,8 +62,16 @@
             .Where(c => c is TextGuildChannel or ForumGuildChannel or MediaForumGuildChannel or AnnouncementGuildChannel)
             .OrderBy(c => c.Name)
             .ToList();
+
+        // @everyone is a role in the API but never something an admin means to mention here, and
+        // managed roles belong to integrations rather than to people.
+        roles = (await DiscordData.GetRolesAsync(GuildId))
+            .Where(r => r.Id != GuildId && !r.Managed)
+            .OrderBy(r => r.Name)
+            .ToList();
+
         var stored = await GetTextAsync(ChannelGuideSettingKeys.Message);
-        messageInput = ChannelMentionText.Normalize(stored, ResolveChannelByName);
+        messageInput = Normalize(stored);
 
         // Repair a message saved before the editor knew how to do this, rather than leaving it
         // broken until somebody happens to edit it — a guide whose channels aren't clickable is
@@ -59,27 +81,33 @@
             await SetTextAsync(ChannelGuideSettingKeys.Message, messageInput);
     }
 
+    private Task InsertChannelAsync(ChangeEventArgs e) => AppendMentionAsync(e, id => $"<#{id}>");
+
+    private Task InsertRoleAsync(ChangeEventArgs e) => AppendMentionAsync(e, id => $"<@&{id}>");
+
     // Appends rather than inserting at the caret: reading the caret position out of a textarea needs
     // JS interop, and this is the only place in the admin that would need it. Appending is honest
     // about what it does, and the text is short enough that moving a line is trivial.
-    private async Task InsertMentionAsync(ChangeEventArgs e)
+    private async Task AppendMentionAsync(ChangeEventArgs e, Func<ulong, string> mention)
     {
-        if (e.Value?.ToString() is not { Length: > 0 } raw || !ulong.TryParse(raw, out var channelId))
+        if (e.Value?.ToString() is not { Length: > 0 } raw || !ulong.TryParse(raw, out var id))
             return;
 
         var separator = string.IsNullOrWhiteSpace(messageInput) ? "" : "\n";
-        messageInput = $"{messageInput}{separator}- <#{channelId}>";
+        messageInput = $"{messageInput}{separator}- {mention(id)}";
         await SaveMessageAsync();
     }
 
     // Normalise on save, not just on insert: the common way to build this message is to paste
-    // channel pills copied out of Discord, which look right and are inert. See ChannelMentionText.
+    // channel and role pills copied out of Discord, which look right and are inert.
     private Task SaveMessageAsync()
     {
-        messageInput = ChannelMentionText.Normalize(messageInput, ResolveChannelByName);
+        messageInput = Normalize(messageInput);
         return SetTextAsync(ChannelGuideSettingKeys.Message, messageInput);
     }
 
-    private ulong? ResolveChannelByName(string name) =>
-        channels.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))?.Id;
+    private string Normalize(string? text) => DiscordMentionText.Normalize(
+        text,
+        channels.GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase),
+        roles.GroupBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase));
 }
