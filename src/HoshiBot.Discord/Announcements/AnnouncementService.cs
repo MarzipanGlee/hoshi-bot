@@ -64,6 +64,69 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
             ? await PostLanguageAsync(announcement)
             : await languageResolver.ForGuildAsync(guildId);
 
+    // The published announcement's embed, built here rather than inline in PublishAsync so the
+    // preview staff confirm can render the REAL thing instead of a lookalike. Before this, the
+    // preview was a bare title+body embed: no colour, no attribution, no severity — so the one
+    // moment staff get to check an announcement showed them something the guild would never see.
+    //
+    // Returns the attribution alongside, because the stored row keeps it too.
+    public async Task<(EmbedProperties Embed, string Attribution)> BuildAnnouncementEmbedAsync(
+        ulong guildId, RestMessage draft, AnnouncementSeverity severity, Language lang)
+    {
+        var settings = await db.GuildSettings.FindAsync(guildId);
+        var (title, body) = ParseDraft(draft.Content);
+        var attachmentUrls = draft.Attachments.Select(a => a.Url).ToArray();
+
+        // Direct (🟦 in legacy) skips the "im Auftrag von {role}" attribution entirely —
+        // a direct bot announcement, not staff acting through the bot — so it's resolved
+        // but simply not rendered as a field below.
+        var attribution = await ResolveAttributionAsync(guildId, settings?.CommandStaffRoleId, lang);
+
+        var fields = new List<EmbedFieldProperties>
+        {
+            new() { Name = Msg.Announce.FieldSeverity(lang), Value = AnnouncementSeverities.Label(severity, lang), Inline = true },
+        };
+        if (severity != AnnouncementSeverity.Direct)
+            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldOnBehalfOf(lang), Value = attribution, Inline = true });
+
+        // Matches legacy's exact palette (reaction-handler.yag:47-60) — Information/
+        // Warning/Danger/Bot, not approximated Bootstrap colors.
+        var color = severity switch
+        {
+            AnnouncementSeverity.Elevated => EmbedBranding.WarningColor,
+            AnnouncementSeverity.High => EmbedBranding.DangerColor,
+            AnnouncementSeverity.Direct => EmbedBranding.BotColor,
+            _ => EmbedBranding.InformationColor,
+        };
+
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            string.IsNullOrWhiteSpace(body) ? Msg.Announce.NoBody(lang) : body,
+            color,
+            string.IsNullOrWhiteSpace(title) ? Msg.Announce.NoTitle(lang) : title);
+
+        var imageUrl = attachmentUrls.FirstOrDefault(url => draft.Attachments.First(a => a.Url == url).ContentType?.StartsWith("image/") == true);
+        if (imageUrl is not null)
+        {
+            embed.Image = new EmbedImageProperties(imageUrl);
+        }
+        else if (attachmentUrls.Length > 0)
+        {
+            fields.Add(new EmbedFieldProperties
+            {
+                Name = Msg.Announce.FieldAttachments(lang),
+                Value = string.Join('\n', attachmentUrls.Select((url, i) => Msg.Announce.AttachmentLink(lang, i + 1, url))),
+            });
+        }
+
+        // Legacy's "Anmerkungen" line, explaining what the read-receipt button below the post is
+        // for — a bare ✅ with a number next to it doesn't say that clicking it is the point.
+        fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldRemarks(lang), Value = Msg.Announce.RemarksReadReceipt(lang) });
+
+        embed.Fields = fields;
+        embed.Timestamp = DateTimeOffset.UtcNow;
+        return (embed, attribution);
+    }
+
     public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId)
     {
         // The status strings replace the publish prompt in the draft channel and are addressed to
@@ -71,14 +134,13 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         // its target channel's owning scope.
         var callerLang = await languageResolver.ForUserAsync(triggeredByUserId, scopeGuildId: guildId);
 
-        var settings = await db.GuildSettings.FindAsync(guildId);
-
         var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.Channel);
         if (channelId is not { } channelIdValue)
             return Msg.Announce.ChannelNotConfigured(callerLang);
 
         var scopeLang = await ScopeLanguageAsync(guildId, audience, guildAllianceId);
 
+        var (embed, attribution) = await BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang);
         var (title, body) = ParseDraft(draft.Content);
         var attachmentUrls = draft.Attachments.Select(a => a.Url).ToArray();
 
@@ -95,45 +157,6 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
                 guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.WarningsRole),
             _ => null,
         };
-
-        // Direct (🟦 in legacy) skips the "im Auftrag von {role}" attribution entirely —
-        // a direct bot announcement, not staff acting through the bot — so it's resolved
-        // but simply not rendered as a field below.
-        var attribution = await ResolveAttributionAsync(guildId, settings?.CommandStaffRoleId, scopeLang);
-
-        var fields = new List<EmbedFieldProperties>
-        {
-            new() { Name = Msg.Announce.FieldSeverity(scopeLang), Value = AnnouncementSeverities.Label(severity, scopeLang), Inline = true },
-        };
-        if (severity != AnnouncementSeverity.Direct)
-            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldOnBehalfOf(scopeLang), Value = attribution, Inline = true });
-
-        // Matches legacy's exact palette (reaction-handler.yag:47-60) — Information/
-        // Warning/Danger/Bot, not approximated Bootstrap colors.
-        var color = severity switch
-        {
-            AnnouncementSeverity.Elevated => EmbedBranding.WarningColor,
-            AnnouncementSeverity.High => EmbedBranding.DangerColor,
-            AnnouncementSeverity.Direct => EmbedBranding.BotColor,
-            _ => EmbedBranding.InformationColor,
-        };
-        var embed = await embedBranding.BuildBrandedAsync(guildId, body, color, title);
-        embed.Fields = fields;
-        embed.Timestamp = DateTimeOffset.UtcNow;
-
-        var imageUrl = attachmentUrls.FirstOrDefault(url => draft.Attachments.First(a => a.Url == url).ContentType?.StartsWith("image/") == true);
-        if (imageUrl is not null)
-        {
-            embed.Image = new EmbedImageProperties(imageUrl);
-        }
-        else if (attachmentUrls.Length > 0)
-        {
-            embed.Fields = embed.Fields.Append(new EmbedFieldProperties
-            {
-                Name = Msg.Announce.FieldAttachments(scopeLang),
-                Value = string.Join('\n', attachmentUrls.Select((url, i) => Msg.Announce.AttachmentLink(scopeLang, i + 1, url))),
-            });
-        }
 
         var content = mentionRoleId is { } roleId ? $"<@&{roleId}>" : null;
         var readButton = ReadButton(0, 0, scopeLang); // placeholder id, replaced after the row is created

@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -84,14 +85,14 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     // not an interaction — so it posts a normal message rather than an ephemeral wizard. Lives
     // here, next to the handlers whose custom-ids these buttons carry. Never pings: the draft's
     // own text is quoted back into the preview embed, and a mention in it must not re-notify.
-    internal static MessageProperties BuildAudiencePrompt(RestMessage draft, AnnouncementSeverity severity, Language lang)
+    internal static MessageProperties BuildAudiencePrompt(RestMessage draft, EmbedProperties preview, string commander, AnnouncementSeverity severity, Language lang)
     {
         var idPart = $"{draft.ChannelId}:{draft.Id}:{severity}";
 
         return new MessageProperties
         {
             Content = Msg.Announce.AudiencePrompt(lang),
-            Embeds = [BuildPreviewEmbed(draft, lang)],
+            Embeds = [preview, BuildPreviewCard(commander, severity, lang)],
             AllowedMentions = AllowedMentionsProperties.None,
             MessageReference = MessageReferenceProperties.Reply(draft.Id, failIfNotExists: false),
             Components =
@@ -103,11 +104,11 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
         };
     }
 
-    internal static MessageProperties BuildPublishPrompt(RestMessage draft, GuildAudience audience, AnnouncementSeverity severity, Language lang) =>
+    internal static MessageProperties BuildPublishPrompt(RestMessage draft, EmbedProperties preview, string commander, GuildAudience audience, AnnouncementSeverity severity, Language lang) =>
         new()
         {
-            Content = PublishPromptText(severity, lang),
-            Embeds = [BuildPreviewEmbed(draft, lang)],
+            Content = null,
+            Embeds = [preview, BuildPreviewCard(commander, severity, lang)],
             AllowedMentions = AllowedMentionsProperties.None,
             MessageReference = MessageReferenceProperties.Reply(draft.Id, failIfNotExists: false),
             Components = [BuildPublishButtonRow($"{draft.ChannelId}:{draft.Id}:{audience}:{severity}", severity, lang)],
@@ -118,12 +119,25 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     // ModifyMessage's action just needs to replace the button row, not rebuild the embed.
     private static Action<MessageOptions> BuildPublishPromptModifier(ulong channelId, ulong messageId, GuildAudience audience, AnnouncementSeverity severity, Language lang) => m =>
     {
-        m.Content = PublishPromptText(severity, lang);
+        // Only the button row changes on the audience step — the preview embeds above it are
+        // already correct, and rebuilding them would mean re-fetching the draft for nothing.
+        m.Content = null;
         m.Components = [BuildPublishButtonRow($"{channelId}:{messageId}:{audience}:{severity}", severity, lang)];
     };
 
-    private static string PublishPromptText(AnnouncementSeverity severity, Language lang) =>
-        Msg.Announce.PublishPrompt(lang, $"{AnnouncementSeverities.Emoji(severity)} {AnnouncementSeverities.Label(severity, lang)}");
+    // The card under the preview: what staff are being asked to confirm, and what the severity they
+    // reacted with will actually do. Legacy's second embed, which said the same two things — a
+    // reaction is easy to mis-click, and "Elevated" alone doesn't tell you it pings a role.
+    private static EmbedProperties BuildPreviewCard(string commander, AnnouncementSeverity severity, Language lang) => new()
+    {
+        Title = Msg.Announce.PreviewTitle(lang),
+        Description = Msg.Announce.PreviewIntro(lang, commander),
+        Fields =
+        [
+            new EmbedFieldProperties { Name = Msg.Announce.FieldSeverity(lang), Value = $"{AnnouncementSeverities.Emoji(severity)} {AnnouncementSeverities.Label(severity, lang)}" },
+            new EmbedFieldProperties { Name = Msg.Announce.FieldSeverityExplanation(lang), Value = Msg.Announce.SeverityDescription(lang, severity) },
+        ],
+    };
 
     // One publish button, because the reaction already picked the severity — it carries that
     // severity's own emoji so the confirm step visibly matches the reaction that opened it.
@@ -131,20 +145,7 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, G
     [
         new ButtonProperties($"announcement-publish:{idPart}", Msg.Announce.PublishButton(lang),
             EmojiProperties.Standard(AnnouncementSeverities.Emoji(severity)), ButtonStyle.Success),
-        new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(lang), ButtonStyle.Secondary),
+        new ButtonProperties("announcement-cancel", Msg.Announce.CancelButton(lang), EmojiProperties.Standard(Icons.Error), ButtonStyle.Danger),
     ]);
 
-    private static EmbedProperties BuildPreviewEmbed(RestMessage draft, Language lang)
-    {
-        var (title, body) = AnnouncementService.ParseDraft(draft.Content);
-
-        return new EmbedProperties
-        {
-            Title = string.IsNullOrWhiteSpace(title) ? Msg.Announce.NoTitle(lang) : title,
-            Description = string.IsNullOrWhiteSpace(body) ? Msg.Announce.NoBody(lang) : body,
-            Footer = draft.Attachments.Count > 0
-                ? new EmbedFooterProperties { Text = Msg.Announce.AttachmentCount(lang, draft.Attachments.Count) }
-                : null,
-        };
-    }
 }

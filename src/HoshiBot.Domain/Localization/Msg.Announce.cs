@@ -45,8 +45,29 @@ public static partial class Msg
         public static string DraftHubOutro(Language lang) =>
             MessageCatalog.Format(lang, "Announce.DraftHubOutro");
 
-        public static string DraftHubSeverity(Language lang, AnnouncementSeverity severity) =>
-            MessageCatalog.Format(lang, $"Announce.DraftHubSeverity{severity}");
+        // What a severity actually DOES — whether it pings and whom. Shared by the draft-channel
+        // hub's legend and the publish preview's explanation field, so the two can't disagree about
+        // what staff are about to trigger. Distinct from Severity* above, which is the bare label
+        // on a published post.
+        public static string SeverityDescription(Language lang, AnnouncementSeverity severity) =>
+            MessageCatalog.Format(lang, $"Announce.SeverityDescription{severity}");
+
+        // The "Anmerkungen" line on a published announcement, explaining the read-receipt button.
+        public static string FieldRemarks(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.FieldRemarks");
+
+        public static string RemarksReadReceipt(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.RemarksReadReceipt");
+
+        // The second embed on the publish prompt: the card that frames the preview above it.
+        public static string PreviewTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.PreviewTitle");
+
+        public static string PreviewIntro(Language lang, string commander) =>
+            MessageCatalog.Format(lang, "Announce.PreviewIntro", ("commander", commander));
+
+        public static string FieldSeverityExplanation(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.FieldSeverityExplanation");
 
         // Publish success result (previously English; German authored per plan decision U4).
         public static string Published(Language lang, string channel) =>
@@ -73,9 +94,6 @@ public static partial class Msg
         public static string AudiencePrompt(Language lang) =>
             MessageCatalog.Format(lang, "Announce.AudiencePrompt");
 
-        // {severity} is the emoji + label of the reaction that opened the prompt.
-        public static string PublishPrompt(Language lang, string severity) =>
-            MessageCatalog.Format(lang, "Announce.PublishPrompt", ("severity", severity));
 
         public static string PublishButton(Language lang) =>
             MessageCatalog.Format(lang, "Announce.PublishButton");
@@ -89,8 +107,6 @@ public static partial class Msg
         public static string NoBody(Language lang) =>
             MessageCatalog.Format(lang, "Announce.NoBody");
 
-        public static string AttachmentCount(Language lang, int count) =>
-            MessageCatalog.Format(lang, "Announce.AttachmentCount", ("count", count));
 
         // The personal read-receipt ack.
         public static string ReadRecorded(Language lang) =>

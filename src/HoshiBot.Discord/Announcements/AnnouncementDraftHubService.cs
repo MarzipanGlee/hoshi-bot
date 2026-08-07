@@ -123,7 +123,7 @@ public class AnnouncementDraftHubService(
     private static string BuildBody(Language lang)
     {
         var legend = string.Join('\n', AnnouncementSeverities.Ordered.Select(severity =>
-            $"- {AnnouncementSeverities.Emoji(severity)} {Msg.Announce.DraftHubSeverity(lang, severity)}"));
+            $"- {AnnouncementSeverities.Emoji(severity)} {Msg.Announce.SeverityDescription(lang, severity)}"));
 
         return $"{Msg.Announce.DraftHubIntro(lang)}\n\n{legend}\n\n{Msg.Announce.DraftHubOutro(lang)}";
     }

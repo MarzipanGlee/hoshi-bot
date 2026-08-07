@@ -21,6 +21,7 @@ namespace HoshiBot.Discord.Announcements;
 // the draft looks wrong, staff just post into a channel where nothing ever happens.
 public class AnnouncementDraftService(
     GatewayClient gatewayClient,
+    AnnouncementService announcementService,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     LanguageResolver languageResolver,
@@ -95,9 +96,18 @@ public class AnnouncementDraftService(
             // rather than guessing. The specific alliance is resolved at publish time as the
             // primary link, so audience is all that's picked here.
             var audiences = scopes.Select(s => s.Audience).Distinct().ToList();
+
+            // The preview embed is the real published one, so it renders in the guild language
+            // rather than the clicking staff member's — the alliance isn't resolved until publish,
+            // and showing an English "Severity"/"On behalf of" over a German announcement would be
+            // a preview of something that will never exist.
+            var scopeLang = await languageResolver.ForGuildAsync(guildId);
+            var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang);
+            var commander = CommanderName.Of(draft.Author);
+
             var prompt = audiences.Count == 1
-                ? AnnouncementButtonModule.BuildPublishPrompt(draft, audiences[0], severity, lang)
-                : AnnouncementButtonModule.BuildAudiencePrompt(draft, severity, lang);
+                ? AnnouncementButtonModule.BuildPublishPrompt(draft, preview, commander, audiences[0], severity, lang)
+                : AnnouncementButtonModule.BuildAudiencePrompt(draft, preview, commander, severity, lang);
 
             await gatewayClient.Rest.SendMessageAsync(channelId, prompt, cancellationToken: cancellationToken);
         }
