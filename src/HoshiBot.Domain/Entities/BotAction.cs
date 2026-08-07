@@ -54,4 +54,7 @@ public enum BotAction
     /// Decorating an announcement draft with the severity reactions — without them there is no way
     /// to publish at all, so a silent failure here is invisible until someone asks why.
     AddDraftReactions,
+
+    /// Keeping the standing "how to write an announcement" hub in the draft channel up to date.
+    RefreshAnnouncementDraftHub,
 }

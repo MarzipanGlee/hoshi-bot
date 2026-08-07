@@ -1,3 +1,5 @@
+using HoshiBot.Domain.Entities;
+
 namespace HoshiBot.Domain.Localization;
 
 public static partial class Msg
@@ -30,6 +32,21 @@ public static partial class Msg
 
         public static string AttachmentLink(Language lang, int number, string url) =>
             MessageCatalog.Format(lang, "Announce.AttachmentLink", ("number", number), ("url", url));
+
+        // The standing hub in the draft channel (AnnouncementDraftHubService). Its reaction legend
+        // is built from AnnouncementSeverities, so each severity needs its own explanatory line —
+        // longer than Severity* above, which labels a published post's field.
+        public static string DraftHubTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.DraftHubTitle");
+
+        public static string DraftHubIntro(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.DraftHubIntro");
+
+        public static string DraftHubOutro(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.DraftHubOutro");
+
+        public static string DraftHubSeverity(Language lang, AnnouncementSeverity severity) =>
+            MessageCatalog.Format(lang, $"Announce.DraftHubSeverity{severity}");
 
         // Publish success result (previously English; German authored per plan decision U4).
         public static string Published(Language lang, string channel) =>

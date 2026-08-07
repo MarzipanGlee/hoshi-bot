@@ -117,6 +117,7 @@ builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<TerritoryCaptureDigestService>();
 builder.Services.AddScoped<AnnouncementService>();
 builder.Services.AddScoped<AnnouncementDraftService>();
+builder.Services.AddScoped<AnnouncementDraftHubService>();
 builder.Services.AddScoped<MemberLogService>();
 // Singletons: both outlive the per-fire Quartz scopes they serve. DiscordApiHealth holds the 401
 // kill switch and the rolling invalid-request count; PermissionGuard caches each guild's role
@@ -283,6 +284,8 @@ builder.Services.AddQuartz(quartz =>
     AddSimpleJob<ConditionalRoleSyncJob>(TimeSpan.FromMinutes(10));
 
     AddSimpleJob<AnnouncementCounterRefreshJob>(TimeSpan.FromMinutes(15));
+
+    AddSimpleJob<AnnouncementDraftHubJob>(TimeSpan.FromMinutes(30));
 
     AddSimpleJob<AbsenceReportRefreshJob>(TimeSpan.FromMinutes(15));
 

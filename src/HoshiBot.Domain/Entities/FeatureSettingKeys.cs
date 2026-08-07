@@ -33,6 +33,11 @@ public static class AnnouncementsSettingKeys
     public const string Channel = "Channel";
     public const string DraftChannel = "DraftChannel";
 
+    // The standing "how to write an announcement" hub posted in the draft channel, so a refresh
+    // edits it in place instead of stacking a second copy. A message id rather than a channel, like
+    // AbsencesSettingKeys.ReportMessageId — it declares no permission slot for that reason.
+    public const string DraftHubMessageId = "DraftHubMessageId";
+
     // The role pinged on a High-severity announcement — moved off GuildSettings.WarningsRoleId
     // so it lives with the feature (and can differ per alliance).
     public const string WarningsRole = "WarningsRole";
