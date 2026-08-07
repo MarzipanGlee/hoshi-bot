@@ -34,8 +34,6 @@ public static class Icons
     public const string Edit = "✏️";
     public const string Cancel = "✖️";
     public const string Back = "↩️";
-    public const string Start = "▶️";
-    public const string Stop = "⏹️";
 
     // -- Reminders and visibility -------------------------------------------------------------
     // Used for absence reminders, shield reminders and the alert opt-in alike.
