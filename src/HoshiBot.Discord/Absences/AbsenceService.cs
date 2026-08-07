@@ -1,6 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -335,24 +336,45 @@ public class AbsenceService(
             .FirstOrDefaultAsync();
         var bridge = bridgeChannelId is { } id ? $"<#{id}>" : Msg.Absence.BridgeFallback(lang);
 
-        var embed = await embedBranding.BuildBrandedAsync(guildId,
-            Msg.Absence.ReportIntro(lang, bridge),
-            title: Msg.Absence.ReportTitle(lang));
-        embed.Fields =
-        [
-            new EmbedFieldProperties { Name = Msg.Absence.FieldActive(lang), Value = BuildSection(active, isStaffView, lang) },
-            new EmbedFieldProperties { Name = Msg.Absence.FieldUpcoming(lang), Value = BuildSection(upcoming, isStaffView, lang) },
-            // In-body Discord timestamp (localized per viewer), not the embed footer — a
-            // <t:…> stamp only renders in the body, and the members here span time zones.
-            new EmbedFieldProperties { Name = Msg.Absence.FieldAsOf(lang), Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:f>" },
-        ];
+        var activeSection = BuildSection(active, isStaffView, lang);
+        var upcomingSection = BuildSection(upcoming, isStaffView, lang);
+
+        // An embed FIELD value caps at 1024 characters, and the staff view's two-line entries reach
+        // that at roughly ten absences — so past a threshold both sections move into the description
+        // (4096) instead. Straight from legacy, which had the same cliff and the same fallback;
+        // without it a busy week simply makes Discord reject the whole embed and the report vanishes.
+        var description = Msg.Absence.ReportIntro(lang, bridge);
+        var inline = activeSection.Length < FieldValueSafeLimit && upcomingSection.Length < FieldValueSafeLimit;
+        if (!inline)
+        {
+            description = $"{description}\n\n**{Msg.Absence.FieldActive(lang)}**\n{activeSection}"
+                + $"\n\n**{Msg.Absence.FieldUpcoming(lang)}**\n{upcomingSection}";
+        }
+
+        var embed = await embedBranding.BuildBrandedAsync(guildId, description, title: Msg.Absence.ReportTitle(lang));
+
+        List<EmbedFieldProperties> fields = inline
+            ?
+            [
+                new EmbedFieldProperties { Name = Msg.Absence.FieldActive(lang), Value = activeSection },
+                new EmbedFieldProperties { Name = Msg.Absence.FieldUpcoming(lang), Value = upcomingSection },
+            ]
+            : [];
+
+        // In-body Discord timestamp (localized per viewer), not the embed footer — a
+        // <t:…> stamp only renders in the body, and the members here span time zones.
+        fields.Add(new EmbedFieldProperties { Name = Msg.Absence.FieldAsOf(lang), Value = $"<t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:f>" });
+        embed.Fields = fields;
         return embed;
     }
 
+    // Legacy's own threshold: it switched to the description at 1000, leaving headroom under
+    // Discord's 1024 rather than cutting it fine.
+    private const int FieldValueSafeLimit = 1000;
+
     // Staff view always shows full detail regardless of Visibility (staff need it for
     // coverage planning); the public view shows full detail only for Public rows and
-    // folds StaffOnly rows into a bare count — best-effort inference from one screenshot
-    // example, not yet confirmed against a real Visibility=Public case.
+    // folds StaffOnly rows into a bare count.
     private static string BuildSection(List<Absence> rows, bool isStaffView, Language lang)
     {
         if (rows.Count == 0)
@@ -361,20 +383,40 @@ public class AbsenceService(
         var visible = isStaffView ? rows : rows.Where(a => a.Visibility == AbsenceVisibility.Public).ToList();
         var hiddenCount = rows.Count - visible.Count;
 
-        var lines = visible.Select(a => DetailLine(a, lang)).ToList();
+        var lines = visible.Select(a => DetailLine(a, isStaffView, lang)).ToList();
         if (hiddenCount > 0)
             lines.Add(Msg.Absence.MoreHidden(lang, hiddenCount));
 
-        return string.Join('\n', lines);
+        // Every entry is a top-level list item; the detail lines below it are already indented.
+        return string.Join('\n', lines.Select(l => $"- {l}"));
     }
 
-    private static string DetailLine(Absence a, Language lang) =>
+    // Two levels for staff, one for everyone else — the legacy layout.
+    //
+    //   - Name · <start> - <end>
+    //     - Reason              ← staff only, renders as a nested ○
+    //     - 🔔 · 📢             ← staff only
+    //
+    //   - Name · <start> - <end>
+    //     Reason                ← public: an indented continuation line, no marker, so it stays flat
+    //
+    // The two-space indent is what makes Discord nest it; with the "- " it becomes a second level,
+    // without it a plain continuation of the same item.
+    private static string DetailLine(Absence a, bool isStaffView, Language lang)
+    {
         // Discord <t:…> timestamps so each member sees the absence window in their own time zone,
         // rather than one fixed wall-clock string.
-        $"<@{a.DiscordUserId}> — {Msg.Absence.TimestampRange(lang, a.StartsAt.ToUnixTimeSeconds(), a.EndsAt.ToUnixTimeSeconds())}"
-        + (string.IsNullOrWhiteSpace(a.Reason) ? "" : $" ({a.Reason})")
-        + (a.SuppressNotifications ? " 🔔" : "")
-        + (a.Visibility == AbsenceVisibility.StaffOnly ? $" {Msg.Absence.PrivateSuffix(lang)}" : "");
+        var header = $"<@{a.DiscordUserId}> · {Msg.Absence.TimestampRange(lang, a.StartsAt.ToUnixTimeSeconds(), a.EndsAt.ToUnixTimeSeconds())}";
+        var reason = string.IsNullOrWhiteSpace(a.Reason) ? Msg.Absence.ReasonUnspecified(lang) : a.Reason;
+
+        if (!isStaffView)
+            return $"{header}\n  {reason}";
+
+        // 🔔/🔕 = reminders during the absence on/off, 📢/🤐 = visible to everyone / staff only.
+        var reminders = a.SuppressNotifications ? Icons.RemindersOff : Icons.RemindersOn;
+        var visibility = a.Visibility == AbsenceVisibility.StaffOnly ? Icons.StaffOnly : Icons.Public;
+        return $"{header}\n  - {reason}\n  - {reminders} · {visibility}";
+    }
 
     private static string VisibilityLabel(AbsenceVisibility visibility, Language lang) => visibility switch
     {

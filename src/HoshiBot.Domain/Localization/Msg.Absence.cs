@@ -22,11 +22,13 @@ public static partial class Msg
             MessageCatalog.Format(lang, "Absence.DraftSummary",
                 ("start", start), ("end", end), ("reason", reason), ("visibility", visibility), ("notifications", notifications));
 
+        // Icon + label rather than an icon baked into each locale string: four copies of the same
+        // symbol across two languages is how "notifications off" ended up wearing a 🔔.
         public static string NotificationsOn(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.NotificationsOn");
+            $"{Icons.RemindersOn} {MessageCatalog.Format(lang, "Absence.NotificationsOn")}";
 
         public static string NotificationsOff(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.NotificationsOff");
+            $"{Icons.RemindersOff} {MessageCatalog.Format(lang, "Absence.NotificationsOff")}";
 
         public static string DraftNotFound(Language lang) =>
             MessageCatalog.Format(lang, "Absence.DraftNotFound");
@@ -85,14 +87,16 @@ public static partial class Msg
         public static string TimestampRange(Language lang, long start, long end) =>
             MessageCatalog.Format(lang, "Absence.TimestampRange", ("start", start), ("end", end));
 
-        public static string PrivateSuffix(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.PrivateSuffix");
+        // Italic, so an absence with no reason given reads as a placeholder rather than as text
+        // somebody actually typed — legacy's "*Keine Angabe*".
+        public static string ReasonUnspecified(Language lang) =>
+            MessageCatalog.Format(lang, "Absence.ReasonUnspecified");
 
         public static string VisibilityStaff(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.VisibilityStaff");
+            $"{Icons.StaffOnly} {MessageCatalog.Format(lang, "Absence.VisibilityStaff")}";
 
         public static string VisibilityPublic(Language lang) =>
-            MessageCatalog.Format(lang, "Absence.VisibilityPublic");
+            $"{Icons.Public} {MessageCatalog.Format(lang, "Absence.VisibilityPublic")}";
 
         // The manage wizard (AbsenceButtonModule + modal/string-menu modules): entry screen,
         // create/edit/delete steps, modal fields, and validation errors.

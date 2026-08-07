@@ -1,3 +1,4 @@
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 
 namespace HoshiBot.Data;
@@ -47,7 +48,7 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.User, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", "⏰", GuildFeature.ShieldReminders),
         new(CommandBridgeKind.User, 0, "raid-report", "Feature.RaidAlerts", "🚨", GuildFeature.RaidAlerts),
         new(CommandBridgeKind.User, 1, "announcement-show-unread", "BridgeItem.AnnouncementsUnread", "🟩", GuildFeature.Announcements),
-        new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.AlertsOptIn", "🔔", GuildFeature.AlertsOptIn),
+        new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
         new(CommandBridgeKind.User, 1, "absence-manage", "Feature.Absences", "⛺", GuildFeature.Absences),
         new(CommandBridgeKind.User, 2, "contact-command-staff", "BridgeItem.ContactStaff", "📮", null, CommandBridgeButtonKind.ContactStaff),
 
@@ -55,7 +56,7 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.Staff, 0, "staff-shield-report", "BridgeItem.StaffShieldReport", "🚨", GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Staff, 0, "staff-shield-incursions", "BridgeItem.StaffShieldIncursions", "🚨", GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Staff, 0, "staff-shield-territory-reset", "BridgeItem.StaffShieldTerritoryReset", "🚨", GuildFeature.ShieldReminders),
-        new(CommandBridgeKind.Staff, 0, "staff-shield-mute", "BridgeItem.StaffShieldMute", "🔕", GuildFeature.ShieldReminders),
+        new(CommandBridgeKind.Staff, 0, "staff-shield-mute", "BridgeItem.StaffShieldMute", Icons.RemindersOff, GuildFeature.ShieldReminders),
         // Beta-tests toggles only the caller's own role — always shown on the staff bridge,
         // not gated by a GuildFeature.
         new(CommandBridgeKind.Staff, 1, "staff-beta-tests", "BridgeItem.StaffBetaTests", "👷", null),
@@ -66,7 +67,7 @@ public static class CommandBridgeCatalog
         // ---- Friends bridge ("Kommandobrücke Freunde") — a trimmed user subset ----
         new(CommandBridgeKind.Friends, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", "⏰", GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Friends, 0, "raid-report", "Feature.RaidAlerts", "🚨", GuildFeature.RaidAlerts),
-        new(CommandBridgeKind.Friends, 0, "alerts-manage", "Feature.AlertsOptIn", "🔔", GuildFeature.AlertsOptIn),
+        new(CommandBridgeKind.Friends, 0, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
         new(CommandBridgeKind.Friends, 0, "contact-command-staff", "BridgeItem.ContactStaff", "📮", null, CommandBridgeButtonKind.ContactStaff),
     ];
 

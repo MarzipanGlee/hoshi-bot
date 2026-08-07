@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -58,8 +59,8 @@ public class CommandBridgeStaffMenuModule(AlertService alertService, EmbedBrandi
                 [
                     new ActionRowProperties(
                     [
-                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:on", Msg.Bridge.StaffMuteEnableButton(lang), EmojiProperties.Standard("🔕"), ButtonStyle.Primary) { Disabled = muted },
-                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:off", Msg.Bridge.StaffMuteDisableButton(lang), EmojiProperties.Standard("🔔"), ButtonStyle.Secondary) { Disabled = !muted },
+                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:on", Msg.Bridge.StaffMuteEnableButton(lang), EmojiProperties.Standard(Icons.RemindersOff), ButtonStyle.Primary) { Disabled = muted },
+                        new ButtonProperties($"staff-shield-mute-set:{target.Id}:off", Msg.Bridge.StaffMuteDisableButton(lang), EmojiProperties.Standard(Icons.RemindersOn), ButtonStyle.Secondary) { Disabled = !muted },
                     ]),
                 ];
             };

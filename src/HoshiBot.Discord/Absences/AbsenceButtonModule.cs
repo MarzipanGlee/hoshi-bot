@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -67,8 +68,8 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.Public}", Msg.Absence.PublicButton(lang), EmojiProperties.Standard("📢"), ButtonStyle.Primary),
-                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.StaffOnly}", Msg.Absence.StaffButton(lang), EmojiProperties.Standard("🙂"), ButtonStyle.Primary),
+                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.Public}", Msg.Absence.PublicButton(lang), EmojiProperties.Standard(Icons.Public), ButtonStyle.Primary),
+                    new ButtonProperties($"absence-create-vis:{AbsenceVisibility.StaffOnly}", Msg.Absence.StaffButton(lang), EmojiProperties.Standard(Icons.StaffOnly), ButtonStyle.Primary),
                 ]),
             ],
             title: Msg.Absence.CreateTitle(lang));
@@ -86,8 +87,8 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"absence-create-notify:{visibility}:true", Msg.Absence.NotificationsOffButton(lang), EmojiProperties.Standard("🔔"), ButtonStyle.Secondary),
-                    new ButtonProperties($"absence-create-notify:{visibility}:false", Msg.Absence.NotificationsOnButton(lang), EmojiProperties.Standard("🔔"), ButtonStyle.Primary),
+                    new ButtonProperties($"absence-create-notify:{visibility}:true", Msg.Absence.NotificationsOffButton(lang), EmojiProperties.Standard(Icons.RemindersOff), ButtonStyle.Secondary),
+                    new ButtonProperties($"absence-create-notify:{visibility}:false", Msg.Absence.NotificationsOnButton(lang), EmojiProperties.Standard(Icons.RemindersOn), ButtonStyle.Primary),
                 ]),
             ]);
     }
