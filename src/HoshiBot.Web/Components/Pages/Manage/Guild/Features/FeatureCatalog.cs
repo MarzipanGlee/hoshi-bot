@@ -23,6 +23,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.OpsLevelRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.PlayerLink;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.RaidAlerts;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.RankRoles;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ReadReceipts;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.RoeViolationReports;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ServerStatus;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.ServerTagRoles;
@@ -71,6 +72,7 @@ public static class FeatureCatalog
         new PlayerLinkFeature(),
         new RaidAlertsFeature(),
         new RankRolesFeature(),
+        new ReadReceiptsFeature(),
         new RoeViolationReportsFeature(),
         new ServerStatusFeature(),
         new ServerTagRolesFeature(),

@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.ReadReceipts;
 using HoshiBot.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -23,6 +24,7 @@ namespace HoshiBot.Discord.Announcements;
 public class AnnouncementDraftService(
     GatewayClient gatewayClient,
     AnnouncementService announcementService,
+    ReadReceiptService readReceipts,
     GuildMemberNames memberNames,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
@@ -111,7 +113,10 @@ public class AnnouncementDraftService(
             // and showing an English "Severity"/"On behalf of" over a German announcement would be
             // a preview of something that will never exist.
             var scopeLang = await languageResolver.ForGuildAsync(guildId);
-            var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang);
+            // The preview has to include (or omit) the Anmerkungen field exactly as the published
+            // post will, so staff see what they are about to send.
+            var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement);
+            var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang, tracked);
 
             // Through the cache: draft is REST-fetched, so its Author carries no guild nickname and
             // the salutation would fall back to the global name.

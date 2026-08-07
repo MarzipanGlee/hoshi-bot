@@ -762,6 +762,22 @@ public static partial class Msg
 
     // The settings-free Capture Sign-Off feature — its editor is the enable switch plus this one
     // explanatory paragraph.
+    public static class WebReadReceipts
+    {
+        // Contains inline <strong> markup — render via MarkupString.
+        public static string Intro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ReadReceipts.Intro");
+
+        public static string KindsTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ReadReceipts.KindsTitle");
+
+        public static string KindNotImplemented(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ReadReceipts.KindNotImplemented");
+
+        public static string Kind(Language lang, ReadablePostKind kind) =>
+            MessageCatalog.Format(lang, $"Web.Editor.ReadReceipts.Kind.{kind}");
+    }
+
     public static class WebBotSupport
     {
         // Contains inline <strong> markup — render via MarkupString.

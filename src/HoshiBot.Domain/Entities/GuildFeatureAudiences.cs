@@ -82,6 +82,11 @@ public static class GuildFeatureAudiences
         // that differ per alliance, so they toggle per linked alliance like the other bridge buttons.
         GuildFeature.BotSupport => GuildAudience.Alliance,
         GuildFeature.ChannelGuide => GuildAudience.Alliance,
+        // Guild-wide, like AnnouncementForwarder and AiBackend. Its kinds come from features with
+        // different audience sets — Announcements has four, the forwarder is guild-wide — so a
+        // per-audience matrix would be a scope puzzle with no payoff. "Which kinds get a read button
+        // in this Discord" has one answer.
+        GuildFeature.ReadReceipts => GuildAudience.Guild,
         _ => GuildAudience.None,
     };
 

@@ -68,31 +68,6 @@ public class AnnouncementButtonModule(AnnouncementService announcementService, A
         return scopeMissing ? (null, null) : await announcementService.PublishTargetNamesAsync(Context.Guild!.Id, audience, guildAllianceId);
     }
 
-    [ComponentInteraction("announcement-read")]
-    public Task MarkRead(int announcementId) =>
-        Context.Interaction.SendDelayedEmbedAsync(embedBranding, Context.Guild!.Id, async () =>
-        {
-            var lang = await ActingUserLanguageAsync();
-            var (wasNew, count) = await announcementService.MarkReadAsync(announcementId, Context.Guild!.Id, Context.User.Id);
-
-            try
-            {
-                // The shared announcement message (public) is edited via a separate direct REST
-                // call, kept independent of this personal ephemeral ack — its Read button keeps
-                // the post's own scope language, not the clicking user's.
-                var postLang = await announcementService.PostLanguageAsync(announcementId, Context.Guild!.Id);
-                await gatewayClient.Rest.ModifyMessageAsync(Context.Channel.Id, Context.Message.Id,
-                    m => m.Components = [AnnouncementService.PostButtons(announcementId, count, postLang)]);
-            }
-            catch (RestException)
-            {
-                // The periodic AnnouncementCounterRefreshJob will pick this up if the inline
-                // edit fails (e.g. transient rate limit) — not worth failing the interaction for.
-            }
-
-            return wasNew ? Msg.Announce.ReadRecorded(lang) : Msg.Announce.AlreadyRead(lang);
-        });
-
     // The custom-id's last segment: which of the two destinations the clicked button meant.
     private const string TestTarget = "test";
     private const string LiveTarget = "live";

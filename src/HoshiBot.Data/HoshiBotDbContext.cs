@@ -92,7 +92,11 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<Announcement> Announcements => Set<Announcement>();
 
-    public DbSet<AnnouncementReadReceipt> AnnouncementReadReceipts => Set<AnnouncementReadReceipt>();
+    // Read tracking is kind-agnostic: any feature that posts something members should confirm
+    // registers a ReadablePost, and the receipts hang off that rather than off Announcement.
+    public DbSet<ReadablePost> ReadablePosts => Set<ReadablePost>();
+
+    public DbSet<ReadReceipt> ReadReceipts => Set<ReadReceipt>();
 
     public DbSet<Ticket> Tickets => Set<Ticket>();
 

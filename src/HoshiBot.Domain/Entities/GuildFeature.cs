@@ -150,4 +150,12 @@ public enum GuildFeature
     // (command_bridge/common-ch.yag), which is exactly the thing a setting should own.
     // Keep last so existing enum ordinals/DB rows don't shift.
     ChannelGuide,
+
+    // Guild-wide: which kinds of post carry a "read this" confirmation button, and therefore what
+    // the unread list contains. Not a switch on Announcements — the commonest readable post by far
+    // is a forwarded translation, and diplomacy posts, the welcome message and the alliance rules
+    // are all coming. Each post records the answer at the moment it is made (see
+    // ReadablePost.ReadReceiptsEnabled), so changing the setting only ever affects new posts.
+    // Keep last so existing enum ordinals/DB rows don't shift.
+    ReadReceipts,
 }

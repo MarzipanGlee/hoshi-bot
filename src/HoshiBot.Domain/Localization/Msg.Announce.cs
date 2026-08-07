@@ -116,6 +116,11 @@ public static partial class Msg
 
 
         // The personal read-receipt ack.
+        // The post's record is gone but its button survived — a database restore, or a post older
+        // than anything we kept. Better than recording a receipt against nothing.
+        public static string ReadPostGone(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.ReadPostGone");
+
         public static string ReadRecorded(Language lang) =>
             MessageCatalog.Format(lang, "Announce.ReadRecorded");
 

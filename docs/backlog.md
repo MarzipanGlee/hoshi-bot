@@ -809,3 +809,29 @@ Two things worth keeping from it:
   with no warning — that is what made `/hoshi-say` ping the invoker instead of the chosen member
   (fixed 2026-08-04). `/hoshi-say` is now the only command, but the same lambda shape is all over the
   button/modal modules.
+
+## Unread reminders — the escalating nag legacy had
+
+`GuildFeature.ReadReceipts` (2026-08-07) records who has confirmed what, and the Command Bridge's
+unread list lets a member see what they still owe. Nothing chases them.
+
+Legacy did (`tasks/prepare-announcements-reminders.yag`,
+`notifications/send-announcements-reminders.yag`): a sweep per alliance member, **skipping anyone
+currently absent**, escalating one level per `AnnouncementsRemindersDelay` (48h):
+
+- **L0** informational — "you have N unconfirmed announcements, please confirm by <date>"
+- **L1** warning — "still N; reading these matters so the alliance shares one picture"
+- **L2** danger — "I can't get further, so I'm informing the command staff"
+- **L3** stop, already escalated
+
+Each member got a private thread in a reminders channel, reused across levels.
+
+**Not built deliberately.** CONTRIBUTING's member-messaging rule puts proactive DM/ping outreach
+behind its own opt-in feature, off by default — the `PlayerLink` (silent) vs `MemberOnboarding`
+(opt-in DM campaign) split. So this is a second feature, not a setting on read confirmation, and it
+should follow MemberOnboarding's shape: a `CampaignActive` go-signal and a per-day send cap.
+
+Two decisions already taken that it inherits: reminders are **DMs**, not per-member threads
+(`AnnouncementsSettingKeys.RemindersChannel` was removed for this reason), and the escalation state
+needs somewhere to live — legacy kept a level and a `SentAt` per member, which is a small table
+rather than a settings key.

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Discord.AiChat;
+using HoshiBot.Discord.ReadReceipts;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ public class AnnouncementForwarderService(
     AnnouncementTranslator translator,
     EmbedBranding embedBranding,
     LanguageResolver languageResolver,
+    ReadReceiptService readReceipts,
     ILogger<AnnouncementForwarderService> logger)
 {
     private const GuildAudience Audience = GuildAudience.Guild;
@@ -95,6 +97,11 @@ public class AnnouncementForwarderService(
                 ForwardedAt = DateTimeOffset.UtcNow,
             });
             await db.SaveChangesAsync(cancellationToken);
+
+            // Forwarded posts are by far the commonest thing worth confirming — 97 of them against 3
+            // announcements when read tracking was made kind-aware — so they register like any other
+            // readable post and pick up the button when the admin has switched this kind on.
+            await RegisterReadablePostAsync(guildId, destinationChannelId, posted.Id, translation, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -155,6 +162,11 @@ public class AnnouncementForwarderService(
                     AllowedMentions = AllowedMentionsProperties.None,
                 }, cancellationToken: cancellationToken);
                 tracked.DestinationMessageId = posted.Id;
+
+                // The old message took its read button with it. Move the tracking row to the
+                // replacement, or the ✅ points at a message that no longer exists and the count
+                // stops updating with no sign of why.
+                await readReceipts.MoveAsync(guildId, tracked.DestinationMessageId, posted.Id, cancellationToken);
             }
 
             tracked.SourceContentHash = newHash;
@@ -165,6 +177,22 @@ public class AnnouncementForwarderService(
         {
             logger.LogWarning(ex, "Announcement forward update failed for guild {GuildId}, message {MessageId}", guildId, message.Id);
         }
+    }
+
+    // The unread list names posts, and every forward shares the same "Automatic translation" heading
+    // — so the translated text's own first line is the title, exactly as an announcement's is.
+    private async Task RegisterReadablePostAsync(ulong guildId, ulong channelId, ulong messageId, string translation, CancellationToken cancellationToken)
+    {
+        var lang = await languageResolver.ForGuildAsync(guildId);
+        var firstLine = translation.Split('\n', 2)[0].Trim();
+        var title = string.IsNullOrWhiteSpace(firstLine) ? Msg.Announce.ForwardTitle(lang) : firstLine;
+
+        var post = await readReceipts.RegisterAsync(guildId, channelId, messageId, ReadablePostKind.ForwardedAnnouncement, title, lang, cancellationToken);
+        if (!post.ReadReceiptsEnabled)
+            return;
+
+        await gatewayClient.Rest.ModifyMessageAsync(channelId, messageId,
+            m => m.Components = [ReadReceiptService.Buttons(post.Id, 0, lang)], cancellationToken: cancellationToken);
     }
 
     private async Task<EmbedProperties> BuildEmbedAsync(ulong guildId, string translation, string jumpLink, bool updated)

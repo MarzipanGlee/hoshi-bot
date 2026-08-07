@@ -5,6 +5,10 @@ namespace HoshiBot.Domain.Entities;
 // audit/history that legacy structurally can't have.
 public class Announcement
 {
+    // Read tracking is NOT here: a published announcement registers a ReadablePost, which is what
+    // carries the button, the receipts and the count. Three of the five readable kinds are not
+    // announcements at all, so the registry is the shared thing and this stays the content record.
+
     public int Id { get; set; }
 
     public ulong GuildId { get; set; }
@@ -40,9 +44,5 @@ public class Announcement
 
     public DateTimeOffset SentAt { get; set; }
 
-    // Lets the refresh job skip a no-op editMessage call when the read count hasn't
-    // changed since the last run.
-    public int LastKnownReadCount { get; set; }
 
-    public ICollection<AnnouncementReadReceipt> ReadReceipts { get; set; } = [];
 }

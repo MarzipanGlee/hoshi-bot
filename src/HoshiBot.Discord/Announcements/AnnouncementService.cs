@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Discord.ReadReceipts;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
@@ -15,24 +16,8 @@ namespace HoshiBot.Discord.Announcements;
 // plain-message drafting for attachments/length/template-reuse, not a modal (see the Phase 7 plan
 // section for why).
 public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService,
-    LanguageResolver languageResolver, GuildMemberNames memberNames, ILogger<AnnouncementService> logger)
+    LanguageResolver languageResolver, GuildMemberNames memberNames, ReadReceiptService readReceipts, ILogger<AnnouncementService> logger)
 {
-    public static ButtonProperties ReadButton(int announcementId, int count, Language lang) =>
-        new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(lang, count), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Primary);
-
-    // The row under a published announcement: confirm you have read THIS one, and see whatever you
-    // still haven't — legacy's two buttons. The second is the same action, custom id and icon as the
-    // Command Bridge's own unread button, so a member meets one control in two places rather than
-    // two controls that happen to do the same thing.
-    //
-    // Not used for the unread LIST itself (CommandBridgeButtonModule), where every row already sits
-    // under a heading of unread announcements and a "show unread" button per row would be circular.
-    public static ActionRowProperties PostButtons(int announcementId, int count, Language lang) => new(
-    [
-        ReadButton(announcementId, count, lang),
-        new ButtonProperties("announcement-show-unread", Msg.Bridge.AnnouncementsUnread(lang), EmojiProperties.Standard(Icons.Unread), ButtonStyle.Primary),
-    ]);
-
     // First line of the draft = title, remainder = body — matches legacy's exact convention.
     public static (string Title, string Body) ParseDraft(string content)
     {
@@ -84,7 +69,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
     //
     // Returns the attribution alongside, because the stored row keeps it too.
     public async Task<(EmbedProperties Embed, string Attribution)> BuildAnnouncementEmbedAsync(
-        ulong guildId, RestMessage draft, AnnouncementSeverity severity, Language lang)
+        ulong guildId, RestMessage draft, AnnouncementSeverity severity, Language lang, bool readReceiptsEnabled)
     {
         var settings = await db.GuildSettings.FindAsync(guildId);
         var (title, body) = ParseDraft(draft.Content);
@@ -139,8 +124,10 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         }
 
         // Legacy's "Anmerkungen" line, explaining what the read-receipt button below the post is
-        // for — a bare ✅ with a number next to it doesn't say that clicking it is the point.
-        fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldRemarks(lang), Value = Msg.Announce.RemarksReadReceipt(lang) });
+        // for — a bare ✅ with a number next to it doesn't say that clicking it is the point. Only
+        // where there IS such a button: otherwise it instructs members to press something absent.
+        if (readReceiptsEnabled)
+            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldRemarks(lang), Value = Msg.Announce.RemarksReadReceipt(lang) });
 
         embed.Fields = fields;
         embed.Timestamp = DateTimeOffset.UtcNow;
@@ -165,7 +152,11 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
 
         var scopeLang = await ScopeLanguageAsync(guildId, audience, guildAllianceId);
 
-        var (embed, attribution) = await BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang);
+        // Whether this post is tracked is decided now, once, and recorded on the ReadablePost —
+        // never re-read from the setting afterwards.
+        var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement);
+
+        var (embed, attribution) = await BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang, tracked);
         var (title, body) = ParseDraft(draft.Content);
         var attachmentUrls = draft.Attachments.Select(a => a.Url).ToArray();
 
@@ -184,13 +175,13 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         };
 
         var content = mentionRoleId is { } roleId ? $"<@&{roleId}>" : null;
-        var buttons = PostButtons(0, 0, scopeLang); // placeholder id, replaced after the row is created
+
 
         var message = await gatewayClient.Rest.SendMessageAsync(channelIdValue, new MessageProperties
         {
             Content = content,
             Embeds = [embed],
-            Components = [buttons],
+            Components = null,
         });
 
         var announcement = new Announcement
@@ -211,9 +202,15 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         db.Announcements.Add(announcement);
         await db.SaveChangesAsync();
 
-        // The button's custom-id needs the real announcement Id — edit it in now that we have one.
-        await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
-            m => m.Components = [PostButtons(announcement.Id, 0, scopeLang)]);
+        // Registered after posting, because the button's custom id needs the row's own id — so the
+        // message goes out bare and the buttons are edited in. An untracked post simply never gets
+        // that edit, which is one fewer Discord call rather than a special case.
+        var post = await readReceipts.RegisterAsync(guildId, channelIdValue, message.Id, ReadablePostKind.Announcement, title, scopeLang);
+        if (post.ReadReceiptsEnabled)
+        {
+            await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
+                m => m.Components = [ReadReceiptService.Buttons(post.Id, 0, scopeLang)]);
+        }
 
         // The clicking staff member, not the draft's author — this is the ephemeral reply to their
         // button press. Resolved through the cache because draft.Author is REST-fetched and so
@@ -236,42 +233,6 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         channelId is { } id && gatewayClient.Cache.Guilds.TryGetValue(guildId, out var guild) && guild.Channels.TryGetValue(id, out var channel)
             ? channel.Name
             : null;
-
-    public async Task<(bool WasNew, int Count)> MarkReadAsync(int announcementId, ulong guildId, ulong userId)
-    {
-        var now = DateTimeOffset.UtcNow;
-
-        if (await db.DiscordUsers.FindAsync(userId) is null)
-            db.DiscordUsers.Add(new DiscordUser { DiscordUserId = userId });
-        if (await db.GuildMembers.FindAsync(guildId, userId) is null)
-            db.GuildMembers.Add(new GuildMember { GuildId = guildId, DiscordUserId = userId, JoinedAt = now });
-
-        var existing = await db.AnnouncementReadReceipts
-            .FirstOrDefaultAsync(r => r.AnnouncementId == announcementId && r.GuildId == guildId && r.DiscordUserId == userId);
-
-        var wasNew = existing is null;
-        if (wasNew)
-        {
-            db.AnnouncementReadReceipts.Add(new AnnouncementReadReceipt
-            {
-                AnnouncementId = announcementId,
-                GuildId = guildId,
-                DiscordUserId = userId,
-                ReadAt = now,
-            });
-            await db.SaveChangesAsync();
-        }
-
-        var count = await db.AnnouncementReadReceipts.CountAsync(r => r.AnnouncementId == announcementId);
-        return (wasNew, count);
-    }
-
-    public async Task<List<Announcement>> GetUnreadAsync(ulong guildId, ulong userId, int limit = 10) =>
-        await db.Announcements
-            .Where(a => a.GuildId == guildId && !a.ReadReceipts.Any(r => r.GuildId == guildId && r.DiscordUserId == userId))
-            .OrderBy(a => a.SentAt)
-            .Take(limit)
-            .ToListAsync();
 
     // Just the role name now — the bot's own identity is already covered by the embed's
     // standardized Author (EmbedBranding), no longer folded into this string. The fallback

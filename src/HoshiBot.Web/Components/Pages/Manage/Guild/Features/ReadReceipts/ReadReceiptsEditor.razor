@@ -1,0 +1,57 @@
+@inherits FeatureEditorBase
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<p class="form-text">
+    @((MarkupString)Msg.WebReadReceipts.Intro(Lang))
+</p>
+
+<div class="card-grid mt-1">
+    <SettingsCard Title="@Msg.WebReadReceipts.KindsTitle(Lang)">
+        @foreach (var kind in Enum.GetValues<ReadablePostKind>())
+        {
+            var implemented = ReadablePostKinds.IsImplemented(kind);
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="@($"kind-{kind}")" disabled="@(!implemented)"
+                       checked="@enabledKinds.Contains(kind)" @onchange="e => ToggleKindAsync(kind, e)" />
+                <label class="form-check-label" for="@($"kind-{kind}")">
+                    @Msg.WebReadReceipts.Kind(Lang, kind)
+                    @if (!implemented)
+                    {
+                        <span class="text-muted small">@Msg.WebReadReceipts.KindNotImplemented(Lang)</span>
+                    }
+                </label>
+            </div>
+        }
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.ReadReceipts;
+
+    // The three kinds with no producer are shown but disabled, and say why. Leaving them enabled
+    // would repeat the mistake the alliance channel pickers made: a switch an admin sets and then
+    // waits on, for a post that cannot arrive.
+    private readonly HashSet<ReadablePostKind> enabledKinds = [];
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        enabledKinds.Clear();
+        foreach (var kind in Enum.GetValues<ReadablePostKind>())
+        {
+            if (string.Equals(await GetTextAsync(ReadReceiptsSettingKeys.ForKind(kind)), "true", StringComparison.OrdinalIgnoreCase))
+                enabledKinds.Add(kind);
+        }
+    }
+
+    private async Task ToggleKindAsync(ReadablePostKind kind, ChangeEventArgs e)
+    {
+        var on = e.Value is true;
+        if (on)
+            enabledKinds.Add(kind);
+        else
+            enabledKinds.Remove(kind);
+
+        await SetTextAsync(ReadReceiptsSettingKeys.ForKind(kind), on ? "true" : "false");
+    }
+}

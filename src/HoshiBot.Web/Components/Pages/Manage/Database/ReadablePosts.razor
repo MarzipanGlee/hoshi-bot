@@ -1,0 +1,23 @@
+@page "/manage/database/readable-posts"
+@inherits DbContextPageBase
+
+<PageTitle>Readable Posts</PageTitle>
+
+<h1>Readable Posts</h1>
+<p>
+    Read-only — one row per posted message that members can confirm they have read, whatever feature
+    posted it. <code>ReadReceiptsEnabled</code> was decided when the post was made and is never
+    re-evaluated, which is why changing the setting only affects new posts.
+</p>
+
+<QuickGrid Class="table" Items="Context.ReadablePosts.OrderByDescending(p => p.Id)">
+    <PropertyColumn Property="post => post.Id" Sortable="true" />
+    <PropertyColumn Property="post => post.Kind" Sortable="true" />
+    <PropertyColumn Property="post => post.Title" Sortable="true" />
+    <PropertyColumn Property="post => post.ReadReceiptsEnabled" Sortable="true" />
+    <PropertyColumn Property="post => post.LastKnownReadCount" Sortable="true" />
+    <PropertyColumn Property="post => post.GuildId" Sortable="true" />
+    <PropertyColumn Property="post => post.ChannelId" Sortable="true" />
+    <PropertyColumn Property="post => post.MessageId" Sortable="true" />
+    <PropertyColumn Property="post => post.PostedAt" Sortable="true" />
+</QuickGrid>

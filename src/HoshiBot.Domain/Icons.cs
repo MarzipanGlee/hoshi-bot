@@ -87,6 +87,14 @@ public static class Icons
     public const string MissingPlayers = "🕵️";
     public const string RoeViolation = "🚫";
     public const string Translation = "🌐";
+
+    // One per ReadablePostKind, so the unread list shows at a glance what each entry is. Announcement
+    // shares 📢 with Public deliberately — same symbol, different question, and a rename of one
+    // should not silently move the other.
+    public const string PostAnnouncement = "📢";
+    public const string PostDiplomacy = "🤝";
+    public const string PostWelcome = "👋";
+    public const string PostRules = "📜";
     public const string Celebration = "🎉";
     public const string Tournament = "🏆";
 

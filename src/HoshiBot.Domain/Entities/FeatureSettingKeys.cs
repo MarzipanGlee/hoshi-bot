@@ -350,3 +350,11 @@ public static class ChannelGuideSettingKeys
     // the clicking member's name. Unset -> the button says so rather than showing an empty embed.
     public const string Message = "Message";
 }
+
+public static class ReadReceiptsSettingKeys
+{
+    // One "true"/"false" switch per post kind, keyed by the enum member name — the same
+    // parameterised-key shape as TerritoryCaptureSettingKeys.ZoneSlotRole(int). Unset means off, so
+    // a newly declared kind starts silent rather than retroactively demanding confirmations.
+    public static string ForKind(ReadablePostKind kind) => $"Kind.{kind}";
+}

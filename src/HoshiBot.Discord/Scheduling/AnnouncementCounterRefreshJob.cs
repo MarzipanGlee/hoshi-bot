@@ -1,7 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
-using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Discord.ReadReceipts;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -12,17 +12,14 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Keeps the "✅ Lesebestätigung (N)" button label in sync with the real read-receipt
-// count. Unlike legacy's hourly job (which scanned up to 100 users' individual
-// confirmation dicts per announcement, capped and re-entrancy-guarded), the count here
-// is a single indexed COUNT(*) per announcement — nothing expensive to guard against.
+// Keeps the "✅ Lesebestätigung (N)" button label in sync with the real read-receipt count, on every
+// kind of tracked post rather than just announcements. Unlike legacy's hourly job (which scanned up
+// to 100 users' individual confirmation dicts per announcement, capped and re-entrancy-guarded), the
+// count here is a single indexed COUNT(*) per post — nothing expensive to guard against.
 public class AnnouncementCounterRefreshJob(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
     NotificationDispatcher dispatcher,
-    GuildFeatureService featureService,
-    AnnouncementService announcementService,
-    LanguageResolver languageResolver,
     ILogger<AnnouncementCounterRefreshJob> logger) : IJob
 {
     private static readonly TimeSpan MaxAge = TimeSpan.FromDays(30);
@@ -31,37 +28,34 @@ public class AnnouncementCounterRefreshJob(
     {
         var cutoff = DateTimeOffset.UtcNow - MaxAge;
 
-        var announcements = (await db.Announcements.ToListAsync())
-            .Where(a => a.SentAt >= cutoff)
+        // Only tracked posts, and the flag on the row is the whole test — the feature is never
+        // consulted here, so turning a kind off leaves posts that already carry a button counting
+        // correctly rather than freezing them at whatever the last run saw.
+        var posts = (await db.ReadablePosts.Where(p => p.ReadReceiptsEnabled).ToListAsync())
+            .Where(p => p.PostedAt >= cutoff)
             .ToList();
 
-        foreach (var announcement in announcements)
+        foreach (var post in posts)
         {
-            if (!await featureService.IsEnabledAsync(announcement.GuildId, GuildFeature.Announcements))
-                continue;
-
-            var count = await db.AnnouncementReadReceipts.CountAsync(r => r.AnnouncementId == announcement.Id);
-            if (count == announcement.LastKnownReadCount)
+            var count = await db.ReadReceipts.CountAsync(r => r.ReadablePostId == post.Id);
+            if (count == post.LastKnownReadCount)
                 continue;
 
             try
             {
-                // The refreshed label re-renders in the same scope language the published post
-                // used (PostLanguageAsync re-derives it from the row's audience/channel).
-                var postLang = await announcementService.PostLanguageAsync(announcement);
-                await gatewayClient.Rest.ModifyMessageAsync(announcement.ChannelId, announcement.MessageId,
-                    m => m.Components = [AnnouncementService.PostButtons(announcement.Id, count, postLang)]);
+                // The post's own language, stored at registration — the text above the button is
+                // frozen in it, so the label has to be too.
+                await gatewayClient.Rest.ModifyMessageAsync(post.ChannelId, post.MessageId,
+                    m => m.Components = [ReadReceiptService.Buttons(post.Id, count, post.Language)]);
             }
             catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
-                logger.LogWarning("Could not refresh read-count button for announcement {AnnouncementId}: {StatusCode}",
-                    announcement.Id, ex.StatusCode);
-                var guildLang = await languageResolver.ForGuildAsync(announcement.GuildId);
-                await dispatcher.NotifyAdminOfPermissionIssueAsync(announcement.GuildId, BotAction.UpdateAnnouncement, announcement.ChannelId,
+                logger.LogWarning("Could not refresh read-count button for post {PostId}: {StatusCode}", post.Id, ex.StatusCode);
+                await dispatcher.NotifyAdminOfPermissionIssueAsync(post.GuildId, BotAction.UpdateAnnouncement, post.ChannelId,
                     BotPermission.ViewChannel | BotPermission.SendMessages);
             }
 
-            announcement.LastKnownReadCount = count;
+            post.LastKnownReadCount = count;
         }
 
         await db.SaveChangesAsync();

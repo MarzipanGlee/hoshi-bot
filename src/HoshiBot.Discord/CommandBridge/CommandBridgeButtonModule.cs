@@ -1,6 +1,7 @@
 using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.Announcements;
+using HoshiBot.Discord.ReadReceipts;
 using HoshiBot.Discord.RoeViolations;
 using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
@@ -12,7 +13,7 @@ using NetCord.Services.ComponentInteractions;
 
 namespace HoshiBot.Discord.CommandBridge;
 
-public class CommandBridgeButtonModule(AlertService alertService, AnnouncementService announcementService, RoeViolationService roeViolationService,
+public class CommandBridgeButtonModule(AlertService alertService, ReadReceiptService readReceipts, RoeViolationService roeViolationService,
     PendingModalInputService pendingModalInputService, GuildFeatureService featureService, GuildAllianceService allianceService, EmbedBranding embedBranding,
     LanguageResolver languageResolver, HoshiBotDbContext db, GuildFeatureSettingsService settingsService)
     : ComponentInteractionModule<ButtonInteractionContext>
@@ -212,15 +213,17 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
     {
         var guildId = Context.Guild!.Id;
         var lang = await ActingUserLanguageAsync();
-        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.Announcements))
+        // Read receipts owns this list now, not Announcements — with the feature off there is
+        // nothing tracked to be unread about, whatever else the guild publishes.
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.ReadReceipts, GuildAudience.Guild, null))
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.Announcements, lang))));
+            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.ReadReceipts, lang))));
             return;
         }
 
         await Context.Interaction.SendDelayedEditAsync(async () =>
         {
-            var unread = await announcementService.GetUnreadAsync(guildId, Context.User.Id);
+            var unread = await readReceipts.GetUnreadAsync(guildId, (GuildUser)Context.User);
 
             if (unread.Count == 0)
             {
@@ -228,16 +231,21 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
                 return m => { m.Embeds = [doneEmbed]; m.Components = []; };
             }
 
-            // LastKnownReadCount (kept fresh by AnnouncementCounterRefreshJob) is used here
-            // rather than a.ReadReceipts.Count, since that navigation isn't loaded by
-            // GetUnreadAsync's query — a small staleness window (up to ~15 min) is an
-            // acceptable trade-off already established for this same count elsewhere.
+            // LastKnownReadCount (kept fresh by AnnouncementCounterRefreshJob) is used here rather
+            // than counting Receipts, since that navigation isn't loaded by GetUnreadAsync's query —
+            // a small staleness window (up to ~15 min) is the trade-off already established for this
+            // same count elsewhere.
+            //
+            // Only the ✅ here: every row already sits under a heading of unread posts, so a "show
+            // unread" button per row would be circular.
             var rows = unread
-                .Select(a => new ActionRowProperties([AnnouncementService.ReadButton(a.Id, a.LastKnownReadCount, lang)]))
+                .Select(p => new ActionRowProperties([ReadReceiptService.ReadButton(p.Id, p.LastKnownReadCount, lang)]))
                 .ToList();
 
-            var lines = unread.Select(a =>
-                $"{AnnouncementSeverities.Emoji(a.Severity)} [{a.Title}](https://discord.com/channels/{a.GuildId}/{a.ChannelId}/{a.MessageId})");
+            // The kind's own icon rather than a severity, since the list now spans announcements,
+            // forwarded translations and whatever registers next.
+            var lines = unread.Select(p =>
+                $"{ReadReceiptService.Icon(p.Kind)} [{p.Title}](https://discord.com/channels/{p.GuildId}/{p.ChannelId}/{p.MessageId})");
 
             var finalEmbed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, Msg.Bridge.AnnouncementsUnreadIntro(lang, CommanderName.Of(Context.User), string.Join('\n', lines)), title: Msg.Bridge.AnnouncementsUnreadTitle(lang));
             return m => { m.Embeds = [finalEmbed]; m.Components = rows; };

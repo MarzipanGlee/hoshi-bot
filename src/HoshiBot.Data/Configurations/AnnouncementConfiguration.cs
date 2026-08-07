@@ -26,10 +26,5 @@ public class AnnouncementConfiguration : IEntityTypeConfiguration<Announcement>
             .WithMany()
             .HasForeignKey(a => a.GuildId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasMany(a => a.ReadReceipts)
-            .WithOne(r => r.Announcement)
-            .HasForeignKey(r => r.AnnouncementId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

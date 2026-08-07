@@ -1,0 +1,15 @@
+@page "/manage/database/read-receipts"
+@inherits DbContextPageBase
+
+<PageTitle>Read Receipts</PageTitle>
+
+<h1>Read Receipts</h1>
+<p>Read-only — one row per member who confirmed they read a tracked post. For debugging.</p>
+
+<QuickGrid Class="table" Items="Context.ReadReceipts.OrderByDescending(r => r.Id)">
+    <PropertyColumn Property="receipt => receipt.Id" Sortable="true" />
+    <PropertyColumn Property="receipt => receipt.ReadablePostId" Sortable="true" />
+    <PropertyColumn Property="receipt => receipt.GuildId" Sortable="true" />
+    <PropertyColumn Property="receipt => receipt.DiscordUserId" Sortable="true" />
+    <PropertyColumn Property="receipt => receipt.ReadAt" Sortable="true" />
+</QuickGrid>
