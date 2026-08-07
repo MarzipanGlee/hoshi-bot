@@ -774,6 +774,12 @@ public static partial class Msg
         // Contains inline <strong> markup — render via MarkupString.
         public static string Intro(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.Intro");
+
+        public static string InsertLabel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertLabel");
+
+        public static string InsertPlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.ChannelGuide.InsertPlaceholder");
     }
 
     public static class WebTerritoryCaptureSignOff

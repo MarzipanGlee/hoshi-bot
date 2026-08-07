@@ -1,4 +1,8 @@
 @inherits FeatureEditorBase
+@using HoshiBot.Domain
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -11,19 +15,66 @@
         <label for="channelGuideMessage" class="form-label">
             @Msg.WebEditor.Label(Lang, Feature, ChannelGuideSettingKeys.Message)
         </label>
-        <textarea id="channelGuideMessage" class="form-control flex-grow-1" rows="8"
+        <textarea id="channelGuideMessage" class="form-control flex-grow-1" rows="10"
                   @bind="messageInput" @bind:after="SaveMessageAsync"></textarea>
+
+        <label for="channelGuideInsert" class="form-label mt-2">
+            @Msg.WebChannelGuide.InsertLabel(Lang)
+        </label>
+        <select id="channelGuideInsert" class="form-select" value="" @onchange="InsertMentionAsync">
+            <option value="">@Msg.WebChannelGuide.InsertPlaceholder(Lang)</option>
+            @foreach (var channel in channels)
+            {
+                <option value="@channel.Id">#@channel.Name</option>
+            }
+        </select>
     </SettingsCard>
 </div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.ChannelGuide;
 
+    private List<IGuildChannel> channels = [];
     private string? messageInput;
 
-    protected override async Task OnSettingsLoadedAsync() =>
-        messageInput = await GetTextAsync(ChannelGuideSettingKeys.Message);
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        channels = (await DiscordData.GetChannelsAsync(GuildId))
+            .Where(c => c is TextGuildChannel or ForumGuildChannel or MediaForumGuildChannel or AnnouncementGuildChannel)
+            .OrderBy(c => c.Name)
+            .ToList();
+        var stored = await GetTextAsync(ChannelGuideSettingKeys.Message);
+        messageInput = ChannelMentionText.Normalize(stored, ResolveChannelByName);
 
-    private Task SaveMessageAsync() =>
-        SetTextAsync(ChannelGuideSettingKeys.Message, messageInput);
+        // Repair a message saved before the editor knew how to do this, rather than leaving it
+        // broken until somebody happens to edit it — a guide whose channels aren't clickable is
+        // the whole failure this fixes, and the member sees it long before the admin does.
+        // Normalize is idempotent, so on every later visit this is a no-op.
+        if (messageInput != stored)
+            await SetTextAsync(ChannelGuideSettingKeys.Message, messageInput);
+    }
+
+    // Appends rather than inserting at the caret: reading the caret position out of a textarea needs
+    // JS interop, and this is the only place in the admin that would need it. Appending is honest
+    // about what it does, and the text is short enough that moving a line is trivial.
+    private async Task InsertMentionAsync(ChangeEventArgs e)
+    {
+        if (e.Value?.ToString() is not { Length: > 0 } raw || !ulong.TryParse(raw, out var channelId))
+            return;
+
+        var separator = string.IsNullOrWhiteSpace(messageInput) ? "" : "\n";
+        messageInput = $"{messageInput}{separator}- <#{channelId}>";
+        await SaveMessageAsync();
+    }
+
+    // Normalise on save, not just on insert: the common way to build this message is to paste
+    // channel pills copied out of Discord, which look right and are inert. See ChannelMentionText.
+    private Task SaveMessageAsync()
+    {
+        messageInput = ChannelMentionText.Normalize(messageInput, ResolveChannelByName);
+        return SetTextAsync(ChannelGuideSettingKeys.Message, messageInput);
+    }
+
+    private ulong? ResolveChannelByName(string name) =>
+        channels.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))?.Id;
 }

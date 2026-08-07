@@ -355,11 +355,18 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
 
         // An enabled feature with no text written yet would otherwise render an empty embed, which
         // reads as the bot being broken rather than as the admins not having filled it in.
+        // The body is one fixed string an admin wrote in ONE language, so the title has to follow
+        // the same scope rather than the reader — otherwise an English member opens an English
+        // "Request support" heading over a German message, which is how this first shipped.
+        var bodyLang = allianceId is { } id
+            ? await languageResolver.ForAllianceAsync(id)
+            : await languageResolver.ForGuildAsync(Context.Guild!.Id);
+
         var body = string.IsNullOrWhiteSpace(message)
-            ? Msg.Bridge.ChannelGuideNotConfigured(lang)
+            ? Msg.Bridge.ChannelGuideNotConfigured(bodyLang)
             : message.Replace(CommanderPlaceholder, CommanderName.Of(Context.User));
 
-        return await EphemeralEmbedAsync(body, title: Msg.Bridge.ChannelGuideTitle(lang));
+        return await EphemeralEmbedAsync(body, title: Msg.Bridge.ChannelGuideTitle(bodyLang));
     }
 
     [ComponentInteraction("bot-support")]
