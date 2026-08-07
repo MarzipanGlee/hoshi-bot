@@ -100,7 +100,7 @@
   "Announce.ReadButton": "Read receipt ({count})",
   "Announce.ChannelNotConfigured": "Set the Announcements channel first (via the guild settings page).",
   "Announce.FieldSeverity": "Severity",
-  "Announce.FieldOnBehalfOf": "On behalf of",
+  "Announce.AuthorOnBehalfOf": "{bot} on behalf of {role}",
   "Announce.AttributionFallback": "Command staff",
   "Announce.FieldAttachments": "Attachments",
   "Announce.AttachmentLink": "[Attachment {number}]({url})",

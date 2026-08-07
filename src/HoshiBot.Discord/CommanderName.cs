@@ -1,5 +1,6 @@
 using HoshiBot.Domain;
 using NetCord;
+using NetCord.Gateway;
 
 namespace HoshiBot.Discord;
 
@@ -17,6 +18,21 @@ public static class CommanderName
         var name = (user as GuildUser)?.Nickname ?? user.GlobalName ?? user.Username;
         return NicknameComposer.Strip(name);
     }
+
+    // Recovers the nickname for a user Discord handed us WITHOUT member data.
+    //
+    // Discord attaches the member object — and therefore the nickname — to a message delivered over
+    // the GATEWAY, but not to one fetched over REST. So the same person reads as "MarzipanGlee"
+    // when seen live and "Oops" when the same message is fetched back, which is how a published
+    // announcement ended up greeting its own author by their global name.
+    //
+    // The gateway already caches every member, so this costs nothing: no REST call, which is what
+    // makes it usable on the paths that walk hundreds of historical messages. Falls back to the
+    // bare user when the guild or member isn't cached.
+    public static string Of(GatewayClient client, ulong guildId, User user) =>
+        Of(client.Cache.Guilds.TryGetValue(guildId, out var guild) && guild.Users.TryGetValue(user.Id, out var member)
+            ? member
+            : user);
 
     // The "Commander {name}, " salutation prefix. Catalog messages carry the salutation inside
     // their own full-sentence templates (localization sub-phase 6d dissolved the old

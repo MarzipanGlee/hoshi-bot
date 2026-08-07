@@ -105,7 +105,7 @@ public partial class AiChatIndexService(
                 ChannelId = message.ChannelId,
                 MessageId = message.Id,
                 ChannelName = channelName,
-                AuthorName = CommanderName.Of(message.Author),
+                AuthorName = CommanderName.Of(gatewayClient, guildId, message.Author),
                 Content = content,
                 CreatedAt = message.CreatedAt,
                 IndexedAt = now,
@@ -122,7 +122,7 @@ public partial class AiChatIndexService(
                 existing.EmbeddingModel = null;
             }
             existing.ChannelName = channelName ?? existing.ChannelName;
-            existing.AuthorName = CommanderName.Of(message.Author);
+            existing.AuthorName = CommanderName.Of(gatewayClient, guildId, message.Author);
             existing.IndexedAt = now;
         }
 
@@ -277,7 +277,7 @@ public partial class AiChatIndexService(
                     row.EmbeddingModel = null;
                 }
                 row.ChannelName = channelName ?? row.ChannelName;
-                row.AuthorName = CommanderName.Of(x.Msg.Author);
+                row.AuthorName = CommanderName.Of(gatewayClient, guildId, x.Msg.Author);
                 row.IndexedAt = now;
             }
             else
@@ -288,7 +288,7 @@ public partial class AiChatIndexService(
                     ChannelId = channelId,
                     MessageId = x.Msg.Id,
                     ChannelName = channelName,
-                    AuthorName = CommanderName.Of(x.Msg.Author),
+                    AuthorName = CommanderName.Of(gatewayClient, guildId, x.Msg.Author),
                     Content = x.Text,
                     CreatedAt = x.Msg.CreatedAt,
                     IndexedAt = now,

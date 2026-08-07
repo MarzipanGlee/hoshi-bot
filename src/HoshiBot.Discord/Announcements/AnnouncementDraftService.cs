@@ -112,10 +112,9 @@ public class AnnouncementDraftService(
             var scopeLang = await languageResolver.ForGuildAsync(guildId);
             var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang);
 
-            // draft.Author is a plain User — a message's author carries no guild nickname — so the
-            // salutation would fall back to the global name. Fetch the member to address them the
-            // way the rest of the bot does, by their tag-stripped nickname.
-            var commander = CommanderName.Of(await ResolveMemberAsync(guildId, draft.Author, cancellationToken));
+            // Through the cache: draft is REST-fetched, so its Author carries no guild nickname and
+            // the salutation would fall back to the global name.
+            var commander = CommanderName.Of(gatewayClient, guildId, draft.Author);
 
             MessageProperties prompt;
             if (audiences.Count == 1)
@@ -178,20 +177,6 @@ public class AnnouncementDraftService(
         }
     }
 
-    // Falls back to the plain User when the member can't be fetched (they left, or the call fails):
-    // a slightly less personal salutation beats failing the whole publish flow over a name.
-    private async Task<User> ResolveMemberAsync(ulong guildId, User author, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await gatewayClient.Rest.GetGuildUserAsync(guildId, author.Id, cancellationToken: cancellationToken);
-        }
-        catch (RestException ex)
-        {
-            logger.LogDebug(ex, "Could not resolve the draft author {UserId} in guild {GuildId} for the salutation", author.Id, guildId);
-            return author;
-        }
-    }
 
     private async Task<bool> IsDraftChannelAsync(ulong guildId, ulong channelId) =>
         await featureService.IsEnabledAsync(guildId, GuildFeature.Announcements)

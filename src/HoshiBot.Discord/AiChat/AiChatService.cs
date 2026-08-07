@@ -236,11 +236,14 @@ public partial class AiChatService(
                 // The users the bot may ping: the conversation's participants. The model is given
                 // "name: <@id>" for these and told to only ping from this list; the handler restricts
                 // Discord's allowed_mentions to exactly these ids.
+                // Through the cache, because `history` is REST-fetched and so carries no nicknames
+                // while `message` (gateway) does. Left alone, one person appears in the same prompt
+                // under two names — the model has no way to tell that's one participant.
                 var mentionable = new Dictionary<ulong, string>();
                 foreach (var m in history)
                     if (m.Author.Id != botId)
-                        mentionable[m.Author.Id] = CommanderName.Of(m.Author);
-                mentionable[message.Author.Id] = CommanderName.Of(message.Author);
+                        mentionable[m.Author.Id] = CommanderName.Of(gatewayClient, guildId, m.Author);
+                mentionable[message.Author.Id] = CommanderName.Of(gatewayClient, guildId, message.Author);
 
                 // Prior context from the recent window (the short conversational memory), excluding the
                 // triggering message — we append that ourselves below so the actual question is always
@@ -255,10 +258,10 @@ public partial class AiChatService(
                         continue;
                     turns.Add(m.Author.Id == botId
                         ? new AiChatTurn(AiChatRole.Assistant, text)
-                        : new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(m.Author)}: {text}"));
+                        : new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(gatewayClient, guildId, m.Author)}: {text}"));
                 }
 
-                turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(message.Author)}: {content}"));
+                turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(gatewayClient, guildId, message.Author)}: {content}"));
 
                 var systemInstruction = await BuildSystemInstructionAsync(guildId, message.ChannelId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, model, provider.Kind, cancellationToken);
 

@@ -86,8 +86,6 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         {
             new() { Name = Msg.Announce.FieldSeverity(lang), Value = AnnouncementSeverities.Label(severity, lang), Inline = true },
         };
-        if (severity != AnnouncementSeverity.Direct)
-            fields.Add(new EmbedFieldProperties { Name = Msg.Announce.FieldOnBehalfOf(lang), Value = attribution, Inline = true });
 
         // Matches legacy's exact palette (reaction-handler.yag:47-60) — Information/
         // Warning/Danger/Bot, not approximated Bootstrap colors.
@@ -103,6 +101,15 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
             string.IsNullOrWhiteSpace(body) ? Msg.Announce.NoBody(lang) : body,
             color,
             string.IsNullOrWhiteSpace(title) ? Msg.Announce.NoTitle(lang) : title);
+
+        // The attribution belongs in the author line ("Hoshi Sato im Auftrag von LF-Führungsstab"),
+        // which is where legacy puts it (reaction-handler.yag:44) and where it reads as one
+        // statement about who is speaking. The rewrite had made it a separate "Im Auftrag von"
+        // field instead — a second place saying the same thing, and one the author line contradicts
+        // by naming only the bot. Direct announcements skip it entirely: 🟦 is the bot speaking for
+        // itself, not staff speaking through it.
+        if (severity != AnnouncementSeverity.Direct && embed.Author is { } author)
+            author.Name = Msg.Announce.AuthorOnBehalfOf(lang, author.Name ?? "", attribution);
 
         var imageUrl = attachmentUrls.FirstOrDefault(url => draft.Attachments.First(a => a.Url == url).ContentType?.StartsWith("image/") == true);
         if (imageUrl is not null)
@@ -195,7 +202,10 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
             m => m.Components = [new ActionRowProperties([ReadButton(announcement.Id, 0, scopeLang)])]);
 
-        return (true, Msg.Announce.Published(callerLang, CommanderName.Of(draft.Author), $"<#{channelIdValue}>"));
+        // The clicking staff member, not the draft's author — this is the ephemeral reply to their
+        // button press. Resolved through the cache because draft.Author is REST-fetched and so
+        // carries no nickname; the two are usually the same person, and were both wrong before.
+        return (true, Msg.Announce.Published(callerLang, CommanderName.Of(gatewayClient, guildId, draft.Author), $"<#{channelIdValue}>"));
     }
 
     // The display names behind the publish buttons — legacy named its two destinations on the

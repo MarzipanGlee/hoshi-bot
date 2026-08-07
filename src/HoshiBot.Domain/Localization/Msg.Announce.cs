@@ -20,8 +20,9 @@ public static partial class Msg
         public static string FieldSeverity(Language lang) =>
             MessageCatalog.Format(lang, "Announce.FieldSeverity");
 
-        public static string FieldOnBehalfOf(Language lang) =>
-            MessageCatalog.Format(lang, "Announce.FieldOnBehalfOf");
+        // The embed author line on a published announcement: "{bot} im Auftrag von {role}".
+        public static string AuthorOnBehalfOf(Language lang, string bot, string role) =>
+            MessageCatalog.Format(lang, "Announce.AuthorOnBehalfOf", ("bot", bot), ("role", role));
 
         // Fallback attribution when no Command Staff role is configured/resolvable.
         public static string AttributionFallback(Language lang) =>

@@ -100,7 +100,7 @@
   "Announce.ReadButton": "Lesebestätigung ({count})",
   "Announce.ChannelNotConfigured": "Der Ankündigungen-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).",
   "Announce.FieldSeverity": "Alarmstufe",
-  "Announce.FieldOnBehalfOf": "Im Auftrag von",
+  "Announce.AuthorOnBehalfOf": "{bot} im Auftrag von {role}",
   "Announce.AttributionFallback": "Führungsstab",
   "Announce.FieldAttachments": "Anhänge",
   "Announce.AttachmentLink": "[Anhang {number}]({url})",

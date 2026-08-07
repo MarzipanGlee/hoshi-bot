@@ -3,6 +3,7 @@ using HoshiBot.Discord.AiChat;
 using HoshiBot.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetCord.Gateway;
 using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
@@ -26,6 +27,7 @@ public class MemoryConsolidationJob(
     MemoryService memoryService,
     MemberNoteService noteService,
     GuildFeatureService featureService,
+    GatewayClient gatewayClient,
     ILogger<MemoryConsolidationJob> logger) : IJob
 {
     private const GuildAudience SettingsScope = GuildAudience.None;
@@ -102,7 +104,7 @@ public class MemoryConsolidationJob(
                 var text = AiChatIndexService.RenderMessageText(message);
                 if (string.IsNullOrWhiteSpace(text))
                     continue;
-                var authorName = CommanderName.Of(message.Author);
+                var authorName = CommanderName.Of(gatewayClient, guildId, message.Author);
                 var line = $"{authorName}: {text}";
                 episodicLines.Add(line);
                 if (!perChannelLines.TryGetValue(channelId, out var channelLines))
