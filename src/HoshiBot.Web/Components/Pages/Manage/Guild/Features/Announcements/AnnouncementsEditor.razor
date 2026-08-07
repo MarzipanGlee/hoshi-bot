@@ -13,6 +13,9 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.DraftChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.DraftChannel)"
             @bind-Value="draftChannelInput" @bind-Value:after="SaveDraftChannelAsync" Channels="channels" />
 
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.TestChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.TestChannel)"
+            @bind-Value="testChannelInput" @bind-Value:after="SaveTestChannelAsync" Channels="channels" />
+
     @if (ResolvedAudience == GuildAudience.Alliance)
     {
         @* Keyed under Announcements (this editor's wording), even though the value is stored
@@ -34,6 +37,7 @@
     private List<Role> roles = [];
     private string? channelInput;
     private string? draftChannelInput;
+    private string? testChannelInput;
     private string? warningsRoleInput;
     private string? notificationRoleInput;
 
@@ -43,6 +47,7 @@
         roles = await DiscordData.GetRolesAsync(GuildId);
         channelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.Channel))?.ToString();
         draftChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.DraftChannel))?.ToString();
+        testChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.TestChannel))?.ToString();
         warningsRoleInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.WarningsRole))?.ToString();
 
         // Shown/stored only for the Alliance audience: it's the per-alliance Absences-owned role
@@ -58,6 +63,10 @@
 
     private Task SaveDraftChannelAsync() =>
         SetSnowflakeAsync(AnnouncementsSettingKeys.DraftChannel, ParseId(draftChannelInput));
+
+    // Optional: with nothing picked, the publish prompt simply doesn't offer a dry run.
+    private Task SaveTestChannelAsync() =>
+        SetSnowflakeAsync(AnnouncementsSettingKeys.TestChannel, ParseId(testChannelInput));
 
     private Task SaveWarningsRoleAsync() =>
         SetSnowflakeAsync(AnnouncementsSettingKeys.WarningsRole, ParseId(warningsRoleInput));

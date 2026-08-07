@@ -33,6 +33,11 @@ public static class AnnouncementsSettingKeys
     public const string Channel = "Channel";
     public const string DraftChannel = "DraftChannel";
 
+    // A dry-run destination: with one configured, the publish prompt offers it beside the real
+    // channel so staff can see a finished announcement in place before it reaches the guild.
+    // Legacy had exactly this as a second hardcoded publish button ("ankündigungen-test").
+    public const string TestChannel = "TestChannel";
+
     // The standing "how to write an announcement" hub posted in the draft channel, so a refresh
     // edits it in place instead of stacking a second copy. A message id rather than a channel, like
     // AbsencesSettingKeys.ReportMessageId — it declares no permission slot for that reason.

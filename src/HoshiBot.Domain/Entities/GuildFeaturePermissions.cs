@@ -85,6 +85,8 @@ public static class GuildFeaturePermissions
         [
             FeatureChannelSlot.Setting(AnnouncementsSettingKeys.Channel, ChannelAccessProfile.PostAndPing),
             FeatureChannelSlot.Setting(AnnouncementsSettingKeys.DraftChannel, ChannelAccessProfile.Draft),
+            // Same profile as the real channel: a dry run that can't ping isn't a dry run.
+            FeatureChannelSlot.Setting(AnnouncementsSettingKeys.TestChannel, ChannelAccessProfile.PostAndPing),
         ],
 
         // Two opposite profiles in one feature, which is the clearest proof that the unit here has

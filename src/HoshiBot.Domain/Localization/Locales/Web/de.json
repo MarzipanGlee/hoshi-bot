@@ -193,6 +193,8 @@
 
   "Web.Editor.Announcements.Channel.CardTitle": "Ankündigungen",
   "Web.Editor.Announcements.Channel.Usage": "Wohin veröffentlichte Ankündigungen gepostet werden.",
+  "Web.Editor.Announcements.TestChannel.CardTitle": "Test-Kanal (optional)",
+  "Web.Editor.Announcements.TestChannel.Usage": "Ein Ziel für Probeläufe. Ist einer gewählt, bietet die Publikationsabfrage ihn neben dem echten Kanal an, damit der Führungsstab eine fertige Ankündigung sieht, bevor die Allianz sie sieht. Es ist eine echte Publikation — gleiches Embed, gleiche Lesebestätigung — nur an einem harmlosen Ort.",
   "Web.Editor.Announcements.DraftChannel.CardTitle": "Ankündigungs-Entwürfe",
   "Web.Editor.Announcements.DraftChannel.Usage": "Wohin der Führungsstab Ankündigungsentwürfe postet (normale Nachricht, Anhänge erlaubt), bevor er sie veröffentlicht.",
   "Web.Editor.Announcements.NotificationRole.CardTitle": "Benachrichtigungsrolle",

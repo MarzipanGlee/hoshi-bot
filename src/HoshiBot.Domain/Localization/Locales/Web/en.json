@@ -193,6 +193,8 @@
 
   "Web.Editor.Announcements.Channel.CardTitle": "Announcements",
   "Web.Editor.Announcements.Channel.Usage": "Where published announcements are posted.",
+  "Web.Editor.Announcements.TestChannel.CardTitle": "Test channel (optional)",
+  "Web.Editor.Announcements.TestChannel.Usage": "A dry-run destination. With one picked, the publish prompt offers it beside the real channel, so staff can see a finished announcement in place before the guild does. It's a real publish — same embed, same read-receipt button — just somewhere harmless.",
   "Web.Editor.Announcements.DraftChannel.CardTitle": "Announcements Draft",
   "Web.Editor.Announcements.DraftChannel.Usage": "Where staff post announcement drafts (plain message, attachments allowed) before publishing them.",
   "Web.Editor.Announcements.NotificationRole.CardTitle": "Notification Role",

@@ -127,14 +127,17 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         return (embed, attribution);
     }
 
-    public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId)
+    public async Task<string> PublishAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, ulong triggeredByUserId, bool toTestChannel = false)
     {
         // The status strings replace the publish prompt in the draft channel and are addressed to
         // the staff member who triggered it — their language; the published post itself renders in
         // its target channel's owning scope.
         var callerLang = await languageResolver.ForUserAsync(triggeredByUserId, scopeGuildId: guildId);
 
-        var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.Channel);
+        // A test publish is a real publish into a different channel — same embed, same read button,
+        // same stored row. Anything less isn't a rehearsal of what will happen.
+        var channelKey = toTestChannel ? AnnouncementsSettingKeys.TestChannel : AnnouncementsSettingKeys.Channel;
+        var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Announcements, audience, guildAllianceId, channelKey);
         if (channelId is not { } channelIdValue)
             return Msg.Announce.ChannelNotConfigured(callerLang);
 

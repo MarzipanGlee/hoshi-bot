@@ -39,21 +39,28 @@ public class AnnouncementDraftService(
         if (!await IsDraftChannelAsync(guildId, message.ChannelId))
             return;
 
+        await AddDraftReactionsAsync(guildId, message.ChannelId, message.Id, cancellationToken);
+    }
+
+    // Split out so the cancel button can put the squares back on a draft whose preview was
+    // discarded — without them the draft is stranded and has to be reposted to be publishable.
+    public async Task AddDraftReactionsAsync(ulong guildId, ulong channelId, ulong messageId, CancellationToken cancellationToken = default)
+    {
         try
         {
             // Sequential on purpose: Discord orders reactions by when they were added, so adding
             // them in parallel would shuffle 🟩🟨🟥🟦 into an arbitrary order on the message.
             foreach (var severity in AnnouncementSeverities.Ordered)
-                await gatewayClient.Rest.AddMessageReactionAsync(message.ChannelId, message.Id, AnnouncementSeverities.Emoji(severity), cancellationToken: cancellationToken);
+                await gatewayClient.Rest.AddMessageReactionAsync(channelId, messageId, AnnouncementSeverities.Emoji(severity), cancellationToken: cancellationToken);
         }
         catch (RestException ex)
         {
-            logger.LogWarning(ex, "Could not add announcement draft reactions in channel {ChannelId}", message.ChannelId);
+            logger.LogWarning(ex, "Could not add announcement draft reactions in channel {ChannelId}", channelId);
 
             // Worth telling an admin about rather than only logging: without the reactions there is
             // no way to publish an announcement at all, and nothing else about the draft looks wrong
             // — staff just post into a channel where nothing ever happens.
-            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.AddDraftReactions, message.ChannelId,
+            await dispatcher.NotifyAdminOfPermissionIssueAsync(guildId, BotAction.AddDraftReactions, channelId,
                 BotPermission.ViewChannel | BotPermission.AddReactions);
         }
     }
@@ -105,11 +112,23 @@ public class AnnouncementDraftService(
             var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang);
             var commander = CommanderName.Of(draft.Author);
 
-            var prompt = audiences.Count == 1
-                ? AnnouncementButtonModule.BuildPublishPrompt(draft, preview, commander, audiences[0], severity, lang)
-                : AnnouncementButtonModule.BuildAudiencePrompt(draft, preview, commander, severity, lang);
+            MessageProperties prompt;
+            if (audiences.Count == 1)
+            {
+                var hasTestChannel = await settingsService.GetSnowflakeAsync(
+                    guildId, GuildFeature.Announcements, audiences[0], scopes[0].GuildAllianceId, AnnouncementsSettingKeys.TestChannel) is not null;
+                prompt = AnnouncementButtonModule.BuildPublishPrompt(draft, preview, commander, audiences[0], severity, hasTestChannel, lang);
+            }
+            else
+            {
+                prompt = AnnouncementButtonModule.BuildAudiencePrompt(draft, preview, commander, severity, lang);
+            }
 
             await gatewayClient.Rest.SendMessageAsync(channelId, prompt, cancellationToken: cancellationToken);
+
+            // Only after the preview is actually posted: pulling them first would strand the draft
+            // if the send failed.
+            await RemoveDraftReactionsAsync(channelId, messageId, cancellationToken);
         }
         catch (RestException ex)
         {
@@ -132,6 +151,26 @@ public class AnnouncementDraftService(
         catch (RestException ex)
         {
             logger.LogDebug(ex, "Could not clear the {Severity} reaction in channel {ChannelId} (no Manage Messages?)", severity, channelId);
+        }
+    }
+
+    // Takes the bot's own four squares off a draft that now has a preview open, so a second
+    // staff member can't start a competing publish for the same draft — and so the draft stops
+    // looking like it still needs a decision. Cancelling puts them back.
+    //
+    // Unlike clearing another member's reaction this needs NO permission: Discord's
+    // "delete own reaction" endpoint is always allowed, which is why this one isn't best-effort
+    // in the same apologetic way TryRemoveReactionAsync is.
+    public async Task RemoveDraftReactionsAsync(ulong channelId, ulong messageId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            foreach (var severity in AnnouncementSeverities.Ordered)
+                await gatewayClient.Rest.DeleteCurrentUserMessageReactionAsync(channelId, messageId, AnnouncementSeverities.Emoji(severity), cancellationToken: cancellationToken);
+        }
+        catch (RestException ex)
+        {
+            logger.LogWarning(ex, "Could not clear the bot's draft reactions in channel {ChannelId}", channelId);
         }
     }
 

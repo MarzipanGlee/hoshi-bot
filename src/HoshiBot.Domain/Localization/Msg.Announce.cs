@@ -88,8 +88,11 @@ public static partial class Msg
             MessageCatalog.Format(lang, "Announce.SeverityDirect");
 
         // The preview wizard (AnnouncementButtonModule).
-        public static string Discarded(Language lang) =>
-            MessageCatalog.Format(lang, "Announce.Discarded");
+        public static string Discarded(Language lang, string commander) =>
+            MessageCatalog.Format(lang, "Announce.Discarded", ("commander", commander));
+
+        public static string PublishTestButton(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.PublishTestButton");
 
         public static string AudiencePrompt(Language lang) =>
             MessageCatalog.Format(lang, "Announce.AudiencePrompt");
