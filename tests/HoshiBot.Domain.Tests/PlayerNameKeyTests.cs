@@ -103,10 +103,12 @@ public class PlayerNameKeyTests
     // Real rows with nothing a Latin keyboard could ever type. There is no key to give them, and
     // that is the point of the empty return: "" must be treated as "no key" by every caller, because
     // Contains("") matches every row and == "" would match all of these as one another.
+    //
+    // Only Han remains here. キャプテンネモ and ふィミレミ used to sit alongside it and now romanise,
+    // which is the whole point of the fallback — kana has one reading, Han needs a language.
     [Theory]
-    [InlineData("キャプテンネモ")]
-    [InlineData("ふィミレミ")]
     [InlineData("莫託皇帝")]
+    [InlineData("天下泰平")]
     public void Compute_IsEmptyForNamesWithNothingTypeable(string name) =>
         Assert.Equal("", PlayerNameKey.Compute(name));
 
@@ -191,13 +193,13 @@ public class PlayerNameKeyTests
         Assert.Equal(expected, PlayerNameKey.Compute(tag));
     }
 
-    // Real Korean is written in precomposed syllables, not the compatibility jamo block, so folding
-    // those to Latin can't corrupt an actual Korean name — it stays decoration and drops out, as it
-    // did before.
+    // Real Korean is written in precomposed syllables, not the compatibility jamo block, so the
+    // lookalike map can't reach it: 대한민국 romanises rather than coming back as the Latin letters
+    // ㅌ and ㅁ were chosen to imitate.
     [Fact]
     public void Precomposed_korean_is_untouched_by_the_jamo_map()
     {
-        Assert.Equal("", PlayerNameKey.Compute("대한민국"));
+        Assert.Equal("daehanminguk", PlayerNameKey.Compute("대한민국"));
     }
 
     // Framing rather than spelling: the wrap is decoration and dropping it is what makes the tag
@@ -206,5 +208,51 @@ public class PlayerNameKeyTests
     public void Jamo_framing_a_name_is_still_dropped()
     {
         Assert.Equal("w", PlayerNameKey.Compute("\u3145W\u3145")); // ㅅWㅅ — "Wrath"
+    }
+
+    // Real rows from the catalogue that had NO key at all — 61 alliances and 3 players were
+    // unreachable by name because nothing in them was typeable.
+    [Theory]
+    [InlineData("やわらか", "yawaraka")]
+    [InlineData("ちんかす", "chinkasu")]
+    [InlineData("たぐたぐ", "tagutagu")]
+    [InlineData("のか", "noka")]
+    [InlineData("ツ", "tsu")]
+    [InlineData("キャプテンネモ", "kyaputennemo")]   // "Captain Nemo"
+    [InlineData("대한민국", "daehanminguk")]         // "Republic of Korea"
+    public void Kana_and_hangul_names_fall_back_to_romanisation(string name, string expected)
+    {
+        Assert.Equal(expected, PlayerNameKey.Compute(name));
+    }
+
+    // The guard that makes the fallback safe. Kana FRAMING a Latin name is decoration, and dropping
+    // it is what lets a member type "nobody" and find ッNobodyッ. Romanising unconditionally would
+    // key this as "tsunobodytsu" and break every name that already matches — so romanisation only
+    // ever runs when the Latin pass produced nothing.
+    [Theory]
+    [InlineData("ッNobodyッ", "nobody")]
+    [InlineData("神Ukitø神", "ukito")]
+    [InlineData("Para忠勇真孝", "para")]
+    public void Decorative_kana_around_a_latin_name_is_still_dropped(string name, string expected)
+    {
+        Assert.Equal(expected, PlayerNameKey.Compute(name));
+    }
+
+    // Han needs a language before it can be read — 大和 is "yamato", "dàhé" or "daehwa" depending on
+    // it, and the catalogue records none. Left unfindable by name rather than confidently wrong.
+    [Theory]
+    [InlineData("大和")]
+    [InlineData("連盟")]
+    [InlineData("銀河")]
+    public void Han_names_are_deliberately_left_without_a_key(string name)
+    {
+        Assert.Equal("", PlayerNameKey.Compute(name));
+    }
+
+    // Mixed scripts: the kana half romanises because the Latin pass found nothing to keep.
+    [Fact]
+    public void A_kana_name_with_a_han_character_keeps_what_it_can_read()
+    {
+        Assert.Equal("gazu", PlayerNameKey.Compute("急がず"));
     }
 }

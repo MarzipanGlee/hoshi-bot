@@ -277,6 +277,20 @@ public static class PlayerNameKey
     // callers treat that as "no key", never as "matches everything".
     public static string Compute(string name)
     {
+        var key = ComputeLatin(name);
+
+        // Nothing typeable survived, so the name is written entirely in a script this can't read:
+        // 대한민국, やわらか, キャプテンネモ. Romanising them is pure gain — it reaches names that had
+        // no key at all rather than changing one that worked.
+        //
+        // A FALLBACK on purpose, never the main path. Kana framing a Latin name (ッNobodyッ) is
+        // decoration that ComputeLatin is right to drop; romanising it unconditionally would make
+        // that "tsunobodytsu" and break every name that already matches.
+        return key.Length > 0 ? key : ComputeLatin(NameRomanizer.Romanize(name));
+    }
+
+    private static string ComputeLatin(string name)
+    {
         var builder = new StringBuilder(name.Length);
 
         // Runes, not chars. Iterating UTF-16 code units hands String.Normalize half a surrogate
