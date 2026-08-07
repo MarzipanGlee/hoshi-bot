@@ -15,7 +15,7 @@ namespace HoshiBot.Discord.Announcements;
 // plain-message drafting for attachments/length/template-reuse, not a modal (see the Phase 7 plan
 // section for why).
 public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService,
-    LanguageResolver languageResolver, ILogger<AnnouncementService> logger)
+    LanguageResolver languageResolver, GuildMemberNames memberNames, ILogger<AnnouncementService> logger)
 {
     public static ButtonProperties ReadButton(int announcementId, int count, Language lang) =>
         new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(lang, count), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Primary);
@@ -218,7 +218,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         // The clicking staff member, not the draft's author — this is the ephemeral reply to their
         // button press. Resolved through the cache because draft.Author is REST-fetched and so
         // carries no nickname; the two are usually the same person, and were both wrong before.
-        return (true, Msg.Announce.Published(callerLang, CommanderName.Of(gatewayClient, guildId, draft.Author), $"<#{channelIdValue}>"));
+        return (true, Msg.Announce.Published(callerLang, await memberNames.ResolveAsync(guildId, draft.Author), $"<#{channelIdValue}>"));
     }
 
     // The display names behind the publish buttons — legacy named its two destinations on the

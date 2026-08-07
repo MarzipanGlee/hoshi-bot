@@ -27,7 +27,7 @@ public class MemoryConsolidationJob(
     MemoryService memoryService,
     MemberNoteService noteService,
     GuildFeatureService featureService,
-    GatewayClient gatewayClient,
+    GuildMemberNames memberNames,
     ILogger<MemoryConsolidationJob> logger) : IJob
 {
     private const GuildAudience SettingsScope = GuildAudience.None;
@@ -104,7 +104,7 @@ public class MemoryConsolidationJob(
                 var text = AiChatIndexService.RenderMessageText(message);
                 if (string.IsNullOrWhiteSpace(text))
                     continue;
-                var authorName = CommanderName.Of(gatewayClient, guildId, message.Author);
+                var authorName = await memberNames.ResolveAsync(guildId, message.Author, cancellationToken);
                 var line = $"{authorName}: {text}";
                 episodicLines.Add(line);
                 if (!perChannelLines.TryGetValue(channelId, out var channelLines))

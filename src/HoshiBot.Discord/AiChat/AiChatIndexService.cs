@@ -33,6 +33,7 @@ public partial class AiChatIndexService(
     AiChatEmbeddingService embeddingService,
     AiChatHealthService healthService,
     IConfiguration configuration,
+    GuildMemberNames memberNames,
     ILogger<AiChatIndexService> logger)
 {
     // Discord's max messages per REST page — the unit of the progressive backfill's stepping.
@@ -105,7 +106,7 @@ public partial class AiChatIndexService(
                 ChannelId = message.ChannelId,
                 MessageId = message.Id,
                 ChannelName = channelName,
-                AuthorName = CommanderName.Of(gatewayClient, guildId, message.Author),
+                AuthorName = await memberNames.ResolveAsync(guildId, message.Author, cancellationToken),
                 Content = content,
                 CreatedAt = message.CreatedAt,
                 IndexedAt = now,
@@ -122,7 +123,7 @@ public partial class AiChatIndexService(
                 existing.EmbeddingModel = null;
             }
             existing.ChannelName = channelName ?? existing.ChannelName;
-            existing.AuthorName = CommanderName.Of(gatewayClient, guildId, message.Author);
+            existing.AuthorName = await memberNames.ResolveAsync(guildId, message.Author, cancellationToken);
             existing.IndexedAt = now;
         }
 
@@ -277,7 +278,7 @@ public partial class AiChatIndexService(
                     row.EmbeddingModel = null;
                 }
                 row.ChannelName = channelName ?? row.ChannelName;
-                row.AuthorName = CommanderName.Of(gatewayClient, guildId, x.Msg.Author);
+                row.AuthorName = await memberNames.ResolveAsync(guildId, x.Msg.Author, cancellationToken);
                 row.IndexedAt = now;
             }
             else
@@ -288,7 +289,7 @@ public partial class AiChatIndexService(
                     ChannelId = channelId,
                     MessageId = x.Msg.Id,
                     ChannelName = channelName,
-                    AuthorName = CommanderName.Of(gatewayClient, guildId, x.Msg.Author),
+                    AuthorName = await memberNames.ResolveAsync(guildId, x.Msg.Author, cancellationToken),
                     Content = x.Text,
                     CreatedAt = x.Msg.CreatedAt,
                     IndexedAt = now,

@@ -39,6 +39,7 @@ public partial class AiChatService(
     MemberNoteService memberNoteService,
     MemoryService memoryService,
     AiChatEmbeddingService embeddingService,
+    GuildMemberNames memberNames,
     GuildAllianceService allianceService,
     AiChatHealthService healthService,
     LanguageResolver languageResolver,
@@ -242,8 +243,8 @@ public partial class AiChatService(
                 var mentionable = new Dictionary<ulong, string>();
                 foreach (var m in history)
                     if (m.Author.Id != botId)
-                        mentionable[m.Author.Id] = CommanderName.Of(gatewayClient, guildId, m.Author);
-                mentionable[message.Author.Id] = CommanderName.Of(gatewayClient, guildId, message.Author);
+                        mentionable[m.Author.Id] = await memberNames.ResolveAsync(guildId, m.Author, cancellationToken);
+                mentionable[message.Author.Id] = await memberNames.ResolveAsync(guildId, message.Author, cancellationToken);
 
                 // Prior context from the recent window (the short conversational memory), excluding the
                 // triggering message — we append that ourselves below so the actual question is always
@@ -258,10 +259,10 @@ public partial class AiChatService(
                         continue;
                     turns.Add(m.Author.Id == botId
                         ? new AiChatTurn(AiChatRole.Assistant, text)
-                        : new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(gatewayClient, guildId, m.Author)}: {text}"));
+                        : new AiChatTurn(AiChatRole.User, $"{await memberNames.ResolveAsync(guildId, m.Author, cancellationToken)}: {text}"));
                 }
 
-                turns.Add(new AiChatTurn(AiChatRole.User, $"{CommanderName.Of(gatewayClient, guildId, message.Author)}: {content}"));
+                turns.Add(new AiChatTurn(AiChatRole.User, $"{await memberNames.ResolveAsync(guildId, message.Author, cancellationToken)}: {content}"));
 
                 var systemInstruction = await BuildSystemInstructionAsync(guildId, message.ChannelId, botName, systemExtra, addressed, content, mentionable, provider.KnowledgeSnippetLimit, model, provider.Kind, cancellationToken);
 

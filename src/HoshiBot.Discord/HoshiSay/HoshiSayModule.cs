@@ -26,6 +26,7 @@ public class HoshiSayModule(
     GuildFeatureSettingsService settingsService,
     GatewayClient gatewayClient,
     EmbedBranding embedBranding,
+    GuildMemberNames memberNames,
     LanguageResolver languageResolver)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
@@ -66,7 +67,7 @@ public class HoshiSayModule(
                 return Msg.Say.RoleRequired(lang, $"<@&{roleId}>");
 
             var text = await aiChat.ComposeMessageAsync(
-                guildId, Context.Channel.Id, instruction, member?.Id, member is null ? null : CommanderName.Of(gatewayClient, guildId, member), CancellationToken.None);
+                guildId, Context.Channel.Id, instruction, member?.Id, member is null ? null : await memberNames.ResolveAsync(guildId, member), CancellationToken.None);
             if (text is null)
                 return Msg.Say.ComposeFailed(lang);
 

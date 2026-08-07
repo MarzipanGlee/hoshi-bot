@@ -23,6 +23,7 @@ namespace HoshiBot.Discord.Announcements;
 public class AnnouncementDraftService(
     GatewayClient gatewayClient,
     AnnouncementService announcementService,
+    GuildMemberNames memberNames,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
     LanguageResolver languageResolver,
@@ -114,7 +115,7 @@ public class AnnouncementDraftService(
 
             // Through the cache: draft is REST-fetched, so its Author carries no guild nickname and
             // the salutation would fall back to the global name.
-            var commander = CommanderName.Of(gatewayClient, guildId, draft.Author);
+            var commander = await memberNames.ResolveAsync(guildId, draft.Author, cancellationToken);
 
             MessageProperties prompt;
             if (audiences.Count == 1)

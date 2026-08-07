@@ -116,6 +116,7 @@ builder.Services.AddScoped<NotificationDispatcher>();
 builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<TerritoryCaptureDigestService>();
 builder.Services.AddScoped<AnnouncementService>();
+builder.Services.AddSingleton<GuildMemberNames>();
 builder.Services.AddScoped<AnnouncementDraftService>();
 builder.Services.AddScoped<AnnouncementDraftHubService>();
 builder.Services.AddScoped<MemberLogService>();
