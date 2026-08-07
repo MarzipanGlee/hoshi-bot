@@ -36,8 +36,6 @@ public class GuildSettings
     // GuildAlliance.MemberRoleId the bot already uses).
     public ulong? CommandStaffRoleId { get; set; }
     public ulong? CrewsRoleId { get; set; }
-    public ulong? BetaTesterRoleId { get; set; }
-    public ulong? HoshiTesterRoleId { get; set; }
 
     // Stamped when a guild admin completes (or explicitly finishes, even having skipped
     // steps) the Setup Wizard — drives the "needs setup" nudge on Guilds/Index.razor.

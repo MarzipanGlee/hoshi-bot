@@ -59,9 +59,6 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.Staff, 0, "staff-shield-incursions", "BridgeItem.StaffShieldIncursions", Icons.Alert, GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Staff, 0, "staff-shield-territory-reset", "BridgeItem.StaffShieldTerritoryReset", Icons.Alert, GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Staff, 0, "staff-shield-mute", "BridgeItem.StaffShieldMute", Icons.RemindersOff, GuildFeature.ShieldReminders),
-        // Beta-tests toggles only the caller's own role — always shown on the staff bridge,
-        // not gated by a GuildFeature.
-        new(CommandBridgeKind.Staff, 1, "staff-beta-tests", "BridgeItem.StaffBetaTests", Icons.BetaTests, null),
         // Reads the roster gap out of the player links, so it follows Player Assignment's toggle:
         // without those links every player would look missing.
         new(CommandBridgeKind.Staff, 1, "staff-missing-players", "BridgeItem.StaffMissingPlayers", Icons.MissingPlayers, GuildFeature.PlayerLink),

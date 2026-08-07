@@ -86,7 +86,6 @@ public static class Icons
     public const string ChannelGuide = "🆘";
     public const string Help = "❓";
     public const string Absence = "⛺";
-    public const string BetaTests = "👷";
     public const string MissingPlayers = "🕵️";
     public const string RoeViolation = "🚫";
     public const string Translation = "🌐";

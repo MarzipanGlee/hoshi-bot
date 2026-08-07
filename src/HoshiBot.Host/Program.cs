@@ -132,7 +132,6 @@ builder.Services.AddScoped<AbsenceService>();
 builder.Services.AddScoped<AnonymousMessageService>();
 builder.Services.AddScoped<PendingModalInputService>();
 builder.Services.AddScoped<CommandBridgeHubService>();
-builder.Services.AddScoped<BetaTesterService>();
 builder.Services.AddScoped<StfcNewsService>();
 builder.Services.AddScoped<IAiChatProvider, GeminiClient>();
 builder.Services.AddScoped<IAiChatProvider, OllamaClient>();

@@ -17,8 +17,6 @@
 }
 <div class="card-grid mt-1">
     <RolePicker CardTitle="@Msg.WebGuild.CrewsTitle(Lang)" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
-    <RolePicker CardTitle="@Msg.WebGuild.BetaTesterTitle(Lang)" CreateRoleName="Beta Tester" @bind-Value="betaTesterRoleIdInput" @bind-Value:after="SaveBetaTesterRoleAsync" Roles="roles" />
-    <RolePicker CardTitle="@Msg.WebGuild.HoshiTesterTitle(Lang)" CreateRoleName="Hoshi Tester" @bind-Value="hoshiTesterRoleIdInput" @bind-Value:after="SaveHoshiTesterRoleAsync" Roles="roles" />
 </div>
 
 <h2>@Msg.WebCommon.Regional(Lang)</h2>
@@ -43,8 +41,6 @@
     private string? adminChannelIdInput;
     private string? userLogChannelIdInput;
     private string? crewsRoleIdInput;
-    private string? betaTesterRoleIdInput;
-    private string? hoshiTesterRoleIdInput;
     private string? languageInput;
     private string? discordLanguageName;
 
@@ -75,8 +71,6 @@
         adminChannelIdInput = settings.AdminChannelId?.ToString();
         userLogChannelIdInput = settings.UserLogChannelId?.ToString();
         crewsRoleIdInput = settings.CrewsRoleId?.ToString();
-        betaTesterRoleIdInput = settings.BetaTesterRoleId?.ToString();
-        hoshiTesterRoleIdInput = settings.HoshiTesterRoleId?.ToString();
         languageInput = settings.Language;
     }
 
@@ -117,6 +111,4 @@
     }
 
     private Task SaveCrewsRoleAsync() => SaveRoleAsync((s, id) => s.CrewsRoleId = id, crewsRoleIdInput, v => crewsRoleIdInput = v, "Crews");
-    private Task SaveBetaTesterRoleAsync() => SaveRoleAsync((s, id) => s.BetaTesterRoleId = id, betaTesterRoleIdInput, v => betaTesterRoleIdInput = v, "Beta Tester");
-    private Task SaveHoshiTesterRoleAsync() => SaveRoleAsync((s, id) => s.HoshiTesterRoleId = id, hoshiTesterRoleIdInput, v => hoshiTesterRoleIdInput = v, "Hoshi Tester");
 }

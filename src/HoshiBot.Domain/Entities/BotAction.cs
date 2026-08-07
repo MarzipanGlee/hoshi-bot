@@ -39,7 +39,6 @@ public enum BotAction
     /// Adding/removing an opt-in alert role from the Command Bridge.
     ToggleOptInRole,
 
-    AdjustBetaTesterRole,
 
     /// ThreadCleanupJob deleting a queued thread.
     RemoveThread,

@@ -36,8 +36,6 @@ public static class GuildSettingsSeedData
 
         CommandStaffRoleId = 813727551678840884,
         CrewsRoleId = 1044929004035113070,
-        BetaTesterRoleId = 1253341776970776637,
-        HoshiTesterRoleId = 1268128662457286687,
     };
 
     // This guild's single linked alliance, carrying the per-alliance channels/roles and Command

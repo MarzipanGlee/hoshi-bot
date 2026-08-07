@@ -234,7 +234,7 @@
             if (entry.Feature is { } feature)
                 items.Add(new OverviewItem(label, enabledForHub.Contains(feature), SlugFor(feature)));
             else
-                // Not gated by a feature (e.g. beta-tests) — always shown, no feature page.
+                // Not gated by a single GuildFeature — always shown, and no feature page to link to.
                 items.Add(new OverviewItem(label, true, null));
         }
 

@@ -168,12 +168,6 @@ public static partial class Msg
         public static string CrewsTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.CrewsTitle");
 
-        public static string BetaTesterTitle(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Guild.BetaTesterTitle");
-
-        public static string HoshiTesterTitle(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Guild.HoshiTesterTitle");
-
         public static string GuildLanguageUsage(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.GuildLanguageUsage");
 

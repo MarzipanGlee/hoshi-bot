@@ -661,8 +661,6 @@
   "Web.Guild.UserLogTitle": "User Log",
   "Web.Guild.UserLogUsage": "Member join and leave entries. Leave it empty to switch them off.",
   "Web.Guild.CrewsTitle": "Crews",
-  "Web.Guild.BetaTesterTitle": "Beta Tester",
-  "Web.Guild.HoshiTesterTitle": "Hoshi Tester",
   "Web.Guild.GuildLanguageUsage": "The bot's language for public posts in this guild. Audiences and alliances inherit it unless they set their own; members' ephemeral replies follow their personal language.",
   "Web.Guild.DiscordLanguageInherited": "Discord: {name}",
   "Web.Guild.TagHeader": "Tag",

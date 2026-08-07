@@ -156,38 +156,6 @@ public static partial class Msg
         public static string CancelButton(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.CancelButton");
 
-        // Staff bridge: beta-tester self-service toggle (CommandBridgeStaffBetaModule).
-        public static string BetaTitle(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaTitle");
-
-        public static string BetaRoleNotConfigured(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaRoleNotConfigured");
-
-        public static string BetaStatus(Language lang, string status) =>
-            MessageCatalog.Format(lang, "Bridge.BetaStatus", ("status", status));
-
-        public static string BetaOn(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaOn");
-
-        public static string BetaOff(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaOff");
-
-        public static string BetaEnableButton(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaEnableButton");
-
-        public static string BetaDisableButton(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaDisableButton");
-
-        public static string BetaEnabled(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaEnabled");
-
-        public static string BetaDisabled(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaDisabled");
-
-        public static string BetaToggleFailed(Language lang) =>
-            MessageCatalog.Format(lang, "Bridge.BetaToggleFailed");
-
-
 
         // Staff bridge: shield-loss report and mute management
         // (CommandBridgeStaffButtonModule + CommandBridgeStaffMenuModule).
