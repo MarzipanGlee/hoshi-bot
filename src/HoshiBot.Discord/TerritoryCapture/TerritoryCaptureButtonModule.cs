@@ -11,7 +11,8 @@ public class TerritoryCaptureButtonModule(
     HoshiBotDbContext db,
     EmbedBranding embedBranding,
     LanguageResolver languageResolver,
-    GuildFeatureService featureService) : ComponentInteractionModule<ButtonInteractionContext>
+    GuildFeatureService featureService,
+    GuildFeatureSettingsService settingsService) : ComponentInteractionModule<ButtonInteractionContext>
 {
     [ComponentInteraction("territory-capture-unsubscribe")]
     public Task Unsubscribe(int territoryId, long startUnix, long endUnix) =>
@@ -20,8 +21,7 @@ public class TerritoryCaptureButtonModule(
             var guildId = Context.Guild!.Id;
             var userId = Context.User.Id;
 
-            // The confirmation is ephemeral to the clicking member — their language (also used
-            // for the stored absence reason: it's their own absence row).
+            // The confirmation is ephemeral to the clicking member, so it renders in their language.
             var lang = await languageResolver.ForUserAsync(userId, Context.Interaction.UserLocale, guildId);
 
             // New digests/reminders stop rendering the button as soon as either feature goes off,
@@ -50,13 +50,19 @@ public class TerritoryCaptureButtonModule(
 
             var territory = await db.StfcTerritories.FindAsync(territoryId);
 
+            // The reason is NOT the clicking member's language: it's stored verbatim and read back
+            // out on the alliance's public absence report, which renders in the alliance language.
+            // A German alliance was getting "Sign-off for Tigan" among its "Abmeldung für …" rows,
+            // purely because that member's own client is English.
+            var reasonLang = await SignOffLanguageAsync(guildId);
+
             db.Absences.Add(new Absence
             {
                 GuildId = guildId,
                 DiscordUserId = userId,
                 StartsAt = start,
                 EndsAt = end,
-                Reason = territory is null ? Msg.Tc.AbsenceReasonGeneric(lang) : Msg.Tc.AbsenceReason(lang, territory.Name),
+                Reason = territory is null ? Msg.Tc.AbsenceReasonGeneric(reasonLang) : Msg.Tc.AbsenceReason(reasonLang, territory.Name),
                 SuppressNotifications = false,
                 CreatedByDiscordUserId = userId,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -66,4 +72,26 @@ public class TerritoryCaptureButtonModule(
 
             return Msg.Tc.AbsenceRecorded(lang, CommanderName.Of(Context.User));
         });
+
+    // Which alliance's language the stored reason renders in. The button's custom id predates this
+    // and carries no alliance, so the alliance is recovered from the channel the digest was posted
+    // to — every sign-off button lives in that alliance's TerritoryCapture DigestChannel. Same
+    // channel-to-alliance recovery the staff bridge does, and it works for buttons already posted.
+    //
+    // Falls back to the guild language when the channel can't be matched (the setting was repointed
+    // after the digest went out): still a scope language, never the clicking member's.
+    private async Task<Language> SignOffLanguageAsync(ulong guildId)
+    {
+        var scopes = await settingsService.FindScopesByValueAsync(
+            guildId, GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.DigestChannel, Context.Channel.Id);
+
+        var guildAllianceId = scopes
+            .Where(s => s.Audience == GuildAudience.Alliance)
+            .Select(s => s.GuildAllianceId)
+            .FirstOrDefault(id => id is not null);
+
+        return guildAllianceId is { } allianceId
+            ? await languageResolver.ForAllianceAsync(allianceId)
+            : await languageResolver.ForGuildAsync(guildId);
+    }
 }
