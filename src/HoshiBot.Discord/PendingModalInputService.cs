@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -19,10 +20,10 @@ public class PendingModalInputService(HoshiBotDbContext db)
     // ↩️ rather than 🔙 — the "BACK" glyph renders as small dark text that washes out on the grey
     // secondary button; a plain return arrow reads clearly.
     public static ButtonProperties BackButton(int id, Language lang) =>
-        new($"modal-retry-back:{id}", Msg.Bridge.BackButton(lang), EmojiProperties.Standard("↩️"), ButtonStyle.Secondary);
+        new($"modal-retry-back:{id}", Msg.Bridge.BackButton(lang), EmojiProperties.Standard(Icons.Back), ButtonStyle.Secondary);
 
     public static ButtonProperties CancelButton(int id, Language lang) =>
-        new($"modal-retry-cancel:{id}", Msg.Bridge.CancelButton(lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
+        new($"modal-retry-cancel:{id}", Msg.Bridge.CancelButton(lang), EmojiProperties.Standard(Icons.Cancel), ButtonStyle.Danger);
 
     public async Task<int> CreateAsync(ulong guildId, ulong userId, PendingModalInputKind kind,
         string? field1 = null, string? field2 = null, string? field3 = null, string? field4 = null)

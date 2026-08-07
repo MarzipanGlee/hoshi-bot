@@ -43,9 +43,9 @@ public class AbsenceButtonModule(AbsenceService absenceService, EmbedBranding em
             // matches the legacy bot's behavior instead of hiding the buttons outright.
             var buttons = new List<ButtonProperties>
             {
-                new("absence-create", Msg.Absence.CreateTitle(lang), EmojiProperties.Standard("➕"), ButtonStyle.Success),
-                new ButtonProperties("absence-edit", Msg.Absence.EditTitle(lang), EmojiProperties.Standard("✏️"), ButtonStyle.Primary) { Disabled = !hasOwn },
-                new ButtonProperties("absence-delete", Msg.Absence.DeleteTitle(lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger) { Disabled = !hasOwn },
+                new("absence-create", Msg.Absence.CreateTitle(lang), EmojiProperties.Standard(Icons.Add), ButtonStyle.Success),
+                new ButtonProperties("absence-edit", Msg.Absence.EditTitle(lang), EmojiProperties.Standard(Icons.Edit), ButtonStyle.Primary) { Disabled = !hasOwn },
+                new ButtonProperties("absence-delete", Msg.Absence.DeleteTitle(lang), EmojiProperties.Standard(Icons.Cancel), ButtonStyle.Danger) { Disabled = !hasOwn },
             };
 
             var description = Msg.Absence.ManageIntro(lang, CommanderName.Of(Context.User), AbsenceService.BuildOwnListText(own, lang));

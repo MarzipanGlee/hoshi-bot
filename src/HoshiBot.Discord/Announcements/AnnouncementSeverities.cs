@@ -1,3 +1,4 @@
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 
@@ -15,10 +16,10 @@ public static class AnnouncementSeverities
 
     public static string Emoji(AnnouncementSeverity severity) => severity switch
     {
-        AnnouncementSeverity.Elevated => "🟨",
-        AnnouncementSeverity.High => "🟥",
-        AnnouncementSeverity.Direct => "🟦",
-        _ => "🟩",
+        AnnouncementSeverity.Elevated => Icons.SeverityElevated,
+        AnnouncementSeverity.High => Icons.SeverityHigh,
+        AnnouncementSeverity.Direct => Icons.SeverityDirect,
+        _ => Icons.SeverityNormal,
     };
 
     // Null for every other emoji — a member reacting 👍 to a draft must be ignored, not guessed at.

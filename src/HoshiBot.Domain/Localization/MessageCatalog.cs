@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -22,13 +23,18 @@ public static partial class MessageCatalog
     public static string Format(Language language, string key, params (string Name, object? Value)[] args)
     {
         var template = Lookup(language, key);
-        if (args.Length == 0)
+        // Icon placeholders need resolving even with no caller arguments, so this can't take the
+        // old "no args, no work" shortcut; the cheap check is whether there's a placeholder at all.
+        if (!template.Contains('{'))
             return template;
 
         var culture = Languages.ToCulture(language);
         return PlaceholderRegex().Replace(template, match =>
         {
             var name = match.Groups[1].Value;
+            if (name == IconPlaceholder && match.Groups[2].Success && ResolveIcon(match.Groups[2].Value) is { } icon)
+                return icon;
+
             foreach (var (argName, value) in args)
             {
                 if (argName != name)
@@ -62,6 +68,32 @@ public static partial class MessageCatalog
         allArgs[0] = ("count", count);
         args.CopyTo(allArgs, 1);
         return Format(language, key, allArgs);
+    }
+
+    // "{icon:Name}" pulls from the Icons registry — including the nested Text group, addressed as
+    // "{icon:Text.Check}". Returns null for an unknown name so the token stays visible in the output
+    // rather than silently rendering as nothing; MessageCatalogTests fails the build on one.
+    private const string IconPlaceholder = "icon";
+
+    public static string? ResolveIcon(string name) => IconsByName.GetValueOrDefault(name);
+
+    // Every public string constant on Icons, keyed by "Name" or "Group.Name".
+    public static readonly FrozenDictionary<string, string> IconsByName = CollectIcons(typeof(Icons), "")
+        .ToFrozenDictionary();
+
+    private static IEnumerable<KeyValuePair<string, string>> CollectIcons(Type type, string prefix)
+    {
+        foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field is { IsLiteral: true, FieldType: { } t } && t == typeof(string) && field.GetRawConstantValue() is string value)
+                yield return new KeyValuePair<string, string>(prefix + field.Name, value);
+        }
+
+        foreach (var nested in type.GetNestedTypes(BindingFlags.Public))
+        {
+            foreach (var entry in CollectIcons(nested, $"{prefix}{nested.Name}."))
+                yield return entry;
+        }
     }
 
     // Exposed for the parity tests (key/placeholder comparison across locales).

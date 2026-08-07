@@ -56,16 +56,16 @@
                                         <span class="badge bg-secondary d-inline-flex align-items-center gap-1">
                                             @if (link.IsGuildPrimary)
                                             {
-                                                <span title="@Msg.WebPlayerAssignmentsAdmin.RepresentsTitle(Lang)">★</span>
+                                                <span title="@Msg.WebPlayerAssignmentsAdmin.RepresentsTitle(Lang)">@Icons.Text.Primary</span>
                                             }
                                             <span>@PlayerLabel.Of(link.Name, link.ServerName, link.AllianceTag)</span>
                                             @if (!link.IsGuildPrimary)
                                             {
                                                 <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                        title="@Msg.WebPlayerAssignmentsAdmin.UseHereTitle(Lang)" @onclick="() => SetGuildPrimaryAsync(m.Id, link.PlayerId)">☆</button>
+                                                        title="@Msg.WebPlayerAssignmentsAdmin.UseHereTitle(Lang)" @onclick="() => SetGuildPrimaryAsync(m.Id, link.PlayerId)">@Icons.Text.NotPrimary</button>
                                             }
                                             <button type="button" class="btn btn-sm btn-link p-0 text-white text-decoration-none"
-                                                    title="@Msg.WebCommon.Remove(Lang)" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">✕</button>
+                                                    title="@Msg.WebCommon.Remove(Lang)" @onclick="() => UnlinkAsync(m.Id, link.PlayerId)">@Icons.Text.Cross</button>
                                         </span>
                                     }
                                     @if (addingForUserId == m.Id)

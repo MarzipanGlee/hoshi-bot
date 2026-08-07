@@ -1,5 +1,6 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -151,7 +152,7 @@ public class CommandBridgeHubService(
         return configured.Select(audience => new ButtonProperties(
             $"contact-command-staff:{audience}",
             configured.Count > 1 ? Msg.Bridge.ContactStaffAudience(lang, GuildFeatureService.AudienceLabel(audience, lang)) : Msg.Bridge.ContactTitle(lang),
-            EmojiProperties.Standard("📮"), ButtonStyle.Primary)).ToList();
+            EmojiProperties.Standard(Icons.ContactStaff), ButtonStyle.Primary)).ToList();
     }
 
     private static string Title(CommandBridgeKind bridge, Language lang) => bridge switch

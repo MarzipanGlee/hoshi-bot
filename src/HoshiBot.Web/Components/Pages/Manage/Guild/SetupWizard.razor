@@ -290,8 +290,8 @@
 
     private static string ChannelLabel(IGuildChannel channel) => channel switch
     {
-        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
-        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        VoiceGuildChannel or StageGuildChannel => $"{Icons.VoiceChannel} {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"{Icons.ForumChannel} {channel.Name}",
         _ => $"# {channel.Name}",
     };
 

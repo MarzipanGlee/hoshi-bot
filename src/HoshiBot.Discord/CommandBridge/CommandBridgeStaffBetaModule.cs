@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
@@ -35,8 +36,8 @@ public class CommandBridgeStaffBetaModule(BetaTesterService betaTesterService, E
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties("staff-beta-tests-set:on", Msg.Bridge.BetaEnableButton(lang), EmojiProperties.Standard("▶️"), ButtonStyle.Primary) { Disabled = hasRole },
-                    new ButtonProperties("staff-beta-tests-set:off", Msg.Bridge.BetaDisableButton(lang), EmojiProperties.Standard("⏹️"), ButtonStyle.Secondary) { Disabled = !hasRole },
+                    new ButtonProperties("staff-beta-tests-set:on", Msg.Bridge.BetaEnableButton(lang), EmojiProperties.Standard(Icons.Start), ButtonStyle.Primary) { Disabled = hasRole },
+                    new ButtonProperties("staff-beta-tests-set:off", Msg.Bridge.BetaDisableButton(lang), EmojiProperties.Standard(Icons.Stop), ButtonStyle.Secondary) { Disabled = !hasRole },
                 ]),
             ],
         };

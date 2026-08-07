@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Localization;
 using NetCord;
 using NetCord.Rest;
@@ -29,8 +30,8 @@ public class CommandBridgeUserMenuModule(EmbedBranding embedBranding, LanguageRe
             [
                 new ActionRowProperties(
                 [
-                    new ButtonProperties($"raid-report-location-home:{target.Id}", Msg.Bridge.HomeServerButton(lang), EmojiProperties.Standard("🏠"), ButtonStyle.Primary),
-                    new ButtonProperties($"raid-report-location-enemy:{target.Id}", Msg.Bridge.EnemyServerButton(lang), EmojiProperties.Standard("⚔️"), ButtonStyle.Danger),
+                    new ButtonProperties($"raid-report-location-home:{target.Id}", Msg.Bridge.HomeServerButton(lang), EmojiProperties.Standard(Icons.HomeServer), ButtonStyle.Primary),
+                    new ButtonProperties($"raid-report-location-enemy:{target.Id}", Msg.Bridge.EnemyServerButton(lang), EmojiProperties.Standard(Icons.EnemyServer), ButtonStyle.Danger),
                 ]),
             ];
         });

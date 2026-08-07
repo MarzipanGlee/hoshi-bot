@@ -347,7 +347,7 @@ public partial class TerritoryCaptureDigestService(
             ? known
                 .Select(z => new ButtonProperties(
                     $"territory-capture-unsubscribe:{z.Territory.Id}:{z.Start.ToUnixTimeSeconds()}:{z.End.ToUnixTimeSeconds()}",
-                    Msg.Tc.UnsubscribeButton(lang, z.Territory.Name), EmojiProperties.Standard(DigitEmoji(z.SlotIndex)), ButtonStyle.Primary))
+                    Msg.Tc.UnsubscribeButton(lang, z.Territory.Name), EmojiProperties.Standard(Icons.Keycap(z.SlotIndex)), ButtonStyle.Primary))
                 .ToList()
             : [];
 
@@ -465,19 +465,4 @@ public partial class TerritoryCaptureDigestService(
             .ToListAsync();
     }
 
-    // Keycap-digit emoji for a button icon (1️⃣ … 9️⃣), matching legacy's per-zone digit emoji.
-    // Slot indices are 1-5 in practice; the fallback only guards an unexpected value.
-    private static string DigitEmoji(int digit) => digit switch
-    {
-        1 => "1️⃣",
-        2 => "2️⃣",
-        3 => "3️⃣",
-        4 => "4️⃣",
-        5 => "5️⃣",
-        6 => "6️⃣",
-        7 => "7️⃣",
-        8 => "8️⃣",
-        9 => "9️⃣",
-        _ => "🔢",
-    };
 }

@@ -1,5 +1,6 @@
 using System.Net;
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -32,7 +33,7 @@ public sealed class PermissionAuditService(
     private static bool IsManage(Permissions perms) =>
         perms.HasFlag(Permissions.Administrator) || perms.HasFlag(Permissions.ManageRoles);
 
-    private static string Mark(bool granted) => granted ? "✅" : "❌";
+    private static string Mark(bool granted) => granted ? Icons.Ok : Icons.Error;
 
     // Display label per permission — catalog-backed for the handful the audits require;
     // any other flag falls back to its enum name (Msg.WebAudit.Perm's own fallback).
@@ -544,8 +545,8 @@ public sealed record PermissionAuditContext(
 
     public static string ChannelLabel(IGuildChannel channel) => channel switch
     {
-        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
-        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        VoiceGuildChannel or StageGuildChannel => $"{Icons.VoiceChannel} {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"{Icons.ForumChannel} {channel.Name}",
         _ => $"# {channel.Name}",
     };
 

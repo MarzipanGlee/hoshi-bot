@@ -47,11 +47,11 @@
                     <ul class="list-unstyled mb-0">
                         @foreach (var item in items.Where(i => i.Shown))
                         {
-                            <li>✅ @Link(item)</li>
+                            <li>@Icons.Ok @Link(item)</li>
                         }
                         @foreach (var item in items.Where(i => !i.Shown))
                         {
-                            <li class="text-muted">🚫 @Link(item) <span class="small">@Msg.WebCommandBridge.Hidden(Lang)</span></li>
+                            <li class="text-muted">@Icons.Blocked @Link(item) <span class="small">@Msg.WebCommandBridge.Hidden(Lang)</span></li>
                         }
                     </ul>
                 }

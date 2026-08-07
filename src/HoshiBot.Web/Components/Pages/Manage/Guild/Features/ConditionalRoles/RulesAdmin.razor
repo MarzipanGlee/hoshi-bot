@@ -94,7 +94,7 @@
                                 <td class="condition-expand-col">
                                     <button type="button" class="btn btn-sm btn-link condition-expand" @onclick="() => ToggleExpanded(listed.Id)"
                                             aria-expanded="@expanded.Contains(listed.Id)" title="@listed.Name">
-                                        @(expanded.Contains(listed.Id) ? "▾" : "▸")
+                                        @(expanded.Contains(listed.Id) ? Icons.Text.Expanded : Icons.Text.Collapsed)
                                     </button>
                                 </td>
                                 <td>@listed.Name</td>

@@ -1,6 +1,7 @@
 using System.Net;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -36,10 +37,10 @@ public class RoeViolationService(
             diplomatMention);
 
     public static ButtonProperties ReadyButton(int reportId, Language lang) =>
-        new($"roe-violation-ready:{reportId}", Msg.Roe.ReadyButton(lang), EmojiProperties.Standard("✅"), ButtonStyle.Success);
+        new($"roe-violation-ready:{reportId}", Msg.Roe.ReadyButton(lang), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Success);
 
     public static ButtonProperties DoneButton(int reportId, Language lang) =>
-        new($"roe-violation-done:{reportId}", Msg.Roe.DoneButton(lang), EmojiProperties.Standard("❌"), ButtonStyle.Danger);
+        new($"roe-violation-done:{reportId}", Msg.Roe.DoneButton(lang), EmojiProperties.Standard(Icons.Error), ButtonStyle.Danger);
 
     // Shared by both entry points that open this modal (CommandBridgeButtonModule for the
     // to/from branches, RoeViolationUserMenuModule for the other branch) — same 2-field

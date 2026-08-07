@@ -87,6 +87,14 @@ File placement rules:
   everything else new needs both locales in the same commit.
 - **Everything else is English**: code, comments, commit messages, docs, and
   slash-command canonical names/descriptions.
+- **Never write an emoji literal** — every symbol lives in
+  `src/HoshiBot.Domain/Icons.cs`. Code references `Icons.Ok`; locale strings
+  reference `"{icon:Ok} …"`, resolved by `MessageCatalog` so a symbol is never
+  duplicated across `en`/`de`. Add a *name*, not a copy, when you need a new one.
+  Emoji vs. text presentation is deliberate: Discord gets the full-colour set,
+  the Web admin's dense tables get the monochrome `Icons.Text` group. The reason
+  for the registry is that copies drift invisibly — a diff won't show you that
+  one of two ⚠️ lost its variation selector, and `IconsTests` will.
 
 ## Coding conventions
 

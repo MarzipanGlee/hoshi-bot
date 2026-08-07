@@ -168,7 +168,7 @@
                                             }
                                             else
                                             {
-                                                <span class="text-danger">⚠ @result.BlockReason</span>
+                                                <span class="text-danger">@Icons.Text.Warning @result.BlockReason</span>
                                             }
                                         }
                                         @if (FixStatus.TryGetValue(result.ChannelId, out var status))
@@ -220,9 +220,9 @@
 
     private static string StatusIcon(FeaturePermissionStatus status) => status switch
     {
-        FeaturePermissionStatus.Ok => "✅",
-        FeaturePermissionStatus.Missing => "❌",
-        FeaturePermissionStatus.ChannelMissing => "🚫",
+        FeaturePermissionStatus.Ok => Icons.Ok,
+        FeaturePermissionStatus.Missing => Icons.Error,
+        FeaturePermissionStatus.ChannelMissing => Icons.Blocked,
         _ => "•",
     };
 

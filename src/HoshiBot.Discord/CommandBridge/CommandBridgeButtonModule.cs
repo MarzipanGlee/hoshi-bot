@@ -2,6 +2,7 @@ using HoshiBot.Data;
 using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.RoeViolations;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -148,12 +149,12 @@ public class CommandBridgeButtonModule(AlertService alertService, AnnouncementSe
         if (ticketsEnabled)
         {
             lines.Add(Msg.Bridge.ContactTicketOption(lang));
-            buttons.Add(new ButtonProperties($"ticket-open:{audience}", Msg.Bridge.TicketOpen(lang), EmojiProperties.Standard("🎟️"), ButtonStyle.Primary));
+            buttons.Add(new ButtonProperties($"ticket-open:{audience}", Msg.Bridge.TicketOpen(lang), EmojiProperties.Standard(Icons.Ticket), ButtonStyle.Primary));
         }
         if (anonymousEnabled)
         {
             lines.Add(Msg.Bridge.ContactAnonymousOption(lang));
-            buttons.Add(new ButtonProperties($"anonymous-message:{audience}", Msg.Bridge.AnonymousMessage(lang), EmojiProperties.Standard("📮"), ButtonStyle.Primary));
+            buttons.Add(new ButtonProperties($"anonymous-message:{audience}", Msg.Bridge.AnonymousMessage(lang), EmojiProperties.Standard(Icons.ContactStaff), ButtonStyle.Primary));
         }
 
         if (buttons.Count == 0)

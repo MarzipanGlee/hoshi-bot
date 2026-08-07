@@ -29,10 +29,10 @@ public class AbsenceService(
     private static readonly TimeSpan DraftTtl = TimeSpan.FromMinutes(15);
 
     public static ButtonProperties ConfirmButton(int draftId, Language lang) =>
-        new($"absence-confirm:{draftId}", Msg.Absence.ConfirmButton(lang), EmojiProperties.Standard("✅"), ButtonStyle.Success);
+        new($"absence-confirm:{draftId}", Msg.Absence.ConfirmButton(lang), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Success);
 
     public static ButtonProperties CancelButton(int draftId, Language lang) =>
-        new($"absence-cancel:{draftId}", Msg.Absence.CancelButton(lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
+        new($"absence-cancel:{draftId}", Msg.Absence.CancelButton(lang), EmojiProperties.Standard(Icons.Cancel), ButtonStyle.Danger);
 
     // No bold sub-heading here — the caller's embed Title and intro sentence already frame
     // this as "Deine Abwesenheiten", so this is just the bulleted list itself.

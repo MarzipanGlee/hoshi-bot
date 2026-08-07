@@ -37,7 +37,7 @@
                 <optgroup label="@Msg.WebCommon.WholeCategory(Lang)">
                     @foreach (var category in CategoryOptions)
                     {
-                        <option value="@category.Id">📁 @category.Name</option>
+                        <option value="@category.Id">@Icons.Category @category.Name</option>
                     }
                 </optgroup>
             }
@@ -157,8 +157,8 @@
     private string ChannelLabel(IGuildChannel channel) => channel switch
     {
         CategoryGuildChannel => Msg.WebCommon.WholeCategoryOption(Lang, channel.Name),
-        VoiceGuildChannel or StageGuildChannel => $"🔊 {channel.Name}",
-        ForumGuildChannel or MediaForumGuildChannel => $"📋 {channel.Name}",
+        VoiceGuildChannel or StageGuildChannel => $"{Icons.VoiceChannel} {channel.Name}",
+        ForumGuildChannel or MediaForumGuildChannel => $"{Icons.ForumChannel} {channel.Name}",
         _ => $"# {channel.Name}",
     };
 }

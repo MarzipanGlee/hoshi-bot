@@ -1,4 +1,5 @@
 using HoshiBot.Data;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
     LanguageResolver languageResolver, ILogger<AnnouncementService> logger)
 {
     public static ButtonProperties ReadButton(int announcementId, int count, Language lang) =>
-        new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(lang, count), EmojiProperties.Standard("✅"), ButtonStyle.Secondary);
+        new($"announcement-read:{announcementId}", Msg.Announce.ReadButton(lang, count), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Secondary);
 
     // First line of the draft = title, remainder = body — matches legacy's exact convention.
     public static (string Title, string Body) ParseDraft(string content)

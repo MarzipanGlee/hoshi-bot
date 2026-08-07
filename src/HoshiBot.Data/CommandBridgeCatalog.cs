@@ -44,31 +44,31 @@ public static class CommandBridgeCatalog
     public static readonly IReadOnlyList<CommandBridgeButton> Buttons =
     [
         // ---- User bridge (matches the legacy/current "Kommandobrücke") ----
-        new(CommandBridgeKind.User, 0, "roe-violation-report", "Feature.RoeViolationReports", "🚫", GuildFeature.RoeViolationReports),
-        new(CommandBridgeKind.User, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", "⏰", GuildFeature.ShieldReminders),
-        new(CommandBridgeKind.User, 0, "raid-report", "Feature.RaidAlerts", "🚨", GuildFeature.RaidAlerts),
-        new(CommandBridgeKind.User, 1, "announcement-show-unread", "BridgeItem.AnnouncementsUnread", "🟩", GuildFeature.Announcements),
+        new(CommandBridgeKind.User, 0, "roe-violation-report", "Feature.RoeViolationReports", Icons.RoeViolation, GuildFeature.RoeViolationReports),
+        new(CommandBridgeKind.User, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", Icons.Reminder, GuildFeature.ShieldReminders),
+        new(CommandBridgeKind.User, 0, "raid-report", "Feature.RaidAlerts", Icons.Alert, GuildFeature.RaidAlerts),
+        new(CommandBridgeKind.User, 1, "announcement-show-unread", "BridgeItem.AnnouncementsUnread", Icons.SeverityNormal, GuildFeature.Announcements),
         new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
-        new(CommandBridgeKind.User, 1, "absence-manage", "Feature.Absences", "⛺", GuildFeature.Absences),
-        new(CommandBridgeKind.User, 2, "contact-command-staff", "BridgeItem.ContactStaff", "📮", null, CommandBridgeButtonKind.ContactStaff),
+        new(CommandBridgeKind.User, 1, "absence-manage", "Feature.Absences", Icons.Absence, GuildFeature.Absences),
+        new(CommandBridgeKind.User, 2, "contact-command-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
 
         // ---- Staff bridge ("Kommandobrücke Führungsstab") ----
-        new(CommandBridgeKind.Staff, 0, "staff-shield-report", "BridgeItem.StaffShieldReport", "🚨", GuildFeature.ShieldReminders),
-        new(CommandBridgeKind.Staff, 0, "staff-shield-incursions", "BridgeItem.StaffShieldIncursions", "🚨", GuildFeature.ShieldReminders),
-        new(CommandBridgeKind.Staff, 0, "staff-shield-territory-reset", "BridgeItem.StaffShieldTerritoryReset", "🚨", GuildFeature.ShieldReminders),
+        new(CommandBridgeKind.Staff, 0, "staff-shield-report", "BridgeItem.StaffShieldReport", Icons.Alert, GuildFeature.ShieldReminders),
+        new(CommandBridgeKind.Staff, 0, "staff-shield-incursions", "BridgeItem.StaffShieldIncursions", Icons.Alert, GuildFeature.ShieldReminders),
+        new(CommandBridgeKind.Staff, 0, "staff-shield-territory-reset", "BridgeItem.StaffShieldTerritoryReset", Icons.Alert, GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Staff, 0, "staff-shield-mute", "BridgeItem.StaffShieldMute", Icons.RemindersOff, GuildFeature.ShieldReminders),
         // Beta-tests toggles only the caller's own role — always shown on the staff bridge,
         // not gated by a GuildFeature.
-        new(CommandBridgeKind.Staff, 1, "staff-beta-tests", "BridgeItem.StaffBetaTests", "👷", null),
+        new(CommandBridgeKind.Staff, 1, "staff-beta-tests", "BridgeItem.StaffBetaTests", Icons.BetaTests, null),
         // Reads the roster gap out of the player links, so it follows Player Assignment's toggle:
         // without those links every player would look missing.
-        new(CommandBridgeKind.Staff, 1, "staff-missing-players", "BridgeItem.StaffMissingPlayers", "🕵️", GuildFeature.PlayerLink),
+        new(CommandBridgeKind.Staff, 1, "staff-missing-players", "BridgeItem.StaffMissingPlayers", Icons.MissingPlayers, GuildFeature.PlayerLink),
 
         // ---- Friends bridge ("Kommandobrücke Freunde") — a trimmed user subset ----
-        new(CommandBridgeKind.Friends, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", "⏰", GuildFeature.ShieldReminders),
-        new(CommandBridgeKind.Friends, 0, "raid-report", "Feature.RaidAlerts", "🚨", GuildFeature.RaidAlerts),
+        new(CommandBridgeKind.Friends, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", Icons.Reminder, GuildFeature.ShieldReminders),
+        new(CommandBridgeKind.Friends, 0, "raid-report", "Feature.RaidAlerts", Icons.Alert, GuildFeature.RaidAlerts),
         new(CommandBridgeKind.Friends, 0, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
-        new(CommandBridgeKind.Friends, 0, "contact-command-staff", "BridgeItem.ContactStaff", "📮", null, CommandBridgeButtonKind.ContactStaff),
+        new(CommandBridgeKind.Friends, 0, "contact-command-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
     ];
 
     public static IEnumerable<CommandBridgeButton> ForBridge(CommandBridgeKind bridge) =>

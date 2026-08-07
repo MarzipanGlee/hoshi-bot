@@ -1,4 +1,5 @@
 using HoshiBot.Discord.AiChat;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Localization;
 using Microsoft.Extensions.Logging;
 
@@ -15,9 +16,9 @@ public class InterviewOpener(ILogger<InterviewOpener> logger)
     // say any language is fine, and keep the opt-out tail pointing at the decline button. It asks no
     // interview questions at all — BuildInterviewPrompt asks those properly, one turn at a time.
     private const string Template =
-        "🖖 Hi! I'm {botName}, communication officer of {alliance}. Do you have a short moment to " +
+        Icons.Hoshi + " Hi! I'm {botName}, communication officer of {alliance}. Do you have a short moment to " +
         "chat? I'd love to get to know you a little better — and don't worry about the language, " +
-        "just write in whatever you're comfortable with, I speak them all. 😄\n\n" +
+        "just write in whatever you're comfortable with, I speak them all. " + Icons.Smile + "\n\n" +
         "Completely optional — if you're not in the mood right now, just click the No-thanks button " +
         "below and I'll leave you alone.";
 

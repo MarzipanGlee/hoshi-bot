@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using HoshiBot.Data;
 using HoshiBot.Discord.Notifications;
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -22,7 +23,7 @@ public class TicketService(
     LanguageResolver languageResolver)
 {
     public static ButtonProperties CloseButton(int ticketId, Language lang) =>
-        new($"ticket-close:{ticketId}", Msg.Ticket.CloseButton(lang), EmojiProperties.Standard("✖️"), ButtonStyle.Danger);
+        new($"ticket-close:{ticketId}", Msg.Ticket.CloseButton(lang), EmojiProperties.Standard(Icons.Cancel), ButtonStyle.Danger);
 
     public static UserMenuProperties AddCommanderMenu(int ticketId, Language lang) =>
         new($"ticket-add-commander:{ticketId}") { Placeholder = Msg.Ticket.AddCommanderMenu(lang) };

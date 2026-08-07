@@ -1,3 +1,4 @@
+using HoshiBot.Domain;
 using HoshiBot.Domain.Entities;
 using HoshiBot.Domain.Localization;
 using NetCord;
@@ -31,8 +32,8 @@ public static class StfcNewsMessageBuilder
                     $"<@{post.SubmittedByDiscordUserId}>", date, confirmationCount, post.RequiredConfirmations),
                 Color = EmbedBranding.WarningColor,
             }, [
-                new ButtonProperties($"stfc-news-confirm:{post.Id}", Msg.News.ConfirmButton(lang), EmojiProperties.Standard("✅"), ButtonStyle.Success),
-                new ButtonProperties($"stfc-news-edit:{post.Id}", Msg.News.EditButton(lang), EmojiProperties.Standard("✏️"), ButtonStyle.Secondary),
+                new ButtonProperties($"stfc-news-confirm:{post.Id}", Msg.News.ConfirmButton(lang), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Success),
+                new ButtonProperties($"stfc-news-edit:{post.Id}", Msg.News.EditButton(lang), EmojiProperties.Standard(Icons.Edit), ButtonStyle.Secondary),
             ]);
         }
 
@@ -41,7 +42,7 @@ public static class StfcNewsMessageBuilder
             Description = Msg.News.NewPostBody(lang, post.Title, post.Link),
             Color = EmbedBranding.InformationColor,
         }, [
-            new ButtonProperties($"stfc-news-enter-date:{post.Id}", Msg.News.EnterDateTitle(lang), EmojiProperties.Standard("📅"), ButtonStyle.Primary),
+            new ButtonProperties($"stfc-news-enter-date:{post.Id}", Msg.News.EnterDateTitle(lang), EmojiProperties.Standard(Icons.Date), ButtonStyle.Primary),
         ]);
     }
 }

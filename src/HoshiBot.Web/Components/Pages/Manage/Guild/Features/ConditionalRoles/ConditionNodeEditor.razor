@@ -42,7 +42,7 @@
                                placeholder="@Msg.WebConditionalRoles.SearchPlaceholder(Lang)"
                                @bind="searchTerm" @bind:event="oninput" @bind:after="SearchAsync" />
                         <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelSearch"
-                                title="@Msg.WebCommon.Cancel(Lang)">✕</button>
+                                title="@Msg.WebCommon.Cancel(Lang)">@Icons.Text.Cross</button>
                     </div>
                     @if (searchResults.Count > 0)
                     {
@@ -82,7 +82,7 @@
             @* Sits right after the operand rather than pushed to the far edge (no ms-auto): the row
                is as wide as the tree allows, so a right-aligned button would strand itself. *@
             <button type="button" class="btn btn-sm btn-outline-danger" title="@Msg.WebCommon.Delete(Lang)"
-                    @onclick="() => OnRemove.InvokeAsync(Node)">✕</button>
+                    @onclick="() => OnRemove.InvokeAsync(Node)">@Icons.Text.Cross</button>
         }
     </div>
 
