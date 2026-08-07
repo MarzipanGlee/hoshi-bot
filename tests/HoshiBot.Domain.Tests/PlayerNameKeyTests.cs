@@ -152,15 +152,28 @@ public class PlayerNameKeyTests
         Assert.Equal(expected, PlayerNameKey.Compute(name));
     }
 
-    // Not everything decorative is reachable this way, and it's worth pinning what isn't. Unicode
-    // gives SMALL CAPITAL letters no compatibility decomposition — it classes them as phonetic
-    // letters in their own right rather than styled duplicates of A/L/E — so ᴀʟᴇx still reduces to
-    // "x". Closing that needs entries in LatinLookalikes, the same way the Cyrillic and Greek
-    // lookalikes are handled; this test exists so the gap is a known one rather than a surprise.
-    [Fact]
-    public void Small_capitals_are_a_known_gap()
+    // Small capitals are the one styled alphabet FormKD can't reach — Unicode classes them as
+    // phonetic letters rather than styled duplicates — so they get an explicit map like the Cyrillic
+    // and Greek lookalikes. All 25 of them: there is no SMALL CAPITAL X in Unicode.
+    [Theory]
+    [InlineData("\u1D00\u029F\u1D07x", "alex")]
+    [InlineData("\u029C\u1D0F\u1D04\u029C\u026A", "hochi")]
+    [InlineData("\uA731\u1D0D\uA7AF", "smq")]                      // the three from the outlying blocks
+    public void Small_capitals_fold_to_their_letters(string name, string expected)
     {
-        Assert.Equal("x", PlayerNameKey.Compute("\u1D00\u029F\u1D07x"));
+        Assert.Equal(expected, PlayerNameKey.Compute(name));
+    }
+
+    // The set is generated from Unicode names, so this pins that every letter with a small capital
+    // actually made it in — a missing entry silently drops that letter from a player's key.
+    [Fact]
+    public void Every_small_capital_letter_is_mapped()
+    {
+        const string smallCaps = "\u1D00\u0299\u1D04\u1D05\u1D07\uA730\u0262\u029C\u026A\u1D0A\u1D0B\u029F\u1D0D"
+            + "\u0274\u1D0F\u1D18\uA7AF\u0280\uA731\u1D1B\u1D1C\u1D20\u1D21\u028F\u1D22";
+        const string expected = "abcdefghijklmnopqrstuvwyz"; // no small capital X exists
+
+        Assert.Equal(expected, PlayerNameKey.Compute(smallCaps));
     }
 
 }

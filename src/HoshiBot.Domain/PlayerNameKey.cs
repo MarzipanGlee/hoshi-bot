@@ -210,6 +210,46 @@ public static class PlayerNameKey
         ['刃'] = "r",
     };
 
+    // SMALL CAPITAL letters, the one styled alphabet compatibility decomposition can't reach:
+    // Unicode classes these as phonetic letters in their own right rather than styled duplicates of
+    // A/L/E, so FormKD leaves them alone and ᴀʟᴇx reduced to "x" — the player unfindable, which is
+    // the same failure the Fraktur names had.
+    //
+    // 25 letters, not 26: Unicode has no SMALL CAPITAL X. Nicknames use a plain "x" or the modifier
+    // letter ˣ instead, and that one already folds through FormKD as a superscript.
+    //
+    // Generated from the Unicode names (LATIN LETTER SMALL CAPITAL *) rather than typed by eye —
+    // they are scattered across three blocks and several are IPA letters that look nothing like
+    // their code point neighbours.
+    private static readonly Dictionary<char, string> SmallCapitals = new()
+    {
+        ['ᴀ'] = "a",
+        ['ʙ'] = "b",
+        ['ᴄ'] = "c",
+        ['ᴅ'] = "d",
+        ['ᴇ'] = "e",
+        ['ꜰ'] = "f",
+        ['ɢ'] = "g",
+        ['ʜ'] = "h",
+        ['ɪ'] = "i",
+        ['ᴊ'] = "j",
+        ['ᴋ'] = "k",
+        ['ʟ'] = "l",
+        ['ᴍ'] = "m",
+        ['ɴ'] = "n",
+        ['ᴏ'] = "o",
+        ['ᴘ'] = "p",
+        ['ꞯ'] = "q",
+        ['ʀ'] = "r",
+        ['ꜱ'] = "s",
+        ['ᴛ'] = "t",
+        ['ᴜ'] = "u",
+        ['ᴠ'] = "v",
+        ['ᴡ'] = "w",
+        ['ʏ'] = "y",
+        ['ᴢ'] = "z",
+    };
+
     // What a search compares against, on both sides. Empty when the name is nothing but decoration —
     // callers treat that as "no key", never as "matches everything".
     public static string Compute(string name)
@@ -227,7 +267,8 @@ public static class PlayerNameKey
             if (LatinLookalikes.TryGetValue(c, out var mapped)
                 || Cyrillic.TryGetValue(c, out mapped)
                 || Greek.TryGetValue(c, out mapped)
-                || CjkLetters.TryGetValue(c, out mapped))
+                || CjkLetters.TryGetValue(c, out mapped)
+                || SmallCapitals.TryGetValue(c, out mapped))
             {
                 builder.Append(mapped);
                 continue;
