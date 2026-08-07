@@ -115,7 +115,11 @@ public class AnnouncementDraftService(
             var scopeLang = await languageResolver.ForGuildAsync(guildId);
             // The preview has to include (or omit) the Anmerkungen field exactly as the published
             // post will, so staff see what they are about to send.
-            var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement);
+            // The preview belongs to the scope it will publish into. Where the draft channel is
+            // shared by several audiences the audience isn't picked yet, so this reads the first —
+            // the preview is a preview, and the published post resolves its own scope properly.
+            var previewScope = scopes[0];
+            var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement, previewScope.Audience, previewScope.GuildAllianceId);
             var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang, tracked);
 
             // Through the cache: draft is REST-fetched, so its Author carries no guild nickname and

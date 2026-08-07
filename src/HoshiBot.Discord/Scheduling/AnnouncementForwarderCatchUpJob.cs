@@ -31,7 +31,6 @@ public class AnnouncementForwarderCatchUpJob(
     AnnouncementForwarderService forwarder,
     ILogger<AnnouncementForwarderCatchUpJob> logger) : IJob
 {
-    private const GuildAudience Audience = GuildAudience.Guild;
 
     // Recent-messages page size per channel — generous relative to how rarely these channels post,
     // so a normal catch-up window is comfortably covered in one page without deep pagination.
@@ -43,18 +42,38 @@ public class AnnouncementForwarderCatchUpJob(
         this.ForEachEnabledGuildAsync(featureService, GuildFeature.AnnouncementForwarder, null, logger,
             guildId => ProcessGuildAsync(guildId, context.CancellationToken), context.CancellationToken);
 
+    private async Task<int> WidestCatchUpWindowAsync(ulong guildId)
+    {
+        var widest = 0;
+        foreach (var audience in GuildFeatureAudiences.EnumerateFlags(GuildFeatureAudiences.RelevantAudiences(GuildFeature.AnnouncementForwarder)))
+        {
+            var allianceIds = audience == GuildAudience.Alliance
+                ? (await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.AnnouncementForwarder)).Select(id => (int?)id).ToList()
+                : [null];
+
+            foreach (var allianceId in allianceIds)
+            {
+                if (int.TryParse(await settingsService.GetTextAsync(guildId, GuildFeature.AnnouncementForwarder, audience, allianceId, AnnouncementForwarderSettingKeys.CatchUpWindowHours), out var hours))
+                    widest = Math.Max(widest, hours);
+            }
+        }
+
+        return widest > 0 ? widest : AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours;
+    }
+
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {
-        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.AnnouncementForwarder, Audience, null))
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.AnnouncementForwarder))
             return;
 
         var sourceChannels = await channelService.GetEnabledAudienceChannelsAsync(guildId, GuildFeature.AnnouncementForwarder);
         if (sourceChannels.Count == 0)
             return;
 
-        var windowHours = int.TryParse(
-            await settingsService.GetTextAsync(guildId, GuildFeature.AnnouncementForwarder, Audience, null, AnnouncementForwarderSettingKeys.CatchUpWindowHours),
-            out var parsed) ? parsed : AnnouncementForwarderSettingKeys.DefaultCatchUpWindowHours;
+        // How far back to look is a property of the SOURCE sweep, which is shared across scopes —
+        // so the widest configured window wins rather than an arbitrary scope's. MaybeForwardAsync
+        // then decides per destination what still needs doing.
+        var windowHours = await WidestCatchUpWindowAsync(guildId);
         var cutoff = DateTimeOffset.UtcNow.AddHours(-windowHours);
 
         // FetchRecentAsync returns Discord's natural newest-first order; gather every channel's

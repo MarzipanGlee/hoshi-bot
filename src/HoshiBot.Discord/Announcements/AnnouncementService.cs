@@ -154,7 +154,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
 
         // Whether this post is tracked is decided now, once, and recorded on the ReadablePost —
         // never re-read from the setting afterwards.
-        var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement);
+        var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement, audience, guildAllianceId);
 
         var (embed, attribution) = await BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang, tracked);
         var (title, body) = ParseDraft(draft.Content);
@@ -205,7 +205,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         // Registered after posting, because the button's custom id needs the row's own id — so the
         // message goes out bare and the buttons are edited in. An untracked post simply never gets
         // that edit, which is one fewer Discord call rather than a special case.
-        var post = await readReceipts.RegisterAsync(guildId, channelIdValue, message.Id, ReadablePostKind.Announcement, title, scopeLang);
+        var post = await readReceipts.RegisterAsync(guildId, channelIdValue, message.Id, ReadablePostKind.Announcement, audience, guildAllianceId, title, scopeLang);
         if (post.ReadReceiptsEnabled)
         {
             await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,

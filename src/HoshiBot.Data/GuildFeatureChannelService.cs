@@ -35,6 +35,26 @@ public class GuildFeatureChannelService(IDbContextFactory<HoshiBotDbContext> dbF
             .ToListAsync();
     }
 
+    // Which ENABLED audiences have this specific channel registered. GetEnabledAudienceChannelsAsync
+    // flattens the same data into a distinct channel list, which answers "is this channel watched"
+    // but loses "by whom" — and a feature with a per-audience destination has to know whose channel
+    // it just saw a message in.
+    public async Task<List<GuildAudience>> GetAudiencesForChannelAsync(ulong guildId, GuildFeature feature, ulong channelId)
+    {
+        var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, feature);
+        if (enabledAudiences.Count == 0)
+            return [];
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return (await db.GuildFeatureChannels
+            .Where(c => c.GuildId == guildId && c.Feature == feature && c.ChannelId == channelId)
+            .Select(c => c.Audience)
+            .Distinct()
+            .ToListAsync())
+            .Where(enabledAudiences.Contains)
+            .ToList();
+    }
+
     public async Task AddAsync(ulong guildId, GuildFeature feature, GuildAudience audience, ulong channelId)
     {
         await using var db = await dbFactory.CreateDbContextAsync();

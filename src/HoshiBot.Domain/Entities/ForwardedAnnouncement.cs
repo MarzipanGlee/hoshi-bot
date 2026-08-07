@@ -14,8 +14,11 @@ public class ForwardedAnnouncement
 
     public ulong SourceChannelId { get; set; }
 
-    // The Discord message id of the original (source) announcement — the natural key: one tracking
-    // row per source message, found by either the live create path or the catch-up job.
+    // The Discord message id of the original (source) announcement. NOT unique on its own: since the
+    // forwarder became audience-scoped, one source announcement can legitimately reach several
+    // destinations — a coalition guild forwarding the same source into each alliance's own channel.
+    // The natural key is (SourceMessageId, DestinationChannelId); keying on the message alone silently
+    // suppressed every destination after the first.
     public ulong SourceMessageId { get; set; }
 
     public ulong DestinationChannelId { get; set; }

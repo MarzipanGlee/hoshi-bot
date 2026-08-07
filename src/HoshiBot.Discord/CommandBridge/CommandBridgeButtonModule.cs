@@ -215,7 +215,12 @@ public class CommandBridgeButtonModule(AlertService alertService, ReadReceiptSer
         var lang = await ActingUserLanguageAsync();
         // Read receipts owns this list now, not Announcements — with the feature off there is
         // nothing tracked to be unread about, whatever else the guild publishes.
-        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.ReadReceipts, GuildAudience.Guild, null))
+        //
+        // ANY audience, deliberately: the list spans every tracked post the member can see, so
+        // gating on the clicking alliance alone would answer "disabled" while visible posts sit
+        // there asking to be confirmed. What they may see is decided by channel visibility inside
+        // GetUnreadAsync, not here.
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.ReadReceipts))
         {
             await Context.Interaction.SendResponseAsync(InteractionCallback.Message(await EphemeralEmbedAsync(GuildFeatureService.DisabledMessage(GuildFeature.ReadReceipts, lang))));
             return;

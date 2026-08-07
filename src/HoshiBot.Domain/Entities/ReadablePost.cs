@@ -22,6 +22,13 @@ public class ReadablePost
 
     public ReadablePostKind Kind { get; set; }
 
+    // The scope this post was made for — which is the scope whose per-kind switch decided
+    // ReadReceiptsEnabled below. Recorded for the same reason as that flag: so the answer stays
+    // explainable later, and so an audit can tell WHY a given post carries a button.
+    public GuildAudience Audience { get; set; }
+
+    public int? GuildAllianceId { get; set; }
+
     // Whether this post carries a read-confirmation button — decided ONCE, when the post was made,
     // from the feature and the kind's switch.
     //

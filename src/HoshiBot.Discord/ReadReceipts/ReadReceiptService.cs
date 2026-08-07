@@ -22,9 +22,10 @@ public class ReadReceiptService(HoshiBotDbContext db, GatewayClient gatewayClien
 {
     // Registers a freshly posted message and answers whether it should carry the button. Returns the
     // row so the caller can build the button with its id.
-    public async Task<ReadablePost> RegisterAsync(ulong guildId, ulong channelId, ulong messageId, ReadablePostKind kind, string title, Language lang, CancellationToken cancellationToken = default)
+    public async Task<ReadablePost> RegisterAsync(ulong guildId, ulong channelId, ulong messageId, ReadablePostKind kind,
+        GuildAudience audience, int? guildAllianceId, string title, Language lang, CancellationToken cancellationToken = default)
     {
-        var enabled = await IsKindEnabledAsync(guildId, kind);
+        var enabled = await IsKindEnabledAsync(guildId, kind, audience, guildAllianceId);
 
         var post = new ReadablePost
         {
@@ -32,6 +33,8 @@ public class ReadReceiptService(HoshiBotDbContext db, GatewayClient gatewayClien
             ChannelId = channelId,
             MessageId = messageId,
             Kind = kind,
+            Audience = audience,
+            GuildAllianceId = guildAllianceId,
             ReadReceiptsEnabled = enabled,
             Title = Clamp(title),
             Language = lang,
@@ -43,14 +46,15 @@ public class ReadReceiptService(HoshiBotDbContext db, GatewayClient gatewayClien
         return post;
     }
 
-    // The live setting, consulted only when a post is created. Guild-audience, so one answer per
-    // Discord; unset means off, so a newly declared kind starts silent.
-    public async Task<bool> IsKindEnabledAsync(ulong guildId, ReadablePostKind kind)
+    // The live setting, consulted only when a post is created — in the scope that post belongs to,
+    // so an alliance can ask for confirmations while the community channel doesn't. Unset means off,
+    // so a newly declared kind starts silent.
+    public async Task<bool> IsKindEnabledAsync(ulong guildId, ReadablePostKind kind, GuildAudience audience, int? guildAllianceId)
     {
-        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.ReadReceipts, GuildAudience.Guild, null))
+        if (!await featureService.IsEnabledAsync(guildId, GuildFeature.ReadReceipts, audience, guildAllianceId))
             return false;
 
-        var value = await settingsService.GetTextAsync(guildId, GuildFeature.ReadReceipts, GuildAudience.Guild, null, ReadReceiptsSettingKeys.ForKind(kind));
+        var value = await settingsService.GetTextAsync(guildId, GuildFeature.ReadReceipts, audience, guildAllianceId, ReadReceiptsSettingKeys.ForKind(kind));
         return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 

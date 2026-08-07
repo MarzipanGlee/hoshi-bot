@@ -57,7 +57,11 @@ public static class GuildFeatureAudiences
         GuildFeature.CommandBridge => GuildAudience.Alliance,
         // Guild-wide, single toggle: Scopely's official announcements aren't alliance-specific, so
         // one destination channel/source-channel set for the whole Discord, not per audience.
-        GuildFeature.AnnouncementForwarder => GuildAudience.Guild,
+        // Per-audience since the destinations are: a coalition guild forwards the same source
+        // announcement into each alliance's own channel, in each alliance's own language. Source
+        // channels stay shared (GuildFeatureChannel carries no alliance id); only where a forward
+        // LANDS is scoped.
+        GuildFeature.AnnouncementForwarder => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         // Guild-wide AI backend/credentials/models shared by every AI feature — one account per
         // guild, so a single Guild-audience toggle (like NicknameSync/AnnouncementForwarder).
         GuildFeature.AiBackend => GuildAudience.Guild,
@@ -82,11 +86,10 @@ public static class GuildFeatureAudiences
         // that differ per alliance, so they toggle per linked alliance like the other bridge buttons.
         GuildFeature.BotSupport => GuildAudience.Alliance,
         GuildFeature.ChannelGuide => GuildAudience.Alliance,
-        // Guild-wide, like AnnouncementForwarder and AiBackend. Its kinds come from features with
-        // different audience sets — Announcements has four, the forwarder is guild-wide — so a
-        // per-audience matrix would be a scope puzzle with no payoff. "Which kinds get a read button
-        // in this Discord" has one answer.
-        GuildFeature.ReadReceipts => GuildAudience.Guild,
+        // Per-audience like the kinds it gates: an alliance can want confirmations on its posts
+        // while the community channel does not. Each post records the answer for ITS scope at the
+        // moment it is made, so the matrix is only ever read once per post.
+        GuildFeature.ReadReceipts => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         _ => GuildAudience.None,
     };
 
