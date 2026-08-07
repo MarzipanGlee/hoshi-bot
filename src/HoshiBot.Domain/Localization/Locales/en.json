@@ -204,7 +204,7 @@
   "Bridge.StaffMuteDisableButton": "Disable muting",
 
   "BridgeItem.ShieldReminderSetup": "Set up shield reminder",
-  "BridgeItem.AnnouncementsUnread": "Unread announcements",
+  "BridgeItem.AnnouncementsUnread": "Show unread announcements",
   "BridgeItem.ContactStaff": "Contact command staff",
   "BridgeItem.StaffShieldReport": "Report shield loss",
   "BridgeItem.StaffShieldIncursions": "Shield loss Incursions",
