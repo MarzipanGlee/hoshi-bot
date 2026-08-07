@@ -206,4 +206,23 @@ public class ChannelAccessEvaluatorTests
         Assert.Equal(GuildFeature.Tickets, summaries[0].Feature);
         Assert.Equal(FeaturePermissionStatus.Ok, summaries[1].Status);
     }
+
+    // The announcement flow deletes the published draft and clears the reaction that published it,
+    // both on messages the bot did not write. Neither throws where it's missing — the delete is
+    // swallowed and the reaction just stays — so nothing at runtime would ever tell you the draft
+    // channel was under-permissioned. Only this declaration makes the audit report it.
+    [Fact]
+    public void Draft_channels_require_manage_messages()
+    {
+        Assert.True(ChannelAccessProfile.Draft.Permissions().HasFlag(BotPermission.ManageMessages));
+    }
+
+    // Nothing else acts on another member's message, and "delete anyone's messages" is not a bit to
+    // hand out by accident.
+    [Fact]
+    public void No_other_profile_requires_manage_messages()
+    {
+        foreach (var profile in Enum.GetValues<ChannelAccessProfile>().Where(p => p != ChannelAccessProfile.Draft))
+            Assert.False(profile.Permissions().HasFlag(BotPermission.ManageMessages), $"{profile} should not need Manage Messages.");
+    }
 }

@@ -39,9 +39,11 @@ public enum ChannelAccessProfile
     // that once made the whole digest look failed and resent every 30 minutes, double-pinging.
     PostPinAndPing,
 
-    // The announcements draft channel: staff write drafts, the bot reads them back to publish and
-    // decorates each with the four severity reactions. Without Add Reactions nothing errors —
-    // drafts simply never get decorated and staff have no way to publish at all.
+    // The announcements draft channel: staff write drafts, the bot reads them back to publish,
+    // decorates each with the four severity reactions, and clears up after a publish. Without Add
+    // Reactions nothing errors — drafts simply never get decorated and staff have no way to publish
+    // at all. Without Manage Messages, publishing leaves the draft behind and the clicked reaction
+    // on it, which is likewise silent.
     Draft,
 
     // Opens a private thread per ticket on a normal text channel and talks inside it. Note what is
@@ -79,8 +81,13 @@ public static class ChannelAccessProfiles
         ChannelAccessProfile.PostPinAndPing =>
             ChannelAccessProfile.PostAndPing.Permissions() | BotPermission.PinMessages,
 
+        // Manage Messages is the one permission here that acts on somebody ELSE's message: removing
+        // the draft once it has been published, and clearing the severity reaction the staff member
+        // clicked. Both are things the bot does on a message it did not write, and neither is
+        // possible without it. Scoped to this one channel by the declaration, not granted
+        // guild-wide — "delete anyone's messages anywhere" would be far too much for it.
         ChannelAccessProfile.Draft =>
-            ChannelAccessProfile.Post.Permissions() | BotPermission.ReadMessageHistory | BotPermission.AddReactions,
+            ChannelAccessProfile.Post.Permissions() | BotPermission.ReadMessageHistory | BotPermission.AddReactions | BotPermission.ManageMessages,
 
         ChannelAccessProfile.PrivateThreads =>
             BotPermission.ViewChannel | BotPermission.EmbedLinks | BotPermission.CreatePrivateThreads

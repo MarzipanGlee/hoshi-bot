@@ -12,9 +12,10 @@ namespace HoshiBot.Domain.Entities;
 // and asserts NetCord has one of the same name and value. That test is the entire safety story for
 // the cast: if you add a member, add it there first and let it fail until the value is right.
 //
-// Only bits the bot can actually name in a declaration are listed. Deliberately absent:
-// ManageMessages is present because AnnouncementDraftService's reaction cleanup names it in a
-// failure report, but it is never requested at invite time (see HoshiBot.Web/Program.cs).
+// Only bits the bot can actually name in a declaration are listed. ManageMessages is a real
+// requirement of ChannelAccessProfile.Draft (the announcement flow deletes a published draft and
+// clears the reaction that published it, both on messages the bot did not write) — but only ever
+// per channel, never in the invite baseline, which stays View/ManageChannels/ManageRoles.
 [Flags]
 public enum BotPermission : ulong
 {

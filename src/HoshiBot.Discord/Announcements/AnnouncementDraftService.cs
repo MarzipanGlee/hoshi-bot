@@ -142,10 +142,10 @@ public class AnnouncementDraftService(
 
     // Legacy cleared the clicked reaction, which acknowledges the click and makes the same emoji
     // clickable again (Discord ignores a repeated identical reaction from the same user). Deleting
-    // *another user's* reaction needs Manage Messages, which the bot deliberately doesn't ask for —
-    // a guild-wide "delete anyone's messages" grant is far too much for a cosmetic cleanup. So this
-    // is best-effort: where an admin has granted it on the draft channel the reaction disappears as
-    // it always did, and everywhere else it simply stays and publishing carries on regardless.
+    // *another user's* reaction needs Manage Messages, which ChannelAccessProfile.Draft now declares
+    // — the same permission the post-publish draft deletion needs, scoped to this channel alone.
+    // Still caught rather than propagated: an ungranted draft channel is a configuration problem the
+    // permission audit reports, not a reason to abandon a publish that is otherwise fine.
     private async Task TryRemoveReactionAsync(ulong channelId, ulong messageId, AnnouncementSeverity severity, ulong userId, CancellationToken cancellationToken)
     {
         try
