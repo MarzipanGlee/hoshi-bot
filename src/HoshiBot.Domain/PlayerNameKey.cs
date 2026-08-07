@@ -227,6 +227,17 @@ public static class PlayerNameKey
                 continue;
             }
 
+            // Anything outside the Basic Multilingual Plane arrives here as one half of a surrogate
+            // pair, and String.Normalize throws ArgumentException on a lone surrogate. That is not an
+            // edge case: an emoji or a 𝔊𝔬𝔱𝔥𝔦𝔠 letter in a nickname is enough, and the throw took down
+            // the whole guild's player-link sync — every member after the offending one, every run.
+            //
+            // Skipping is also the right answer semantically. No astral character is a Latin letter
+            // or digit, so it would have been dropped as decoration two lines below anyway; this
+            // just drops it without asking ICU to normalize something it refuses to look at.
+            if (char.IsSurrogate(c))
+                continue;
+
             // Ordinary accented Latin: decompose and drop the marks, so é becomes e.
             foreach (var d in c.ToString().Normalize(NormalizationForm.FormD))
             {

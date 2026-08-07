@@ -123,4 +123,18 @@ public class PlayerNameKeyTests
         "DiMы4", "ManagerМeđanac", "TåGūSå", "FeòilTiugh", "KapitänNiemand", "TheNotoriuseBèé",
         "ㅌFFㅌX", "Speed", "EvilXP", "F1N3G31ST",
     ];
+
+    // Found live: PlayerLinkSyncJob died on a member whose nickname carried an astral character.
+    // Compute walks UTF-16 code units, so anything outside the BMP arrives as half a surrogate pair,
+    // and String.Normalize throws ArgumentException on a lone surrogate. One such nickname aborted
+    // the whole guild's sync — every member after it, on every run, indefinitely.
+    [Theory]
+    [InlineData("Kip🚀Com", "kipcom")]                 // emoji
+    [InlineData("𝔊𝔬𝔱𝔥𝔦𝔠", "")]                        // astral "fancy" letters: all decoration
+    [InlineData("Alex\ud83d", "alex")]                 // an unpaired surrogate on its own
+    [InlineData("\udca9Bob\ud83d", "bob")]             // unpaired on both ends
+    public void Astral_characters_do_not_throw(string name, string expected)
+    {
+        Assert.Equal(expected, PlayerNameKey.Compute(name));
+    }
 }
