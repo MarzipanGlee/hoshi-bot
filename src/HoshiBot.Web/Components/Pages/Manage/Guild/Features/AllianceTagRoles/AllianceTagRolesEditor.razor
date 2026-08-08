@@ -7,6 +7,11 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
+@if (createError is not null)
+{
+    <p class="text-danger">@createError.Value.Text(Lang)</p>
+}
+
 <div class="card-grid mt-1">
     <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
         <p class="form-text mt-0">
@@ -56,10 +61,12 @@
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.ForeignAllianceRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, AllianceTagRolesSettingKeys.ForeignAllianceRole)"
+            CreateRoleName="@ForeignRoleName"
             @bind-Value="foreignRoleInput" @bind-Value:after="SaveForeignRoleAsync" Roles="roles" />
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
+            CreateRoleName="@NoAllianceRoleName"
             @bind-Value="noAllianceRoleInput" @bind-Value:after="SaveNoAllianceRoleAsync" Roles="roles" />
 
     <SettingsCard Title="@Msg.WebAllianceTagRoles.BoundRolesCardTitle(Lang)">
@@ -91,6 +98,7 @@
 
     private List<Role> roles = [];
     private bool createMissing = true;
+    private DiscordCreateErrorKind? createError;
     private bool latinize;
     private bool lowercase;
     private string? rolePrefix;
@@ -100,6 +108,19 @@
     private List<string> boundRoles = [];
 
     private string Preview => AllianceTagRoleName.Build(PreviewTag, latinize, lowercase, rolePrefix, roleSuffix);
+
+    // Neither of these is named after a tag, but both sit among the tag roles in the role list — so
+    // they take the same prefix/suffix and casing. A guild that brackets its tags as "[KAOS]" gets
+    // "[foreign-alliance]" rather than a bare word that reads as somebody's hand-made role.
+    //
+    // Latinize is passed through for consistency and does nothing here: these bodies are already
+    // ASCII, unlike the tags it exists for.
+    private const string ForeignRoleBody = "foreign-alliance";
+    private const string NoAllianceRoleBody = "no-alliance";
+
+    private string ForeignRoleName => AllianceTagRoleName.Build(ForeignRoleBody, latinize, lowercase, rolePrefix, roleSuffix);
+
+    private string NoAllianceRoleName => AllianceTagRoleName.Build(NoAllianceRoleBody, latinize, lowercase, rolePrefix, roleSuffix);
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -162,9 +183,28 @@
     // Not trimmed: a trailing space is a legitimate prefix ("Alliance " + tag). Blank is null.
     private static string? Clean(string? value) => string.IsNullOrEmpty(value) ? null : value;
 
-    private Task SaveNoAllianceRoleAsync() =>
-        SetSnowflakeAsync(AllianceTagRolesSettingKeys.NoAllianceRole, ParseId(noAllianceRoleInput));
+    // Both go through EnsureRoleOrError rather than ParseId: the picker's "create it" option posts a
+    // sentinel, not an id, so parsing it would quietly store nothing and leave the admin looking at
+    // a picker that had apparently forgotten what they chose.
+    private async Task SaveNoAllianceRoleAsync()
+    {
+        createError = null;
+        (var roleId, noAllianceRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, noAllianceRoleInput, NoAllianceRoleName);
+        if (createError is not null)
+            return;
 
-    private Task SaveForeignRoleAsync() =>
-        SetSnowflakeAsync(AllianceTagRolesSettingKeys.ForeignAllianceRole, ParseId(foreignRoleInput));
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(AllianceTagRolesSettingKeys.NoAllianceRole, roleId);
+    }
+
+    private async Task SaveForeignRoleAsync()
+    {
+        createError = null;
+        (var roleId, foreignRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, foreignRoleInput, ForeignRoleName);
+        if (createError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(AllianceTagRolesSettingKeys.ForeignAllianceRole, roleId);
+    }
 }
