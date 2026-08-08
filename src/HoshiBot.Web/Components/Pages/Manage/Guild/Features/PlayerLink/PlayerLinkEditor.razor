@@ -8,6 +8,11 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
+@if (createError is not null)
+{
+    <p class="text-danger">@createError.Value.Text(Lang)</p>
+}
+
 <div class="card-grid mt-1">
     <SettingsCard Title="@Msg.WebCommon.HowItWorksCardTitle(Lang)">
         <p class="form-text mt-0">
@@ -25,6 +30,7 @@
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, PlayerLinkSettingKeys.UnlinkedRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, PlayerLinkSettingKeys.UnlinkedRole)"
+            CreateRoleName="@UnlinkedRoleName"
             @bind-Value="unlinkedRoleInput" @bind-Value:after="SaveUnlinkedRoleAsync" Roles="roles" />
 </div>
 
@@ -36,6 +42,11 @@
     private int unresolvedCount;
     private List<Role> roles = [];
     private string? unlinkedRoleInput;
+    private DiscordCreateErrorKind? createError;
+
+    // Offered by the picker's "create it" option, so setting this up doesn't mean leaving the page
+    // to make a role by hand and coming back.
+    private const string UnlinkedRoleName = "Not-Linked";
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -47,6 +58,17 @@
             .CountAsync(r => r.GuildId == GuildId && r.Status == PlayerLinkReviewStatus.Unresolved);
     }
 
-    private Task SaveUnlinkedRoleAsync() =>
-        SetSnowflakeAsync(PlayerLinkSettingKeys.UnlinkedRole, ParseId(unlinkedRoleInput));
+    // Through EnsureRoleOrError rather than ParseId: the picker's "create it" option posts a
+    // sentinel, not an id, so parsing it would store nothing and leave the admin looking at a picker
+    // that had apparently forgotten their choice.
+    private async Task SaveUnlinkedRoleAsync()
+    {
+        createError = null;
+        (var roleId, unlinkedRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, unlinkedRoleInput, UnlinkedRoleName);
+        if (createError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(PlayerLinkSettingKeys.UnlinkedRole, roleId);
+    }
 }
