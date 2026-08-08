@@ -702,6 +702,7 @@
   "Web.Guild.DependencyNote.RankRoles.PlayerLink": "Player links can also be created by hand.",
   "Web.Guild.DependencyNote.OpsLevelRoles.PlayerLink": "Player links can also be created by hand.",
   "Web.Guild.DependencyNote.NicknameSync.PlayerLink": "Player links can also be created by hand.",
+  "Web.Guild.DependencyNote.AllianceTagRoles.PlayerLink": "Player links can also be created by hand.",
   "Web.Guild.DependencyNote.ServerTagRoles.PlayerLink": "Player links can also be created by hand.",
   "Web.Guild.DependencyNote.RaidAlerts.CommandBridge": "Members report raids via the Command Bridge button.",
   "Web.Guild.DependencyNote.ShieldReminders.CommandBridge": "Setup + staff shield actions live on the Command Bridge.",

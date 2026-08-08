@@ -702,6 +702,7 @@
   "Web.Guild.DependencyNote.RankRoles.PlayerLink": "Spieler-Verknüpfungen können auch manuell erstellt werden.",
   "Web.Guild.DependencyNote.OpsLevelRoles.PlayerLink": "Spieler-Verknüpfungen können auch manuell erstellt werden.",
   "Web.Guild.DependencyNote.NicknameSync.PlayerLink": "Spieler-Verknüpfungen können auch manuell erstellt werden.",
+  "Web.Guild.DependencyNote.AllianceTagRoles.PlayerLink": "Spielerverknüpfungen können auch von Hand erstellt werden.",
   "Web.Guild.DependencyNote.ServerTagRoles.PlayerLink": "Spieler-Verknüpfungen können auch manuell erstellt werden.",
   "Web.Guild.DependencyNote.RaidAlerts.CommandBridge": "Mitglieder melden Raids über den Kommandobrücke-Button.",
   "Web.Guild.DependencyNote.ShieldReminders.CommandBridge": "Einrichtung und Stab-Aktionen für Schilde laufen über die Kommandobrücke.",
