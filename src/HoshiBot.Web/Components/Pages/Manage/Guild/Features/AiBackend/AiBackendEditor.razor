@@ -1,4 +1,5 @@
 @inherits FeatureEditorBase
+@using HoshiBot.Domain.Entities
 @using HoshiBot.Web.Services
 
 <p class="form-text">@Msg.WebAiBackend.Intro(Lang)</p>
@@ -54,24 +55,18 @@
             <label for="aiModel" class="form-label">
                 @Msg.WebAiBackend.ModelLabelGemini(Lang, AiBackendSettingKeys.DefaultModel)
             </label>
-            <input id="aiModel" class="form-control" placeholder="@AiBackendSettingKeys.DefaultModel"
-                   @bind="modelInput" @bind:after="SaveModelAsync" />
+            <select id="aiModel" class="form-select" @bind="modelInput" @bind:after="SaveModelAsync">
+                <option value="">@Msg.WebAiBackend.ModelDefaultOption(Lang, AiBackendSettingKeys.DefaultModel)</option>
+                @foreach (var model in GeminiModels.Chat)
+                {
+                    <option value="@model.Id">@model.Id</option>
+                }
+                @if (!GeminiModels.IsOffered(modelInput, GeminiModels.Chat) && !string.IsNullOrWhiteSpace(modelInput))
+                {
+                    <option value="@modelInput">@Msg.WebAiBackend.ModelRetiredOption(Lang, modelInput)</option>
+                }
+            </select>
         }
-    </SettingsCard>
-
-    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider)">
-        <label for="aiEmbeddingProvider" class="form-label">
-            @Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider)
-        </label>
-        <select id="aiEmbeddingProvider" class="form-select"
-                @bind="embeddingProviderInput" @bind:after="SaveEmbeddingProviderAsync">
-            <option value="ollama">@Msg.WebAiBackend.EmbeddingOptionOllama(Lang)</option>
-            <option value="gemini-embedding-001">@Msg.WebAiBackend.EmbeddingOptionGemini1(Lang)</option>
-            <option value="gemini-embedding-2">@Msg.WebAiBackend.EmbeddingOptionGemini2(Lang)</option>
-        </select>
-        <div class="form-text">
-            @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider))
-        </div>
     </SettingsCard>
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.GateModel)">
@@ -88,8 +83,18 @@
         }
         else
         {
-            <input id="aiGateModel" class="form-control" placeholder="@Msg.WebAiBackend.DefaultModelPlaceholder(Lang, AiBackendSettingKeys.DefaultGateModel)"
-                   @bind="gateModelInput" @bind:after="SaveGateModelAsync" />
+            <select id="aiGateModel" class="form-select" @bind="gateModelInput" @bind:after="SaveGateModelAsync">
+                <option value="">@Msg.WebAiBackend.ModelDefaultOption(Lang, AiBackendSettingKeys.DefaultGateModel)</option>
+                @foreach (var model in GeminiModels.Light)
+                {
+                    <option value="@model.Id">@model.Id</option>
+                }
+                <option value="off">@Msg.WebAiBackend.GateOffOption(Lang)</option>
+                @if (!GeminiModels.IsOffered(gateModelInput, GeminiModels.Light) && !string.IsNullOrWhiteSpace(gateModelInput) && gateModelInput != "off")
+                {
+                    <option value="@gateModelInput">@Msg.WebAiBackend.ModelRetiredOption(Lang, gateModelInput)</option>
+                }
+            </select>
             <div class="form-text">@((MarkupString)Msg.WebAiBackend.GateUsageGemini(Lang, AiBackendSettingKeys.DefaultGateModel))</div>
         }
     </SettingsCard>
@@ -104,11 +109,59 @@
                 </span>
             }
         </label>
-        <input id="aiRouterModel" class="form-control"
-               placeholder="@(providerInput == "ollama" ? Msg.WebAiBackend.RouterOffOllamaPlaceholder(Lang) : Msg.WebAiBackend.RouterOffGeminiPlaceholder(Lang, AiBackendSettingKeys.DefaultGateModel))"
-               @bind="routerModelInput" @bind:after="SaveRouterModelAsync" />
+        @if (providerInput == "ollama")
+        {
+            <input id="aiRouterModel" class="form-control" placeholder="@Msg.WebAiBackend.RouterOffOllamaPlaceholder(Lang)"
+                   @bind="routerModelInput" @bind:after="SaveRouterModelAsync" />
+        }
+        else
+        {
+            <select id="aiRouterModel" class="form-select" @bind="routerModelInput" @bind:after="SaveRouterModelAsync">
+                <option value="">@Msg.WebAiBackend.RouterOffOption(Lang)</option>
+                @foreach (var model in GeminiModels.Light.Concat(GeminiModels.Chat))
+                {
+                    <option value="@model.Id">@model.Id</option>
+                }
+                @if (!GeminiModels.IsOffered(routerModelInput, [.. GeminiModels.Light, .. GeminiModels.Chat]) && !string.IsNullOrWhiteSpace(routerModelInput) && routerModelInput != "off")
+                {
+                    <option value="@routerModelInput">@Msg.WebAiBackend.ModelRetiredOption(Lang, routerModelInput)</option>
+                }
+            </select>
+        }
         <div class="form-text">@((MarkupString)Msg.WebEditor.Usage(Lang, Feature, AiBackendSettingKeys.RouterModel))</div>
     </SettingsCard>
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider)">
+        <label for="aiEmbeddingProvider" class="form-label">
+            @Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider)
+        </label>
+        <select id="aiEmbeddingProvider" class="form-select"
+                @bind="embeddingProviderInput" @bind:after="SaveEmbeddingProviderAsync">
+            <option value="ollama">@Msg.WebAiBackend.EmbeddingOptionOllama(Lang)</option>
+            <option value="gemini-embedding-001">@Msg.WebAiBackend.EmbeddingOptionGemini1(Lang)</option>
+            <option value="gemini-embedding-2">@Msg.WebAiBackend.EmbeddingOptionGemini2(Lang)</option>
+        </select>
+        <div class="form-text">
+            @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider))
+        </div>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, AiBackendSettingKeys.ImageEmbeddingProvider)">
+        <label for="aiImageEmbeddingProvider" class="form-label">
+            @Msg.WebEditor.Label(Lang, Feature, AiBackendSettingKeys.ImageEmbeddingProvider)
+        </label>
+        <select id="aiImageEmbeddingProvider" class="form-select"
+                @bind="imageEmbeddingProviderInput" @bind:after="SaveImageEmbeddingProviderAsync">
+            <option value="off">@Msg.WebAiBackend.ImageEmbeddingOptionOff(Lang)</option>
+            @foreach (var model in GeminiModels.Embedding)
+            {
+                <option value="@model.Id">@model.Id</option>
+            }
+        </select>
+        <div class="form-text">
+            @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, AiBackendSettingKeys.ImageEmbeddingProvider))
+        </div>
+    </SettingsCard>
+
 </div>
 
 @code {
@@ -119,6 +172,10 @@
     private string providerInput = "gemini";
     private string? modelInput;
     private string embeddingProviderInput = "ollama";
+
+    // Off unless a guild picks otherwise: nothing indexes images yet, so any other default would be
+    // a setting that looks live and isn't.
+    private string imageEmbeddingProviderInput = AiBackendSettingKeys.ImageEmbeddingOff;
     private string? gateModelInput;
     private string? routerModelInput;
 
@@ -131,6 +188,10 @@
         providerInput = string.Equals(storedProvider, "ollama", StringComparison.OrdinalIgnoreCase) ? "ollama" : "gemini";
         modelInput = await GetTextAsync(AiBackendSettingKeys.Model);
         var storedEmbeddingProvider = await GetTextAsync(AiBackendSettingKeys.EmbeddingProvider);
+        imageEmbeddingProviderInput = await GetTextAsync(AiBackendSettingKeys.ImageEmbeddingProvider) is { Length: > 0 } storedImageEmbedding
+            ? storedImageEmbedding
+            : AiBackendSettingKeys.ImageEmbeddingOff;
+
         embeddingProviderInput = storedEmbeddingProvider is "gemini-embedding-001" or "gemini-embedding-2"
             ? storedEmbeddingProvider
             : "ollama";
@@ -162,6 +223,8 @@
     private Task SaveModelAsync() => SetTextAsync(AiBackendSettingKeys.Model, modelInput);
 
     private Task SaveEmbeddingProviderAsync() => SetTextAsync(AiBackendSettingKeys.EmbeddingProvider, embeddingProviderInput);
+
+    private Task SaveImageEmbeddingProviderAsync() => SetTextAsync(AiBackendSettingKeys.ImageEmbeddingProvider, imageEmbeddingProviderInput);
 
     private Task SaveGateModelAsync() => SetTextAsync(AiBackendSettingKeys.GateModel, gateModelInput);
 

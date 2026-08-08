@@ -12,6 +12,24 @@ public static partial class Msg
 
     public static class WebAiBackend
     {
+        // The model dropdowns' non-model entries.
+        public static string ModelDefaultOption(Language lang, string model) =>
+            MessageCatalog.Format(lang, "Web.Editor.AiBackend.ModelDefaultOption", ("model", model));
+
+        // A stored model that is no longer offered — retired by Google, or typed by hand. Shown so
+        // the current value is never silently replaced by the default.
+        public static string ModelRetiredOption(Language lang, string model) =>
+            MessageCatalog.Format(lang, "Web.Editor.AiBackend.ModelRetiredOption", ("model", model));
+
+        public static string GateOffOption(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AiBackend.GateOffOption");
+
+        public static string RouterOffOption(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AiBackend.RouterOffOption");
+
+        public static string ImageEmbeddingOptionOff(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.AiBackend.ImageEmbeddingOptionOff");
+
         public static string Intro(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.AiBackend.Intro");
 
