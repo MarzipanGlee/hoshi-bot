@@ -19,6 +19,13 @@ namespace HoshiBot.Data;
 //   an own player, ending another commander's raid alert) only ask that, and asking per alliance
 //   would mean a coalition's staff could not help each other — a stricter rule than the one that was
 //   there before, imposed by a refactor rather than chosen.
+//
+// A guild that genuinely wants ONE shared leadership needs nothing added here: Conditional Roles
+// already grants a role while a boolean expression over a member's other roles holds, so "holds the
+// shared staff role -> also gets each alliance's staff role" is a rule an admin writes. That keeps
+// the per-scope value honest (every alliance still names its own staff role, and the attribution
+// line still reads correctly) while making the shared case a configuration, not a second concept
+// here.
 public class CommandStaffRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
 {
     public async Task<ulong?> ForScopeAsync(ulong guildId, GuildAudience audience, int? guildAllianceId)
