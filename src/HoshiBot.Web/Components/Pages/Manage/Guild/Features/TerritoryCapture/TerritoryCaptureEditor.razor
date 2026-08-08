@@ -85,13 +85,15 @@
     private string? weeklyDigestTimeInput;
     private string? dailyDigestTimeInput;
     private string allianceTimeZoneDisplay = GuildAlliance.DefaultTimeZoneId;
+    private string allianceTag = "";
     private DiscordCreateErrorKind? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        // The notification role belongs to the alliance, not to this feature — read here, changed on
-        // the alliance settings page (see AllianceOwnedRoleCard).
+        // One fetch, three uses: the notification role (owned by the alliance, shown read-only
+        // here), the digest timezone, and the tag that prefixes any role this page creates.
         var alliance = GuildAllianceId is { } roleAllianceId ? await AllianceService.FindByIdAsync(GuildId, roleAllianceId) : null;
+        allianceTag = alliance?.StfcAlliance.Tag ?? "";
 
         roles = await DiscordData.GetRolesAsync(GuildId);
         channels = await DiscordData.GetChannelsAsync(GuildId);
@@ -106,8 +108,7 @@
 
         weeklyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.WeeklyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultWeeklyTime;
         dailyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.DailyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultDailyTime;
-        if (GuildAllianceId is { } allianceId)
-            allianceTimeZoneDisplay = (await AllianceService.FindByIdAsync(GuildId, allianceId))?.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
+        allianceTimeZoneDisplay = alliance?.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
     }
 
     private Task SaveDigestChannelAsync() =>
@@ -131,7 +132,11 @@
     // slot (the picker's create option and the save that actually creates it) — they must match, or
     // the create option stays visible after the role exists. Existing roles are untouched: the
     // setting stores a role id, so a guild that already picked its own role keeps it.
-    private static string ZoneSlotRoleName(int slot) => $"TC-{slot}";
+    // Tag-prefixed like every other role this bot creates for an alliance ("LF-TC-1"), so a
+    // coalition guild's five slot roles per alliance stay distinguishable in the role list. Falls
+    // back to the bare name where there is no tag to prefix with.
+    private string ZoneSlotRoleName(int slot) =>
+        string.IsNullOrWhiteSpace(allianceTag) ? $"TC-{slot}" : $"{allianceTag}-TC-{slot}";
 
     private Task SaveZoneSlot1Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot1Role, v => zoneSlot1Input = v, zoneSlot1Input, ZoneSlotRoleName(1));
     private Task SaveZoneSlot2Async() => SaveZoneSlotAsync(TerritoryCaptureSettingKeys.ZoneSlot2Role, v => zoneSlot2Input = v, zoneSlot2Input, ZoneSlotRoleName(2));
