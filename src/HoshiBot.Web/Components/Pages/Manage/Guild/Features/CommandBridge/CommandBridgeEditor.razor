@@ -6,6 +6,11 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
+@if (createError is not null)
+{
+    <p class="text-danger">@createError.Value.Text(Lang)</p>
+}
+
 <p class="text-muted">
     @((MarkupString)Msg.WebCommandBridge.Intro(Lang))
 </p>
@@ -18,6 +23,7 @@
 
             <ChannelPicker Label="@Msg.WebCommon.Channel(Lang)" ShowLabel="false"
                            Usage="@Msg.WebCommandBridge.ChannelUsage(Lang)"
+                           CreateChannelName="@ChannelName(bridge)"
                            Value="@channelInputs[bridge]"
                            ValueChanged="v => OnChannelChangedAsync(bridge, v)"
                            Channels="channels" />
@@ -92,6 +98,7 @@
     private record PublishStatus(string Text, bool Done);
 
     private List<IGuildChannel> channels = [];
+    private DiscordCreateErrorKind? createError;
     // Pre-seeded with all three bridge keys so the markup's channelInputs[bridge.Kind] lookup
     // never throws on the base class's first (pre-OnSettingsLoadedAsync) render — unlike the old
     // page, this editor has no "still loading" guard around the cards.
@@ -129,10 +136,19 @@
             .ToHashSet();
     }
 
+    // The names the three bridges already carry in practice, so "create" produces what an admin
+    // would have made by hand. Not tag-prefixed like the ROLES are: a channel lives inside the
+    // alliance's own category, which supplies the scoping a role name has to carry itself.
+    private static string ChannelName(CommandBridgeKind bridge) => bridge switch
+    {
+        CommandBridgeKind.Staff => "command-bridge-staff",
+        CommandBridgeKind.Friends => "command-bridge-friends",
+        _ => "command-bridge",
+    };
+
     private async Task OnChannelChangedAsync(CommandBridgeKind bridge, string? value)
     {
         channelInputs[bridge] = value;
-        var id = ParseId(value);
 
         if (GuildAllianceId is not { } allianceId)
             return;
@@ -141,6 +157,17 @@
         var alliance = await db.GuildAlliances.FirstOrDefaultAsync(a => a.Id == allianceId && a.GuildId == GuildId);
         if (alliance is null)
             return;
+
+        // Through EnsureChannelOrError, not ParseId: the picker's "create it" option posts a
+        // sentinel rather than an id. Created under the alliance's default category so a new bridge
+        // lands with its siblings instead of at the root of the server.
+        createError = null;
+        (var id, channelInputs[bridge], createError) = await DiscordData.EnsureChannelOrErrorAsync(
+            GuildId, value, ChannelName(bridge), ChannelType.TextGuildChannel, alliance.DefaultChannelCategoryId);
+        if (createError is not null)
+            return;
+
+        channels = await DiscordData.GetChannelsAsync(GuildId);
 
         switch (bridge)
         {
