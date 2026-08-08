@@ -1,4 +1,5 @@
 @inherits FeatureEditorBase
+@using HoshiBot.Domain
 @using System.Globalization
 @using HoshiBot.Web.Services
 @using NetCord
@@ -6,6 +7,11 @@
 @inject GuildAllianceService AllianceService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+@if (createError is not null)
+{
+    <p class="text-danger">@createError.Value.Text(Lang)</p>
+}
 
 @if (createRoleError is not null)
 {
@@ -32,7 +38,8 @@
             @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, WeeklyMentionRoleKey))
         </p>
         <RolePicker Label="@Msg.WebEditor.Label(Lang, Feature, AbsencesSettingKeys.NotificationRole)" ShowLabel="false"
-            @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
+            CreateRoleName="@NotificationRoleName"
+                @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
     </SettingsCard>
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, DigestScheduleKey)">
@@ -69,6 +76,7 @@
     private const string DigestScheduleKey = "DigestSchedule";
 
     private List<Role> roles = [];
+    private DiscordCreateErrorKind? createError;
     private List<IGuildChannel> channels = [];
     private string? digestChannelInput;
     private string? zoneSlot1Input;
@@ -85,6 +93,11 @@
 
     protected override async Task OnSettingsLoadedAsync()
     {
+
+        // Only an Alliance-scoped page has a tag; elsewhere NotificationRoleName falls back to the
+        // bare word rather than inventing a prefix.
+        if (GuildAllianceId is { } notificationTagAllianceId)
+            allianceTag = (await AllianceService.FindByIdAsync(GuildId, notificationTagAllianceId))?.StfcAlliance.Tag ?? "";
         roles = await DiscordData.GetRolesAsync(GuildId);
         channels = await DiscordData.GetChannelsAsync(GuildId);
         digestChannelInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.DigestChannel))?.ToString();
@@ -161,6 +174,24 @@
     }
 
     // Stored under the Absences feature (its owner) so this and the Absences page edit one value.
-    private Task SaveNotificationRoleAsync() =>
-        SetSnowflakeAsync(GuildFeature.Absences, AbsencesSettingKeys.NotificationRole, ParseId(notificationRoleInput));
+    // The alliance's tag prefixes the created role, so a coalition guild's opt-in roles sit together
+    // and a member can tell whose is whose. Falls back to a bare name when the tag isn't loaded yet.
+    private string allianceTag = "";
+
+    private string NotificationRoleName => string.IsNullOrWhiteSpace(allianceTag)
+        ? "Notifications"
+        : AllianceRoleNames.Notifications(allianceTag);
+
+    // EnsureRoleOrError, not ParseId: the picker's "create it" option posts a sentinel rather than
+    // an id, and parsing that stores nothing.
+    private async Task SaveNotificationRoleAsync()
+    {
+        createError = null;
+        (var roleId, notificationRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, notificationRoleInput, NotificationRoleName);
+        if (createError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(GuildFeature.Absences, AbsencesSettingKeys.NotificationRole, roleId);
+    }
 }

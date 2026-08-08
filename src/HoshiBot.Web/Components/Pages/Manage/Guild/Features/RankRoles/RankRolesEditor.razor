@@ -5,6 +5,11 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
+@if (createError is not null)
+{
+    <p class="text-danger">@createError.Value.Text(Lang)</p>
+}
+
 <RoleTierEditor GuildId="GuildId" Feature="Feature" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" Tiers="Tiers">
     <HeaderTemplate Context="tier">
         <div class="d-flex align-items-center gap-2">
@@ -19,6 +24,7 @@
 <div class="card-grid mt-1">
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, RankRolesSettingKeys.NoRankRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, RankRolesSettingKeys.NoRankRole)"
+            CreateRoleName="@NoRankRoleName"
             @bind-Value="noRankRoleInput" @bind-Value:after="SaveNoRankRoleAsync" Roles="roles" />
 </div>
 
@@ -37,6 +43,7 @@
     ];
 
     private List<Role> roles = [];
+    private DiscordCreateErrorKind? createError;
     private string? noRankRoleInput;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -45,6 +52,18 @@
         noRankRoleInput = (await GetSnowflakeAsync(RankRolesSettingKeys.NoRankRole))?.ToString();
     }
 
-    private Task SaveNoRankRoleAsync() =>
-        SetSnowflakeAsync(RankRolesSettingKeys.NoRankRole, ParseId(noRankRoleInput));
+    private const string NoRankRoleName = "No-Rank";
+
+    // EnsureRoleOrError, not ParseId: the picker's "create it" option posts a sentinel rather than
+    // an id, and parsing that stores nothing.
+    private async Task SaveNoRankRoleAsync()
+    {
+        createError = null;
+        (var roleId, noRankRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, noRankRoleInput, NoRankRoleName);
+        if (createError is not null)
+            return;
+
+        roles = await DiscordData.GetRolesAsync(GuildId);
+        await SetSnowflakeAsync(RankRolesSettingKeys.NoRankRole, roleId);
+    }
 }
