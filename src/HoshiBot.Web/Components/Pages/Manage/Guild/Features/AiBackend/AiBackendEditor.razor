@@ -137,8 +137,14 @@
         <select id="aiEmbeddingProvider" class="form-select"
                 @bind="embeddingProviderInput" @bind:after="SaveEmbeddingProviderAsync">
             <option value="ollama">@Msg.WebAiBackend.EmbeddingOptionOllama(Lang)</option>
-            <option value="gemini-embedding-001">@Msg.WebAiBackend.EmbeddingOptionGemini1(Lang)</option>
-            <option value="gemini-embedding-2">@Msg.WebAiBackend.EmbeddingOptionGemini2(Lang)</option>
+            @foreach (var model in GeminiModels.Embedding)
+            {
+                <option value="@model.Id">@model.Id</option>
+            }
+            @if (embeddingProviderInput != "ollama" && !GeminiModels.IsOffered(embeddingProviderInput, GeminiModels.Embedding))
+            {
+                <option value="@embeddingProviderInput">@Msg.WebAiBackend.ModelRetiredOption(Lang, embeddingProviderInput)</option>
+            }
         </select>
         <div class="form-text">
             @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, AiBackendSettingKeys.EmbeddingProvider))

@@ -60,11 +60,7 @@ public static partial class Msg
         public static string EmbeddingOptionOllama(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.AiBackend.EmbeddingOptionOllama");
 
-        public static string EmbeddingOptionGemini1(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.AiBackend.EmbeddingOptionGemini1");
 
-        public static string EmbeddingOptionGemini2(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.AiBackend.EmbeddingOptionGemini2");
 
         public static string ServerDefaultPlaceholder(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.AiBackend.ServerDefaultPlaceholder");
