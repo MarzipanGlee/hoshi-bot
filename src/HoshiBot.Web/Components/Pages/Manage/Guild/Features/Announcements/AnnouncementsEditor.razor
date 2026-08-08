@@ -23,10 +23,12 @@
     {
         @* Keyed under Announcements (this editor's wording), even though the value is stored
            under the Absences feature — the Absences page carries its own wording for it. *@
-    <AllianceOwnedRoleCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
-            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)"
-            Lang="Lang" GuildId="GuildId" GuildAllianceId="GuildAllianceId"
-            RoleId="notificationRoleId" Roles="roles" />
+    <OwnedElsewhereCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
+            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)" Lang="Lang"
+            Value="@RoleDisplay(notificationRoleId)"
+            Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
+            LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
+            LinkHref="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")" />
     }
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)"
@@ -45,6 +47,9 @@
     private string? testChannelInput;
     private string? warningsRoleInput;
     private ulong? notificationRoleId;
+
+    private string? RoleDisplay(ulong? roleId) =>
+        roleId is { } id && roles.FirstOrDefault(r => r.Id == id) is { } role ? $"@{role.Name}" : null;
 
     protected override async Task OnSettingsLoadedAsync()
     {

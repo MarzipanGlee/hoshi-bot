@@ -16,6 +16,7 @@
     <p class="text-danger">@error.Text(Lang)</p>
 }
 <div class="card-grid mt-1">
+    <RolePicker CardTitle="@Msg.WebCommon.CommandStaffRole(Lang)" Usage="@Msg.WebCommon.CommandStaffRoleUsage(Lang)" CreateRoleName="Command Staff" @bind-Value="commandStaffRoleIdInput" @bind-Value:after="SaveCommandStaffRoleAsync" Roles="roles" />
     <RolePicker CardTitle="@Msg.WebGuild.CrewsTitle(Lang)" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
 </div>
 
@@ -41,6 +42,7 @@
     private string? adminChannelIdInput;
     private string? userLogChannelIdInput;
     private string? crewsRoleIdInput;
+    private string? commandStaffRoleIdInput;
     private string? languageInput;
     private string? discordLanguageName;
 
@@ -71,6 +73,7 @@
         adminChannelIdInput = settings.AdminChannelId?.ToString();
         userLogChannelIdInput = settings.UserLogChannelId?.ToString();
         crewsRoleIdInput = settings.CrewsRoleId?.ToString();
+        commandStaffRoleIdInput = settings.CommandStaffRoleId?.ToString();
         languageInput = settings.Language;
     }
 
@@ -111,4 +114,9 @@
     }
 
     private Task SaveCrewsRoleAsync() => SaveRoleAsync((s, id) => s.CrewsRoleId = id, crewsRoleIdInput, v => crewsRoleIdInput = v, "Crews");
+
+    // Guild-wide, and until now editable ONLY from inside the four features that read it — which is
+    // how a shared value ends up looking like four settings. Owned here; the features link back.
+    private Task SaveCommandStaffRoleAsync() =>
+        SaveRoleAsync((s, id) => s.CommandStaffRoleId = id, commandStaffRoleIdInput, v => commandStaffRoleIdInput = v, "Command Staff");
 }

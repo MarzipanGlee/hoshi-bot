@@ -1,4 +1,6 @@
 @inherits FeatureEditorBase
+@using HoshiBot.Web.Services
+@inject DiscordGuildDataService DiscordData
 
 <p class="form-text">
     @Msg.WebStfcNews.Intro(Lang)
@@ -7,9 +9,31 @@
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 <div class="card-grid mt-1">
+    @* Where the news post lands. Guild-wide and shared with every other admin notification, so it
+       is shown here and changed on the guild settings page. *@
+    <OwnedElsewhereCard Title="@Msg.WebGuild.AdminTitle(Lang)"
+                        Label="@Msg.WebGuild.AdminUsage(Lang)" Lang="Lang"
+                        Value="@adminChannelDisplay"
+                        Hint="@Msg.WebCommon.OwnedByGuildSettings(Lang)"
+                        LinkText="@Msg.WebCommon.OpenGuildSettings(Lang)"
+                        LinkHref="@($"manage/guild/{GuildId}/settings")" />
+
     <CommandStaffRoleCard GuildId="GuildId" />
 </div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.StfcNews;
+
+    private string? adminChannelDisplay;
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId);
+        if (settings?.AdminChannelId is not { } channelId)
+            return;
+
+        var channels = await DiscordData.GetChannelsAsync(GuildId);
+        adminChannelDisplay = channels.FirstOrDefault(c => c.Id == channelId) is { } channel ? $"#{channel.Name}" : null;
+    }
 }

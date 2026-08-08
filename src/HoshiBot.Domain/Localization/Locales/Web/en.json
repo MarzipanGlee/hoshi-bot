@@ -576,6 +576,8 @@
   "Web.Common.SelectServerPlaceholder": "Select server...",
   "Web.Common.SelectChannelOption": "— select channel —",
   "Web.Common.SelectRoleOption": "— select role —",
+  "Web.Common.OwnedByGuildSettings": "Set on the guild settings, and shared by every feature that uses it.",
+  "Web.Common.OpenGuildSettings": "Open guild settings",
   "Web.Common.OwnedByAllianceSettings": "Set on the alliance settings, and shared by every feature that uses it.",
   "Web.Common.OpenAllianceSettings": "Open alliance settings",
   "Web.Common.NoneOption": "— none —",

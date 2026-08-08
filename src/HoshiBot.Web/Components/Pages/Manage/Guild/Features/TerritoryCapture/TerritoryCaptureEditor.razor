@@ -33,10 +33,12 @@
         <p class="form-text mb-0">
             @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, WeeklyMentionRoleKey))
         </p>
-    <AllianceOwnedRoleCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
-            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)"
-            Lang="Lang" GuildId="GuildId" GuildAllianceId="GuildAllianceId"
-            RoleId="notificationRoleId" Roles="roles" />
+    <OwnedElsewhereCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
+            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)" Lang="Lang"
+            Value="@RoleDisplay(notificationRoleId)"
+            Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
+            LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
+            LinkHref="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")" />
     </SettingsCard>
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, DigestScheduleKey)">
@@ -81,6 +83,9 @@
     private string? zoneSlot4Input;
     private string? zoneSlot5Input;
     private ulong? notificationRoleId;
+
+    private string? RoleDisplay(ulong? roleId) =>
+        roleId is { } id && roles.FirstOrDefault(r => r.Id == id) is { } role ? $"@{role.Name}" : null;
     private string? instructionsInput;
     private string? weeklyDigestTimeInput;
     private string? dailyDigestTimeInput;

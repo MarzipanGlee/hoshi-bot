@@ -15,10 +15,12 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AbsencesSettingKeys.ReportStaffChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AbsencesSettingKeys.ReportStaffChannel)"
             @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
 
-    <AllianceOwnedRoleCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
-            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)"
-            Lang="Lang" GuildId="GuildId" GuildAllianceId="GuildAllianceId"
-            RoleId="notificationRoleId" Roles="roles" />
+    <OwnedElsewhereCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
+            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)" Lang="Lang"
+            Value="@RoleDisplay(notificationRoleId)"
+            Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
+            LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
+            LinkHref="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")" />
 </div>
 
 @code {
@@ -29,6 +31,9 @@
     private string? reportChannelIdInput;
     private string? staffChannelIdInput;
     private ulong? notificationRoleId;
+
+    private string? RoleDisplay(ulong? roleId) =>
+        roleId is { } id && roles.FirstOrDefault(r => r.Id == id) is { } role ? $"@{role.Name}" : null;
 
     protected override async Task OnSettingsLoadedAsync()
     {

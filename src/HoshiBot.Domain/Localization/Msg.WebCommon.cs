@@ -96,6 +96,12 @@ public static partial class Msg
 
         // Shown by a feature displaying a setting the ALLIANCE owns — the feature reads it, the
         // alliance settings page is where it is changed.
+        public static string OwnedByGuildSettings(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.OwnedByGuildSettings");
+
+        public static string OpenGuildSettings(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.OpenGuildSettings");
+
         public static string OwnedByAllianceSettings(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.OwnedByAllianceSettings");
 

@@ -1,0 +1,32 @@
+@* A setting a feature READS but does not own, shown read-only with a link to where it is changed.
+
+   Two of these exist so far and they have the same shape: the alliance's notification role, which
+   three features ping, and the guild's admin channel, which several post to. Editable in each
+   feature, a shared value reads as several settings that mysteriously move together — and every
+   page that can create it gets its own chance to name it differently.
+
+   One owner, many readers. This is the reader. *@
+
+<SettingsCard Title="@Title">
+    <div>
+        <label class="form-label">@Label</label>
+        <p class="form-control-plaintext mb-0">@(string.IsNullOrWhiteSpace(Value) ? Msg.WebCommon.NoneOption(Lang) : Value)</p>
+    </div>
+    <p class="form-text mt-0 mb-0">
+        @Hint <a href="@LinkHref">@LinkText</a>
+    </p>
+</SettingsCard>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public Language Lang { get; set; }
+
+    // Already rendered — "@Role Name" or "#channel-name" — because only the caller knows which of
+    // the guild's roles or channels the stored id refers to.
+    [Parameter] public string? Value { get; set; }
+
+    [Parameter, EditorRequired] public string Hint { get; set; } = "";
+    [Parameter, EditorRequired] public string LinkHref { get; set; } = "";
+    [Parameter, EditorRequired] public string LinkText { get; set; } = "";
+}

@@ -2,42 +2,33 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-@* Guild-wide Command Staff role, surfaced inside every feature that reads it (RoE "report on
-   behalf of an own player", raid-alert termination, announcement attribution, STFC News
-   confirmer count). It is ONE shared value on GuildSettings — editing it from any feature
-   editor changes it for all of them; there is no per-alliance copy. *@
-<SettingsCard Title="@Msg.WebCommon.CommandStaffRole(Lang)">
-    <RolePicker Label="@Msg.WebCommon.CommandStaffRole(Lang)" ShowLabel="false"
-        Usage="@Msg.WebCommon.CommandStaffRoleUsage(Lang)"
-        CreateRoleName="Command Staff" @bind-Value="roleInput" @bind-Value:after="SaveAsync" Roles="roles" />
-</SettingsCard>
+@* The guild-wide Command Staff role, shown by every feature that reads it (RoE "report on behalf of
+   an own player", raid-alert termination, announcement attribution, STFC News confirmer count).
+
+   Read-only: it is ONE value on GuildSettings, and editing it from four feature pages made a shared
+   setting look like four that mysteriously moved together. Changed on the guild settings page. *@
+<OwnedElsewhereCard Title="@Msg.WebCommon.CommandStaffRole(Lang)"
+                    Label="@Msg.WebCommon.CommandStaffRoleUsage(Lang)" Lang="Lang"
+                    Value="@display"
+                    Hint="@Msg.WebCommon.OwnedByGuildSettings(Lang)"
+                    LinkText="@Msg.WebCommon.OpenGuildSettings(Lang)"
+                    LinkHref="@($"manage/guild/{GuildId}/settings")" />
 
 @code {
     [CascadingParameter] public Language Lang { get; set; }
 
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
-    private List<Role> roles = [];
-    private string? roleInput;
+    private string? display;
 
     protected override async Task OnInitializedAsync()
     {
-        roles = await DiscordData.GetRolesAsync(GuildId);
         await using var db = await DbFactory.CreateDbContextAsync();
         var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId);
-        roleInput = settings?.CommandStaffRoleId?.ToString();
-    }
+        if (settings?.CommandStaffRoleId is not { } roleId)
+            return;
 
-    private async Task SaveAsync()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var existing = await db.GuildSettings.FirstOrDefaultAsync(s => s.GuildId == GuildId);
-        if (existing is null)
-        {
-            existing = new GuildSettings { GuildId = GuildId };
-            db.GuildSettings.Add(existing);
-        }
-        existing.CommandStaffRoleId = ulong.TryParse(roleInput, out var id) ? id : null;
-        await db.SaveChangesAsync();
+        var roles = await DiscordData.GetRolesAsync(GuildId);
+        display = roles.FirstOrDefault(r => r.Id == roleId) is { } role ? $"@{role.Name}" : null;
     }
 }
