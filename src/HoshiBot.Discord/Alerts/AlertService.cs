@@ -24,7 +24,8 @@ public class AlertService(
     GuildAllianceService allianceService,
     PlayerLinkService playerLinkService,
     LanguageResolver languageResolver,
-    GuildMemberNames memberNames)
+    GuildMemberNames memberNames,
+    CommandStaffRoles commandStaffRoles)
 {
     // Rendering rules (docs/localization-plan.md sub-phase 6e): status strings returned to an
     // interaction render in the ACTING user's language, DMs in the recipient's, the public
@@ -219,15 +220,10 @@ public class AlertService(
 
         if (targetId != callerId)
         {
-            var settings = await db.GuildSettings.FindAsync(guildId);
-            var isCommandStaff = false;
-            if (settings?.CommandStaffRoleId is { } roleId)
-            {
-                var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, callerId);
-                isCommandStaff = guildUser.RoleIds.Contains(roleId);
-            }
-
-            if (!isCommandStaff)
+            // Any of the guild's staff roles — see CommandStaffRoles for why this is not resolved
+            // against the TARGET's alliance.
+            var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, callerId);
+            if (!await commandStaffRoles.IsCommandStaffAsync(guildId, guildUser.RoleIds))
                 return Msg.Alert.OnlyStaffTerminate(callerLang);
         }
 

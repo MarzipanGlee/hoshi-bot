@@ -45,6 +45,15 @@ public class GuildAlliance
     // moved together and gave each page its own chance to name the role it might create.
     public ulong? NotificationRoleId { get; set; }
 
+    // This alliance's leadership. Gates the staff-only actions (reporting a RoE violation on behalf
+    // of an own player, ending another commander's raid alert) and supplies the "im Auftrag von"
+    // attribution on its announcements.
+    //
+    // Per alliance, not per guild: it was one GuildSettings value, so in a coalition guild every
+    // alliance's leadership was the same role — LF's staff could end SHQL's raid alerts by virtue of
+    // a setting neither of them chose.
+    public ulong? CommandStaffRoleId { get; set; }
+
     // Channels — alliance-scoped config formerly on GuildSettings (moved so a coalition guild
     // can configure each linked alliance independently).
     public ulong? AllianceBoardingChannelId { get; set; }

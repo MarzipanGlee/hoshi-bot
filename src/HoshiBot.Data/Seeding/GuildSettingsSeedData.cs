@@ -34,7 +34,6 @@ public static class GuildSettingsSeedData
         AdminChannelId = 1251527491399454791,
         UserLogChannelId = 1251050019235299448,
 
-        CommandStaffRoleId = 813727551678840884,
         CrewsRoleId = 1044929004035113070,
     };
 

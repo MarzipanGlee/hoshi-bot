@@ -41,6 +41,7 @@
             <RolePicker CardTitle="@Msg.WebAlliance.OfficerRoleTitle(Lang)" CreateRoleName="@officerRoleName" @bind-Value="officerRoleIdInput" @bind-Value:after="SaveOfficerRoleAsync" Roles="roles" />
             <RolePicker CardTitle="@Msg.WebAlliance.DiplomatRoleTitle(Lang)" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
             <RolePicker CardTitle="@Msg.WebAlliance.BoardingRoleTitle(Lang)" CreateRoleName="@boardingRoleName" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
+            <RolePicker CardTitle="@Msg.WebCommon.CommandStaffRole(Lang)" Usage="@Msg.WebCommon.CommandStaffRoleUsage(Lang)" CreateRoleName="@commandStaffRoleName" @bind-Value="commandStaffRoleIdInput" @bind-Value:after="SaveCommandStaffRoleAsync" Roles="roles" />
             <RolePicker CardTitle="@Msg.WebAlliance.NotificationRoleTitle(Lang)" Usage="@Msg.WebAlliance.NotificationRoleUsage(Lang)" CreateRoleName="@notificationRoleName" @bind-Value="notificationRoleIdInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
         </div>
 
@@ -71,6 +72,7 @@
     private string diplomatRoleName = "Diplomat";
     private string boardingRoleName = "Boarding";
     private string notificationRoleName = "Notifications";
+    private string commandStaffRoleName = "Command Staff";
     private List<IGuildChannel> channels = [];
     private List<CategoryGuildChannel> categories = [];
     private List<Role> roles = [];
@@ -88,6 +90,7 @@
     private string? diplomatRoleIdInput;
     private string? boardingRoleIdInput;
     private string? notificationRoleIdInput;
+    private string? commandStaffRoleIdInput;
     private string? timeZoneIdInput;
     private string? languageInput;
     private string? guildLanguageName;
@@ -120,6 +123,7 @@
         diplomatRoleName = $"{allianceTag}-Diplomat";
         boardingRoleName = $"{allianceTag}-Boarding";
         notificationRoleName = $"{allianceTag}-Notifications";
+        commandStaffRoleName = $"{allianceTag}-Command-Staff";
 
         channels = await DiscordData.GetChannelsAsync(ParsedGuildId);
         categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
@@ -137,6 +141,7 @@
         diplomatRoleIdInput = alliance.DiplomatRoleId?.ToString();
         boardingRoleIdInput = alliance.BoardingRoleId?.ToString();
         notificationRoleIdInput = alliance.NotificationRoleId?.ToString();
+        commandStaffRoleIdInput = alliance.CommandStaffRoleId?.ToString();
         timeZoneIdInput = alliance.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
         languageInput = alliance.Language;
         guildLanguageName = Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId));
@@ -193,5 +198,6 @@
     private Task SaveOfficerRoleAsync() => SaveRoleAsync((a, id) => a.OfficerRoleId = id, officerRoleIdInput, v => officerRoleIdInput = v, officerRoleName);
     private Task SaveDiplomatRoleAsync() => SaveRoleAsync((a, id) => a.DiplomatRoleId = id, diplomatRoleIdInput, v => diplomatRoleIdInput = v, diplomatRoleName);
     private Task SaveBoardingRoleAsync() => SaveRoleAsync((a, id) => a.BoardingRoleId = id, boardingRoleIdInput, v => boardingRoleIdInput = v, boardingRoleName);
+    private Task SaveCommandStaffRoleAsync() => SaveRoleAsync((a, id) => a.CommandStaffRoleId = id, commandStaffRoleIdInput, v => commandStaffRoleIdInput = v, commandStaffRoleName);
     private Task SaveNotificationRoleAsync() => SaveRoleAsync((a, id) => a.NotificationRoleId = id, notificationRoleIdInput, v => notificationRoleIdInput = v, notificationRoleName);
 }

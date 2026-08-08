@@ -254,12 +254,12 @@
 
         logChannelIdInput = settings.LogChannelId?.ToString();
         adminChannelIdInput = settings.AdminChannelId?.ToString();
-        commandStaffRoleIdInput = settings.CommandStaffRoleId?.ToString();
-
-        // Member role + default channel category are now per-alliance (GuildAlliance) — load the
-        // primary alliance's values if one is linked yet (may not be, this early in setup).
+        // Member role, command staff role and default channel category are all per-alliance
+        // (GuildAlliance) — load the primary alliance's values if one is linked yet (may not be,
+        // this early in setup).
         var primaryAlliance = await AllianceService.GetPrimaryAsync(guildId);
         memberRoleIdInput = primaryAlliance?.MemberRoleId?.ToString();
+        commandStaffRoleIdInput = primaryAlliance?.CommandStaffRoleId?.ToString();
         selectedCategoryIdInput = primaryAlliance?.DefaultChannelCategoryId?.ToString();
 
         guildAllianceCount = await db.GuildAlliances.CountAsync(g => g.GuildId == guildId);
@@ -363,9 +363,8 @@
 
                 existing.LogChannelId = logId;
                 existing.AdminChannelId = adminId;
-                existing.CommandStaffRoleId = staffId;
 
-                // Member role + default channel category are per-alliance now — write them to the
+                // Member role, command staff role + default channel category are per-alliance now — write them to the
                 // guild's primary alliance if one is linked. If not (brand-new guild, before the
                 // Scope step), the created role/category still exist on Discord; assign them on the
                 // alliance's Settings page once an alliance is linked.
@@ -374,6 +373,7 @@
                 if (primaryAlliance is not null)
                 {
                     primaryAlliance.MemberRoleId = memberId;
+                    primaryAlliance.CommandStaffRoleId = staffId;
                     primaryAlliance.DefaultChannelCategoryId = categoryId;
                 }
 

@@ -17,7 +17,7 @@
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="Diplomat"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
 
-    <CommandStaffRoleCard GuildId="GuildId" />
+    <CommandStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
 
 <PoweredBy For="@(new[] { typeof(StfcPlayer) })" />

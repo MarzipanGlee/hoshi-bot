@@ -34,7 +34,7 @@
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)"
             @bind-Value="warningsRoleInput" @bind-Value:after="SaveWarningsRoleAsync" Roles="roles" />
 
-    <CommandStaffRoleCard GuildId="GuildId" />
+    <CommandStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
 
 @code {

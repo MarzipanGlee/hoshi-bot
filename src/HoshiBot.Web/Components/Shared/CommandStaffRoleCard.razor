@@ -1,32 +1,42 @@
 @using NetCord
-@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject CommandStaffRoles CommandStaffRoles
 @inject DiscordGuildDataService DiscordData
 
-@* The guild-wide Command Staff role, shown by every feature that reads it (RoE "report on behalf of
-   an own player", raid-alert termination, announcement attribution, STFC News confirmer count).
+@* The scope's Command Staff role, shown by every feature that reads it (RoE "report on behalf of an
+   own player", raid-alert termination, announcement attribution, STFC News confirmer count).
 
-   Read-only: it is ONE value on GuildSettings, and editing it from four feature pages made a shared
-   setting look like four that mysteriously moved together. Changed on the guild settings page. *@
+   Read-only, and per scope. It was one guild-wide value editable from these four feature pages and
+   owned by none of them — so a coalition guild gave every alliance the same leadership, and the only
+   way to set it was from inside a feature that merely read it. *@
 <OwnedElsewhereCard Title="@Msg.WebCommon.CommandStaffRole(Lang)"
                     Label="@Msg.WebCommon.CommandStaffRoleUsage(Lang)" Lang="Lang"
                     Value="@display"
-                    Hint="@Msg.WebCommon.OwnedByGuildSettings(Lang)"
-                    LinkText="@Msg.WebCommon.OpenGuildSettings(Lang)"
-                    LinkHref="@($"manage/guild/{GuildId}/settings")" />
+                    Hint="@(IsAlliance ? Msg.WebCommon.OwnedByAllianceSettings(Lang) : Msg.WebCommon.OwnedByAudienceSettings(Lang))"
+                    LinkText="@(IsAlliance ? Msg.WebCommon.OpenAllianceSettings(Lang) : Msg.WebCommon.OpenAudienceSettings(Lang))"
+                    LinkHref="@OwnerHref" />
 
 @code {
     [CascadingParameter] public Language Lang { get; set; }
 
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
 
     private string? display;
 
-    protected override async Task OnInitializedAsync()
+    private bool IsAlliance => Audience == GuildAudience.Alliance && GuildAllianceId is not null;
+
+    private string OwnerHref => IsAlliance
+        ? $"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings"
+        : $"manage/guild/{GuildId}/{AudienceDisplay.Slug(Audience)}/settings";
+
+    protected override async Task OnParametersSetAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId);
-        if (settings?.CommandStaffRoleId is not { } roleId)
+        if (await CommandStaffRoles.ForScopeAsync(GuildId, Audience, GuildAllianceId) is not { } roleId)
+        {
+            display = null;
             return;
+        }
 
         var roles = await DiscordData.GetRolesAsync(GuildId);
         display = roles.FirstOrDefault(r => r.Id == roleId) is { } role ? $"@{role.Name}" : null;

@@ -32,9 +32,6 @@ public class GuildSettings
     public ulong? AdminChannelId { get; set; }
     public ulong? UserLogChannelId { get; set; }
 
-    // Roles. Member and Boarding moved to GuildAlliance (Member is the per-alliance
-    // GuildAlliance.MemberRoleId the bot already uses).
-    public ulong? CommandStaffRoleId { get; set; }
     public ulong? CrewsRoleId { get; set; }
 
     // Stamped when a guild admin completes (or explicitly finishes, even having skipped

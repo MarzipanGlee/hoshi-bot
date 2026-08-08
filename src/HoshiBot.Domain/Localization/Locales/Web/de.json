@@ -576,6 +576,8 @@
   "Web.Common.SelectServerPlaceholder": "Server auswählen...",
   "Web.Common.SelectChannelOption": "— Kanal wählen —",
   "Web.Common.SelectRoleOption": "— Rolle wählen —",
+  "Web.Common.OwnedByAudienceSettings": "Wird in den Zielgruppen-Einstellungen gesetzt und von allen Funktionen geteilt, die sie verwenden.",
+  "Web.Common.OpenAudienceSettings": "Zielgruppen-Einstellungen öffnen",
   "Web.Common.OwnedByGuildSettings": "Wird in den Server-Einstellungen gesetzt und von allen Funktionen geteilt, die sie verwenden.",
   "Web.Common.OpenGuildSettings": "Server-Einstellungen öffnen",
   "Web.Common.OwnedByAllianceSettings": "Wird in den Allianz-Einstellungen gesetzt und von allen Funktionen geteilt, die sie verwenden.",

@@ -120,7 +120,7 @@ public class AnnouncementDraftService(
             // the preview is a preview, and the published post resolves its own scope properly.
             var previewScope = scopes[0];
             var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement, previewScope.Audience, previewScope.GuildAllianceId);
-            var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang, tracked);
+            var (preview, _) = await announcementService.BuildAnnouncementEmbedAsync(guildId, previewScope.Audience, previewScope.GuildAllianceId, draft, severity, scopeLang, tracked);
 
             // Through the cache: draft is REST-fetched, so its Author carries no guild nickname and
             // the salutation would fall back to the global name.

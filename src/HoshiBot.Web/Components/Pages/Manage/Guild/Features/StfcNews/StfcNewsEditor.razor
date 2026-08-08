@@ -18,7 +18,7 @@
                         LinkText="@Msg.WebCommon.OpenGuildSettings(Lang)"
                         LinkHref="@($"manage/guild/{GuildId}/settings")" />
 
-    <CommandStaffRoleCard GuildId="GuildId" />
+    <CommandStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
 
 @code {

@@ -29,4 +29,9 @@ public class GuildAudienceSettings
     // server root, which is what Discord does with no parent. Mirrors
     // GuildAlliance.DefaultChannelCategoryId, which does the same job for the Alliance audience.
     public ulong? DefaultChannelCategoryId { get; set; }
+
+    // This audience's leadership — the non-Alliance counterpart to
+    // GuildAlliance.CommandStaffRoleId. Announcements is the one feature that reaches a
+    // Server/VeilGroup/Community audience and needs a staff role for its attribution line.
+    public ulong? CommandStaffRoleId { get; set; }
 }

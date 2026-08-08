@@ -36,6 +36,7 @@ public class StfcNewsNotifyJob(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     LanguageResolver languageResolver,
+    CommandStaffRoles commandStaffRoles,
     ILogger<StfcNewsNotifyJob> logger) : IJob
 {
     private const string FeedUrl = "https://startrekfleetcommand.com/feed/";
@@ -193,7 +194,7 @@ public class StfcNewsNotifyJob(
     }
 
     // Role-count proxy for "how many people could plausibly confirm" — counts distinct
-    // guild members holding CommandStaffRoleId and/or any GuildAdminRole, rather than
+    // guild members holding a command staff role and/or any GuildAdminRole, rather than
     // computing true per-channel visibility (permission overwrites + role math), which would
     // need new effective-permission code this app doesn't have. Assumes the guild's actual
     // AdminChannelId overwrites match one of these roles — not verified anywhere in the app
@@ -202,11 +203,9 @@ public class StfcNewsNotifyJob(
     // Server Members privileged intent enabled in the Discord Developer Portal.
     private async Task<int> ComputeEligibleMemberCountAsync(ulong guildId, CancellationToken ct)
     {
-        var settings = await db.GuildSettings.FindAsync([guildId], ct);
-
-        var adminRoleIds = new HashSet<ulong>();
-        if (settings?.CommandStaffRoleId is { } commandStaffRoleId)
-            adminRoleIds.Add(commandStaffRoleId);
+        // Every scope's staff: the confirmer pool is the whole guild's, so a coalition draws from
+        // all of its alliances.
+        var adminRoleIds = await commandStaffRoles.AllForGuildAsync(guildId);
         adminRoleIds.UnionWith(await db.GuildAdminRoles
             .Where(r => r.GuildId == guildId)
             .Select(r => r.DiscordRoleId)

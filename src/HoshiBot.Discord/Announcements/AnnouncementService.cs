@@ -16,7 +16,7 @@ namespace HoshiBot.Discord.Announcements;
 // plain-message drafting for attachments/length/template-reuse, not a modal (see the Phase 7 plan
 // section for why).
 public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService,
-    LanguageResolver languageResolver, GuildMemberNames memberNames, ReadReceiptService readReceipts, ILogger<AnnouncementService> logger)
+    LanguageResolver languageResolver, GuildMemberNames memberNames, ReadReceiptService readReceipts, CommandStaffRoles commandStaffRoles, ILogger<AnnouncementService> logger)
 {
     // First line of the draft = title, remainder = body — matches legacy's exact convention.
     public static (string Title, string Body) ParseDraft(string content)
@@ -69,7 +69,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
     //
     // Returns the attribution alongside, because the stored row keeps it too.
     public async Task<(EmbedProperties Embed, string Attribution)> BuildAnnouncementEmbedAsync(
-        ulong guildId, RestMessage draft, AnnouncementSeverity severity, Language lang, bool readReceiptsEnabled)
+        ulong guildId, GuildAudience audience, int? guildAllianceId, RestMessage draft, AnnouncementSeverity severity, Language lang, bool readReceiptsEnabled)
     {
         var settings = await db.GuildSettings.FindAsync(guildId);
         var (title, body) = ParseDraft(draft.Content);
@@ -78,7 +78,10 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         // Direct (🟦 in legacy) skips the "im Auftrag von {role}" attribution entirely —
         // a direct bot announcement, not staff acting through the bot — so it's resolved
         // but simply not rendered as a field below.
-        var attribution = await ResolveAttributionAsync(guildId, settings?.CommandStaffRoleId, lang);
+        // The scope's own staff role — the same one that gates its actions — because the
+        // attribution renders its NAME ("im Auftrag von LF-Führungsstab"), so it has to be one
+        // specific role rather than the union the permission gates ask about.
+        var attribution = await ResolveAttributionAsync(guildId, await commandStaffRoles.ForScopeAsync(guildId, audience, guildAllianceId), lang);
 
         var fields = new List<EmbedFieldProperties>
         {
@@ -156,7 +159,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         // never re-read from the setting afterwards.
         var tracked = await readReceipts.IsKindEnabledAsync(guildId, ReadablePostKind.Announcement, audience, guildAllianceId);
 
-        var (embed, attribution) = await BuildAnnouncementEmbedAsync(guildId, draft, severity, scopeLang, tracked);
+        var (embed, attribution) = await BuildAnnouncementEmbedAsync(guildId, audience, guildAllianceId, draft, severity, scopeLang, tracked);
         var (title, body) = ParseDraft(draft.Content);
         var attachmentUrls = draft.Attachments.Select(a => a.Url).ToArray();
 

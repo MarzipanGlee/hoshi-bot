@@ -46,6 +46,11 @@
 
             @* The same setting the Alliance audience has on its own page — every audience creates
                channels, so every audience needs somewhere to put them. *@
+            <RolePicker CardTitle="@Msg.WebCommon.CommandStaffRole(Lang)"
+                        Usage="@Msg.WebCommon.CommandStaffRoleUsage(Lang)"
+                        CreateRoleName="Command Staff" Roles="roles"
+                        @bind-Value="commandStaffInput" @bind-Value:after="SaveCommandStaffAsync" />
+
             <ChannelPicker CardTitle="@Msg.WebAlliance.DefaultCategoryTitle(Lang)"
                            Usage="@Msg.WebAlliance.DefaultCategoryUsage(Lang)"
                            PlaceholderText="@Msg.WebAlliance.ServerRootPlaceholder(Lang)"
@@ -64,6 +69,8 @@
     private bool validAudience;
     private string? languageInput;
     private string? categoryInput;
+    private string? commandStaffInput;
+    private List<Role> roles = [];
     private List<CategoryGuildChannel> categories = [];
     private string? guildLanguageName;
 
@@ -100,6 +107,8 @@
             .FirstOrDefaultAsync(a => a.GuildId == ParsedGuildId && a.Audience == audience);
         languageInput = settings?.Language;
         categoryInput = settings?.DefaultChannelCategoryId?.ToString();
+        commandStaffInput = settings?.CommandStaffRoleId?.ToString();
+        roles = await DiscordData.GetRolesAsync(ParsedGuildId);
 
         categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
 
@@ -109,6 +118,8 @@
     private Task SaveLanguageAsync() => UpdateAsync(a => a.Language = languageInput);
 
     private Task SaveCategoryAsync() => UpdateAsync(a => a.DefaultChannelCategoryId = ParseId(categoryInput));
+
+    private Task SaveCommandStaffAsync() => UpdateAsync(a => a.CommandStaffRoleId = ParseId(commandStaffInput));
 
     // One row per audience holding every audience-level setting, created on first use and deleted
     // once nothing is set — so "inherit everything" stays the absence of a row rather than a row
@@ -122,7 +133,7 @@
         var row = existing ?? new GuildAudienceSettings { GuildId = ParsedGuildId, Audience = audience };
         apply(row);
 
-        if (row.Language is null && row.DefaultChannelCategoryId is null)
+        if (row.Language is null && row.DefaultChannelCategoryId is null && row.CommandStaffRoleId is null)
         {
             if (existing is not null)
                 db.GuildAudienceSettings.Remove(existing);

@@ -10,7 +10,7 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, ChannelKey)" Usage="@Msg.WebEditor.Usage(Lang, Feature, ChannelKey)"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <CommandStaffRoleCard GuildId="GuildId" />
+    <CommandStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
 
 <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="ResolvedAudience" />
