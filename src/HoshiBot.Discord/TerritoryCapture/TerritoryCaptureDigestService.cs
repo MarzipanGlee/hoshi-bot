@@ -97,8 +97,7 @@ public partial class TerritoryCaptureDigestService(
                 // Mention this alliance's absence-clean notification role (owned by the Absences
                 // feature; kept in sync by NotificationRoleSyncJob). Weekly pings the whole alliance,
                 // unlike the daily which pings only the specific zone-slot roles for tomorrow.
-                var notifyRoleId = await settingsService.GetSnowflakeAsync(
-                    guildId, GuildFeature.Absences, GuildAudience.Alliance, link.Id, AbsencesSettingKeys.NotificationRole);
+                var notifyRoleId = link.NotificationRoleId;
                 var mentionRoleIds = notifyRoleId is { } roleId
                     ? new List<ulong> { roleId }
                     : new List<ulong>();

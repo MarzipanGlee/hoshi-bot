@@ -1,0 +1,36 @@
+@using NetCord
+
+@* A role that belongs to the ALLIANCE, shown read-only by a feature that merely uses it.
+
+   The notification role is one value three features reach for (Absences owns the storage;
+   Announcements and Territory Capture ping the same role). Editable in all three, it read as three
+   settings that mysteriously moved together — and each page had to know how to name the role it
+   might create, which is how three literals end up disagreeing and quietly creating a second role
+   half the guild isn't in.
+
+   One editor, three readers. This is the reader. *@
+
+<SettingsCard Title="@Title">
+    <div>
+        <label class="form-label">@Label</label>
+        <p class="form-control-plaintext mb-0">
+            @(RoleId is { } id && Roles.FirstOrDefault(r => r.Id == id) is { } role
+                ? $"@{role.Name}"
+                : Msg.WebCommon.NoneOption(Lang))
+        </p>
+    </div>
+    <p class="form-text mt-0 mb-0">
+        @Msg.WebCommon.OwnedByAllianceSettings(Lang)
+        <a href="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")">@Msg.WebCommon.OpenAllianceSettings(Lang)</a>
+    </p>
+</SettingsCard>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public Language Lang { get; set; }
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public int? GuildAllianceId { get; set; }
+    [Parameter] public ulong? RoleId { get; set; }
+    [Parameter] public IReadOnlyList<Role> Roles { get; set; } = [];
+}

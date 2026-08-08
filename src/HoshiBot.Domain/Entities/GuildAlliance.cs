@@ -36,6 +36,15 @@ public class GuildAlliance
     public ulong? DiplomatRoleId { get; set; }
     public ulong? BoardingRoleId { get; set; }
 
+    // Opt-in role pinged by anything alliance-wide worth interrupting people for: the absence-clean
+    // notice, an elevated announcement, the weekly capture digest.
+    //
+    // Here rather than in a feature's settings because it is one role three features REACH FOR — it
+    // belongs to the alliance, not to whichever feature happened to introduce it. It lived under
+    // Absences and was editable from all three pages, which read as three settings that mysteriously
+    // moved together and gave each page its own chance to name the role it might create.
+    public ulong? NotificationRoleId { get; set; }
+
     // Channels — alliance-scoped config formerly on GuildSettings (moved so a coalition guild
     // can configure each linked alliance independently).
     public ulong? AllianceBoardingChannelId { get; set; }

@@ -8,10 +8,6 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
-@if (createError is not null)
-{
-    <p class="text-danger">@createError.Value.Text(Lang)</p>
-}
 
 @if (createRoleError is not null)
 {
@@ -37,9 +33,10 @@
         <p class="form-text mb-0">
             @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, WeeklyMentionRoleKey))
         </p>
-        <RolePicker Label="@Msg.WebEditor.Label(Lang, Feature, AbsencesSettingKeys.NotificationRole)" ShowLabel="false"
-            CreateRoleName="@NotificationRoleName"
-                @bind-Value="notificationRoleInput" @bind-Value:after="SaveNotificationRoleAsync" Roles="roles" />
+    <AllianceOwnedRoleCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
+            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)"
+            Lang="Lang" GuildId="GuildId" GuildAllianceId="GuildAllianceId"
+            RoleId="notificationRoleId" Roles="roles" />
     </SettingsCard>
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, DigestScheduleKey)">
@@ -76,7 +73,6 @@
     private const string DigestScheduleKey = "DigestSchedule";
 
     private List<Role> roles = [];
-    private DiscordCreateErrorKind? createError;
     private List<IGuildChannel> channels = [];
     private string? digestChannelInput;
     private string? zoneSlot1Input;
@@ -84,7 +80,7 @@
     private string? zoneSlot3Input;
     private string? zoneSlot4Input;
     private string? zoneSlot5Input;
-    private string? notificationRoleInput;
+    private ulong? notificationRoleId;
     private string? instructionsInput;
     private string? weeklyDigestTimeInput;
     private string? dailyDigestTimeInput;
@@ -93,11 +89,10 @@
 
     protected override async Task OnSettingsLoadedAsync()
     {
+        // The notification role belongs to the alliance, not to this feature — read here, changed on
+        // the alliance settings page (see AllianceOwnedRoleCard).
+        var alliance = GuildAllianceId is { } roleAllianceId ? await AllianceService.FindByIdAsync(GuildId, roleAllianceId) : null;
 
-        // Only an Alliance-scoped page has a tag; elsewhere NotificationRoleName falls back to the
-        // bare word rather than inventing a prefix.
-        if (GuildAllianceId is { } notificationTagAllianceId)
-            allianceTag = (await AllianceService.FindByIdAsync(GuildId, notificationTagAllianceId))?.StfcAlliance.Tag ?? "";
         roles = await DiscordData.GetRolesAsync(GuildId);
         channels = await DiscordData.GetChannelsAsync(GuildId);
         digestChannelInput = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.DigestChannel))?.ToString();
@@ -106,7 +101,7 @@
         zoneSlot3Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
         zoneSlot4Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot4Role))?.ToString();
         zoneSlot5Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
-        notificationRoleInput = (await GetSnowflakeAsync(GuildFeature.Absences, AbsencesSettingKeys.NotificationRole))?.ToString();
+        notificationRoleId = alliance?.NotificationRoleId;
         instructionsInput = await GetTextAsync(TerritoryCaptureSettingKeys.Instructions);
 
         weeklyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.WeeklyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultWeeklyTime;
@@ -176,22 +171,6 @@
     // Stored under the Absences feature (its owner) so this and the Absences page edit one value.
     // The alliance's tag prefixes the created role, so a coalition guild's opt-in roles sit together
     // and a member can tell whose is whose. Falls back to a bare name when the tag isn't loaded yet.
-    private string allianceTag = "";
 
-    private string NotificationRoleName => string.IsNullOrWhiteSpace(allianceTag)
-        ? "Notifications"
-        : AllianceRoleNames.Notifications(allianceTag);
 
-    // EnsureRoleOrError, not ParseId: the picker's "create it" option posts a sentinel rather than
-    // an id, and parsing that stores nothing.
-    private async Task SaveNotificationRoleAsync()
-    {
-        createError = null;
-        (var roleId, notificationRoleInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, notificationRoleInput, NotificationRoleName);
-        if (createError is not null)
-            return;
-
-        roles = await DiscordData.GetRolesAsync(GuildId);
-        await SetSnowflakeAsync(GuildFeature.Absences, AbsencesSettingKeys.NotificationRole, roleId);
-    }
 }

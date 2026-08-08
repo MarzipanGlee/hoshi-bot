@@ -165,9 +165,8 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
             // The absence-clean notification role is per-alliance (owned by the Absences feature).
             // An Elevated announcement can only ping it when it targets a specific linked alliance;
             // Server/VeilGroup/Community audiences have no single alliance role to ping.
-            AnnouncementSeverity.Elevated => audience == GuildAudience.Alliance && guildAllianceId is not null
-                ? await settingsService.GetSnowflakeAsync(
-                    guildId, GuildFeature.Absences, GuildAudience.Alliance, guildAllianceId, AbsencesSettingKeys.NotificationRole)
+            AnnouncementSeverity.Elevated => audience == GuildAudience.Alliance && guildAllianceId is { } notifyAllianceId
+                ? (await db.GuildAlliances.FindAsync(notifyAllianceId))?.NotificationRoleId
                 : null,
             AnnouncementSeverity.High => await settingsService.GetSnowflakeAsync(
                 guildId, GuildFeature.Announcements, audience, guildAllianceId, AnnouncementsSettingKeys.WarningsRole),

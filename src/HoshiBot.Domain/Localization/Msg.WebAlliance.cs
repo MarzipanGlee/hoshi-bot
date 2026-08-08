@@ -81,6 +81,12 @@ public static partial class Msg
         public static string DiplomatRoleTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.DiplomatRoleTitle");
 
+        public static string NotificationRoleTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Alliance.NotificationRoleTitle");
+
+        public static string NotificationRoleUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Alliance.NotificationRoleUsage");
+
         public static string BoardingRoleTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.BoardingRoleTitle");
 

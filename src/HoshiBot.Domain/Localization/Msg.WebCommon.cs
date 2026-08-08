@@ -94,6 +94,14 @@ public static partial class Msg
         public static string SelectRoleOption(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.SelectRoleOption");
 
+        // Shown by a feature displaying a setting the ALLIANCE owns — the feature reads it, the
+        // alliance settings page is where it is changed.
+        public static string OwnedByAllianceSettings(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.OwnedByAllianceSettings");
+
+        public static string OpenAllianceSettings(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.OpenAllianceSettings");
+
         public static string NoneOption(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.NoneOption");
 

@@ -16,7 +16,7 @@ namespace HoshiBot.Discord.Scheduling;
 // NotificationRole setting) in sync for that alliance's members: removed while they're on an
 // absence that suppresses notifications (starting within 15 min or already ongoing), added
 // back otherwise. The role is owned by the Absences feature but pinged by the Territory
-// Capture weekly digest and Announcements — see AbsencesSettingKeys.NotificationRole.
+// Capture weekly digest and Announcements — see GuildAlliance.NotificationRoleId.
 public class NotificationRoleSyncJob(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
@@ -29,12 +29,9 @@ public class NotificationRoleSyncJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var settings = await db.GuildFeatureSettingSnowflakes
-            .Where(s => s.Feature == GuildFeature.Absences
-                && s.Audience == GuildAudience.Alliance
-                && s.Key == AbsencesSettingKeys.NotificationRole
-                && s.GuildAllianceId != null)
-            .Select(s => new { s.GuildId, GuildAllianceId = s.GuildAllianceId!.Value, RoleId = s.Value })
+        var settings = await db.GuildAlliances
+            .Where(a => a.NotificationRoleId != null)
+            .Select(a => new { a.GuildId, GuildAllianceId = a.Id, RoleId = a.NotificationRoleId!.Value })
             .ToListAsync();
 
         // Fetch each guild's roster once (bulk) and reuse it across that guild's alliances, instead of

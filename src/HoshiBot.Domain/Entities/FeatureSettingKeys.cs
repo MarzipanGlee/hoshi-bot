@@ -9,12 +9,6 @@ public static class AbsencesSettingKeys
     public const string ReportChannel = "ReportChannel";
     public const string ReportStaffChannel = "ReportStaffChannel";
 
-    // The per-alliance "notify me" ping role, kept absence-clean by NotificationRoleSyncJob
-    // (a member with an active SuppressNotifications absence is removed until it ends). Owned
-    // by the Absences feature (which manages the sync) but consumed by other features that ping
-    // the alliance: the Territory Capture weekly digest and Announcements (Elevated severity).
-    // Replaces the old guild-wide NotificationRole table + /set-notification-role command.
-    public const string NotificationRole = "NotificationRole";
 
     // Per-alliance "pinned report message" ids — the message the periodic refresh edits in place
     // in each alliance's report channel. Replaces GuildSettings.AbsencesReport*MessageId (which
