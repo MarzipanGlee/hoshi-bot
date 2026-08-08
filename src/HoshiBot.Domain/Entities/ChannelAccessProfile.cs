@@ -9,8 +9,9 @@ namespace HoshiBot.Domain.Entities;
 // out of SendMessages) exactly one profile changes instead of twenty slots.
 //
 // There is deliberately no "profile plus a few extra bits" escape hatch. If a slot needs a shape
-// none of these has, add a profile — PostPinAndPing is exactly that case, and it is more useful as
-// a name than as an inline union nobody can search for.
+// none of these has, add a profile — a name is more useful than an inline union nobody can search
+// for. The reverse holds too: PostPinAndPing was removed with the last slot that used it, rather
+// than left as a shape available for something to drift back onto.
 public enum ChannelAccessProfile
 {
     None = 0,
@@ -34,10 +35,6 @@ public enum ChannelAccessProfile
     // Mention Everyone becomes required. Harmless to hold when the role IS mentionable.
     PostAndPing,
 
-    // As above, and pins its own message — the Territory Capture weekly digest. Discord split
-    // pinning out of Manage Messages, so a bot holding only Manage Messages still 403s on the pin;
-    // that once made the whole digest look failed and resent every 30 minutes, double-pinging.
-    PostPinAndPing,
 
     // The announcements draft channel: staff write drafts, the bot reads them back to publish,
     // decorates each with the four severity reactions, and clears up after a publish. Without Add
@@ -77,9 +74,6 @@ public static class ChannelAccessProfiles
 
         ChannelAccessProfile.PostAndPing =>
             ChannelAccessProfile.Post.Permissions() | BotPermission.MentionEveryone,
-
-        ChannelAccessProfile.PostPinAndPing =>
-            ChannelAccessProfile.PostAndPing.Permissions() | BotPermission.PinMessages,
 
         // Manage Messages is the one permission here that acts on somebody ELSE's message: removing
         // the draft once it has been published, and clearing the severity reaction the staff member

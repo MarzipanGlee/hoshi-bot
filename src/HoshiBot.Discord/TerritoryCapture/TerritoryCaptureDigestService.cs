@@ -105,11 +105,10 @@ public partial class TerritoryCaptureDigestService(
 
                 var title = links.Count > 1 ? Msg.Tc.TitleWithTag(lang, baseTitle, link.StfcAlliance.Tag) : baseTitle;
                 var signOff = await IsSignOffEnabledAsync(guildId, link);
-                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, pin: true, lang, signOff);
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, slotted, unknown, mentionRoleIds, lang, signOff);
 
-                // Retention +7 days: no capture-free day anymore, so the pinned digest must live the
-                // whole week until the next weekly digest replaces it. The sweep's delete also drops
-                // the stale pin.
+                // Retention +7 days: no capture-free day anymore, so the weekly digest must live the
+                // whole week until the next one replaces it.
                 if (messageId is { } weeklyMessageId)
                     await RecordSentMessageAsync(guildId, link.Id, TerritoryCaptureMessageKind.Weekly, dedupKey, channelIdValue, weeklyMessageId, now, now.AddDays(7));
             }
@@ -174,7 +173,7 @@ public partial class TerritoryCaptureDigestService(
                     : Msg.Tc.DailyTitle(lang);
                 var known = tomorrowSlots.Select(s => (s.SlotIndex, s.Territory, s.Start, s.End)).ToList();
                 var signOff = await IsSignOffEnabledAsync(guildId, link);
-                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, pin: false, lang, signOff);
+                var messageId = await SendDigestAsync(guildId, channelIdValue, link, title, known, [], mentionRoleIds, lang, signOff);
 
                 // Retention +1 day: yesterday's "tomorrow's zones" preview is stale once its day arrives.
                 if (messageId is { } dailyMessageId)
@@ -298,7 +297,7 @@ public partial class TerritoryCaptureDigestService(
     // lang: the owning alliance's resolved language — the digest is that alliance's public post.
     private async Task<ulong?> SendDigestAsync(ulong guildId, ulong channelId, GuildAlliance link, string title,
         List<(int SlotIndex, StfcTerritory Territory, DateTimeOffset Start, DateTimeOffset End)> known, List<StfcTerritory> unknown,
-        IReadOnlyList<ulong> mentionRoleIds, bool pin, Language lang, bool signOff)
+        IReadOnlyList<ulong> mentionRoleIds, Language lang, bool signOff)
     {
         // Each row is its OWN inline-code span, with the time appended as real Discord timestamps
         // (<t:unix:t>) OUTSIDE the span. Discord won't render a timestamp inside a code fence, so
@@ -389,25 +388,6 @@ public partial class TerritoryCaptureDigestService(
                 "Failed to send Territory Capture digest to channel {ChannelId} for guild {GuildId} (alliance {AllianceTag})",
                 channelId, guildId, link.StfcAlliance.Tag);
             return null;
-        }
-
-        if (pin)
-        {
-            try
-            {
-                await gatewayClient.Rest.PinMessageAsync(channelId, message.Id);
-            }
-            catch (RestException ex)
-            {
-                // Pinning is best-effort (missing "Manage Messages", channel already at Discord's
-                // 50-pin cap, etc.) and must NOT roll back a successful send: this once lived inside
-                // the send's try/catch, so a pin failure returned null here, RecordSentMessageAsync
-                // never ran, the dedup row was never written, and the next 30-minute sweep tick
-                // re-sent (and re-pinged @role on) the entire digest as a brand-new message.
-                logger.LogWarning(ex,
-                    "Failed to pin Territory Capture digest message {MessageId} in channel {ChannelId} for guild {GuildId} (alliance {AllianceTag})",
-                    message.Id, channelId, guildId, link.StfcAlliance.Tag);
-            }
         }
 
         return message.Id;

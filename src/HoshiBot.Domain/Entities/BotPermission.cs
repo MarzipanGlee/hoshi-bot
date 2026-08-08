@@ -50,5 +50,11 @@ public enum BotPermission : ulong
 
     // Split out of ManageMessages by Discord after the fact — a bot holding only ManageMessages
     // still gets a 403 on the pin call (this bit us once on the Territory Capture weekly digest).
+    //
+    // No profile declares it any more: the weekly digest stopped pinning, and it was the only
+    // caller. Kept anyway, because the enum is also where the split itself is recorded — the
+    // BotPermissionTests tripwire that asserts this is NOT ManageMessages is the thing that would
+    // otherwise be quietly deleted along with it. It costs nothing at runtime: the invite link asks
+    // for the union of the declared profiles, so an undeclared bit is never requested.
     PinMessages = 1UL << 51,
 }

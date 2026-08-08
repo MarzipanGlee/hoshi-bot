@@ -132,7 +132,7 @@ public static class GuildFeaturePermissions
 
         // The weekly digest is pinned and pings the zone-slot roles; the pre-capture reminders go to
         // the same channel.
-        GuildFeature.TerritoryCapture => [FeatureChannelSlot.Setting(TerritoryCaptureSettingKeys.DigestChannel, ChannelAccessProfile.PostPinAndPing)],
+        GuildFeature.TerritoryCapture => [FeatureChannelSlot.Setting(TerritoryCaptureSettingKeys.DigestChannel, ChannelAccessProfile.PostAndPing)],
 
         GuildFeature.TerritoryCaptureServiceReminders =>
             [FeatureChannelSlot.Setting(TerritoryCaptureServiceRemindersSettingKeys.ServicesChannel, ChannelAccessProfile.PostAndPing)],
@@ -260,8 +260,8 @@ public static class GuildFeaturePermissions
     // routinely deny at category level, and without it the bot cannot even see what it manages.
     //
     // Everything feature-conditional arrives later via the per-guild re-authorize link
-    // (BotInviteService): Add Reactions, Mention Everyone, Pin Messages, Manage Nicknames and the
-    // three thread bits.
+    // (BotInviteService): Add Reactions, Mention Everyone, Manage Messages, Manage Nicknames and
+    // the three thread bits.
     //
     // The one case this leaves thin: a locked-down guild that denies @everyone Send Messages. The
     // Fix button cannot repair that either — it refuses to grant permissions the bot does not hold
