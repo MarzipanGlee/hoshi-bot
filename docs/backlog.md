@@ -835,3 +835,66 @@ Two decisions already taken that it inherits: reminders are **DMs**, not per-mem
 (`AnnouncementsSettingKeys.RemindersChannel` was removed for this reason), and the escalation state
 needs somewhere to live — legacy kept a level and a `SentAt` per member, which is a small table
 rather than a settings key.
+
+## More AI providers — what the Kindred POC settles, and what it doesn't
+
+`../ai-chat` (Kindred) runs five chat providers where Hoshi has two: **Claude, OpenAI, Gemini,
+Ollama, Grok** (`Kindred.Domain/Providers/ProviderKinds.cs`). Worth lifting, with two caveats that
+matter more than the provider list itself.
+
+### What to copy
+
+- **`OpenAiCompatibleChatProvider`** — an abstract base that Grok and OpenAI share, because Grok
+  speaks the OpenAI chat-completions protocol. Adding an OpenAI-compatible vendor is then a subclass
+  with a base URL, not another hand-written adapter. Most of the market speaks that protocol, so this
+  is the single highest-leverage piece.
+- **Capability declared, not assumed.** Kindred's `IAiChatProvider` exposes `IsConfigured`,
+  `DefaultModel`, `DefaultAdjudicationModel`, `HistoryLimit`, `SupportsExplicitCacheBreakpoints`,
+  `ActionSupport`, `MaxSupportedLevel`. Hoshi's already has the shape (`DefaultModel`,
+  `DefaultGateModel` — null meaning "this provider has no cheap tier" — `HistoryLimit`,
+  `KnowledgeSnippetLimit`), just less of it.
+- **`IsConfigured`** makes an unconfigured provider unselectable at startup rather than discovered at
+  2am when someone hits it.
+
+### Caveat 1: the POC has no embeddings at all
+
+There is no embedding code in Kindred (`grep -rl embed src/` finds one unrelated EF configuration).
+So it answers the chat question and says nothing about the harder one — which is the right question
+to ask here, because **not every provider embeds**:
+
+| Provider | Chat | Embeddings |
+|---|---|---|
+| Gemini | yes | yes (in use) |
+| Ollama | yes | yes, model-dependent (in use) |
+| OpenAI | yes | yes — `text-embedding-3-*` |
+| Claude (Anthropic) | yes | **no first-party embedding API** — Anthropic points at third parties |
+| Grok (xAI) | yes | **no embedding endpoint** as far as I can establish — verify before relying on it |
+
+Hoshi is already shaped for this, which is the good news: `AiProvider` and `EmbeddingProvider` are
+**separate enums with separate settings**, chosen independently (a guild can chat with Gemini on
+Ollama embeddings today). So a chat-only provider slots in without touching embeddings at all — the
+editor just must not offer Claude or Grok in the *Embeddings* dropdown, which the two-enum split
+already makes natural rather than a special case.
+
+### Caveat 2: 768 dimensions is a schema constraint, not a preference
+
+`AiChatEmbeddingService.Dimensions = 768`, and both vector columns are `vector(768)`
+(`AiChatIndexedMessageConfiguration`, `GuildMemoryConfiguration`). Today that holds because Ollama's
+`embeddinggemma` is natively 768 and Gemini is truncated to it via `OutputDimensionality`.
+
+Any new embedding provider must therefore either produce 768 natively or support dimension
+truncation. OpenAI's `text-embedding-3-*` do (a `dimensions` parameter), so OpenAI would fit without
+a migration. One that doesn't would force a column change **and a full re-embed of every indexed
+message and memory** — note the asymmetry:
+
+- Changing the embedding **model** is already self-healing: rows store `EmbeddingModel`, and the
+  indexing pass re-embeds anything stale over the next few passes.
+- Changing the **dimension** is not. The column type is wrong the moment it happens, so it needs a
+  migration plus a re-embed, not a background convergence.
+
+### Also needed before any of this
+
+`AiBackendSettingKeys.ApiKey` is **singular** — one key per guild. Several providers means a key per
+provider (still encrypted via `SettingSecretProtector`), and `GeminiModels` — the model catalogue and
+its defaults — is Gemini-only by construction. Both want a per-provider shape before the second cloud
+provider lands, not after.
