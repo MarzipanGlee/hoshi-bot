@@ -72,7 +72,7 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<GuildAlertChannel> GuildAlertChannels => Set<GuildAlertChannel>();
 
-    public DbSet<GuildAudienceLanguage> GuildAudienceLanguages => Set<GuildAudienceLanguage>();
+    public DbSet<GuildAudienceSettings> GuildAudienceSettings => Set<GuildAudienceSettings>();
 
     public DbSet<GlobalAdmin> GlobalAdmins => Set<GlobalAdmin>();
 

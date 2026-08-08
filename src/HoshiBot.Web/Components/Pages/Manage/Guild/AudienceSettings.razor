@@ -1,7 +1,9 @@
 @page "/manage/guild/{GuildId}/{AudienceSlug}/settings"
 @inherits GuildAdminPageBase
+@using NetCord
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject LanguageResolver LanguageResolver
+@inject DiscordGuildDataService DiscordData
 
 <PageTitle>@(validAudience ? Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle) : Msg.WebGuild.AudienceSettingsHeading(Lang))</PageTitle>
 
@@ -41,6 +43,14 @@
                             Usage="@Msg.WebGuild.AudienceLanguageUsage(Lang)"
                             InheritedLabel="@InheritedLanguageLabel"
                             @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
+
+            @* The same setting the Alliance audience has on its own page — every audience creates
+               channels, so every audience needs somewhere to put them. *@
+            <ChannelPicker CardTitle="@Msg.WebAlliance.DefaultCategoryTitle(Lang)"
+                           Usage="@Msg.WebAlliance.DefaultCategoryUsage(Lang)"
+                           PlaceholderText="@Msg.WebAlliance.ServerRootPlaceholder(Lang)"
+                           CategorySelect="true" CreateChannelName="Hoshi Bot" Channels="categories"
+                           @bind-Value="categoryInput" @bind-Value:after="SaveCategoryAsync" />
         </div>
     }
 </AuthorizedGuildView>
@@ -53,6 +63,8 @@
     private GuildAudience audience;
     private bool validAudience;
     private string? languageInput;
+    private string? categoryInput;
+    private List<CategoryGuildChannel> categories = [];
     private string? guildLanguageName;
 
     private string AudienceTitle => AudienceDisplay.Labels(Lang, audience).First();
@@ -84,34 +96,45 @@
             return;
 
         await using var db = await DbFactory.CreateDbContextAsync();
-        languageInput = await db.GuildAudienceLanguages
-            .Where(l => l.GuildId == ParsedGuildId && l.Audience == audience)
-            .Select(l => l.Language)
-            .FirstOrDefaultAsync();
+        var settings = await db.GuildAudienceSettings
+            .FirstOrDefaultAsync(a => a.GuildId == ParsedGuildId && a.Audience == audience);
+        languageInput = settings?.Language;
+        categoryInput = settings?.DefaultChannelCategoryId?.ToString();
+
+        categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
 
         guildLanguageName = Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId));
     }
 
-    private async Task SaveLanguageAsync()
+    private Task SaveLanguageAsync() => UpdateAsync(a => a.Language = languageInput);
+
+    private Task SaveCategoryAsync() => UpdateAsync(a => a.DefaultChannelCategoryId = ParseId(categoryInput));
+
+    // One row per audience holding every audience-level setting, created on first use and deleted
+    // once nothing is set — so "inherit everything" stays the absence of a row rather than a row
+    // full of nulls that reads like a decision.
+    private async Task UpdateAsync(Action<GuildAudienceSettings> apply)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        var existing = await db.GuildAudienceLanguages
-            .FirstOrDefaultAsync(l => l.GuildId == ParsedGuildId && l.Audience == audience);
+        var existing = await db.GuildAudienceSettings
+            .FirstOrDefaultAsync(a => a.GuildId == ParsedGuildId && a.Audience == audience);
 
-        if (languageInput is null)
+        var row = existing ?? new GuildAudienceSettings { GuildId = ParsedGuildId, Audience = audience };
+        apply(row);
+
+        if (row.Language is null && row.DefaultChannelCategoryId is null)
         {
             if (existing is not null)
-                db.GuildAudienceLanguages.Remove(existing);
+                db.GuildAudienceSettings.Remove(existing);
         }
         else if (existing is null)
         {
-            db.GuildAudienceLanguages.Add(new GuildAudienceLanguage { GuildId = ParsedGuildId, Audience = audience, Language = languageInput });
-        }
-        else
-        {
-            existing.Language = languageInput;
+            db.GuildAudienceSettings.Add(row);
         }
 
         await db.SaveChangesAsync();
     }
+
+    private static ulong? ParseId(string? input) => ulong.TryParse(input, out var id) ? id : null;
+
 }

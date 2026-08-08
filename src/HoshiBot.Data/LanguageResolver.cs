@@ -68,7 +68,7 @@ public class LanguageResolver(IDbContextFactory<HoshiBotDbContext> dbFactory, La
             return cached;
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        var code = await db.GuildAudienceLanguages
+        var code = await db.GuildAudienceSettings
             .Where(l => l.GuildId == guildId && l.Audience == audience)
             .Select(l => l.Language)
             .FirstOrDefaultAsync();
