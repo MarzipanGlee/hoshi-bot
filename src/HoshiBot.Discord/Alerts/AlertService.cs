@@ -23,7 +23,8 @@ public class AlertService(
     GuildFeatureSettingsService settingsService,
     GuildAllianceService allianceService,
     PlayerLinkService playerLinkService,
-    LanguageResolver languageResolver)
+    LanguageResolver languageResolver,
+    GuildMemberNames memberNames)
 {
     // Rendering rules (docs/localization-plan.md sub-phase 6e): status strings returned to an
     // interaction render in the ACTING user's language, DMs in the recipient's, the public
@@ -33,7 +34,23 @@ public class AlertService(
     // Buttons can be clicked from a DM (no NetCord Guild context there), so the guild ID
     // travels in the custom_id itself rather than relying on Context.Guild.
     public static ButtonProperties RaidTerminateButton(ulong guildId, ulong targetUserId, Language lang) =>
-        new($"raid-terminate:{guildId}:{targetUserId}", Msg.Alert.TerminateButton(lang), ButtonStyle.Danger);
+        new($"raid-terminate:{guildId}:{targetUserId}", Msg.Alert.TerminateButton(lang), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Success);
+
+    // The row under a live raid alarm. "Manage alerts" is the same action as the Command Bridge's
+    // own opt-in button, offered here because the moment a member is pinged by an alarm is exactly
+    // when they want to change whether they get pinged by alarms.
+    public static ActionRowProperties RaidButtons(ulong guildId, ulong targetUserId, Language lang) => new(
+    [
+        RaidTerminateButton(guildId, targetUserId, lang),
+        new ButtonProperties("alerts-manage", Msg.Bridge.AlertsManage(lang), EmojiProperties.Standard(Icons.RemindersOn), ButtonStyle.Primary),
+    ]);
+
+    // What replaces them once it is over: the alarm is history, and the useful next action in that
+    // channel is reporting the next raid.
+    public static ActionRowProperties EndedButtons(Language lang) => new(
+    [
+        new ButtonProperties("raid-report", Msg.Bridge.RaidReport(lang), EmojiProperties.Standard(Icons.Alert), ButtonStyle.Primary),
+    ]);
 
     public static ButtonProperties ShieldReminderTerminateButton(ulong guildId, Language lang) =>
         new($"shield-reminder-terminate:{guildId}", Msg.Alert.TerminateButton(lang), ButtonStyle.Danger);
@@ -126,7 +143,7 @@ public class AlertService(
             }
 
             var embed = await embedBranding.BuildBrandedAsync(guildId,
-                Msg.Alert.RaidEmbedBody(lang, $"<@{targetUserId}>"), EmbedBranding.DangerColor, Msg.Alert.RaidTitle(lang));
+                Msg.Alert.RaidEmbedBody(lang, $"<@{targetUserId}>", stfcSystem.Name), EmbedBranding.DangerColor, Msg.Alert.RaidTitle(lang));
             embed.Fields = fields;
             return embed;
         }
@@ -156,7 +173,7 @@ public class AlertService(
         {
             var publicResults = await dispatcher.SendPublicAsync(guildId, GuildAlertChannelKind.Raid,
                 lang => Msg.Alert.RaidPublic(lang, $"<@{targetUserId}>"),
-                lang => RaidTerminateButton(guildId, targetUserId, lang),
+                lang => RaidButtons(guildId, targetUserId, lang),
                 BuildAlertEmbedAsync);
             foreach (var (channelId, messageId) in publicResults)
             {
@@ -189,7 +206,7 @@ public class AlertService(
             : Msg.Alert.RaidReported(actorLang, $"<@{targetUserId}>", stfcSystem.Name);
     }
 
-    private static string ServerLocationLabel(Language lang, RaidServerLocation location) => location switch
+    public static string ServerLocationLabel(Language lang, RaidServerLocation location) => location switch
     {
         RaidServerLocation.Home => Msg.Alert.ServerHome(lang),
         RaidServerLocation.Enemy => Msg.Alert.ServerEnemy(lang),
@@ -225,15 +242,38 @@ public class AlertService(
         alert.TerminatedByDiscordUserId = callerId;
         await db.SaveChangesAsync();
 
+        var targetName = await memberNames.ResolveNameAsync(guildId, targetId);
+        var terminatorName = await memberNames.ResolveNameAsync(guildId, callerId);
+        var reporterName = await memberNames.ResolveNameAsync(guildId, alert.TriggeredByDiscordUserId);
+
         // Each previously-sent public alert message gets edited in the language its channel's
-        // audience reads (matching what the original fan-out rendered).
+        // audience reads (matching what the original fan-out rendered) — and the WHOLE message is
+        // replaced. Editing only the content line left the original "is being raided" embed sitting
+        // there with a live terminate button under a line saying it had ended.
         foreach (var notification in alert.Notifications.Where(n => n.Kind == NotificationKind.Public && n.MessageId is not null))
         {
             var lang = await PublicChannelLanguageAsync(guildId, GuildAlertChannelKind.Raid, notification.ChannelId);
-            await dispatcher.EditPublicAsync(notification.ChannelId, notification.MessageId!.Value, Msg.Alert.RaidEnded(lang));
+            var endedEmbed = await BuildEndedEmbedAsync(guildId, lang, targetName, reporterName, terminatorName, alert);
+            await dispatcher.EditPublicAsync(notification.ChannelId, notification.MessageId!.Value,
+                Msg.Alert.RaidEndedPublic(lang, targetName), endedEmbed, [EndedButtons(lang)]);
         }
 
-        return Msg.Alert.RaidEnded(callerLang);
+        return Msg.Alert.RaidEnded(callerLang, terminatorName);
+    }
+
+    // The alarm's replacement: what happened, who reported it and who called it off. Legacy's
+    // closing card — the channel keeps a record rather than a message contradicting itself.
+    private async Task<EmbedProperties> BuildEndedEmbedAsync(ulong guildId, Language lang, string targetName, string reporterName, string terminatorName, Alert alert)
+    {
+        var embed = await embedBranding.BuildBrandedAsync(guildId,
+            Msg.Alert.RaidEndedBody(lang, targetName), EmbedBranding.SuccessColor, Msg.Alert.RaidEndedTitle(lang));
+
+        embed.Fields =
+        [
+            new EmbedFieldProperties { Name = Msg.Alert.FieldReported(lang), Value = Msg.Alert.ReportedByValue(lang, alert.TriggeredAt.ToUnixTimeSeconds(), reporterName), Inline = true },
+            new EmbedFieldProperties { Name = Msg.Alert.FieldEnded(lang), Value = Msg.Alert.ReportedByValue(lang, alert.TerminatedAt!.Value.ToUnixTimeSeconds(), terminatorName), Inline = true },
+        ];
+        return embed;
     }
 
     // Language a public alert message in this channel was (or would be) rendered in — the same

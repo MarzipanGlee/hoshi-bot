@@ -47,8 +47,8 @@ public static partial class Msg
         public static string RaidTitle(Language lang) =>
             MessageCatalog.Format(lang, "Alert.RaidTitle");
 
-        public static string RaidEmbedBody(Language lang, string target) =>
-            MessageCatalog.Format(lang, "Alert.RaidEmbedBody", ("target", target));
+        public static string RaidEmbedBody(Language lang, string target, string system) =>
+            MessageCatalog.Format(lang, "Alert.RaidEmbedBody", ("target", target), ("system", system));
 
         public static string RaidPublic(Language lang, string target) =>
             MessageCatalog.Format(lang, "Alert.RaidPublic", ("target", target));
@@ -71,8 +71,21 @@ public static partial class Msg
         public static string NoActiveRaid(Language lang) =>
             MessageCatalog.Format(lang, "Alert.NoActiveRaid");
 
-        public static string RaidEnded(Language lang) =>
-            MessageCatalog.Format(lang, "Alert.RaidEnded");
+        public static string RaidEnded(Language lang, string commander) =>
+            MessageCatalog.Format(lang, "Alert.RaidEnded", ("commander", commander));
+
+        // What replaces the alarm in the public channel once it is over.
+        public static string RaidEndedTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Alert.RaidEndedTitle");
+
+        public static string RaidEndedBody(Language lang, string target) =>
+            MessageCatalog.Format(lang, "Alert.RaidEndedBody", ("target", target));
+
+        public static string RaidEndedPublic(Language lang, string target) =>
+            MessageCatalog.Format(lang, "Alert.RaidEndedPublic", ("target", target));
+
+        public static string FieldEnded(Language lang) =>
+            MessageCatalog.Format(lang, "Alert.FieldEnded");
 
         public static string NoStationHousing(Language lang, string system) =>
             MessageCatalog.Format(lang, "Alert.NoStationHousing", ("system", system));

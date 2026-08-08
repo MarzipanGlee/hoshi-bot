@@ -65,11 +65,75 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
                 return await RetryEditAsync(Msg.Alert.UnknownSystem(lang, system), pendingId, lang);
             }
 
-            var serverLocation = Enum.Parse<RaidServerLocation>(location);
+            // Confirm before firing. A raid alarm pings the whole alliance and the friends server,
+            // and until now a typo'd system name or the wrong target went out the moment the modal
+            // closed, with nothing between the mistake and everyone's phone. Legacy asked first.
+            //
+            // The values ride in a PendingModalInput rather than the custom id — a system name plus
+            // an attacker name does not fit in 100 characters, and the retry path already stores
+            // exactly this shape.
+            var confirmLang = await ActingUserLanguageAsync();
+            var pendingReportId = await pendingModalInputService.CreateAsync(Context.Guild!.Id, Context.User.Id, PendingModalInputKind.RaidReport,
+                targetUserId.ToString(), location, system, attacker);
 
-            var result = await alertService.ReportRaidAsync(Context.Guild!.Id, Context.User.Id, targetUserId,
-                system, serverLocation, string.IsNullOrWhiteSpace(attacker) ? null : attacker);
+            return await ConfirmEditAsync(pendingReportId, targetUserId, location, system, attacker, confirmLang);
+        });
+
+    // Everything the alarm will say, before it says it — plus what it will actually DO, which is the
+    // part that differs: reporting yourself is a private rehearsal that only DMs you, and warning
+    // about an alliance-wide alarm there would be a threat the bot has no intention of carrying out.
+    private async Task<Action<MessageOptions>> ConfirmEditAsync(int pendingId, ulong targetUserId, string location, string system, string? attacker, Language lang)
+    {
+        var isTest = targetUserId == Context.User.Id;
+        var summary = string.Join('\n',
+            $"- {Msg.Bridge.RaidConfirmTarget(lang)}: <@{targetUserId}>",
+            $"- {Msg.Bridge.RaidConfirmSystem(lang)}: {system}",
+            $"- {Msg.Bridge.RaidConfirmAttacker(lang)}: {(string.IsNullOrWhiteSpace(attacker) ? Msg.Bridge.RaidConfirmUnspecified(lang) : attacker)}",
+            $"- {Msg.Bridge.RaidConfirmServer(lang)}: {AlertService.ServerLocationLabel(lang, Enum.Parse<RaidServerLocation>(location))}");
+
+        var body = Msg.Bridge.RaidConfirmIntro(lang, CommanderName.Of(Context.User), summary)
+            + "\n\n" + (isTest ? Msg.Bridge.RaidConfirmTestNote(lang) : Msg.Bridge.RaidConfirmWarning(lang));
+
+        var embed = await embedBranding.BuildBrandedAsync(Context.Guild!.Id, body, title: Msg.Bridge.RaidModalTitle(lang));
+        return m =>
+        {
+            m.Embeds = [embed];
+            m.Components =
+            [
+                new ActionRowProperties(
+                [
+                    new ButtonProperties($"raid-report-confirm:{pendingId}", Msg.Bridge.RaidConfirmYes(lang), ButtonStyle.Danger),
+                    new ButtonProperties($"raid-report-abort:{pendingId}", Msg.Bridge.RaidConfirmNo(lang), ButtonStyle.Primary),
+                ]),
+            ];
+        };
+    }
+
+    [ComponentInteraction("raid-report-confirm")]
+    public Task ConfirmRaidReport(int pendingId) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var lang = await ActingUserLanguageAsync();
+
+            // Bound to the caller by GetAsync, so one member cannot confirm another's pending report.
+            if (await pendingModalInputService.GetAsync(pendingId, Context.User.Id) is not { } pending)
+                return await embedBranding.BrandedEditAsync(Context.Guild!.Id, Msg.Bridge.RaidConfirmExpired(lang));
+
+            await pendingModalInputService.DeleteAsync(pendingId);
+
+            var result = await alertService.ReportRaidAsync(Context.Guild!.Id, Context.User.Id, ulong.Parse(pending.Field1!),
+                pending.Field3!, Enum.Parse<RaidServerLocation>(pending.Field2!),
+                string.IsNullOrWhiteSpace(pending.Field4) ? null : pending.Field4);
+
             return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
+        });
+
+    [ComponentInteraction("raid-report-abort")]
+    public Task AbortRaidReport(int pendingId) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            await pendingModalInputService.DeleteAsync(pendingId);
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, Msg.Bridge.RaidConfirmAborted(await ActingUserLanguageAsync()));
         });
 
     [ComponentInteraction("shield-reminder-setup-modal")]

@@ -27,20 +27,20 @@ public class NotificationDispatcher(
     public Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicAsync(ulong guildId, GuildAlertChannelKind kind, string content,
         ButtonProperties? terminateButton = null, EmbedProperties? embed = null) =>
         SendPublicAsync(guildId, kind, _ => content,
-            terminateButton is null ? null : _ => terminateButton,
+            terminateButton is null ? null : _ => new ActionRowProperties([terminateButton]),
             embed is null ? null : _ => Task.FromResult<EmbedProperties?>(embed));
 
     // Localized fan-out: each GuildAlertChannel row renders in its own audience's language
     // (factories are memoized per distinct language, so a single-language guild builds once).
     public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicAsync(ulong guildId, GuildAlertChannelKind kind,
-        Func<Language, string> content, Func<Language, ButtonProperties?>? terminateButton = null,
+        Func<Language, string> content, Func<Language, ActionRowProperties?>? buttons = null,
         Func<Language, Task<EmbedProperties?>>? embed = null)
     {
         var channels = await db.GuildAlertChannels
             .Where(c => c.GuildId == guildId && c.Kind == kind)
             .ToListAsync();
 
-        return await SendToChannelsAsync(guildId, channels, content, terminateButton, embed);
+        return await SendToChannelsAsync(guildId, channels, content, buttons, embed);
     }
 
     // Same as SendPublicAsync, but gates per-row instead of once per guild: only sends to
@@ -52,12 +52,12 @@ public class NotificationDispatcher(
         ulong guildId, GuildAlertChannelKind kind, GuildFeature feature, string content,
         ButtonProperties? terminateButton = null, EmbedProperties? embed = null) =>
         SendPublicToEnabledAudiencesAsync(guildId, kind, feature, _ => content,
-            terminateButton is null ? null : _ => terminateButton,
+            terminateButton is null ? null : _ => new ActionRowProperties([terminateButton]),
             embed is null ? null : _ => Task.FromResult<EmbedProperties?>(embed));
 
     public async Task<List<(ulong ChannelId, ulong? MessageId)>> SendPublicToEnabledAudiencesAsync(
         ulong guildId, GuildAlertChannelKind kind, GuildFeature feature, Func<Language, string> content,
-        Func<Language, ButtonProperties?>? terminateButton = null, Func<Language, Task<EmbedProperties?>>? embed = null)
+        Func<Language, ActionRowProperties?>? buttons = null, Func<Language, Task<EmbedProperties?>>? embed = null)
     {
         var channels = await db.GuildAlertChannels
             .Where(c => c.GuildId == guildId && c.Kind == kind)
@@ -66,24 +66,24 @@ public class NotificationDispatcher(
         var enabledAudiences = await featureService.GetEnabledAudiencesAsync(guildId, feature);
         var eligible = channels.Where(c => enabledAudiences.Contains(c.Audience)).ToList();
 
-        return await SendToChannelsAsync(guildId, eligible, content, terminateButton, embed);
+        return await SendToChannelsAsync(guildId, eligible, content, buttons, embed);
     }
 
     private async Task<List<(ulong ChannelId, ulong? MessageId)>> SendToChannelsAsync(
         ulong guildId, List<GuildAlertChannel> channels, Func<Language, string> content,
-        Func<Language, ButtonProperties?>? terminateButton, Func<Language, Task<EmbedProperties?>>? embed)
+        Func<Language, ActionRowProperties?>? buttons, Func<Language, Task<EmbedProperties?>>? embed)
     {
         var results = new List<(ulong, ulong?)>();
-        var rendered = new Dictionary<Language, (string Content, ButtonProperties? Button, EmbedProperties? Embed)>();
+        var rendered = new Dictionary<Language, (string Content, ActionRowProperties? Buttons, EmbedProperties? Embed)>();
 
         foreach (var channel in channels)
         {
             var lang = await ResolveChannelLanguageAsync(guildId, channel.Audience);
             if (!rendered.TryGetValue(lang, out var r))
-                rendered[lang] = r = (content(lang), terminateButton?.Invoke(lang), embed is null ? null : await embed(lang));
+                rendered[lang] = r = (content(lang), buttons?.Invoke(lang), embed is null ? null : await embed(lang));
 
             results.Add((channel.ChannelId, await TrySendToChannelAsync(guildId, channel.ChannelId,
-                $"<@&{channel.RoleId}> {r.Content}", r.Button, r.Embed, "alert")));
+                $"<@&{channel.RoleId}> {r.Content}", r.Buttons, r.Embed, "alert")));
         }
 
         return results;
@@ -103,7 +103,7 @@ public class NotificationDispatcher(
     // only differ in how they build the content prefix and what channelKind the log line names.
     // Returns the sent message's id, or null when the channel was skipped (Forbidden/NotFound).
     private async Task<ulong?> TrySendToChannelAsync(ulong guildId, ulong channelId, string content,
-        ButtonProperties? terminateButton, EmbedProperties? embed, string channelKind)
+        ActionRowProperties? buttons, EmbedProperties? embed, string channelKind)
     {
         // Alert fan-out runs on 15-second and 1-minute triggers, so an undeliverable channel was
         // the highest-frequency repeat in the app after the Command Bridge queue.
@@ -117,7 +117,7 @@ public class NotificationDispatcher(
                 {
                     Content = content,
                     Embeds = embed is null ? null : [embed],
-                    Components = terminateButton is null ? null : [new ActionRowProperties([terminateButton])],
+                    Components = buttons is null ? null : [buttons],
                 });
             cooldown.RecordSuccess(channelId, BotAction.SendAlert);
             return message.Id;
@@ -149,7 +149,7 @@ public class NotificationDispatcher(
 
         foreach (var channelId in channelIds)
             results.Add((channelId, await TrySendToChannelAsync(guildId, channelId,
-                $"{prefix}{content}", terminateButton: null, embed, "feature")));
+                $"{prefix}{content}", buttons: null, embed, "feature")));
 
         return results;
     }
@@ -193,12 +193,22 @@ public class NotificationDispatcher(
         }
     }
 
-    public async Task EditPublicAsync(ulong channelId, ulong messageId, string content)
+    // Replaces the whole message, not just its content line. Editing content alone left a
+    // finished raid alert showing its original "is being raided" embed under a line saying it had
+    // ended — with the red terminate button still live, still clickable. Components have to be
+    // passed explicitly (an empty list clears them) because a PATCH leaves anything omitted alone,
+    // which is exactly how that button survived.
+    public async Task EditPublicAsync(ulong channelId, ulong messageId, string content,
+        EmbedProperties? embed = null, IReadOnlyList<IMessageComponentProperties>? components = null)
     {
         try
         {
-            await gatewayClient.Rest.ModifyMessageAsync(channelId, messageId,
-                m => m.Content = content);
+            await gatewayClient.Rest.ModifyMessageAsync(channelId, messageId, m =>
+            {
+                m.Content = content;
+                m.Embeds = embed is null ? [] : [embed];
+                m.Components = components ?? [];
+            });
         }
         catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {

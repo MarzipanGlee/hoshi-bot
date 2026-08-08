@@ -62,6 +62,29 @@ public class GuildMemberNames(GatewayClient gatewayClient, ILogger<GuildMemberNa
         }
     }
 
+    // Same resolution from an id alone, for callers holding a stored user id rather than a User —
+    // the raid alert's reporter and terminator, say. The memo means the common case (the same few
+    // people in one guild) costs nothing.
+    public async ValueTask<string> ResolveNameAsync(ulong guildId, ulong userId, CancellationToken cancellationToken = default)
+    {
+        var key = (guildId, userId);
+        if (_cache.TryGetValue(key, out var cached) && cached.Until > DateTimeOffset.UtcNow)
+            return cached.Name;
+
+        if (gatewayClient.Cache.Guilds.TryGetValue(guildId, out var guild) && guild.Users.TryGetValue(userId, out var cachedMember))
+            return Remember(guildId, userId, CommanderName.Of(cachedMember), Ttl);
+
+        try
+        {
+            return Remember(guildId, userId, CommanderName.Of(await gatewayClient.Rest.GetGuildUserAsync(guildId, userId, cancellationToken: cancellationToken)), Ttl);
+        }
+        catch (RestException ex)
+        {
+            logger.LogDebug(ex, "Could not resolve member {UserId} in guild {GuildId}", userId, guildId);
+            return Remember(guildId, userId, userId.ToString(), FailureTtl);
+        }
+    }
+
     private string Remember(ulong guildId, ulong userId, string name, TimeSpan ttl)
     {
         _cache[(guildId, userId)] = (name, DateTimeOffset.UtcNow + ttl);

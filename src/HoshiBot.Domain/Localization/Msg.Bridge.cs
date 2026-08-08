@@ -201,11 +201,57 @@ public static partial class Msg
 
         // The two help buttons. The channel guide's body is admin-authored (a setting, not a
         // catalog entry) — only its title and the not-yet-written placeholder live here.
-        // The Command Bridge button's own label, also used on every published announcement so the
-        // same action reads the same way in both places (CommandBridgeCatalog renders it from the
-        // key generically; this is the typed way in).
+        // Command Bridge button labels, reused wherever the same action is offered outside the
+        // bridge — the catalog renders these from the key generically, and these are the typed way
+        // in, so a second place offering the action can't drift into calling it something else.
         public static string AnnouncementsUnread(Language lang) =>
             MessageCatalog.Format(lang, "BridgeItem.AnnouncementsUnread");
+
+        // The confirm step between the raid modal and the alarm actually going out.
+        public static string RaidConfirmIntro(Language lang, string commander, string summary) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmIntro", ("commander", commander), ("summary", summary));
+
+        public static string RaidConfirmWarning(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmWarning");
+
+        // Shown instead of the warning when someone reports themselves: that is a rehearsal which
+        // only DMs them, so promising an alliance-wide alarm would be a threat with nothing behind it.
+        public static string RaidConfirmTestNote(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmTestNote");
+
+        public static string RaidConfirmYes(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmYes");
+
+        public static string RaidConfirmNo(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmNo");
+
+        public static string RaidConfirmAborted(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmAborted");
+
+        public static string RaidConfirmExpired(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmExpired");
+
+        public static string RaidConfirmTarget(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmTarget");
+
+        public static string RaidConfirmSystem(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmSystem");
+
+        public static string RaidConfirmAttacker(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmAttacker");
+
+        public static string RaidConfirmServer(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmServer");
+
+        public static string RaidConfirmUnspecified(Language lang) =>
+            MessageCatalog.Format(lang, "Bridge.RaidConfirmUnspecified");
+
+
+        public static string AlertsManage(Language lang) =>
+            MessageCatalog.Format(lang, "Feature.AlertsOptIn");
+
+        public static string RaidReport(Language lang) =>
+            MessageCatalog.Format(lang, "Feature.RaidAlerts");
 
         public static string ChannelGuideTitle(Language lang) =>
             MessageCatalog.Format(lang, "Bridge.ChannelGuideTitle");
