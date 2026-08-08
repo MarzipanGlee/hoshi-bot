@@ -26,6 +26,27 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
             f.GuildId == guildId && f.Feature == feature && f.Audience == audience && f.GuildAllianceId == guildAllianceId);
     }
 
+    // True when at least one of these features is on for this EXACT scope — "does anything here
+    // actually read that setting?", which is what decides whether a shared-setting card is worth
+    // showing (see SharedSettingUsage).
+    //
+    // Features that cannot apply to this audience at all are dropped first rather than queried: a
+    // guild-wide feature reads the audience settings' copy of a role, never an alliance's, so its
+    // being enabled says nothing about whether THIS alliance's card matters. An empty list after
+    // that filter is a definite no, and skips the query entirely.
+    public async Task<bool> AnyEnabledAsync(ulong guildId, IReadOnlyList<GuildFeature> features, GuildAudience audience, int? guildAllianceId)
+    {
+        FeatureScopeGuard.Validate(audience, guildAllianceId);
+
+        var applicable = features.Where(f => GuildFeatureAudiences.RelevantAudiences(f).HasFlag(audience)).ToList();
+        if (applicable.Count == 0)
+            return false;
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.GuildEnabledFeatures.AnyAsync(f =>
+            f.GuildId == guildId && applicable.Contains(f.Feature) && f.Audience == audience && f.GuildAllianceId == guildAllianceId);
+    }
+
     public async Task<bool> IsEnabledAsync(ulong guildId, GuildFeature feature)
     {
         var relevant = GuildFeatureAudiences.RelevantAudiences(feature);

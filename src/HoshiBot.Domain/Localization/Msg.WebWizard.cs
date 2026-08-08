@@ -4,7 +4,7 @@ public static partial class Msg
 {
     // The guild Setup Wizard ("Web.Wizard.*") — step titles, per-step copy, form labels
     // and the wizard's own error/status lines. The Audience step title reuses
-    // Msg.WebNav.Audience and the Command Staff Role label Msg.WebCommon.CommandStaffRole.
+    // Msg.WebNav.Audience and the Senior Staff Role label Msg.WebCommon.SeniorStaffRole.
     public static class WebWizard
     {
         public static string PageTitle(Language lang) =>

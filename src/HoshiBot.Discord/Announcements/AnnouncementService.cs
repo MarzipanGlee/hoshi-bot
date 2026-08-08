@@ -16,7 +16,7 @@ namespace HoshiBot.Discord.Announcements;
 // plain-message drafting for attachments/length/template-reuse, not a modal (see the Phase 7 plan
 // section for why).
 public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClient, EmbedBranding embedBranding, GuildFeatureSettingsService settingsService,
-    LanguageResolver languageResolver, GuildMemberNames memberNames, ReadReceiptService readReceipts, CommandStaffRoles commandStaffRoles, ILogger<AnnouncementService> logger)
+    LanguageResolver languageResolver, GuildMemberNames memberNames, ReadReceiptService readReceipts, SeniorStaffRoles seniorStaffRoles, ILogger<AnnouncementService> logger)
 {
     // First line of the draft = title, remainder = body — matches legacy's exact convention.
     public static (string Title, string Body) ParseDraft(string content)
@@ -81,7 +81,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         // The scope's own staff role — the same one that gates its actions — because the
         // attribution renders its NAME ("im Auftrag von LF-Führungsstab"), so it has to be one
         // specific role rather than the union the permission gates ask about.
-        var attribution = await ResolveAttributionAsync(guildId, await commandStaffRoles.ForScopeAsync(guildId, audience, guildAllianceId), lang);
+        var attribution = await ResolveAttributionAsync(guildId, await seniorStaffRoles.ForScopeAsync(guildId, audience, guildAllianceId), lang);
 
         var fields = new List<EmbedFieldProperties>
         {
@@ -239,9 +239,9 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
     // Just the role name now — the bot's own identity is already covered by the embed's
     // standardized Author (EmbedBranding), no longer folded into this string. The fallback
     // renders in the post's scope language — it's stored on the row and shown on the post.
-    private async Task<string> ResolveAttributionAsync(ulong guildId, ulong? commandStaffRoleId, Language lang)
+    private async Task<string> ResolveAttributionAsync(ulong guildId, ulong? seniorStaffRoleId, Language lang)
     {
-        if (commandStaffRoleId is not { } roleId)
+        if (seniorStaffRoleId is not { } roleId)
             return Msg.Announce.AttributionFallback(lang);
 
         try

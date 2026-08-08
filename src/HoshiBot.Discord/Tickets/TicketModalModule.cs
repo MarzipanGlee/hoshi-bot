@@ -8,7 +8,7 @@ namespace HoshiBot.Discord.Tickets;
 
 public class TicketModalModule(TicketService ticketService, GuildAllianceService allianceService, EmbedBranding embedBranding) : ComponentInteractionModule<ModalInteractionContext>
 {
-    // Always opened from CommandBridgeButtonModule.ContactCommandStaffPrompt's ephemeral
+    // Always opened from CommandBridgeButtonModule.ContactSeniorStaffPrompt's ephemeral
     // wizard message, so ModifyMessage is safe here — never the public hub.
     [ComponentInteraction("ticket-open-modal")]
     public Task OpenTicket(string audience) =>

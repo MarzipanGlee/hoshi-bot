@@ -30,9 +30,9 @@ public class GuildAlliance
     // feature-agnostic-attribute pattern as TimeZoneId.
     public string? Language { get; set; }
 
-    // Roles
+    // Roles. No Officer: it was a second name for the leadership role that nothing ever read, so it
+    // merged into SeniorStaffRoleId below rather than staying as a picker admins had to guess about.
     public ulong? MemberRoleId { get; set; }
-    public ulong? OfficerRoleId { get; set; }
     public ulong? DiplomatRoleId { get; set; }
     public ulong? BoardingRoleId { get; set; }
 
@@ -45,14 +45,21 @@ public class GuildAlliance
     // moved together and gave each page its own chance to name the role it might create.
     public ulong? NotificationRoleId { get; set; }
 
-    // This alliance's leadership. Gates the staff-only actions (reporting a RoE violation on behalf
-    // of an own player, ending another commander's raid alert) and supplies the "im Auftrag von"
-    // attribution on its announcements.
+    // This alliance's senior staff — Star Trek's own word for a ship's leadership body (the CO plus
+    // the senior crew holding positions of authority), which is exactly what this gates: reporting a
+    // RoE violation on behalf of an own player, ending another commander's raid alert, confirming an
+    // STFC News date, and the "im Auftrag von" attribution on its announcements.
+    //
+    // Named for the concept rather than a rank on purpose. "Officer" was the obvious alternative and
+    // is wrong twice over: in canon it is a rank class, not a leadership body, and RANK is already
+    // modelled — StfcPlayerRank's five in-game tiers (Admiral, Commodore, Premier, Operative, Agent)
+    // drive the Rank Roles feature. Holding a tier and being allowed to act for the alliance are
+    // different questions, so they get different words.
     //
     // Per alliance, not per guild: it was one GuildSettings value, so in a coalition guild every
     // alliance's leadership was the same role — LF's staff could end SHQL's raid alerts by virtue of
     // a setting neither of them chose.
-    public ulong? CommandStaffRoleId { get; set; }
+    public ulong? SeniorStaffRoleId { get; set; }
 
     // Channels — alliance-scoped config formerly on GuildSettings (moved so a coalition guild
     // can configure each linked alliance independently).
@@ -61,7 +68,7 @@ public class GuildAlliance
     public ulong? RulesDeChannelId { get; set; }
     public ulong? RulesEnChannelId { get; set; }
     public ulong? UserNotificationsChannelId { get; set; }
-    public ulong? CommandStaffJobsChannelId { get; set; }
+    public ulong? SeniorStaffJobsChannelId { get; set; }
 
     // The category new channels get auto-created under (e.g. by the Setup Wizard) when none is
     // picked explicitly. Null covers both "never set" and an explicit "server root" choice.

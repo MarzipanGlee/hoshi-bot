@@ -36,7 +36,7 @@ public class StfcNewsNotifyJob(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     LanguageResolver languageResolver,
-    CommandStaffRoles commandStaffRoles,
+    SeniorStaffRoles seniorStaffRoles,
     ILogger<StfcNewsNotifyJob> logger) : IJob
 {
     private const string FeedUrl = "https://startrekfleetcommand.com/feed/";
@@ -205,7 +205,7 @@ public class StfcNewsNotifyJob(
     {
         // Every scope's staff: the confirmer pool is the whole guild's, so a coalition draws from
         // all of its alliances.
-        var adminRoleIds = await commandStaffRoles.AllForGuildAsync(guildId);
+        var adminRoleIds = await seniorStaffRoles.AllForGuildAsync(guildId);
         adminRoleIds.UnionWith(await db.GuildAdminRoles
             .Where(r => r.GuildId == guildId)
             .Select(r => r.DiscordRoleId)

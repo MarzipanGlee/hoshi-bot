@@ -138,7 +138,7 @@ public class CommandBridgeButtonModule(AlertService alertService, ReadReceiptSer
     // the member clicked. Only offers whichever of the two is actually enabled for that
     // audience — the hub button itself is hidden entirely if neither is.
     [ComponentInteraction("contact-command-staff")]
-    public async Task<InteractionMessageProperties> ContactCommandStaffPrompt(string audience)
+    public async Task<InteractionMessageProperties> ContactSeniorStaffPrompt(string audience)
     {
         var guildId = Context.Guild!.Id;
         var lang = await ActingUserLanguageAsync();
@@ -270,7 +270,7 @@ public class CommandBridgeButtonModule(AlertService alertService, ReadReceiptSer
             new("roe-violation-from", Msg.Bridge.RoeFromMe(lang), ButtonStyle.Primary),
         };
 
-        if (await roeViolationService.IsCommandStaffAsync(Context.Guild!.Id, Context.User.Id))
+        if (await roeViolationService.IsSeniorStaffAsync(Context.Guild!.Id, Context.User.Id))
             buttons.Add(new ButtonProperties("roe-violation-other", Msg.Bridge.RoeByOwnPlayer(lang), ButtonStyle.Secondary));
 
         return await EphemeralEmbedAsync(

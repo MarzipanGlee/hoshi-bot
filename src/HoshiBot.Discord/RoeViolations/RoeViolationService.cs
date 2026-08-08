@@ -24,7 +24,7 @@ public class RoeViolationService(
     NotificationDispatcher dispatcher,
     EmbedBranding embedBranding,
     GuildFeatureSettingsService settingsService,
-    CommandStaffRoles commandStaffRoles,
+    SeniorStaffRoles seniorStaffRoles,
     GuildAllianceService allianceService,
     PlayerLinkService playerLinkService,
     LanguageResolver languageResolver)
@@ -61,10 +61,10 @@ public class RoeViolationService(
     // Gates the staff-only "report on behalf of an own player" option. ANY of the guild's command
     // staff roles counts — the question is "is this person staff", not "whose staff", and the
     // stricter reading would stop one alliance's staff helping another in a coalition guild.
-    public async Task<bool> IsCommandStaffAsync(ulong guildId, ulong userId)
+    public async Task<bool> IsSeniorStaffAsync(ulong guildId, ulong userId)
     {
         var guildUser = await gatewayClient.Rest.GetGuildUserAsync(guildId, userId);
-        return await commandStaffRoles.IsCommandStaffAsync(guildId, guildUser.RoleIds);
+        return await seniorStaffRoles.IsSeniorStaffAsync(guildId, guildUser.RoleIds);
     }
 
     // Resolves "this Discord user's current in-game identity" from real linked-player

@@ -9,7 +9,7 @@ namespace HoshiBot.Discord.AnonymousMessages;
 public class AnonymousMessageModalModule(AnonymousMessageService anonymousMessageService, GuildAllianceService allianceService, EmbedBranding embedBranding,
     LanguageResolver languageResolver) : ComponentInteractionModule<ModalInteractionContext>
 {
-    // Always opened from CommandBridgeButtonModule.ContactCommandStaffPrompt's ephemeral
+    // Always opened from CommandBridgeButtonModule.ContactSeniorStaffPrompt's ephemeral
     // wizard message, so ModifyMessage is safe here — never the public hub.
     [ComponentInteraction("anonymous-message-modal")]
     public Task SendAnonymousMessage(string audience) =>

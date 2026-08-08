@@ -24,7 +24,7 @@ public static partial class Msg
         public static string AuthorOnBehalfOf(Language lang, string bot, string role) =>
             MessageCatalog.Format(lang, "Announce.AuthorOnBehalfOf", ("bot", bot), ("role", role));
 
-        // Fallback attribution when no Command Staff role is configured/resolvable.
+        // Fallback attribution when no Senior Staff role is configured/resolvable.
         public static string AttributionFallback(Language lang) =>
             MessageCatalog.Format(lang, "Announce.AttributionFallback");
 

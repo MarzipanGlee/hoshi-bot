@@ -31,7 +31,7 @@ public class GuildAudienceSettings
     public ulong? DefaultChannelCategoryId { get; set; }
 
     // This audience's leadership — the non-Alliance counterpart to
-    // GuildAlliance.CommandStaffRoleId. Announcements is the one feature that reaches a
+    // GuildAlliance.SeniorStaffRoleId. Announcements is the one feature that reaches a
     // Server/VeilGroup/Community audience and needs a staff role for its attribution line.
-    public ulong? CommandStaffRoleId { get; set; }
+    public ulong? SeniorStaffRoleId { get; set; }
 }

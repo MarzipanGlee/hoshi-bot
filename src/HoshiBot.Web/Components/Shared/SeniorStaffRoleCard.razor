@@ -1,15 +1,15 @@
 @using NetCord
-@inject CommandStaffRoles CommandStaffRoles
+@inject SeniorStaffRoles SeniorStaffRoles
 @inject DiscordGuildDataService DiscordData
 
-@* The scope's Command Staff role, shown by every feature that reads it (RoE "report on behalf of an
+@* The scope's Senior Staff role, shown by every feature that reads it (RoE "report on behalf of an
    own player", raid-alert termination, announcement attribution, STFC News confirmer count).
 
    Read-only, and per scope. It was one guild-wide value editable from these four feature pages and
    owned by none of them — so a coalition guild gave every alliance the same leadership, and the only
    way to set it was from inside a feature that merely read it. *@
-<OwnedElsewhereCard Title="@Msg.WebCommon.CommandStaffRole(Lang)"
-                    Label="@Msg.WebCommon.CommandStaffRoleUsage(Lang)" Lang="Lang"
+<OwnedElsewhereCard Title="@Msg.WebCommon.SeniorStaffRole(Lang)"
+                    Label="@Msg.WebCommon.SeniorStaffRoleUsage(Lang)" Lang="Lang"
                     Value="@display"
                     Hint="@(IsAlliance ? Msg.WebCommon.OwnedByAllianceSettings(Lang) : Msg.WebCommon.OwnedByAudienceSettings(Lang))"
                     LinkText="@(IsAlliance ? Msg.WebCommon.OpenAllianceSettings(Lang) : Msg.WebCommon.OpenAudienceSettings(Lang))"
@@ -32,7 +32,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (await CommandStaffRoles.ForScopeAsync(GuildId, Audience, GuildAllianceId) is not { } roleId)
+        if (await SeniorStaffRoles.ForScopeAsync(GuildId, Audience, GuildAllianceId) is not { } roleId)
         {
             display = null;
             return;

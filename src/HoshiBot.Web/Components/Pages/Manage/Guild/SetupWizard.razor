@@ -138,12 +138,12 @@
             </select>
         </div>
         <div class="mb-2">
-            <label>@Msg.WebCommon.CommandStaffRole(Lang)</label>
-            <select class="form-select" @bind="commandStaffRoleIdInput">
+            <label>@Msg.WebCommon.SeniorStaffRole(Lang)</label>
+            <select class="form-select" @bind="seniorStaffRoleIdInput">
                 <option value="">@Msg.WebWizard.CreateAutomaticallyOption(Lang)</option>
-                @if (IsUnknownRole(commandStaffRoleIdInput))
+                @if (IsUnknownRole(seniorStaffRoleIdInput))
                 {
-                    <option value="@commandStaffRoleIdInput" selected>@Msg.WebCommon.Unknown(Lang, commandStaffRoleIdInput)</option>
+                    <option value="@seniorStaffRoleIdInput" selected>@Msg.WebCommon.Unknown(Lang, seniorStaffRoleIdInput)</option>
                 }
                 @foreach (var role in roles)
                 {
@@ -234,7 +234,7 @@
     private string? logChannelIdInput;
     private string? adminChannelIdInput;
     private string? memberRoleIdInput;
-    private string? commandStaffRoleIdInput;
+    private string? seniorStaffRoleIdInput;
     private string? newAdminRoleIdInput;
     private int guildAllianceCount;
     private int guildServerCount;
@@ -259,7 +259,7 @@
         // this early in setup).
         var primaryAlliance = await AllianceService.GetPrimaryAsync(guildId);
         memberRoleIdInput = primaryAlliance?.MemberRoleId?.ToString();
-        commandStaffRoleIdInput = primaryAlliance?.CommandStaffRoleId?.ToString();
+        seniorStaffRoleIdInput = primaryAlliance?.SeniorStaffRoleId?.ToString();
         selectedCategoryIdInput = primaryAlliance?.DefaultChannelCategoryId?.ToString();
 
         guildAllianceCount = await db.GuildAlliances.CountAsync(g => g.GuildId == guildId);
@@ -350,7 +350,7 @@
             var logId = await DiscordData.EnsureChannelAsync(guildId, logChannelIdInput, "log", categoryId);
             var adminId = await DiscordData.EnsureChannelAsync(guildId, adminChannelIdInput, "admin", categoryId);
             var memberId = await DiscordData.EnsureRoleAsync(guildId, memberRoleIdInput, "Member", alwaysCreateIfBlank: true);
-            var staffId = await DiscordData.EnsureRoleAsync(guildId, commandStaffRoleIdInput, "Command Staff", alwaysCreateIfBlank: true);
+            var staffId = await DiscordData.EnsureRoleAsync(guildId, seniorStaffRoleIdInput, "Senior Staff", alwaysCreateIfBlank: true);
 
             await using (var db = await DbFactory.CreateDbContextAsync())
             {
@@ -364,7 +364,7 @@
                 existing.LogChannelId = logId;
                 existing.AdminChannelId = adminId;
 
-                // Member role, command staff role + default channel category are per-alliance now — write them to the
+                // Member role, senior staff role + default channel category are per-alliance now — write them to the
                 // guild's primary alliance if one is linked. If not (brand-new guild, before the
                 // Scope step), the created role/category still exist on Discord; assign them on the
                 // alliance's Settings page once an alliance is linked.
@@ -373,7 +373,7 @@
                 if (primaryAlliance is not null)
                 {
                     primaryAlliance.MemberRoleId = memberId;
-                    primaryAlliance.CommandStaffRoleId = staffId;
+                    primaryAlliance.SeniorStaffRoleId = staffId;
                     primaryAlliance.DefaultChannelCategoryId = categoryId;
                 }
 
@@ -384,7 +384,7 @@
             logChannelIdInput = logId?.ToString();
             adminChannelIdInput = adminId?.ToString();
             memberRoleIdInput = memberId?.ToString();
-            commandStaffRoleIdInput = staffId?.ToString();
+            seniorStaffRoleIdInput = staffId?.ToString();
             newCategoryNameInput = null;
             selectedCategoryIdInput = categoryId?.ToString();
 

@@ -17,9 +17,9 @@ namespace HoshiBot.Domain;
 // Discord's developer mode — is not a real instruction to give somebody.
 //
 // Channels and roles need different matching. A channel name can't contain a space, so its
-// candidate is simply the run up to the next one. A role name very much can ("Command Staff"), so
+// candidate is simply the run up to the next one. A role name very much can ("Senior Staff"), so
 // roles are matched by trying the guild's actual role names longest-first — there is no way to know
-// where "@Command Staff is here" ends without knowing the names.
+// where "@Senior Staff is here" ends without knowing the names.
 public static class DiscordMentionText
 {
     // Word joiner / zero-width space and friends: invisible, and they ride along on a copied pill,
@@ -48,7 +48,7 @@ public static class DiscordMentionText
     }
 
     // Built per call because the role alternation depends on the guild's roles. Ordered longest-first
-    // so "@Command Staff" wins over a "@Command" role rather than leaving " Staff" stranded.
+    // so "@Senior Staff" wins over a "@Command" role rather than leaving " Staff" stranded.
     private static Regex Matcher(IReadOnlyDictionary<string, ulong> rolesByName)
     {
         var roleNames = rolesByName.Keys

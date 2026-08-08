@@ -53,7 +53,7 @@ public static class GuildSettingsSeedData
         RulesDeChannelId = 803965908309245962,
         RulesEnChannelId = 957288857915752468,
         UserNotificationsChannelId = 942406102325264474,
-        CommandStaffJobsChannelId = 1267856202046636165,
+        SeniorStaffJobsChannelId = 1267856202046636165,
 
         CommandBridgeChannelId = 1251810911451349095,
     };

@@ -3,7 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Data;
 
-// Who counts as command staff, per scope.
+// Who counts as senior staff, per scope — Star Trek's term for a ship's leadership body, and the
+// bot's name for the members allowed to act on an alliance's behalf. Distinct from RANK, which
+// StfcPlayerRank and the Rank Roles feature already model from the five in-game tiers: holding a
+// tier and being allowed to act for the alliance are different questions.
 //
 // It used to be one GuildSettings role for the whole Discord, which meant a coalition guild gave
 // every linked alliance the same leadership — one alliance's staff could end another's raid alerts
@@ -26,7 +29,7 @@ namespace HoshiBot.Data;
 // the per-scope value honest (every alliance still names its own staff role, and the attribution
 // line still reads correctly) while making the shared case a configuration, not a second concept
 // here.
-public class CommandStaffRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
+public class SeniorStaffRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
 {
     public async Task<ulong?> ForScopeAsync(ulong guildId, GuildAudience audience, int? guildAllianceId)
     {
@@ -36,13 +39,13 @@ public class CommandStaffRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
         {
             return await db.GuildAlliances
                 .Where(a => a.GuildId == guildId && a.Id == allianceId)
-                .Select(a => a.CommandStaffRoleId)
+                .Select(a => a.SeniorStaffRoleId)
                 .FirstOrDefaultAsync();
         }
 
         return await db.GuildAudienceSettings
             .Where(a => a.GuildId == guildId && a.Audience == audience)
-            .Select(a => a.CommandStaffRoleId)
+            .Select(a => a.SeniorStaffRoleId)
             .FirstOrDefaultAsync();
     }
 
@@ -51,19 +54,19 @@ public class CommandStaffRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
         await using var db = await dbFactory.CreateDbContextAsync();
 
         var fromAlliances = await db.GuildAlliances
-            .Where(a => a.GuildId == guildId && a.CommandStaffRoleId != null)
-            .Select(a => a.CommandStaffRoleId!.Value)
+            .Where(a => a.GuildId == guildId && a.SeniorStaffRoleId != null)
+            .Select(a => a.SeniorStaffRoleId!.Value)
             .ToListAsync();
 
         var fromAudiences = await db.GuildAudienceSettings
-            .Where(a => a.GuildId == guildId && a.CommandStaffRoleId != null)
-            .Select(a => a.CommandStaffRoleId!.Value)
+            .Where(a => a.GuildId == guildId && a.SeniorStaffRoleId != null)
+            .Select(a => a.SeniorStaffRoleId!.Value)
             .ToListAsync();
 
         return [.. fromAlliances, .. fromAudiences];
     }
 
-    public async Task<bool> IsCommandStaffAsync(ulong guildId, IEnumerable<ulong> memberRoleIds)
+    public async Task<bool> IsSeniorStaffAsync(ulong guildId, IEnumerable<ulong> memberRoleIds)
     {
         var staffRoles = await AllForGuildAsync(guildId);
         return staffRoles.Count > 0 && memberRoleIds.Any(staffRoles.Contains);

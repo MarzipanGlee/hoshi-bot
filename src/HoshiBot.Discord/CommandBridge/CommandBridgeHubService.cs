@@ -135,7 +135,7 @@ public class CommandBridgeHubService(
     // "Configured" for this button = has a channel set AND is enabled for that audience — a
     // guild with 2+ audiences gets one button per configured audience instead of one generic
     // button, so members pick the right one directly rather than being asked again in
-    // ContactCommandStaffPrompt. The Alliance audience uses this hub's own alliance.
+    // ContactSeniorStaffPrompt. The Alliance audience uses this hub's own alliance.
     private async Task<List<ButtonProperties>> BuildContactStaffButtonsAsync(ulong guildId, int guildAllianceId, Language lang)
     {
         var relevant = GuildFeatureAudiences.RelevantAudiences(GuildFeature.Tickets); // same set as AnonymousMessaging

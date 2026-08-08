@@ -169,11 +169,11 @@ public static partial class Msg
         public static string NoAllianceTail(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.NoAllianceTail");
 
-        public static string CommandStaffRole(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Common.CommandStaffRole");
+        public static string SeniorStaffRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.SeniorStaffRole");
 
-        public static string CommandStaffRoleUsage(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Common.CommandStaffRoleUsage");
+        public static string SeniorStaffRoleUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.SeniorStaffRoleUsage");
 
         public static string LinkedAlliances(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.LinkedAlliances");

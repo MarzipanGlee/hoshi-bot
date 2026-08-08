@@ -216,8 +216,8 @@ else if (Audience == GuildAudience.VeilGroup)
     }
 
     // Linking just creates the association — no Discord roles are created here. The alliance's
-    // Member/Officer/Diplomat roles (and channels) are set afterward on its own Settings page or via
-    // the Setup Wizard, so MemberRoleId/OfficerRoleId/DiplomatRoleId start null.
+    // Member/Senior Staff/Notification roles (and channels) are set afterward on its own Settings
+    // page or via the Setup Wizard, so those columns start null.
     private async Task AddGuildAlliance()
     {
         if (!int.TryParse(selectedAllianceIdInput, out var allianceId))

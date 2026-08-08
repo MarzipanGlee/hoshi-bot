@@ -26,7 +26,7 @@ public class GuildSettings
     public string? Language { get; set; }
 
     // Channels. Alliance-scoped channels (Alliance Boarding, Reminders, Rules, User
-    // Notifications, Bot Support, Command Staff Jobs) and the Command Bridge channels/message
+    // Notifications, Bot Support, Senior Staff Jobs) and the Command Bridge channels/message
     // IDs moved to GuildAlliance so they can differ per linked alliance.
     public ulong? LogChannelId { get; set; }
     public ulong? AdminChannelId { get; set; }
