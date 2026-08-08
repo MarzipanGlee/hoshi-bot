@@ -94,6 +94,26 @@ a, .btn-link {
     grid-column: 1 / -1;
 }
 
+/* A label and the control it names, inside a SettingsCard.
+
+   The card body is a flex column with gap-3, which spaces every DIRECT child 1rem apart — including
+   a label from its own input. Stacked on Bootstrap's own .form-label margin-bottom that reads as
+   1.5rem of nothing between "Suffix" and the box you type the suffix into, and it looked like a
+   layout bug because it is one.
+
+   Fixed here rather than by wrapping each pair in a div: there were eighteen of them across nine
+   editors, and the wrapping has to be remembered every time a card gains a field — it had already
+   been reported twice. The negative margin cancels the flex gap for exactly the pairs that should
+   hug; flex gap can't be overridden per item any other way. Pairs already wrapped in their own
+   element are unaffected, since the label is then no longer a direct child. */
+.card-body > .form-label {
+    margin-bottom: 0;
+}
+
+.card-body > .form-label + * {
+    margin-top: -0.5rem;
+}
+
 /* Conditional Roles' rule builder. Indentation and the left rule are the only thing conveying
    nesting depth, so an admin can see the shape of the expression they built; ConditionNodeEditor
    renders itself once per level.
