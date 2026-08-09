@@ -16,6 +16,9 @@ public static partial class Msg
         public static string NeedsSetup(Language lang, int count) =>
             MessageCatalog.FormatCount(lang, "Web.Guild.NeedsSetup", count);
 
+        public static string AlliancesPageLead(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.AlliancesPageLead");
+
         public static string YourGuilds(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.YourGuilds");
 

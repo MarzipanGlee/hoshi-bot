@@ -200,8 +200,12 @@ public static partial class Msg
         public static string SeniorStaffRoleUsage(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.SeniorStaffRoleUsage");
 
-        public static string LinkedAlliances(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Common.LinkedAlliances");
+        // "Alliances", not "Linked Alliances": the page, its nav entry, its breadcrumb and its URL
+        // all say the same word now. LinkedServers/LinkedVeilGroups keep the qualifier — they are
+        // section headings on a page already titled "Server Settings", where the noun alone would
+        // not say what the section is.
+        public static string Alliances(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.Alliances");
 
         public static string LinkedServers(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.LinkedServers");

@@ -5,7 +5,10 @@
 
 @if (Audience == GuildAudience.Alliance)
 {
-    <h2>@Msg.WebCommon.LinkedAlliances(Lang)</h2>
+    @if (ShowHeading)
+    {
+        <h2>@Msg.WebCommon.Alliances(Lang)</h2>
+    }
     <table class="table">
         <thead>
             <tr>
@@ -117,6 +120,9 @@ else if (Audience == GuildAudience.VeilGroup)
     [Parameter, EditorRequired] public ulong GuildId { get; set; }
 
     [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+
+    // Off where the host page's own h1 already names the list — see Alliances.razor.
+    [Parameter] public bool ShowHeading { get; set; } = true;
 
     // Only the VeilGroup branch still renders its own region <Select> — the Alliance/Server
     // branches get theirs from RegionServerPicker, which loads regions itself.

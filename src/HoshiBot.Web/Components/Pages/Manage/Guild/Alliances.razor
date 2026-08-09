@@ -1,26 +1,25 @@
 @page "/manage/guild/{GuildId}/alliances"
 @inherits GuildAdminPageBase
 
-<PageTitle>@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle)</PageTitle>
+<PageTitle>@Msg.WebCommon.Alliances(Lang)</PageTitle>
 
-@* The Alliance audience's own page, reached from the Audience page's Configure link — same header
-   shape as the other three audiences' settings pages. It can't live at {slug}/settings like they
-   do: for Alliance that route is already the per-ALLIANCE settings page (one linked alliance's
-   roles and channels), whereas this is the guild-level "which alliances do we serve" list. Each row
-   in the table below links through to its own settings. *@
+@* The guild-level "which alliances do we serve" list. It can't live at {slug}/settings like the
+   other audiences do: for Alliance that route is already the per-ALLIANCE settings page (one linked
+   alliance's roles and channels). Each row links through to its own settings.
+
+   It used to borrow the audience-settings header, which made one page answer to four names — URL
+   "alliances", title "Alliance Settings", nav and breadcrumb "Linked Alliances" — and describe
+   itself with the Alliance AUDIENCE's blurb ("this guild is a single alliance's own Discord"),
+   which is about what kind of Discord this is, not about the list below it. *@
 <AuthorizedGuildView Authorized="Authorized">
-    <h1>@Msg.WebGuild.AudienceSettingsTitle(Lang, AudienceTitle)</h1>
-    <p>
-        @AudienceDisplay.Description(Lang, GuildAudience.Alliance)
-        @Msg.WebGuild.AudienceSettingsIntro(Lang)
-        <a href="@($"{AudienceDisplay.FeatureScopePrefix(ParsedGuildId, GuildAudience.Alliance, null)}/features")">@Msg.WebNav.Features(Lang)</a>@Msg.WebGuild.AudienceSettingsIntroTail(Lang)
-    </p>
+    <h1>@Msg.WebCommon.Alliances(Lang)</h1>
+    <p>@Msg.WebGuild.AlliancesPageLead(Lang)</p>
 
-    <ScopeEditor GuildId="ParsedGuildId" Audience="GuildAudience.Alliance" />
+    @* ShowHeading: the editor's own "Alliances" h2 would repeat the h1 here. It stays on in the
+       Setup Wizard, where the accordion shows all three scope kinds and each needs naming. *@
+    <ScopeEditor GuildId="ParsedGuildId" Audience="GuildAudience.Alliance" ShowHeading="false" />
 </AuthorizedGuildView>
 
 @code {
     [CascadingParameter] public Language Lang { get; set; }
-
-    private string AudienceTitle => AudienceDisplay.Labels(Lang, GuildAudience.Alliance).First();
 }
