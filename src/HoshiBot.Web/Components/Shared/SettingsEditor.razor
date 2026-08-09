@@ -2,12 +2,17 @@
 @using NetCord
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
+@inject LanguageResolver LanguageResolver
 
 <h2>@Msg.WebCommon.Channels(Lang)</h2>
+@if (createError is { } channelError)
+{
+    <p class="text-danger">@channelError.Text(Lang)</p>
+}
 <div class="card-grid mt-1">
-    <ChannelPicker CardTitle="@Msg.WebGuild.LogTitle(Lang)" Usage="@Msg.WebGuild.LogUsage(Lang)" @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
-    <ChannelPicker CardTitle="@Msg.WebGuild.AdminTitle(Lang)" Usage="@Msg.WebGuild.AdminUsage(Lang)" @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
-    <ChannelPicker CardTitle="@Msg.WebGuild.UserLogTitle(Lang)" Usage="@Msg.WebGuild.UserLogUsage(Lang)" @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="@Msg.WebGuild.LogTitle(Lang)" Usage="@Msg.WebGuild.LogUsage(Lang)" CreateChannelName="@GuildLogChannelName" @bind-Value="logChannelIdInput" @bind-Value:after="SaveLogChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="@Msg.WebGuild.AdminTitle(Lang)" Usage="@Msg.WebGuild.AdminUsage(Lang)" CreateChannelName="@GuildAdminChannelName" @bind-Value="adminChannelIdInput" @bind-Value:after="SaveAdminChannelAsync" Channels="channels" />
+    <ChannelPicker CardTitle="@Msg.WebGuild.UserLogTitle(Lang)" Usage="@Msg.WebGuild.UserLogUsage(Lang)" CreateChannelName="@GuildUserLogChannelName" @bind-Value="userLogChannelIdInput" @bind-Value:after="SaveUserLogChannelAsync" Channels="channels" />
 </div>
 
 <h2>@Msg.WebCommon.Roles(Lang)</h2>
@@ -16,7 +21,7 @@
     <p class="text-danger">@error.Text(Lang)</p>
 }
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="@Msg.WebGuild.CrewsTitle(Lang)" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
+    <RolePicker CardTitle="@Msg.WebGuild.CrewsTitle(Lang)" Usage="@Msg.WebGuild.CrewsUsage(Lang)" CreateRoleName="Crews" @bind-Value="crewsRoleIdInput" @bind-Value:after="SaveCrewsRoleAsync" Roles="roles" />
 </div>
 
 <h2>@Msg.WebCommon.Regional(Lang)</h2>
@@ -47,6 +52,8 @@
     // What "Default" currently resolves to — "Discord: {locale's language}" once loaded;
     // English's native name during the transient pre-load render (the pre-localization
     // default this label always started from).
+    private Language guildLanguage;
+
     private string InheritedLanguageLabel => discordLanguageName is null
         ? Languages.NativeName(Language.En)
         : Msg.WebGuild.DiscordLanguageInherited(Lang, discordLanguageName);
@@ -63,6 +70,9 @@
             .Select(g => g.PreferredLocale)
             .FirstOrDefaultAsync();
         discordLanguageName = Languages.NativeName(LanguagePolicy.ForGuild(null, preferredLocale));
+
+        // The language a created channel is named in — the guild's, not the admin's.
+        guildLanguage = await LanguageResolver.ForGuildAsync(GuildId);
 
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
@@ -91,9 +101,37 @@
     }
 
     private Task SaveLanguageAsync() => SaveAsync(s => s.Language = languageInput);
-    private Task SaveLogChannelAsync() => SaveAsync(s => s.LogChannelId = ParseId(logChannelIdInput));
-    private Task SaveAdminChannelAsync() => SaveAsync(s => s.AdminChannelId = ParseId(adminChannelIdInput));
-    private Task SaveUserLogChannelAsync() => SaveAsync(s => s.UserLogChannelId = ParseId(userLogChannelIdInput));
+    // In the GUILD's language — these are guild-wide channels, and a channel name is read by
+    // everyone who can see it, not just the admin who created it.
+    private string GuildLogChannelName => Msg.ChannelName.GuildLog(guildLanguage);
+    private string GuildAdminChannelName => Msg.ChannelName.GuildAdmin(guildLanguage);
+    private string GuildUserLogChannelName => Msg.ChannelName.GuildUserLog(guildLanguage);
+
+    // Through EnsureChannelOrError, not ParseId: the picker's "create it" option posts a sentinel
+    // rather than an id. No category — these are guild-wide, not part of an alliance's group.
+    private Task SaveLogChannelAsync() => SaveChannelAsync((s, id) => s.LogChannelId = id,
+        logChannelIdInput, v => logChannelIdInput = v, GuildLogChannelName);
+
+    private Task SaveAdminChannelAsync() => SaveChannelAsync((s, id) => s.AdminChannelId = id,
+        adminChannelIdInput, v => adminChannelIdInput = v, GuildAdminChannelName);
+
+    private Task SaveUserLogChannelAsync() => SaveChannelAsync((s, id) => s.UserLogChannelId = id,
+        userLogChannelIdInput, v => userLogChannelIdInput = v, GuildUserLogChannelName);
+
+    private async Task SaveChannelAsync(Action<GuildSettings, ulong?> setter, string? currentInput,
+        Action<string?> setInput, string defaultName)
+    {
+        createError = null;
+        var (channelId, input, error) = await DiscordData.EnsureChannelOrErrorAsync(
+            GuildId, currentInput, defaultName, ChannelType.TextGuildChannel);
+        setInput(input);
+        createError = error;
+        if (error is not null)
+            return;
+
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        await SaveAsync(s => setter(s, channelId));
+    }
 
     // A blank selection creates a new role instead of just saving null — named after the
     // setting so it's clear at a glance what it's for.

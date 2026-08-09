@@ -12,6 +12,7 @@
 
 <AuthorizedGuildView Authorized="Authorized">
     <h1>@guildName</h1>
+    <p>@Msg.WebGuild.OverviewLead(Lang)</p>
 
     <div class="card-grid">
         @foreach (var p in GuildAdminPages.All.Where(x => x.ShowOnOverviewCard))

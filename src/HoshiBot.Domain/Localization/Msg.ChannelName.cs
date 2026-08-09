@@ -24,6 +24,18 @@ public static partial class Msg
         public static string CommandBridgeFriends(Language lang) =>
             MessageCatalog.Format(lang, "ChannelName.CommandBridgeFriends");
 
+        // Guild-wide channels, so these resolve with the GUILD's language. Prefixed with the bot's
+        // name because they sit at the server root among channels the guild made itself — a bare
+        // "log" says nothing about who writes to it.
+        public static string GuildLog(Language lang) =>
+            MessageCatalog.Format(lang, "ChannelName.GuildLog");
+
+        public static string GuildAdmin(Language lang) =>
+            MessageCatalog.Format(lang, "ChannelName.GuildAdmin");
+
+        public static string GuildUserLog(Language lang) =>
+            MessageCatalog.Format(lang, "ChannelName.GuildUserLog");
+
         public static string AbsenceReport(Language lang) =>
             MessageCatalog.Format(lang, "ChannelName.AbsenceReport");
 

@@ -136,7 +136,7 @@ else if (Audience == GuildAudience.VeilGroup)
     private Dictionary<int, string> veilGroupNamesById = [];
 
     // One Linked Alliances table row's identifying columns.
-    private record AllianceRow(string Region, string Server, string Tag, string Name);
+    private record AllianceRow(string Region, int ServerId, string Server, string Tag, string Name);
 
     // Alliance branch
     private string? allianceRegionIdInput;
@@ -177,7 +177,14 @@ else if (Audience == GuildAudience.VeilGroup)
                 allianceInfoById = await db.StfcAlliances
                     .Where(a => linkedAllianceIdsForTable.Contains(a.Id))
                     .Select(a => new { a.Id, Region = a.Server.Region.Name, ServerId = a.Server.Id, ServerName = a.Server.Name, a.Tag, a.Name })
-                    .ToDictionaryAsync(a => a.Id, a => new AllianceRow(a.Region, $"{a.ServerId} {a.ServerName}", a.Tag, a.Name));
+                    .ToDictionaryAsync(a => a.Id, a => new AllianceRow(a.Region, a.ServerId, $"{a.ServerId} {a.ServerName}", a.Tag, a.Name));
+
+                // Ordered the way the table reads: region, then server, then tag. By the numeric
+                // server id rather than the "164 Mindmeld" label, which would sort 164 before 60.
+                guildAlliances = [.. guildAlliances
+                    .OrderBy(ga => allianceInfoById.GetValueOrDefault(ga.StfcAllianceId)?.Region)
+                    .ThenBy(ga => allianceInfoById.GetValueOrDefault(ga.StfcAllianceId)?.ServerId)
+                    .ThenBy(ga => allianceInfoById.GetValueOrDefault(ga.StfcAllianceId)?.Tag)];
                 break;
             case GuildAudience.Server:
                 guildServers = await db.GuildServers.Where(gs => gs.GuildId == GuildId).AsNoTracking().ToListAsync();

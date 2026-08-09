@@ -21,29 +21,33 @@ under STFC data — one of each is enough, and they are noted in that section ra
 
 The landing page after login, and the only route with no guild in it.
 
-- [ ] Welcome header and the "N guilds still need setup" banner
-- [ ] **Your Guilds** cards — audience badges, "needs setup" flag, Features / Settings / Setup Wizard buttons
-- [ ] Guilds the bot is not in yet — the **+ Install bot** button
-- [ ] **Foreign servers** section — only visible with support mode on
-- [ ] Bot / STFC Catalog / Database cards
-- [ ] Logged-out state — the "log in with Discord" prompt
+- [x] Welcome header and the "N guilds still need setup" banner
+- [x] **Your Guilds** cards — audience badges, "needs setup" flag, Features / Settings / Setup Wizard buttons
+- [x] Guilds the bot is not in yet — the **+ Install bot** button
+- [x] **Foreign servers** section — only visible with support mode on
+- [x] Bot / STFC Catalog / Database cards
+- [x] Logged-out state — `/manage` redirects to the landing page, which is where the login lives
+  (there is no prompt on `/manage` itself; the item said otherwise and was wrong)
+- [x] Support toggle and Bot / STFC Catalog / Database cards and nav menu not visible for non global admin users
+- [x] A guild you may not administer redirects to `/manage` (the dashboard), not to the landing page
 
 ## 2. Guild pages
 
-- [ ] **Overview** — `/manage/guild/{id}`
-- [ ] **Audience** — `/manage/guild/{id}/audience`
-- [ ] **Linked Alliances** — `/manage/guild/{id}/alliances`
+- [x] **Overview** — `/manage/guild/{id}`
+- [x] **Audience** — `/manage/guild/{id}/audience`
+- [x] **Alliances** — `/manage/guild/{id}/alliances`
 - [ ] **Features (guild-wide)** — `/manage/guild/{id}/features`
 - [ ] **Setup Wizard** — `/manage/guild/{id}/setup-wizard`
 - [ ] **Permission Check** — `/manage/guild/{id}/permission-check`
 
 ### Guild settings — `/manage/guild/{id}/settings`
 
-- [ ] Log
-- [ ] Admin
-- [ ] User Log
-- [ ] Crews
-- [ ] Language
+- [x] Log
+- [x] Admin
+- [x] User Log
+- [x] Crews — marked "not implemented yet"; nothing reads it. Moving it to the alliance belongs with
+  the crew feature itself, so it stays here until then.
+- [x] Language
 
 ## 3. Alliance pages
 

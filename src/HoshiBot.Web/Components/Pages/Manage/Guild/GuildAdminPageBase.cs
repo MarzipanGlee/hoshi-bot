@@ -9,7 +9,7 @@ namespace HoshiBot.Web.Components.Pages.Manage.Guild;
 // FeatureEditorBase's shape: base owns the boilerplate, subclasses override a hook that
 // only ever runs once authorization for ParsedGuildId has succeeded.
 //
-// Deliberately does its own manual AuthorizeAsync + NavigateTo("/") rather than
+// Deliberately does its own manual AuthorizeAsync + redirect rather than
 // [Authorize(Policy=...)]/AuthorizeRouteView: GuildAdminHandler needs the {GuildId} route
 // value as its resource, and AuthorizeRouteView's pipeline always calls
 // AuthorizeAsync(user, resource: null, ...) with no hook to supply a per-route resource.
@@ -41,7 +41,11 @@ public abstract class GuildAdminPageBase : ComponentBase
 
         if (!result.Succeeded)
         {
-            Nav.NavigateTo("/");
+            // Back to the dashboard, not the landing page: whoever lands here IS signed in — they
+            // just have no admin rights on this particular guild. Sending them to the marketing
+            // page reads as "you are logged out" and makes them find their way back in; the
+            // dashboard shows the guilds they can actually administer.
+            Nav.NavigateTo("manage");
             return;
         }
 

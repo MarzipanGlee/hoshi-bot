@@ -168,6 +168,12 @@ public static partial class Msg
         public static string UserLogUsage(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.UserLogUsage");
 
+        public static string CrewsUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.CrewsUsage");
+
+        public static string OverviewLead(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Guild.OverviewLead");
+
         public static string CrewsTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Guild.CrewsTitle");
 

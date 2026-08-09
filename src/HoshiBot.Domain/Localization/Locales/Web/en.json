@@ -684,6 +684,8 @@
   "Web.Guild.AdminUsage": "Where Hoshi posts things that need a decision from you, such as STFC news date confirmations.",
   "Web.Guild.UserLogTitle": "User Log",
   "Web.Guild.UserLogUsage": "Member join and leave entries. Leave it empty to switch them off.",
+  "Web.Guild.CrewsUsage": "⚠ Not implemented yet — setting this has no effect. Kept for the crew feature it was ported for; that will most likely live per alliance rather than guild-wide.",
+  "Web.Guild.OverviewLead": "Everything about this Discord in one place: the guild-wide pages below, then a card per linked alliance leading to its own settings and features.",
   "Web.Guild.CrewsTitle": "Crews",
   "Web.Guild.GuildLanguageUsage": "The bot's language for public posts in this guild. Audiences and alliances inherit it unless they set their own; members' ephemeral replies follow their personal language.",
   "Web.Guild.DiscordLanguageInherited": "Discord: {name}",
