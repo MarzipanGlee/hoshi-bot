@@ -52,6 +52,24 @@ public static class AnonymousMessagingSettingKeys
     public const string Channel = "Channel";
 }
 
+// The weekly raid report — the Monday post summarising the raids reported during the week that just
+// ended (ported from hoshi-bot-yagpdb's raid-report.yag). Alliance-scoped, like the feature.
+public static class RaidAlertsSettingKeys
+{
+    // Where the weekly report is posted. This key predates the report itself — it was configurable
+    // with nothing reading it, because the report was the part of the port still missing.
+    public const string ReportChannel = "Channel";
+
+    // LOCAL "HH:00" fire time in the alliance's GuildAlliance.TimeZoneId (DST-aware), whole hours
+    // only. Unset -> RaidReportScheduler.DefaultLocalTime. The weekday is fixed — see ReportWeekday.
+    public const string ReportTime = "ReportTime";
+
+    // The last week already reported, "yyyy-Www" of the covered week's Monday. One value per
+    // alliance, which is all the dedup this needs: the report is one post a week, and comparing the
+    // week rather than a timestamp gives catch-up after downtime for free.
+    public const string ReportLastWeek = "ReportLastWeek";
+}
+
 public static class ClientReleaseSettingKeys
 {
     // One opt-in role per game-client platform, pinged only when THAT platform releases a new

@@ -115,6 +115,7 @@ builder.Services.AddSingleton(new EmbedBrandingOptions(builder.Configuration["Pu
 builder.Services.AddScoped<EmbedBranding>();
 builder.Services.AddScoped<NotificationDispatcher>();
 builder.Services.AddScoped<AlertService>();
+builder.Services.AddScoped<RaidReportService>();
 builder.Services.AddScoped<TerritoryCaptureDigestService>();
 builder.Services.AddScoped<ReadReceiptService>();
 builder.Services.AddScoped<AnnouncementService>();
@@ -251,6 +252,10 @@ builder.Services.AddQuartz(quartz =>
     AddSimpleJob<CommandBridgeRepublishJob>(TimeSpan.FromSeconds(5));
 
     AddSimpleJob<RaidWarningJob>(TimeSpan.FromMinutes(5));
+
+    // Hourly: the weekly raid report is due Monday at each alliance's own local time, and whole
+    // hours are the finest resolution the setting offers.
+    AddSimpleJob<RaidReportJob>(TimeSpan.FromHours(1));
 
     AddSimpleJob<ShieldWarningJob>(TimeSpan.FromMinutes(5));
 

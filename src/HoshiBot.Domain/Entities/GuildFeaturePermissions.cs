@@ -139,7 +139,13 @@ public static class GuildFeaturePermissions
 
         // Alert-channel rows: every one of these is posted through NotificationDispatcher, which
         // prefixes the row's own role mention.
-        GuildFeature.RaidAlerts => [FeatureChannelSlot.Alert(GuildAlertChannelKind.Raid, ChannelAccessProfile.PostAndPing)],
+        // Two channels: the live alerts, and the weekly report — which pings the alliance's
+        // notification role, so it needs the same profile rather than plain posting.
+        GuildFeature.RaidAlerts =>
+        [
+            FeatureChannelSlot.Alert(GuildAlertChannelKind.Raid, ChannelAccessProfile.PostAndPing),
+            FeatureChannelSlot.Setting(RaidAlertsSettingKeys.ReportChannel, ChannelAccessProfile.PostAndPing),
+        ],
         GuildFeature.ShieldReminders => [FeatureChannelSlot.Alert(GuildAlertChannelKind.Shield, ChannelAccessProfile.PostAndPing)],
         GuildFeature.ServerStatus => [FeatureChannelSlot.Alert(GuildAlertChannelKind.ServerStatus, ChannelAccessProfile.PostAndPing)],
         GuildFeature.InfiniteIncursions => [FeatureChannelSlot.Alert(GuildAlertChannelKind.InfiniteIncursions, ChannelAccessProfile.PostAndPing)],

@@ -13,7 +13,7 @@ public class RaidAlertsFeature : IFeatureModule
 
     public async Task<bool> IsConfiguredAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, FeatureModuleContext context)
     {
-        if (await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, "Channel") is not null)
+        if (await context.GetSnowflakeAsync(guildId, Feature, audience, guildAllianceId, RaidAlertsSettingKeys.ReportChannel) is not null)
             return true;
 
         return await context.HasAlertChannelAsync(guildId, GuildAlertChannelKind.Raid, audience);

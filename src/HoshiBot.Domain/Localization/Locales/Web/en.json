@@ -74,7 +74,7 @@
   "Web.Feature.PlayerLink.Description": "Links members to their STFC player by matching Discord nicknames against the whole player catalog — which drives rank/ops/nickname role sync. Confident matches link automatically; everyone else you assign by hand on the member page. Never messages members.",
   "Web.Feature.PlayerLink.Extra.assignments": "Player Assignments",
   "Web.Feature.RaidAlerts.Title": "Raid Alerts",
-  "Web.Feature.RaidAlerts.Description": "Members can report an incoming raid from the Command Bridge, posting a public alert to whichever channel(s) are configured below.",
+  "Web.Feature.RaidAlerts.Description": "Members can report an incoming raid from the Command Bridge, posting a public alert to whichever channel(s) are configured below — plus a weekly report every Monday of the raids reported during the past week.",
   "Web.Feature.RankRoles.Title": "Rank Roles",
   "Web.Feature.RankRoles.Description": "Assigns each member one of five Discord roles matching their current STFC in-alliance rank (Admiral/Commodore/Premier/Operative/Agent), kept in sync from imported player data — one set of roles for the whole guild.",
   "Web.Feature.BotSupport.Title": "Bot Support",
@@ -440,8 +440,10 @@
   "Web.Editor.PlayerAssignmentsAdmin.SearchPlayerPlaceholder": "Search player…",
   "Web.Editor.PlayerAssignmentsAdmin.AddPlayerButton": "+ Player",
 
-  "Web.Editor.RaidAlerts.Channel.CardTitle": "Raid Reports",
-  "Web.Editor.RaidAlerts.Channel.Usage": "Not used yet — raid alerts post to the alert channels above.",
+  "Web.Editor.RaidAlerts.ReportTime.CardTitle": "Report Time",
+  "Web.Editor.RaidAlerts.ReportTime.Usage": "Local time on Monday for the weekly report, in this alliance's timezone. Whole hours; the weekday is fixed, since a moving week boundary would make two reports overlap.",
+  "Web.Editor.RaidAlerts.Channel.CardTitle": "Weekly Raid Report",
+  "Web.Editor.RaidAlerts.Channel.Usage": "Where the Monday report of the past week's raids is posted, pinging this alliance's notification role.",
 
   "Web.Editor.RoeViolationReports.Channel.CardTitle": "RoE Violations",
   "Web.Editor.RoeViolationReports.Channel.Usage": "Where /report-roe-violation reports are posted — must be a Forum channel.",

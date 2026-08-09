@@ -1,4 +1,6 @@
 @inherits FeatureEditorBase
+@using System.Globalization
+@using HoshiBot.Domain
 @using HoshiBot.Web.Components.Pages.Manage.Guild
 @using HoshiBot.Web.Services
 @using NetCord
@@ -12,8 +14,15 @@
     <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="ResolvedAudience"
                             GuildAllianceId="GuildAllianceId" PerChannelRole="false" />
 
-    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, ChannelKey)" Usage="@Msg.WebEditor.Usage(Lang, Feature, ChannelKey)"
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, RaidAlertsSettingKeys.ReportChannel)"
+            Usage="@Msg.WebEditor.Usage(Lang, Feature, RaidAlertsSettingKeys.ReportChannel)"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, RaidAlertsSettingKeys.ReportTime)">
+        <p class="form-text mb-2">@Msg.WebEditor.Usage(Lang, Feature, RaidAlertsSettingKeys.ReportTime)</p>
+        <input type="time" step="3600" id="raidReportTime" class="form-control"
+               value="@reportTimeInput" @onchange="OnReportTimeChanged" />
+    </SettingsCard>
 </div>
 
 <div class="card-grid mt-1">
@@ -27,19 +36,34 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.RaidAlerts;
 
-    // Not read by any Discord-side consumer today (raid alerts post via the
-    // AlertChannelListEditor list below, GuildAlertChannelKind.Raid) — key stays local.
-    private const string ChannelKey = "Channel";
-
     private List<IGuildChannel> channels = [];
     private string? channelIdInput;
+    private string? reportTimeInput;
 
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
-        channelIdInput = (await GetSnowflakeAsync(ChannelKey))?.ToString();
+        channelIdInput = (await GetSnowflakeAsync(RaidAlertsSettingKeys.ReportChannel))?.ToString();
+        reportTimeInput = await GetTextAsync(RaidAlertsSettingKeys.ReportTime) ?? RaidReportScheduler.DefaultLocalTime;
     }
 
     private Task SaveChannelAsync() =>
-        SetSnowflakeAsync(ChannelKey, ParseId(channelIdInput));
+        SetSnowflakeAsync(RaidAlertsSettingKeys.ReportChannel, ParseId(channelIdInput));
+
+    // Whole hours only — the input's step is a hint the browser need not honour, so the value is
+    // snapped here too rather than trusting it.
+    private async Task OnReportTimeChanged(ChangeEventArgs e)
+    {
+        reportTimeInput = SnapToHour(e.Value?.ToString());
+        await SetTextAsync(RaidAlertsSettingKeys.ReportTime, reportTimeInput);
+    }
+
+    private static string? SnapToHour(string? raw)
+    {
+        if (!TimeOnly.TryParseExact(raw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t))
+            return raw;
+
+        var hour = (t.Minute >= 30 ? t.Hour + 1 : t.Hour) % 24;
+        return new TimeOnly(hour, 0).ToString("HH:mm", CultureInfo.InvariantCulture);
+    }
 }

@@ -74,7 +74,7 @@
   "Web.Feature.PlayerLink.Description": "Verknüpft Mitglieder mit ihrem STFC-Spieler, indem Discord-Nicknames mit dem gesamten Spielerkatalog abgeglichen werden — das treibt die Rang-/Ops-/Nickname-Rollensynchronisierung an. Eindeutige Treffer werden automatisch verknüpft; alle anderen ordnest du von Hand auf der Mitgliederseite zu. Schreibt Mitglieder nie an.",
   "Web.Feature.PlayerLink.Extra.assignments": "Spielerzuordnungen",
   "Web.Feature.RaidAlerts.Title": "Raid-Alarme",
-  "Web.Feature.RaidAlerts.Description": "Mitglieder können einen laufenden Raid über die Kommandobrücke melden; ein öffentlicher Alarm wird in die unten konfigurierten Kanäle gepostet.",
+  "Web.Feature.RaidAlerts.Description": "Mitglieder können einen laufenden Raid über die Kommandobrücke melden; ein öffentlicher Alarm wird in die unten konfigurierten Kanäle gepostet — dazu jeden Montag ein Bericht über die Raids der vergangenen Woche.",
   "Web.Feature.RankRoles.Title": "Rangrollen",
   "Web.Feature.RankRoles.Description": "Weist jedem Mitglied eine von fünf Discord-Rollen passend zu seinem aktuellen STFC-Allianzrang (Admiral/Commodore/Premier/Operative/Agent) zu, laufend synchronisiert aus importierten Spielerdaten — ein Rollensatz für die ganze Guild.",
   "Web.Feature.BotSupport.Title": "Bot-Hilfe",
@@ -440,8 +440,10 @@
   "Web.Editor.PlayerAssignmentsAdmin.SearchPlayerPlaceholder": "Spieler suchen…",
   "Web.Editor.PlayerAssignmentsAdmin.AddPlayerButton": "+ Spieler",
 
-  "Web.Editor.RaidAlerts.Channel.CardTitle": "Raid-Meldungen",
-  "Web.Editor.RaidAlerts.Channel.Usage": "Noch nicht genutzt — Raid-Alarme werden in die Alarm-Kanäle oben gepostet.",
+  "Web.Editor.RaidAlerts.ReportTime.CardTitle": "Berichtszeit",
+  "Web.Editor.RaidAlerts.ReportTime.Usage": "Lokale Uhrzeit am Montag für den Wochenbericht, in der Zeitzone dieser Allianz. Nur volle Stunden; der Wochentag ist fix, da eine verschobene Wochengrenze zwei Berichte überlappen liesse.",
+  "Web.Editor.RaidAlerts.Channel.CardTitle": "Wöchentlicher Raid-Bericht",
+  "Web.Editor.RaidAlerts.Channel.Usage": "Wo der Montags-Bericht über die Raids der vergangenen Woche gepostet wird, mit Erwähnung der Benachrichtigungs-Rolle dieser Allianz.",
 
   "Web.Editor.RoeViolationReports.Channel.CardTitle": "RoE-Verstöße",
   "Web.Editor.RoeViolationReports.Channel.Usage": "Wo /report-roe-violation-Meldungen gepostet werden — muss ein Forum-Kanal sein.",

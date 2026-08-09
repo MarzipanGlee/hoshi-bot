@@ -29,6 +29,7 @@ public static class SharedSettingUsage
         GuildFeature.Absences,              // owns the absence-clean sync
         GuildFeature.Announcements,         // Elevated severity pings it
         GuildFeature.TerritoryCapture,      // the weekly digest pings it
+        GuildFeature.RaidAlerts,            // the weekly raid report pings it
     ];
 
     public static readonly IReadOnlyList<GuildFeature> MemberRole =
