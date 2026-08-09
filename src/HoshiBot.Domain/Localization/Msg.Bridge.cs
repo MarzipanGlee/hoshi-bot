@@ -3,7 +3,7 @@ namespace HoshiBot.Domain.Localization;
 public static partial class Msg
 {
     // Command Bridge hub flows (CommandBridgeButtonModule): raid/shield prompts, the
-    // contact-command-staff step, unread announcements, RoE entry buttons, alert opt-ins.
+    // contact-senior-staff step, unread announcements, RoE entry buttons, alert opt-ins.
     public static class Bridge
     {
         public static string RaidTargetPrompt(Language lang) =>

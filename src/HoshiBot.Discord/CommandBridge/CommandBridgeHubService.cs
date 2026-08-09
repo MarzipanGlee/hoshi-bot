@@ -156,7 +156,7 @@ public class CommandBridgeHubService(
 
         // The single-audience label doubles as the contact step's title — same wording, one key.
         return configured.Select(audience => new ButtonProperties(
-            $"contact-command-staff:{audience}",
+            $"contact-senior-staff:{audience}",
             configured.Count > 1 ? Msg.Bridge.ContactStaffAudience(lang, GuildFeatureService.AudienceLabel(audience, lang)) : Msg.Bridge.ContactTitle(lang),
             EmojiProperties.Standard(Icons.ContactStaff), ButtonStyle.Primary)).ToList();
     }

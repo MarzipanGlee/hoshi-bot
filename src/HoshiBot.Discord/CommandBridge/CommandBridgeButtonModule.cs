@@ -137,7 +137,7 @@ public class CommandBridgeButtonModule(AlertService alertService, ReadReceiptSer
     // actual ticket-open/anonymous-message buttons below, now scoped to whichever audience
     // the member clicked. Only offers whichever of the two is actually enabled for that
     // audience — the hub button itself is hidden entirely if neither is.
-    [ComponentInteraction("contact-command-staff")]
+    [ComponentInteraction("contact-senior-staff")]
     public async Task<InteractionMessageProperties> ContactSeniorStaffPrompt(string audience)
     {
         var guildId = Context.Guild!.Id;

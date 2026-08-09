@@ -16,7 +16,7 @@ public enum CommandBridgeButtonKind
     // A plain button whose custom id / label / emoji are used verbatim.
     Plain,
 
-    // The contact-command-staff button, expanded at render time into one button per
+    // The contact-senior-staff button, expanded at render time into one button per
     // configured audience (Tickets / AnonymousMessaging). CustomId/LabelKey here are ignored
     // by the hub builder; the overview treats it as shown when Tickets OR AnonymousMessaging
     // is enabled.
@@ -50,7 +50,7 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.User, 1, "announcement-show-unread", "BridgeItem.AnnouncementsUnread", Icons.Unread, GuildFeature.ReadReceipts),
         new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
         new(CommandBridgeKind.User, 1, "absence-manage", "Feature.Absences", Icons.Absence, GuildFeature.Absences),
-        new(CommandBridgeKind.User, 2, "contact-command-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
+        new(CommandBridgeKind.User, 2, "contact-senior-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
         new(CommandBridgeKind.User, 2, "channel-guide", "BridgeItem.ChannelGuide", Icons.ChannelGuide, GuildFeature.ChannelGuide),
         new(CommandBridgeKind.User, 2, "bot-support", "BridgeItem.BotSupport", Icons.Help, GuildFeature.BotSupport),
 
@@ -67,7 +67,7 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.Friends, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", Icons.Reminder, GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Friends, 0, "raid-report", "Feature.RaidAlerts", Icons.Alert, GuildFeature.RaidAlerts),
         new(CommandBridgeKind.Friends, 0, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
-        new(CommandBridgeKind.Friends, 0, "contact-command-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
+        new(CommandBridgeKind.Friends, 0, "contact-senior-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
     ];
 
     public static IEnumerable<CommandBridgeButton> ForBridge(CommandBridgeKind bridge) =>
