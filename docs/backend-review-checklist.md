@@ -12,9 +12,23 @@ guild actually serves.
 
 **Legend** — `[ ]` not looked at · `[x]` checked, fine · add `⚠` and a note for anything wrong.
 
+Every route in the app is covered by a line here, except the `/create`, `/edit` and `/delete` forms
+under STFC data — one of each is enough, and they are noted in that section rather than listed.
+
 ---
 
-## 1. Guild pages
+## 1. Dashboard — `/manage`
+
+The landing page after login, and the only route with no guild in it.
+
+- [ ] Welcome header and the "N guilds still need setup" banner
+- [ ] **Your Guilds** cards — audience badges, "needs setup" flag, Features / Settings / Setup Wizard buttons
+- [ ] Guilds the bot is not in yet — the **+ Install bot** button
+- [ ] **Foreign servers** section — only visible with support mode on
+- [ ] Bot / STFC Catalog / Database cards
+- [ ] Logged-out state — the "log in with Discord" prompt
+
+## 2. Guild pages
 
 - [ ] **Overview** — `/manage/guild/{id}`
 - [ ] **Audience** — `/manage/guild/{id}/audience`
@@ -31,12 +45,13 @@ guild actually serves.
 - [ ] Crews
 - [ ] Language
 
-## 2. Alliance pages
+## 3. Alliance pages
 
 Per linked alliance. A coalition guild must check each one — several settings are per-alliance.
 
 - [ ] **Overview** — `/manage/guild/{id}/alliance/{allianceId}`
 - [ ] **Features** — `/manage/guild/{id}/alliance/{allianceId}/features`
+- [ ] **No-id fallback** — `/manage/guild/{id}/alliance` and `/manage/guild/{id}/alliance/settings` land on the alliance you last used (there is no dropdown any more; the sidebar lists them)
 
 ### Alliance settings — `/manage/guild/{id}/alliance/{allianceId}/settings`
 
@@ -58,7 +73,7 @@ card missing here may be correct — check with the relevant feature on.
 - [ ] Timezone
 - [ ] Language
 
-## 3. Audience pages
+## 4. Audience pages
 
 Once per audience the guild serves (Server, Community, Veil Group).
 
@@ -71,7 +86,7 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] Senior Staff Role
 - [ ] Language
 
-## 4. Features
+## 5. Features
 
 35 features. Each is reachable at `.../features/{slug}` within its scope.
 
@@ -130,6 +145,8 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] Memory (experimental)
 - [ ] Open memories
 - [ ] Search language
+- [ ] Extra page: `memories`
+- [ ] Extra page: `health`
 
 ### AI Provider
 
@@ -248,6 +265,8 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] Edit rules
 - [ ] Reusable Conditions
 - [ ] Edit conditions
+- [ ] Extra page: `rules`
+- [ ] Extra page: `conditions`
 
 ### Diplomacy
 
@@ -283,6 +302,8 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] View interviews
 - [ ] Notes & review
 - [ ] Open notes & review
+- [ ] Extra page: `notes`
+- [ ] Extra page: `interviews`
 
 ### Member Onboarding
 
@@ -329,6 +350,7 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] Open player assignments
 - [ ] Status
 - [ ] Not-Linked Role
+- [ ] Extra page: `assignments`
 
 ### Raid Alerts
 
@@ -431,6 +453,7 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] Services Channel
 - [ ] Services Role
 - [ ] Service Selection
+- [ ] Extra page: `service-selection`
 
 ### Territory Capture Sign-Off
 
@@ -446,17 +469,18 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] Enable switch, description and any "requires" badges
 - [ ] Tickets
 
-## 5. Bot administration
+## 6. Bot administration
 
 - [ ] **Global Admins** — `/manage/bot/global-admins`
 - [ ] **Trusted Users** — `/manage/bot/trusted-users`
 - [ ] **STFC News settings** — `/manage/bot/stfc-news-settings`
 - [ ] **Incursions schedule** — `/manage/bot/incursions-schedule`
 
-## 6. STFC data
+## 7. STFC data
 
 Shared game data, not per guild. List/create/edit/delete per area — checking the list and one
-edit is usually enough.
+edit is usually enough. The `/import` pages are separate — they take a paste or upload rather than
+one row, so they are listed on their own.
 
 - [ ] `/manage/stfc/alliance-diplomacy`
 - [ ] `/manage/stfc/alliance-invites`
@@ -477,7 +501,17 @@ edit is usually enough.
 - [ ] `/manage/stfc/veil-group-invites`
 - [ ] `/manage/stfc/veil-groups`
 
-## 7. Database browser
+### Imports
+
+Separate from the list/create/edit pages above: these take a paste or a file rather than one row.
+
+- [ ] `/manage/stfc/alliances/import`
+- [ ] `/manage/stfc/players/import`
+- [ ] `/manage/stfc/servers/import`
+- [ ] `/manage/stfc/server-status/import`
+- [ ] `/manage/stfc/territory-ownership/import`
+
+## 8. Database browser
 
 Read-only tables under `/manage/database/*`. Worth a pass for empty states and column labels.
 
@@ -502,12 +536,13 @@ Read-only tables under `/manage/database/*`. Worth a pass for empty states and c
 - [ ] `/manage/database/tickets`
 - [ ] `/manage/database/user-players`
 
-## 8. Member-facing
+## 9. Member-facing
 
 - [ ] **My profile** — `/me`
 - [ ] **My lore** — `/me/lore`
 - [ ] **Home / login** — `/`
 - [ ] **Not found** — `/not-found`
+- [ ] **Error** — `/Error`
 
 ---
 
