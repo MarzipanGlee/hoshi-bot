@@ -67,6 +67,6 @@ public class MemberOnboardingHandler(IServiceScopeFactory scopeFactory, ILogger<
 
     private static async Task<bool> IsCampaignActiveAsync(GuildFeatureSettingsService settings, ulong guildId) =>
         string.Equals(
-            await settings.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Community, null, MemberOnboardingSettingKeys.CampaignActive),
+            await settings.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Guild, null, MemberOnboardingSettingKeys.CampaignActive),
             "true", StringComparison.OrdinalIgnoreCase);
 }

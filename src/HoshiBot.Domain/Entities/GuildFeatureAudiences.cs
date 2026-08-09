@@ -13,7 +13,11 @@ public static class GuildFeatureAudiences
         // Guild-wide: player↔member assignment spans every alliance/server a guild's members belong
         // to, so it's a single guild-level toggle (Guild audience), not per-alliance.
         GuildFeature.PlayerLink => GuildAudience.Guild,
-        GuildFeature.MemberOnboarding => GuildAudience.Community,
+        // Guild-wide, like the PlayerLink it is the opt-in DM half of. It was Community-scoped,
+        // which put it under one audience of four while the linking it drives — and the reviews it
+        // works through — have never been per-audience: a guild has one player-link backlog, not one
+        // per audience.
+        GuildFeature.MemberOnboarding => GuildAudience.Guild,
         GuildFeature.ShieldReminders => GuildAudience.Alliance,
         GuildFeature.TerritoryCapture => GuildAudience.Alliance,
         GuildFeature.RoeViolationReports => GuildAudience.Alliance,

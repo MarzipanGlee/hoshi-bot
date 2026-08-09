@@ -55,12 +55,12 @@ public class MemberOnboardingSyncJob(
         if (!await featureService.IsEnabledAsync(guildId, GuildFeature.MemberOnboarding))
             return 0;
 
-        var campaignActive = await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Community, null, MemberOnboardingSettingKeys.CampaignActive);
+        var campaignActive = await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Guild, null, MemberOnboardingSettingKeys.CampaignActive);
         if (!string.Equals(campaignActive, "true", StringComparison.OrdinalIgnoreCase))
             return 0;
 
         var maxPerDay = int.TryParse(
-            await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Community, null, MemberOnboardingSettingKeys.MaxInvitesPerDay),
+            await settingsService.GetTextAsync(guildId, GuildFeature.MemberOnboarding, GuildAudience.Guild, null, MemberOnboardingSettingKeys.MaxInvitesPerDay),
             out var parsed) ? parsed : DefaultMaxPerDay;
 
         var dayAgo = DateTimeOffset.UtcNow.AddHours(-24);
