@@ -263,6 +263,10 @@ builder.Services.AddQuartz(quartz =>
     // hours are the finest resolution the setting offers.
     AddSimpleJob<RaidReportJob>(TimeSpan.FromHours(1));
 
+    // Short interval: this also drains the Web admin's Publish/Backfill queue, which polls for
+    // completion — and it is the safety net for a join the gateway handler missed.
+    AddSimpleJob<BoardingSyncJob>(TimeSpan.FromSeconds(30));
+
     AddSimpleJob<ShieldWarningJob>(TimeSpan.FromMinutes(5));
 
     // Half-hourly sweep posting each alliance's weekly/daily digest at its own configured local time
