@@ -64,6 +64,9 @@ public static partial class Msg
         public static string Channel(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.Channel");
 
+        public static string NotificationRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.NotificationRole");
+
         public static string AlertRole(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.AlertRole");
 

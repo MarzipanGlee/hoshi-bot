@@ -51,15 +51,15 @@
                 }
                 @if (showDiplomatRole)
                 {
-                    <RolePicker CardTitle="@Msg.WebCommon.DiplomatRole(Lang)" Usage="@Msg.WebCommon.DiplomatRoleUsage(Lang)" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+                    <RolePicker CardTitle="@Msg.WebAlliance.DiplomatRoleTitle(Lang)" Usage="@Msg.WebCommon.DiplomatRoleUsage(Lang)" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
                 }
                 @if (showSeniorStaffRole)
                 {
-                    <RolePicker CardTitle="@Msg.WebCommon.SeniorStaffRole(Lang)" Usage="@Msg.WebCommon.SeniorStaffRoleUsage(Lang)" CreateRoleName="@seniorStaffRoleName" @bind-Value="seniorStaffRoleIdInput" @bind-Value:after="SaveSeniorStaffRoleAsync" Roles="roles" />
+                    <RolePicker CardTitle="@Msg.WebAlliance.SeniorStaffRoleTitle(Lang)" Usage="@Msg.WebCommon.SeniorStaffRoleUsage(Lang)" CreateRoleName="@seniorStaffRoleName" @bind-Value="seniorStaffRoleIdInput" @bind-Value:after="SaveSeniorStaffRoleAsync" Roles="roles" />
                 }
                 @if (showAlertRole)
                 {
-                    <RolePicker CardTitle="@Msg.WebCommon.AlertRole(Lang)" Usage="@Msg.WebCommon.AlertRoleUsage(Lang)" CreateRoleName="@alertRoleName" @bind-Value="alertRoleIdInput" @bind-Value:after="SaveAlertRoleAsync" Roles="roles" />
+                    <RolePicker CardTitle="@Msg.WebAlliance.AlertRoleTitle(Lang)" Usage="@Msg.WebCommon.AlertRoleUsage(Lang)" CreateRoleName="@alertRoleName" @bind-Value="alertRoleIdInput" @bind-Value:after="SaveAlertRoleAsync" Roles="roles" />
                 }
                 @if (showNotificationRole)
                 {

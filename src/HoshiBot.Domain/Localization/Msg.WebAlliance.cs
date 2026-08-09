@@ -67,6 +67,18 @@ public static partial class Msg
         public static string ServerRootPlaceholder(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.ServerRootPlaceholder");
 
+        // Bare nouns: the alliance settings page groups these under a "Roles" heading, so a "Role"
+        // suffix would repeat the group. The feature editors use the suffixed Web.Common.* titles
+        // instead — their grids mix channels and roles, where the noun alone is ambiguous.
+        public static string AlertRoleTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Alliance.AlertRoleTitle");
+
+        public static string DiplomatRoleTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Alliance.DiplomatRoleTitle");
+
+        public static string SeniorStaffRoleTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Alliance.SeniorStaffRoleTitle");
+
         public static string MemberRoleTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.MemberRoleTitle");
 
