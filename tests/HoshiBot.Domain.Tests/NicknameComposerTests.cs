@@ -30,11 +30,11 @@ public class NicknameComposerTests
 
     [Fact]
     public void ForeignOnly_ForeignAllianceAndServer_GetsBothTags() =>
-        Assert.Equal("[RG99][OTHR] Player", Build(allianceId: 2, allianceTag: "OTHR", serverId: 99));
+        Assert.Equal("[RG-99][OTHR] Player", Build(allianceId: 2, allianceTag: "OTHR", serverId: 99));
 
     [Fact]
     public void Always_HomePlayer_GetsBothTags() =>
-        Assert.Equal("[RG1][TAG] Player",
+        Assert.Equal("[RG-1][TAG] Player",
             Build(allianceMode: NicknameTagMode.Always, serverMode: NicknameTagMode.Always));
 
     [Fact]
@@ -66,7 +66,7 @@ public class NicknameComposerTests
         var result = Build(allianceMode: NicknameTagMode.Always, serverMode: NicknameTagMode.Always,
             suffix: "AliasThatIsTooLong");
 
-        Assert.Equal("[RG1][TAG] Player", result);
+        Assert.Equal("[RG-1][TAG] Player", result);
         Assert.DoesNotContain("(", result);
     }
 
@@ -74,10 +74,45 @@ public class NicknameComposerTests
     public void Suffix_FittingExactlyAt32_IsKept()
     {
         var result = Build(allianceMode: NicknameTagMode.Always,
-            serverMode: NicknameTagMode.Always, suffix: "AliasTwelve1");
+            serverMode: NicknameTagMode.Always, suffix: "AliasTwelve");
 
-        Assert.Equal("[RG1][TAG] Player (AliasTwelve1)", result);
+        Assert.Equal("[RG-1][TAG] Player (AliasTwelve)", result);
         Assert.True(result.Length <= NicknameComposer.DiscordNicknameMaxLength);
+    }
+
+    [Fact]
+    public void NoAllianceTag_DefaultsToLowercaseNa()
+    {
+        Assert.Equal("[n/a] Player", Build(allianceId: null, allianceTag: null));
+    }
+
+    [Fact]
+    public void NoAllianceTag_UsesTheGuildsOwnTextWhenSet()
+    {
+        var result = NicknameComposer.Build("Player", "RG", 1, allianceId: null, allianceTag: null,
+            NicknameTagMode.Always, NicknameTagMode.Never, [], [], suffix: null, noAllianceTag: "solo");
+
+        Assert.Equal("[solo] Player", result);
+    }
+
+    [Fact]
+    public void NoAllianceTag_BlankFallsBackToTheDefault()
+    {
+        // Blank is stored as null by the editor, but a whitespace value must not produce "[ ]".
+        var result = NicknameComposer.Build("Player", "RG", 1, allianceId: null, allianceTag: null,
+            NicknameTagMode.Always, NicknameTagMode.Never, [], [], suffix: null, noAllianceTag: "   ");
+
+        Assert.Equal("[n/a] Player", result);
+    }
+
+    [Fact]
+    public void ServerTag_IsRegionAndServerHyphenated()
+    {
+        // "EU-164", not "EU164": two facts, not one token. StfcServer.DisplayName keeps its own
+        // "EU164 Mindmeld" convention for dropdowns — these are deliberately different.
+        Assert.Equal("[RG-164] Player",
+            NicknameComposer.Build("Player", "RG", 164, allianceId: 1, allianceTag: "TAG",
+                NicknameTagMode.Never, NicknameTagMode.Always, [1], []));
     }
 
     [Fact]

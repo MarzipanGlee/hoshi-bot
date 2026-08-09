@@ -284,8 +284,8 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 `hoshi-say` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] Allowed role
+- [x] Enable switch, description and any "requires" badges
+- [x] Allowed role
 
 ### Infinite Incursions Announcements
 
@@ -322,14 +322,13 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 `nickname-sync` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] How it works
-- [ ] Alliance tag
-- [ ] Server tag
-- [ ] Member Name Suffix
-- [ ] Excluded roles
-- [ ] Add role
-- [ ] false
+- [x] Enable switch, description and any "requires" badges
+- [x] How it works
+- [x] Alliance tag
+- [x] Server tag — renders `[EU-164]` now
+- [x] No-Alliance Tag (new)
+- [x] Member Name Suffix
+- [x] Excluded roles — the add picker can create `No-Nickname-Sync`
 
 ### Notification Opt-In
 

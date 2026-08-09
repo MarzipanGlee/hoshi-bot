@@ -49,6 +49,7 @@ public class NicknameSyncJob(
 
         var allianceTagMode = ParseMode(await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.AllianceTagMode));
         var serverTagMode = ParseMode(await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.ServerTagMode));
+        var noAllianceTag = await settingsService.GetTextAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.NoAllianceTag);
         var excludedRoles = (await settingsService.GetSnowflakeListAsync(guildId, GuildFeature.NicknameSync, GuildAudience.Guild, null, NicknameSyncSettingKeys.ExcludedRoles)).ToHashSet();
 
         // Members set their own suffix globally on /me; this guild decides whether to render it.
@@ -73,7 +74,7 @@ public class NicknameSyncJob(
             var nickname = NicknameComposer.Build(
                 member.Name, member.RegionName, member.ServerId, member.AllianceId, member.AllianceTag,
                 allianceTagMode, serverTagMode, scope.AllianceIds, scope.ServerIds,
-                memberSuffix ? member.NicknameSuffix : null);
+                memberSuffix ? member.NicknameSuffix : null, noAllianceTag);
             await SyncNicknameAsync(guildId, guildUser, nickname, excludedRoles);
         }
     }

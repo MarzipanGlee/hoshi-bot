@@ -250,6 +250,10 @@ public static class NicknameSyncSettingKeys
     // Snowflake list of roles whose holders are skipped entirely (never renamed).
     public const string ExcludedRoles = "ExcludedRoles";
 
+    // What stands in for the alliance tag when the player has no alliance. Unset ->
+    // NicknameComposer.DefaultNoAllianceTag.
+    public const string NoAllianceTag = "NoAllianceTag";
+
     // Whether a member's own suffix (DiscordUser.NicknameSuffix, set on /me) is appended in
     // parentheses — "[TAG] Player (Suffix)". Default-ON, so "false" is stored when switched
     // OFF and the row is deleted when switched back on; a guild that doesn't want member-authored

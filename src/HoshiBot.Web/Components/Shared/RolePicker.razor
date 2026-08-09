@@ -88,17 +88,13 @@ else
             <div class="form-text mb-1">@Usage</div>
         }
         <select class="form-select" value="@Value" @onchange="OnChangeAsync">
-            @if (CreateRoleName is not null)
+            @* One empty option either way: a caller's own placeholder wins, then "none" where empty
+               is a real answer, then the "choose one" prompt. The create option is additional — it
+               used to REPLACE the placeholder, so a picker with both silently lost its wording. *@
+            <option value="">@(PlaceholderText ?? (AllowNone ? Msg.WebCommon.NoneOption(Lang) : Msg.WebCommon.ChooseRoleOption(Lang)))</option>
+            @if (CreateRoleName is not null && !RoleWithCreateNameExists)
             {
-                <option value="">@(AllowNone ? Msg.WebCommon.NoneOption(Lang) : Msg.WebCommon.ChooseRoleOption(Lang))</option>
-                @if (!RoleWithCreateNameExists)
-                {
-                    <option value="@CreateSentinel">@Msg.WebCommon.CreateRoleOption(Lang, CreateRoleName)</option>
-                }
-            }
-            else
-            {
-                <option value="">@(PlaceholderText ?? Msg.WebCommon.NoneOption(Lang))</option>
+                <option value="@CreateSentinel">@Msg.WebCommon.CreateRoleOption(Lang, CreateRoleName)</option>
             }
             @if (IsUnknown)
             {

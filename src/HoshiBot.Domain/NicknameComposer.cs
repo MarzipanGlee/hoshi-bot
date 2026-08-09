@@ -15,6 +15,11 @@ public static partial class NicknameComposer
     // characters, and a suffix that never fits would just silently never show.
     public const int MaxSuffixLength = 20;
 
+    // Shown in place of an alliance tag when the player has none. Lowercase on purpose — it is not
+    // an alliance tag, and looking unlike one is the point. Configurable per guild; this is what an
+    // unset setting means.
+    public const string DefaultNoAllianceTag = "n/a";
+
     [GeneratedRegex(@"[\[\]()]")]
     private static partial Regex SuffixReservedChars();
 
@@ -44,7 +49,7 @@ public static partial class NicknameComposer
         return cleaned.Length > MaxSuffixLength ? cleaned[..MaxSuffixLength] : cleaned;
     }
 
-    // "[SERVER][TAG] Player (Suffix)" — server tag, then alliance tag (no space between
+    // "[REGION-SERVER][TAG] Player (Suffix)" — server tag, then alliance tag (no space between
     // them), the player name, then the member's own suffix in parentheses. Any part can be absent.
     public static string Build(
         string playerName,
@@ -56,20 +61,25 @@ public static partial class NicknameComposer
         NicknameTagMode serverMode,
         HashSet<int> homeAlliances,
         HashSet<int> homeServers,
-        string? suffix = null)
+        string? suffix = null,
+        string? noAllianceTag = null)
     {
-        var serverLabel = $"{regionName}{serverId}";
+        // "EU-164", hyphenated: the region and the number are two facts, and "EU164" reads as one
+        // token. Note this is NOT StfcServer.DisplayName's "EU164 Mindmeld" convention — that is a
+        // dropdown label with room to breathe, this is a nickname prefix people scan at a glance.
+        var serverLabel = $"{regionName}-{serverId}";
         var serverTag = Include(serverMode, serverId, homeServers) && !string.IsNullOrWhiteSpace(regionName) ? $"[{serverLabel}]" : "";
 
         // A player with no alliance is treated as "foreign" (not one of the guild's own) and, when the
-        // tag applies, shown as [n/a] so it's still disambiguated.
+        // tag applies, shown with the guild's no-alliance text so it's still disambiguated.
         var showAllianceTag = allianceMode switch
         {
             NicknameTagMode.Always => true,
             NicknameTagMode.ForeignOnly => allianceId is not { } aid || !homeAlliances.Contains(aid),
             _ => false,
         };
-        var allianceTagText = showAllianceTag ? $"[{(string.IsNullOrWhiteSpace(allianceTag) ? "n/a" : allianceTag)}]" : "";
+        var noAlliance = string.IsNullOrWhiteSpace(noAllianceTag) ? DefaultNoAllianceTag : noAllianceTag;
+        var allianceTagText = showAllianceTag ? $"[{(string.IsNullOrWhiteSpace(allianceTag) ? noAlliance : allianceTag)}]" : "";
 
         var prefix = serverTag + allianceTagText;
         var nickname = prefix.Length > 0 ? $"{prefix} {playerName}" : playerName;

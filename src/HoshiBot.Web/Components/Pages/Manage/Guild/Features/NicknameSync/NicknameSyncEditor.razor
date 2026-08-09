@@ -1,5 +1,6 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Data
+@using HoshiBot.Domain
 @using HoshiBot.Domain.Entities
 @using HoshiBot.Web.Services
 @using NetCord
@@ -22,6 +23,12 @@
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.ServerTagMode)">
         <label class="form-label">@((MarkupString)Msg.WebEditor.Label(Lang, Feature, NicknameSyncSettingKeys.ServerTagMode))</label>
         <Select TValue="string" Items="ModeItems" @bind-Value="serverMode" @bind-Value:after="SaveServerModeAsync" />
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.NoAllianceTag)">
+        <p class="form-text mt-0">@((MarkupString)Msg.WebEditor.Usage(Lang, Feature, NicknameSyncSettingKeys.NoAllianceTag))</p>
+        <input type="text" class="form-control" maxlength="10" placeholder="@NicknameComposer.DefaultNoAllianceTag"
+               value="@noAllianceTag" @onchange="SaveNoAllianceTagAsync" />
     </SettingsCard>
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, NicknameSyncSettingKeys.MemberSuffix)">
@@ -53,6 +60,7 @@
             </ul>
         }
         <RolePicker Label="@Msg.WebNicknameSync.AddRoleLabel(Lang)" ShowLabel="false" PlaceholderText="@Msg.WebNicknameSync.AddRolePlaceholder(Lang)"
+                    CreateRoleName="@ExcludedRoleName"
                     @bind-Value="addRoleInput" @bind-Value:after="AddRoleAsync" Roles="roles" />
     </SettingsCard>
 </div>
@@ -63,6 +71,10 @@
     protected override GuildFeature Feature => GuildFeature.NicknameSync;
 
     private List<Role> roles = [];
+
+    // The role a guild almost always creates for this: "hold it and the bot leaves your nickname
+    // alone". Not tag-prefixed — Nickname Sync is guild-wide, so there is no alliance to prefix with.
+    private const string ExcludedRoleName = "No-Nickname-Sync";
 
     // A property (not a field initializer) — field initializers run in the constructor, before the
     // cascaded Lang parameter is set, so they'd always bake in English.
@@ -78,6 +90,7 @@
     private List<ulong> excludedRoleIds = [];
     private string? addRoleInput;
     private bool memberSuffix;
+    private string? noAllianceTag;
 
     protected override async Task OnSettingsLoadedAsync()
     {
@@ -88,6 +101,7 @@
             ?? nameof(NicknameTagMode.ForeignOnly);
         excludedRoleIds = await GetSnowflakeListAsync(NicknameSyncSettingKeys.ExcludedRoles);
         memberSuffix = NicknameSyncSettingKeys.IsMemberSuffixOn(await GetTextAsync(NicknameSyncSettingKeys.MemberSuffix));
+        noAllianceTag = await GetTextAsync(NicknameSyncSettingKeys.NoAllianceTag);
     }
 
     // Default-on, so only the OFF state is stored — switching back on deletes the row rather than
@@ -96,6 +110,15 @@
     {
         memberSuffix = value;
         await SetTextAsync(NicknameSyncSettingKeys.MemberSuffix, value ? null : "false");
+    }
+
+    // Blank stores null rather than an empty string, so "never set" and "cleared" are one state and
+    // the composer's default applies to both.
+    private async Task SaveNoAllianceTagAsync(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString()?.Trim();
+        noAllianceTag = string.IsNullOrWhiteSpace(raw) ? null : raw;
+        await SetTextAsync(NicknameSyncSettingKeys.NoAllianceTag, noAllianceTag);
     }
 
     private Task SaveAllianceModeAsync() =>
