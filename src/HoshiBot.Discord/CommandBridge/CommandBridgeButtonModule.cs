@@ -244,7 +244,7 @@ public class CommandBridgeButtonModule(AlertService alertService, ReadReceiptSer
             // Only the ✅ here: every row already sits under a heading of unread posts, so a "show
             // unread" button per row would be circular.
             var rows = unread
-                .Select(p => new ActionRowProperties([ReadReceiptService.ReadButton(p.Id, p.LastKnownReadCount, lang)]))
+                .Select(p => new ActionRowProperties([ReadReceiptService.ReadButton(p, p.LastKnownReadCount)]))
                 .ToList();
 
             // The kind's own icon rather than a severity, since the list now spans announcements,

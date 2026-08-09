@@ -23,7 +23,8 @@ public class ReadReceiptService(HoshiBotDbContext db, GatewayClient gatewayClien
     // Registers a freshly posted message and answers whether it should carry the button. Returns the
     // row so the caller can build the button with its id.
     public async Task<ReadablePost> RegisterAsync(ulong guildId, ulong channelId, ulong messageId, ReadablePostKind kind,
-        GuildAudience audience, int? guildAllianceId, string title, Language lang, CancellationToken cancellationToken = default)
+        GuildAudience audience, int? guildAllianceId, string title, Language lang, string? buttonLabel = null,
+        CancellationToken cancellationToken = default)
     {
         var enabled = await IsKindEnabledAsync(guildId, kind, audience, guildAllianceId);
 
@@ -38,6 +39,7 @@ public class ReadReceiptService(HoshiBotDbContext db, GatewayClient gatewayClien
             ReadReceiptsEnabled = enabled,
             Title = Clamp(title),
             Language = lang,
+            ButtonLabel = buttonLabel,
             PostedAt = DateTimeOffset.UtcNow,
         };
 
@@ -60,14 +62,25 @@ public class ReadReceiptService(HoshiBotDbContext db, GatewayClient gatewayClien
 
     // The row under a tracked post: confirm this one, and see whatever is still unconfirmed. The
     // second is the same action, custom id and icon as the Command Bridge's unread button.
-    public static ActionRowProperties Buttons(int postId, int readCount, Language lang) => new(
+    // Both take the ROW, not its id: the caption depends on the post's kind, language and its own
+    // ButtonLabel, and three of the four callers (the counter job, the unread list, the click
+    // handler) have no idea which feature produced it. Passing the row makes rendering the wrong
+    // button impossible rather than merely unlikely.
+    public static ActionRowProperties Buttons(ReadablePost post, int readCount) => new(
     [
-        ReadButton(postId, readCount, lang),
-        new ButtonProperties("announcement-show-unread", Msg.Bridge.AnnouncementsUnread(lang), EmojiProperties.Standard(Icons.Unread), ButtonStyle.Primary),
+        ReadButton(post, readCount),
+        new ButtonProperties("announcement-show-unread", Msg.Bridge.AnnouncementsUnread(post.Language), EmojiProperties.Standard(Icons.Unread), ButtonStyle.Primary),
     ]);
 
-    public static ButtonProperties ReadButton(int postId, int readCount, Language lang) =>
-        new($"read-receipt:{postId}", Msg.Announce.ReadButton(lang, readCount), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Primary);
+    public static ButtonProperties ReadButton(ReadablePost post, int readCount) =>
+        new($"read-receipt:{post.Id}", Label(post, readCount), EmojiProperties.Standard(Icons.Ok), ButtonStyle.Primary);
+
+    // The producer's own wording wins; otherwise the kind's default. A kind that does not show a
+    // count gets a plain caption rather than one with a stale zero on it.
+    private static string Label(ReadablePost post, int readCount) =>
+        !string.IsNullOrWhiteSpace(post.ButtonLabel) ? post.ButtonLabel
+            : ReadablePostKinds.ShowsReadCount(post.Kind) ? Msg.Announce.ReadButton(post.Language, readCount)
+            : Msg.Announce.ReadButtonPlain(post.Language);
 
     // Titles come from whatever the producer had — an announcement's first line, a forwarded post's
     // source heading — so they are not length-bounded at the source.
@@ -120,7 +133,20 @@ public class ReadReceiptService(HoshiBotDbContext db, GatewayClient gatewayClien
                 DiscordUserId = userId,
                 ReadAt = now,
             });
-            await db.SaveChangesAsync();
+
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Two clicks landing together: the unique (ReadablePostId, DiscordUserId) index
+                // rejects the second insert. Treat it as "already read" rather than throwing — for
+                // an announcement that only cost a count, but Boarding grants a role off the back of
+                // this call and must not fail because the member double-clicked.
+                db.ChangeTracker.Clear();
+                wasNew = false;
+            }
         }
 
         var count = await db.ReadReceipts.CountAsync(r => r.ReadablePostId == postId);

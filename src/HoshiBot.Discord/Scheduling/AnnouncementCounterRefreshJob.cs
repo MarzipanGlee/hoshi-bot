@@ -41,12 +41,21 @@ public class AnnouncementCounterRefreshJob(
             if (count == post.LastKnownReadCount)
                 continue;
 
+            // A kind whose button shows no number has nothing to redraw — record the count and move
+            // on. Without this every boarding confirmation would cost an edit to a caption that
+            // cannot change (see ReadablePostKinds.ShowsReadCount).
+            if (!ReadablePostKinds.ShowsReadCount(post.Kind))
+            {
+                post.LastKnownReadCount = count;
+                continue;
+            }
+
             try
             {
-                // The post's own language, stored at registration — the text above the button is
-                // frozen in it, so the label has to be too.
+                // The whole row, so the caption comes from the post rather than being re-derived —
+                // the producer may have written its own.
                 await gatewayClient.Rest.ModifyMessageAsync(post.ChannelId, post.MessageId,
-                    m => m.Components = [ReadReceiptService.Buttons(post.Id, count, post.Language)]);
+                    m => m.Components = [ReadReceiptService.Buttons(post, count)]);
             }
             catch (RestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {

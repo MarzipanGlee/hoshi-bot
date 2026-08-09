@@ -1,5 +1,6 @@
 using HoshiBot.Data;
 using HoshiBot.Domain.Localization;
+using NetCord;
 using NetCord.Gateway;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -8,7 +9,11 @@ namespace HoshiBot.Discord.ReadReceipts;
 
 // The ✅ under any tracked post. Kind-agnostic on purpose: an announcement, a forwarded translation
 // and (later) the alliance rules all carry the same button and land here.
-public class ReadReceiptButtonModule(ReadReceiptService readReceipts, EmbedBranding embedBranding, LanguageResolver languageResolver)
+public class ReadReceiptButtonModule(
+    ReadReceiptService readReceipts,
+    EmbedBranding embedBranding,
+    LanguageResolver languageResolver,
+    IEnumerable<IReadConfirmationFollowUp> followUps)
     : ComponentInteractionModule<ButtonInteractionContext>
 {
     [ComponentInteraction("read-receipt")]
@@ -29,12 +34,22 @@ public class ReadReceiptButtonModule(ReadReceiptService readReceipts, EmbedBrand
                 // The public post's own count, edited separately from this personal ephemeral ack —
                 // and in the post's language, not the clicking member's.
                 await Context.Client.Rest.ModifyMessageAsync(Context.Channel.Id, Context.Message.Id,
-                    m => m.Components = [ReadReceiptService.Buttons(postId, count, post.Language)]);
+                    m => m.Components = [ReadReceiptService.Buttons(post, count)]);
             }
             catch (RestException)
             {
                 // AnnouncementCounterRefreshJob picks this up if the inline edit fails (a transient
                 // rate limit, say) — not worth failing the member's interaction over.
+            }
+
+            // Whatever the post's own feature wants to do about being confirmed — see
+            // IReadConfirmationFollowUp. Deliberately not gated on wasNew: a follow-up that failed
+            // halfway on the first click must still be able to finish on the second.
+            if (followUps.FirstOrDefault(f => f.Kind == post.Kind) is { } followUp
+                && Context.User is GuildUser member
+                && await followUp.OnConfirmedAsync(post, member, lang) is { } outcome)
+            {
+                return outcome;
             }
 
             return wasNew ? Msg.Announce.ReadRecorded(lang) : Msg.Announce.AlreadyRead(lang);

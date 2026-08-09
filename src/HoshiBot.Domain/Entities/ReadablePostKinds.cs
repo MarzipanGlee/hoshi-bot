@@ -12,4 +12,12 @@ public static class ReadablePostKinds
         [ReadablePostKind.Announcement, ReadablePostKind.ForwardedAnnouncement];
 
     public static bool IsImplemented(ReadablePostKind kind) => Implemented.Contains(kind);
+
+    // Whether the button shows how many people have confirmed. An announcement's does — it is how
+    // staff see uptake. A welcome message's does not: its caption is the admin's own wording, and a
+    // number climbing on it would be noise on a post every new member sees exactly once.
+    //
+    // Also saves work: AnnouncementCounterRefreshJob edits a post only to move that number, so a
+    // kind without one needs no edit at all when the count changes.
+    public static bool ShowsReadCount(ReadablePostKind kind) => kind != ReadablePostKind.WelcomeMessage;
 }

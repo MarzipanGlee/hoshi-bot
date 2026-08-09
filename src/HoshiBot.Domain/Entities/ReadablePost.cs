@@ -54,6 +54,15 @@ public class ReadablePost
     // knowledge of where a given kind's scope language comes from.
     public Language Language { get; set; }
 
+    // What the confirm button says, when the producing feature wants its own wording — Boarding lets
+    // an admin write the caption. Null means the default for the kind.
+    //
+    // Stored for the same reason as Language: the button is re-rendered by the counter job and by the
+    // unread list, neither of which knows which feature produced the post. Frozen on the row, they
+    // cannot render the wrong caption; asked for at render time, they would each need to know every
+    // kind's owner.
+    public string? ButtonLabel { get; set; }
+
     public DateTimeOffset PostedAt { get; set; }
 
     public ICollection<ReadReceipt> Receipts { get; set; } = [];

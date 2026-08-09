@@ -211,7 +211,7 @@ public class AnnouncementService(HoshiBotDbContext db, GatewayClient gatewayClie
         if (post.ReadReceiptsEnabled)
         {
             await gatewayClient.Rest.ModifyMessageAsync(channelIdValue, message.Id,
-                m => m.Components = [ReadReceiptService.Buttons(post.Id, 0, scopeLang)]);
+                m => m.Components = [ReadReceiptService.Buttons(post, 0)]);
         }
 
         // The clicking staff member, not the draft's author — this is the ephemeral reply to their

@@ -134,6 +134,7 @@
   "Absence.EndMustBeAfterStart": "Das Ende muss nach dem Start liegen.",
   "Absence.NotFoundOrNoPermission": "Abwesenheit nicht gefunden oder keine Berechtigung.",
 
+  "Announce.ReadButtonPlain": "Gelesen und verstanden",
   "Announce.ReadButton": "Lesebestätigung ({count})",
   "Announce.ChannelNotConfigured": "Der Ankündigungen-Kanal ist noch nicht konfiguriert (siehe Guild-Einstellungen).",
   "Announce.FieldSeverity": "Alarmstufe",

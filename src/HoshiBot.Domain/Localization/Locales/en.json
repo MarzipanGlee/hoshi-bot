@@ -134,6 +134,7 @@
   "Absence.EndMustBeAfterStart": "The end must be after the start.",
   "Absence.NotFoundOrNoPermission": "Absence not found or no permission.",
 
+  "Announce.ReadButtonPlain": "Read and understood",
   "Announce.ReadButton": "Read receipt ({count})",
   "Announce.ChannelNotConfigured": "Set the Announcements channel first (via the guild settings page).",
   "Announce.FieldSeverity": "Severity",

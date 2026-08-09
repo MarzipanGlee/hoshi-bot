@@ -250,12 +250,12 @@ public class AnnouncementForwarderService(
         var firstLine = translation.Split('\n', 2)[0].Trim();
         var title = string.IsNullOrWhiteSpace(firstLine) ? Msg.Announce.ForwardTitle(lang) : firstLine;
 
-        var post = await readReceipts.RegisterAsync(guildId, channelId, messageId, ReadablePostKind.ForwardedAnnouncement, target.Audience, target.GuildAllianceId, title, lang, cancellationToken);
+        var post = await readReceipts.RegisterAsync(guildId, channelId, messageId, ReadablePostKind.ForwardedAnnouncement, target.Audience, target.GuildAllianceId, title, lang, cancellationToken: cancellationToken);
         if (!post.ReadReceiptsEnabled)
             return;
 
         await gatewayClient.Rest.ModifyMessageAsync(channelId, messageId,
-            m => m.Components = [ReadReceiptService.Buttons(post.Id, 0, lang)], cancellationToken: cancellationToken);
+            m => m.Components = [ReadReceiptService.Buttons(post, 0)], cancellationToken: cancellationToken);
     }
 
     private async Task<EmbedProperties> BuildEmbedAsync(ulong guildId, string translation, string jumpLink, bool updated)

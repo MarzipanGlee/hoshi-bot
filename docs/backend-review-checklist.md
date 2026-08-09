@@ -54,8 +54,8 @@ The landing page after login, and the only route with no guild in it.
 
 Per linked alliance. A coalition guild must check each one — several settings are per-alliance.
 
-- [ ] **Overview** — `/manage/guild/{id}/alliance/{allianceId}`
-- [ ] **Features** — `/manage/guild/{id}/alliance/{allianceId}/features`
+- [x] **Overview** — `/manage/guild/{id}/alliance/{allianceId}`
+- [x] **Features** — `/manage/guild/{id}/alliance/{allianceId}/features`
 - [ ] **No-id fallback** — `/manage/guild/{id}/alliance` and `/manage/guild/{id}/alliance/settings` land on the alliance you last used (there is no dropdown any more; the sidebar lists them)
 
 ### Alliance settings — `/manage/guild/{id}/alliance/{allianceId}/settings`
@@ -63,7 +63,7 @@ Per linked alliance. A coalition guild must check each one — several settings 
 Role cards appear only while a feature that reads them is enabled (`SharedSettingUsage`), so a
 card missing here may be correct — check with the relevant feature on.
 
-- [ ] Default Channel Category
+- [x] Default Channel Category
 - [ ] Alliance Boarding
 - [ ] Reminders (Allies)
 - [ ] Rules (DE)

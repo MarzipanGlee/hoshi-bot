@@ -12,6 +12,11 @@ public static partial class Msg
         public static string ReadButton(Language lang, int count) =>
             MessageCatalog.Format(lang, "Announce.ReadButton", ("count", count));
 
+        // For a kind that shows no count — the caption a welcome message falls back to when the
+        // admin has not written their own. Legacy's own wording.
+        public static string ReadButtonPlain(Language lang) =>
+            MessageCatalog.Format(lang, "Announce.ReadButtonPlain");
+
         // Publish result when no channel is configured (previously English; German
         // authored per plan decision U4).
         public static string ChannelNotConfigured(Language lang) =>
