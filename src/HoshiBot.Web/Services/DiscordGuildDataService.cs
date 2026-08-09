@@ -12,7 +12,7 @@ namespace HoshiBot.Web.Services;
 // place. Components with a Discord need this doesn't cover (e.g. PermissionCheck.razor's bot-
 // member/permission-modify calls, genuinely specific to that one page) still inject RestClient
 // directly — this service is for the common "list/create/reuse a channel or role" cases.
-public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cache)
+public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCache cache, IConfiguration configuration)
 {
     // Discord's real channel list order: categories and uncategorized channels share one
     // position ordering at the guild's root level (a category and a "no parent" channel are
@@ -414,6 +414,45 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
     // SetupWizard-only sibling of EnsureRoleAsync, for a plain text channel instead of a role —
     // reuses an existing channel by ID unchanged, or creates a new one (optionally under
     // categoryId) when the wizard's blank "create it for me" selection was left as-is.
+    // Overwrites for a channel only leadership may read. Three parts, and all three matter:
+    //
+    //   @everyone is denied — the whole point. A staff channel created with default permissions is
+    //   world-readable, which for the staff absence report means publishing the absences members
+    //   marked private. Creating it that way and hoping an admin notices is not acceptable.
+    //
+    //   The BOT is allowed explicitly. Denying @everyone denies the bot too unless it happens to
+    //   hold Administrator, and a bot that cannot see the channel it was told to post in fails
+    //   silently until someone reads the admin ping.
+    //
+    //   The staff role is allowed when the alliance has one. Without it the channel is admin-only,
+    //   which is safe rather than useful — the admin grants access, and no absence leaks meanwhile.
+    public IEnumerable<PermissionOverwriteProperties> StaffOnlyOverwrites(ulong guildId, ulong? staffRoleId)
+    {
+        // @everyone's role id is the guild id — Discord models it that way.
+        var overwrites = new List<PermissionOverwriteProperties>
+        {
+            new PermissionOverwriteProperties(guildId, PermissionOverwriteType.Role) { Denied = Permissions.ViewChannel },
+        };
+
+        if (ulong.TryParse(configuration["Discord:ClientId"], out var botUserId))
+        {
+            overwrites.Add(new PermissionOverwriteProperties(botUserId, PermissionOverwriteType.User)
+            {
+                Allowed = Permissions.ViewChannel | Permissions.SendMessages | Permissions.ReadMessageHistory,
+            });
+        }
+
+        if (staffRoleId is { } roleId)
+        {
+            overwrites.Add(new PermissionOverwriteProperties(roleId, PermissionOverwriteType.Role)
+            {
+                Allowed = Permissions.ViewChannel | Permissions.ReadMessageHistory,
+            });
+        }
+
+        return overwrites;
+    }
+
     public async Task<ulong?> EnsureChannelAsync(ulong guildId, string? currentInput, string defaultName, ulong? categoryId)
     {
         if (ulong.TryParse(currentInput, out var existingId))
@@ -429,7 +468,8 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
     // create a channel/category of the given type when ChannelPicker's "create" sentinel was
     // picked, or return null (keep "none") for a genuinely blank selection. Categories ignore
     // categoryId (they have no parent); everything else nests under it when provided.
-    public async Task<ulong?> EnsureChannelAsync(ulong guildId, string? currentInput, string defaultName, ChannelType type, ulong? categoryId = null)
+    public async Task<ulong?> EnsureChannelAsync(ulong guildId, string? currentInput, string defaultName, ChannelType type,
+        ulong? categoryId = null, IEnumerable<PermissionOverwriteProperties>? overwrites = null)
     {
         if (ulong.TryParse(currentInput, out var existingId))
             return existingId;
@@ -440,6 +480,9 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
         var properties = new GuildChannelProperties(defaultName, type);
         if (type != ChannelType.CategoryChannel)
             properties.ParentId = categoryId;
+
+        if (overwrites is not null)
+            properties.PermissionOverwrites = overwrites;
 
         var created = await botRestClient.CreateGuildChannelAsync(guildId, properties);
         InvalidateCache(guildId);
@@ -485,11 +528,12 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
     // ChannelPicker counterpart — the kind says "category" when that's what was being
     // created, matching the text each page showed before this wrapper existed.
     public async Task<(ulong? Id, string? Input, DiscordCreateErrorKind? Error)> EnsureChannelOrErrorAsync(
-        ulong guildId, string? currentInput, string defaultName, ChannelType type, ulong? categoryId = null)
+        ulong guildId, string? currentInput, string defaultName, ChannelType type, ulong? categoryId = null,
+        IEnumerable<PermissionOverwriteProperties>? overwrites = null)
     {
         try
         {
-            var id = await EnsureChannelAsync(guildId, currentInput, defaultName, type, categoryId);
+            var id = await EnsureChannelAsync(guildId, currentInput, defaultName, type, categoryId, overwrites);
             return (id, id?.ToString(), null);
         }
         catch (RestException)

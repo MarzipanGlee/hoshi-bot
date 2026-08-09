@@ -3,16 +3,22 @@
 @using HoshiBot.Web.Services
 @using NetCord
 @inject DiscordGuildDataService DiscordData
+@inject GuildAllianceService AllianceService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
 
+@if (createError is not null)
+{
+    <p class="text-danger">@createError.Value.Text(Lang)</p>
+}
+
 <div class="card-grid mt-1">
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AbsencesSettingKeys.ReportChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AbsencesSettingKeys.ReportChannel)"
-            @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
+            CreateChannelName="@ReportChannelName" @bind-Value="reportChannelIdInput" @bind-Value:after="SaveReportChannelAsync" Channels="channels" />
 
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AbsencesSettingKeys.ReportStaffChannel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AbsencesSettingKeys.ReportStaffChannel)"
-            @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
+            CreateChannelName="@StaffChannelName" @bind-Value="staffChannelIdInput" @bind-Value:after="SaveStaffChannelAsync" Channels="channels" />
 
     <NotificationRoleCard GuildId="GuildId" GuildAllianceId="GuildAllianceId" />
 </div>
@@ -24,20 +30,57 @@
     private List<Role> roles = [];
     private string? reportChannelIdInput;
     private string? staffChannelIdInput;
+    private GuildAlliance? alliance;
+    private DiscordCreateErrorKind? createError;
+
+    // Legacy's own wording for these channels ("Abwesenheiten"), lowercased like every other channel
+    // this bot offers to create. Not tag-prefixed: a channel already lives in the alliance's own
+    // category, unlike a role, which shares one flat list with every other alliance's.
+    private const string ReportChannelName = "abwesenheiten";
+    private const string StaffChannelName = "abwesenheiten-stab";
 
     protected override async Task OnSettingsLoadedAsync()
     {
+        // For the default category a created channel lands in, and the staff role that gets to read
+        // the staff copy.
+        alliance = GuildAllianceId is { } allianceId ? await AllianceService.FindByIdAsync(GuildId, allianceId) : null;
+
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
         reportChannelIdInput = (await GetSnowflakeAsync(AbsencesSettingKeys.ReportChannel))?.ToString();
         staffChannelIdInput = (await GetSnowflakeAsync(AbsencesSettingKeys.ReportStaffChannel))?.ToString();
     }
 
-    private Task SaveReportChannelAsync() =>
-        SetSnowflakeAsync(AbsencesSettingKeys.ReportChannel, ParseId(reportChannelIdInput));
+    // Through EnsureChannelOrError, not ParseId: the picker's "create it" option posts a sentinel
+    // rather than an id. Created under the alliance's default category so a new channel lands with
+    // its siblings instead of at the root of the server.
+    private async Task SaveReportChannelAsync()
+    {
+        createError = null;
+        (var channelId, reportChannelIdInput, createError) = await DiscordData.EnsureChannelOrErrorAsync(
+            GuildId, reportChannelIdInput, ReportChannelName, ChannelType.TextGuildChannel, alliance?.DefaultChannelCategoryId);
+        if (createError is not null)
+            return;
 
-    private Task SaveStaffChannelAsync() =>
-        SetSnowflakeAsync(AbsencesSettingKeys.ReportStaffChannel, ParseId(staffChannelIdInput));
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        await SetSnowflakeAsync(AbsencesSettingKeys.ReportChannel, channelId);
+    }
+
+    // Created PRIVATE, unlike the public report beside it. This copy deliberately ignores members'
+    // privacy settings and shows every absence in full, so creating it world-readable would publish
+    // exactly what those members asked to keep quiet.
+    private async Task SaveStaffChannelAsync()
+    {
+        createError = null;
+        (var channelId, staffChannelIdInput, createError) = await DiscordData.EnsureChannelOrErrorAsync(
+            GuildId, staffChannelIdInput, StaffChannelName, ChannelType.TextGuildChannel, alliance?.DefaultChannelCategoryId,
+            DiscordData.StaffOnlyOverwrites(GuildId, alliance?.SeniorStaffRoleId));
+        if (createError is not null)
+            return;
+
+        channels = await DiscordData.GetChannelsAsync(GuildId);
+        await SetSnowflakeAsync(AbsencesSettingKeys.ReportStaffChannel, channelId);
+    }
 
     // The alliance's tag prefixes the created role, so a coalition guild's opt-in roles sit together
     // and a member can tell whose is whose. Falls back to a bare name when the tag isn't loaded yet.
