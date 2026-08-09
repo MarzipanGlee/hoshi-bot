@@ -21,7 +21,7 @@
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
-            CreateRoleName="@ServicesRoleDefaultName" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
+            AllowNone="true" CreateRoleName="@ServicesRoleDefaultName" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ServiceSelectionKey)">
         <p class="form-text mb-2">

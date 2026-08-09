@@ -24,7 +24,7 @@
 <div class="card-grid mt-1">
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, RankRolesSettingKeys.NoRankRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, RankRolesSettingKeys.NoRankRole)"
-            CreateRoleName="@NoRankRoleName"
+            AllowNone="true" CreateRoleName="@NoRankRoleName"
             @bind-Value="noRankRoleInput" @bind-Value:after="SaveNoRankRoleAsync" Roles="roles" />
 </div>
 

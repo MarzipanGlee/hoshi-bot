@@ -30,7 +30,7 @@
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, PlayerLinkSettingKeys.UnlinkedRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, PlayerLinkSettingKeys.UnlinkedRole)"
-            CreateRoleName="@UnlinkedRoleName"
+            AllowNone="true" CreateRoleName="@UnlinkedRoleName"
             @bind-Value="unlinkedRoleInput" @bind-Value:after="SaveUnlinkedRoleAsync" Roles="roles" />
 </div>
 

@@ -48,6 +48,12 @@ else
     // would just make a same-named duplicate instead of reusing the one already there.
     [Parameter] public string? CreateRoleName { get; set; }
 
+    // Whether leaving this empty is a real answer rather than an unfinished one. With a create
+    // option present the empty entry otherwise reads "choose a role", which says the setting is
+    // required — and several of these settings' own help text says the opposite ("leave blank to
+    // give them no role at all"). The stored value is null either way; only the label changes.
+    [Parameter] public bool AllowNone { get; set; }
+
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
 
@@ -84,7 +90,7 @@ else
         <select class="form-select" value="@Value" @onchange="OnChangeAsync">
             @if (CreateRoleName is not null)
             {
-                <option value="">@Msg.WebCommon.ChooseRoleOption(Lang)</option>
+                <option value="">@(AllowNone ? Msg.WebCommon.NoneOption(Lang) : Msg.WebCommon.ChooseRoleOption(Lang))</option>
                 @if (!RoleWithCreateNameExists)
                 {
                     <option value="@CreateSentinel">@Msg.WebCommon.CreateRoleOption(Lang, CreateRoleName)</option>

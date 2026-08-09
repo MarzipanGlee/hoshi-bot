@@ -15,7 +15,7 @@
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, ServerTagRolesSettingKeys.ForeignServerRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, ServerTagRolesSettingKeys.ForeignServerRole)"
-            CreateRoleName="@ForeignRoleDefaultName"
+            AllowNone="true" CreateRoleName="@ForeignRoleDefaultName"
             @bind-Value="foreignRoleInput" @bind-Value:after="SaveForeignRoleAsync" Roles="roles" />
 </div>
 

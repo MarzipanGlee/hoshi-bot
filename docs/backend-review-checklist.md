@@ -156,14 +156,14 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 `ai-backend` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] AI provider
-- [ ] Gemini API key
-- [ ] Model (optional)
-- [ ] Gate model (optional)
-- [ ] Router model (optional)
-- [ ] Embeddings (optional)
-- [ ] Image embeddings (optional)
+- [x] Enable switch, description and any "requires" badges
+- [x] AI provider
+- [x] Gemini API key
+- [x] Model (optional)
+- [x] Gate model (optional)
+- [x] Router model (optional)
+- [x] Embeddings (optional)
+- [x] Image embeddings (optional)
 
 ### Absences
 
@@ -178,15 +178,15 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 `alliance-tag-roles` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] How it works
-- [ ] Create Missing Roles
-- [ ] Plain Letters
-- [ ] Lower Case
-- [ ] Prefix and Suffix
-- [ ] Foreign-Alliance Role
-- [ ] No-Alliance Role
-- [ ] Roles in use
+- [x] Enable switch, description and any "requires" badges
+- [x] How it works
+- [x] Create Missing Roles
+- [x] Plain Letters
+- [x] Lower Case
+- [x] Prefix and Suffix
+- [x] Foreign-Alliance Role
+- [x] No-Alliance Role
+- [x] Roles in use
 
 ### Alliance Tournament Announcements
 

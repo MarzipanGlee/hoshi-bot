@@ -61,12 +61,12 @@
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.ForeignAllianceRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, AllianceTagRolesSettingKeys.ForeignAllianceRole)"
-            CreateRoleName="@ForeignRoleName"
+            AllowNone="true" CreateRoleName="@ForeignRoleName"
             @bind-Value="foreignRoleInput" @bind-Value:after="SaveForeignRoleAsync" Roles="roles" />
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, AllianceTagRolesSettingKeys.NoAllianceRole)"
-            CreateRoleName="@NoAllianceRoleName"
+            AllowNone="true" CreateRoleName="@NoAllianceRoleName"
             @bind-Value="noAllianceRoleInput" @bind-Value:after="SaveNoAllianceRoleAsync" Roles="roles" />
 
     <SettingsCard Title="@Msg.WebAllianceTagRoles.BoundRolesCardTitle(Lang)">
