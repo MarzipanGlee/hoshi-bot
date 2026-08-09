@@ -7,6 +7,7 @@ using HoshiBot.Discord.Alerts;
 using HoshiBot.Discord.AnnouncementForwarder;
 using HoshiBot.Discord.Announcements;
 using HoshiBot.Discord.AnonymousMessages;
+using HoshiBot.Discord.Boarding;
 using HoshiBot.Discord.CommandBridge;
 using HoshiBot.Discord.MemberLog;
 using HoshiBot.Discord.MemberLore;
@@ -118,6 +119,11 @@ builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<RaidReportService>();
 builder.Services.AddScoped<TerritoryCaptureDigestService>();
 builder.Services.AddScoped<ReadReceiptService>();
+
+// Boarding registers twice: as itself, and as the read-confirmation follow-up for its own post kind
+// (ReadReceiptButtonModule resolves the whole set and picks by Kind).
+builder.Services.AddScoped<BoardingService>();
+builder.Services.AddScoped<IReadConfirmationFollowUp>(sp => sp.GetRequiredService<BoardingService>());
 builder.Services.AddScoped<AnnouncementService>();
 builder.Services.AddSingleton<GuildMemberNames>();
 builder.Services.AddScoped<AnnouncementDraftService>();

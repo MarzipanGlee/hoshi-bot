@@ -9,7 +9,7 @@ namespace HoshiBot.Domain.Entities;
 public static class ReadablePostKinds
 {
     public static readonly IReadOnlyList<ReadablePostKind> Implemented =
-        [ReadablePostKind.Announcement, ReadablePostKind.ForwardedAnnouncement];
+        [ReadablePostKind.Announcement, ReadablePostKind.ForwardedAnnouncement, ReadablePostKind.WelcomeMessage];
 
     public static bool IsImplemented(ReadablePostKind kind) => Implemented.Contains(kind);
 

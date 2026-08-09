@@ -57,6 +57,18 @@ public class LanguageResolver(IDbContextFactory<HoshiBotDbContext> dbFactory, La
         return cache.Set('g', guildId, 0, LanguagePolicy.ForGuild(row?.Language, preferredLocale));
     }
 
+    // Whatever language a (audience, alliance) scope renders in, without the caller having to know
+    // which of the three resolvers applies. Public posts made for a scope all want this: an
+    // Alliance-audience post follows its alliance, Guild/None follow the guild, and the rest follow
+    // their audience. Written out at each call site it is a three-way ternary that has to get the
+    // Alliance case right, and it had already been copied twice.
+    public Task<Language> ForScopeAsync(ulong guildId, GuildAudience audience, int? guildAllianceId) =>
+        guildAllianceId is { } allianceId && audience == GuildAudience.Alliance
+            ? ForAllianceAsync(allianceId)
+            : audience is GuildAudience.Alliance or GuildAudience.Guild or GuildAudience.None
+                ? ForGuildAsync(guildId)
+                : ForAudienceAsync(guildId, audience);
+
     // Non-Alliance audiences (Server/VeilGroup/Community). Alliance-audience callers use
     // ForAllianceAsync — per-alliance beats per-audience there.
     public async Task<Language> ForAudienceAsync(ulong guildId, GuildAudience audience)

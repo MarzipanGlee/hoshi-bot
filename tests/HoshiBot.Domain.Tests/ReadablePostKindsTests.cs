@@ -10,14 +10,16 @@ public class ReadablePostKindsTests
     [Fact]
     public void Implemented_kinds_are_the_ones_with_a_producer()
     {
-        Assert.Equal([ReadablePostKind.Announcement, ReadablePostKind.ForwardedAnnouncement], ReadablePostKinds.Implemented);
+        Assert.Equal(
+            [ReadablePostKind.Announcement, ReadablePostKind.ForwardedAnnouncement, ReadablePostKind.WelcomeMessage],
+            ReadablePostKinds.Implemented);
     }
 
     [Fact]
     public void Unimplemented_kinds_are_reported_as_such()
     {
         Assert.False(ReadablePostKinds.IsImplemented(ReadablePostKind.DiplomacyPost));
-        Assert.False(ReadablePostKinds.IsImplemented(ReadablePostKind.WelcomeMessage));
+        Assert.True(ReadablePostKinds.IsImplemented(ReadablePostKind.WelcomeMessage));   // Boarding produces it
         Assert.False(ReadablePostKinds.IsImplemented(ReadablePostKind.AllianceRules));
     }
 
