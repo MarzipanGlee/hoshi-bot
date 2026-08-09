@@ -209,6 +209,15 @@ File placement rules:
   feature toggle (off by default). Canonical example: `GuildFeature.PlayerLink` (silent
   matching + admin table) vs. the distinct opt-in `GuildFeature.MemberOnboarding` (DM
   outreach).
+  The line is *campaign vs. reply*: a message the bot decides to send to a list of members
+  needs its own toggle, a message that answers something the member just did does not.
+  `GuildFeature.Boarding`'s welcome DM is the second kind — one message, sent because they
+  joined, pointing at the post they must confirm, and deleted the moment they do. It is a
+  setting inside Boarding rather than a feature of its own, and it holds to the rule by
+  two guarantees that must survive any change to it: **the text is blank by default**, so a
+  guild that never fills it in is never DMed by the bot, and **the backfill never sends
+  one**, because DMing several hundred members who joined months ago *is* a campaign
+  whatever triggered it.
 - **Thread removal must never be a general-purpose user command.** An earlier
   `/close-thread` command was deliberately deleted — thread removal is only ever a
   button/action a specific feature attaches to a thread it owns and understands the

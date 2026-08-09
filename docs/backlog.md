@@ -19,6 +19,17 @@ plain on purpose — decide per-case whether they're worth converting:
   Entwurfstyp" (draft expired), `AnnouncementButtonModule.cs:124` ("Vorschau …" severity prompt).
 - The `⏳ Processing...` ack placeholder stays plain (transient, replaced on edit).
 
+## Small engineering follow-ups
+
+- **`ReadReceiptButtonModule`'s post-click edit cannot succeed from the unread list.** After
+  recording a receipt it calls `ModifyMessageAsync(Context.Channel.Id, Context.Message.Id, …)` to
+  redraw the count. Clicked on the post itself that is right; clicked from the Command Bridge's
+  unread list, `Context.Message` is the bot's own **ephemeral** list message, which plain REST
+  cannot edit — the call throws and is swallowed by the bare `catch (RestException)`. Harmless
+  (`AnnouncementCounterRefreshJob` redraws it within 15 minutes) and pre-existing, but it means the
+  count a member sees on that list is stale until the job runs. Noted 2026-08-09 while building
+  Boarding.
+
 ## Encrypt per-guild secrets stored in the DB — DONE
 
 The AI-chat feature stores each guild's Google Gemini **API key** in `GuildFeatureSettingText`
@@ -239,7 +250,21 @@ pages' passes.
   - Per-language **channels**, not a language switcher — separate channels per language, each
     mirroring the same structured embed, kept in sync from one template.
 - Boarding wizard — new member picks alliance, server, and in-game player name, driving an
-  automatic Discord nickname change to match.
+  automatic Discord nickname change to match. **Still unbuilt**: `GuildFeature.Boarding`
+  (2026-08-09) is the role-granting half only — a welcome message with a confirm button that
+  swaps the boarding role for the member role. The wizard is the part where the member tells
+  the bot who they are, which today is Player Assignment's job instead.
+- Boarding follow-ups, all deliberately left out of the first cut:
+  - **Un-boarding** — revoking the member role when someone leaves the alliance. Boarding is
+    forward-only by design (see `BoardingEntry`), so nothing takes the role back today. Related
+    to the existing player-left-alliance warning, and human-confirmed for the same reason.
+  - **Chasing non-confirmers** — see the unread-reminder item below; a member who never presses
+    the button keeps the boarding role and is never nudged. Same feature, not a Boarding setting.
+  - **Kick or time out** members who never confirm. Deliberately not built: a bot that removes
+    people needs a much higher bar than one that hands out a role.
+  - **A boarding state table in the Web admin** — who is pending, whose DM bounced, whose role
+    grant failed. `BoardingEntry.Status` already records all three; it just has no page.
+    `IFeatureModule.ExtraPages` is where it goes.
 - Role application with human confirmation — a role request is only granted after mod team or
   alliance leadership approves it, not automatically.
 - Cross-Discord role sync — if a player's home alliance also runs Hoshi Bot in their own
@@ -629,7 +654,7 @@ legacy bot before doing it showed that reasoning conflated *dead* with *not yet 
 |---|---|---|
 | `GuildSettings.UserLogChannelId` | member join/leave entries (`Notifications/join-message.yag`, `leave-message.yag`) | ✅ **ported 2026-08-06** |
 | `CommandStaffJobsChannelId` | the member-case queue for staff (`tasks/open-member-case.yag`) | unported |
-| `AllianceBoardingChannelId` | the welcome menu (`static_data/menu-welcome.yag`) | unported |
+| `AllianceBoardingChannelId` | the welcome menu (`static_data/menu-welcome.yag`) | ✅ **ported 2026-08-09** as `GuildFeature.Boarding`; column dropped, value migrated into the feature's settings |
 | `BotSupportChannelId` | "get help" pointer on the Command Bridge (`command_bridge/common-ch.yag`) | ✅ **ported 2026-08-07** as `GuildFeature.BotSupport`; column dropped, value migrated into the feature's settings |
 | `RemindersAlliesChannelId` | TC reminders for *allied* alliances' captures | unported |
 | `UserNotificationsChannelId` | public shield-mute notices — the rewrite DMs these instead | superseded |
