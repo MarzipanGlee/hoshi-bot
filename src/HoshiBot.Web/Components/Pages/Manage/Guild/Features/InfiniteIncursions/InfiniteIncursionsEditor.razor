@@ -5,7 +5,9 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.InfiniteIncursions" Audience="ResolvedAudience" />
+<div class="card-grid mt-1">
+    <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.InfiniteIncursions" Audience="ResolvedAudience" />
+</div>
 
 @code {
     protected override GuildFeature Feature => GuildFeature.InfiniteIncursions;

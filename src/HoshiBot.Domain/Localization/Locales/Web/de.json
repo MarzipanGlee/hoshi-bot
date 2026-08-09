@@ -55,7 +55,7 @@
   "Web.Feature.CommandBridge.Title": "Kommandobrücke",
   "Web.Feature.CommandBridge.Description": "Die Kommandobrücken-Hub-Nachrichten pro Allianz (User/Führungsstab/Freunde) — der Einstiegspunkt für Mitglieder und Führungsstab, auf dem die Schaltflächen der meisten anderen Features liegen. Wähle pro Brücke einen Kanal und veröffentliche sie; Schaltflächen erscheinen, sobald ihre Features für diese Allianz aktiviert sind.",
   "Web.Feature.Diplomacy.Title": "Diplomatie",
-  "Web.Feature.Diplomacy.Description": "Verfolgt und verkündet den diplomatischen Status dieser Allianz gegenüber anderen Allianzen via /set-diplomacy.",
+  "Web.Feature.Diplomacy.Description": "Noch nicht gebaut — die Einstellungen hier sind für die Funktion vorgesehen, die den diplomatischen Status dieser Allianz gegenüber anderen Allianzen verfolgen und verkünden wird.",
   "Web.Feature.HoshiSay.Title": "Hoshi Say",
   "Web.Feature.HoshiSay.Description": "Ermöglicht Admins, Hoshi eine Nachricht in ihrer eigenen Stimme verfassen zu lassen (über das KI-Backend) und sie als normale Chat-Zeile in den aktuellen Kanal zu posten — z. B. um ein Mitglied zu trösten oder anzusprechen. Der Befehl /hoshi-say ist auf Mitglieder mit der konfigurierten erlaubten Rolle beschränkt — das ist die Berechtigungsschranke.",
   "Web.Feature.InfiniteIncursions.Title": "Infinite-Incursions-Ankündigungen",
@@ -74,7 +74,7 @@
   "Web.Feature.PlayerLink.Description": "Verknüpft Mitglieder mit ihrem STFC-Spieler, indem Discord-Nicknames mit dem gesamten Spielerkatalog abgeglichen werden — das treibt die Rang-/Ops-/Nickname-Rollensynchronisierung an. Eindeutige Treffer werden automatisch verknüpft; alle anderen ordnest du von Hand auf der Mitgliederseite zu. Schreibt Mitglieder nie an.",
   "Web.Feature.PlayerLink.Extra.assignments": "Spielerzuordnungen",
   "Web.Feature.RaidAlerts.Title": "Raid-Alarme",
-  "Web.Feature.RaidAlerts.Description": "Mitglieder können einen laufenden Raid per /raid melden; ein öffentlicher Alarm wird in die unten konfigurierten Kanäle gepostet.",
+  "Web.Feature.RaidAlerts.Description": "Mitglieder können einen laufenden Raid über die Kommandobrücke melden; ein öffentlicher Alarm wird in die unten konfigurierten Kanäle gepostet.",
   "Web.Feature.RankRoles.Title": "Rangrollen",
   "Web.Feature.RankRoles.Description": "Weist jedem Mitglied eine von fünf Discord-Rollen passend zu seinem aktuellen STFC-Allianzrang (Admiral/Commodore/Premier/Operative/Agent) zu, laufend synchronisiert aus importierten Spielerdaten — ein Rollensatz für die ganze Guild.",
   "Web.Feature.BotSupport.Title": "Bot-Hilfe",
@@ -239,7 +239,7 @@
   "Web.Editor.CommandBridge.Hidden": "(ausgeblendet)",
 
   "Web.Editor.Diplomacy.Channel.CardTitle": "Diplomatie",
-  "Web.Editor.Diplomacy.Channel.Usage": "Wo Änderungen des Diplomatie-Status (/set-diplomacy) verkündet werden.",
+  "Web.Editor.Diplomacy.Channel.Usage": "Noch nicht genutzt — wo Änderungen des Diplomatie-Status verkündet werden.",
 
   "Web.Editor.HoshiSay.AllowedRole.CardTitle": "Erlaubte Rolle",
   "Web.Editor.HoshiSay.AllowedRole.Usage": "Mitglieder mit dieser Rolle dürfen /hoshi-say ausführen. Der Befehl postet in den Kanal, in dem er genutzt wird — ein Admin stellt sich also einfach in den Zielkanal und führt ihn dort aus; die Rollenmitgliedschaft ist die Berechtigungsschranke.",
@@ -441,7 +441,7 @@
   "Web.Editor.PlayerAssignmentsAdmin.AddPlayerButton": "+ Spieler",
 
   "Web.Editor.RaidAlerts.Channel.CardTitle": "Raid-Meldungen",
-  "Web.Editor.RaidAlerts.Channel.Usage": "Wo /raid-Meldungen gepostet werden.",
+  "Web.Editor.RaidAlerts.Channel.Usage": "Noch nicht genutzt — Raid-Alarme werden in die Alarm-Kanäle oben gepostet.",
 
   "Web.Editor.RoeViolationReports.Channel.CardTitle": "RoE-Verstöße",
   "Web.Editor.RoeViolationReports.Channel.Usage": "Wo /report-roe-violation-Meldungen gepostet werden — muss ein Forum-Kanal sein.",

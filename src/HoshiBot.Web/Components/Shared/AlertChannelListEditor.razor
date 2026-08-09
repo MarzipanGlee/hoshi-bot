@@ -4,73 +4,73 @@
 @inject IDbContextFactory<HoshiBotDbContext> DbFactory
 @inject DiscordGuildDataService DiscordData
 
-<div class="card-grid mt-1">
-    <SettingsCard Title="@Msg.WebCommon.AlertChannels(Lang)">
-        <p class="form-text mb-0">
-            @Msg.WebCommon.AlertChannelsUsage(Lang)
-        </p>
-        <table class="table">
-            <thead>
+@* One card, unwrapped: the caller owns the grid, so this can sit in a row next to the feature's
+   own cards instead of forcing a row of its own. *@
+<SettingsCard Title="@Msg.WebCommon.AlertChannels(Lang)">
+    <p class="form-text mb-0">
+        @Msg.WebCommon.AlertChannelsUsage(Lang)
+    </p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>@Msg.WebCommon.Channel(Lang)</th>
+                @if (PerChannelRole)
+                {
+                    <th>@Msg.WebCommon.Role(Lang)</th>
+                }
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var alertChannel in alertChannels)
+            {
                 <tr>
-                    <th>@Msg.WebCommon.Channel(Lang)</th>
+                    <td>@ChannelName(alertChannel.ChannelId)</td>
                     @if (PerChannelRole)
                     {
-                        <th>@Msg.WebCommon.Role(Lang)</th>
+                        <td>@RoleName(alertChannel.RoleId)</td>
                     }
-                    <th></th>
+                    <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">@Msg.WebCommon.Delete(Lang)</button></td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach (var alertChannel in alertChannels)
+            }
+        </tbody>
+    </table>
+    <EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync" class="d-flex flex-column gap-2">
+        <select class="form-select" @bind="newChannelIdInput">
+            <option value="">@Msg.WebCommon.SelectChannelOption(Lang)</option>
+            @foreach (var group in NormalChannelGroups)
+            {
+                @if (group.Category is not null)
                 {
-                    <tr>
-                        <td>@ChannelName(alertChannel.ChannelId)</td>
-                        @if (PerChannelRole)
-                        {
-                            <td>@RoleName(alertChannel.RoleId)</td>
-                        }
-                        <td><button class="btn btn-sm btn-danger" @onclick="() => DeleteAlertChannelAsync(alertChannel)">@Msg.WebCommon.Delete(Lang)</button></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        <EditForm Model="this" FormName="@($"add-alert-channel-{Kind}")" OnValidSubmit="AddAlertChannelAsync" class="d-flex flex-column gap-2">
-            <select class="form-select" @bind="newChannelIdInput">
-                <option value="">@Msg.WebCommon.SelectChannelOption(Lang)</option>
-                @foreach (var group in NormalChannelGroups)
-                {
-                    @if (group.Category is not null)
-                    {
-                        <optgroup label="@group.Category.Name">
-                            @foreach (var channel in group.Channels)
-                            {
-                                <option value="@channel.Id">@ChannelLabel(channel)</option>
-                            }
-                        </optgroup>
-                    }
-                    else
-                    {
+                    <optgroup label="@group.Category.Name">
                         @foreach (var channel in group.Channels)
                         {
                             <option value="@channel.Id">@ChannelLabel(channel)</option>
                         }
+                    </optgroup>
+                }
+                else
+                {
+                    @foreach (var channel in group.Channels)
+                    {
+                        <option value="@channel.Id">@ChannelLabel(channel)</option>
                     }
                 }
-            </select>
-            @if (PerChannelRole)
-            {
-                <select class="form-select" @bind="newRoleIdInput">
-                    <option value="">@Msg.WebCommon.SelectRoleOption(Lang)</option>
-                    @foreach (var role in roles)
-                    {
-                        <option value="@role.Id">@role.Name</option>
-                    }
-                </select>
             }
-            <button type="submit" class="btn btn-primary">@Msg.WebCommon.Add(Lang)</button>
-        </EditForm>
-    </SettingsCard>
-</div>
+        </select>
+        @if (PerChannelRole)
+        {
+            <select class="form-select" @bind="newRoleIdInput">
+                <option value="">@Msg.WebCommon.SelectRoleOption(Lang)</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@role.Name</option>
+                }
+            </select>
+        }
+        <button type="submit" class="btn btn-primary">@Msg.WebCommon.Add(Lang)</button>
+</EditForm>
+</SettingsCard>
 
 @code {
     [CascadingParameter] public Language Lang { get; set; }

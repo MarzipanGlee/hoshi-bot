@@ -6,19 +6,20 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
+@* Where the alerts go, then who they reach: the channels first, then the three role cards this
+   feature reads but does not own. *@
 <div class="card-grid mt-1">
+    <AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="ResolvedAudience"
+                            GuildAllianceId="GuildAllianceId" PerChannelRole="false" />
+
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, ChannelKey)" Usage="@Msg.WebEditor.Usage(Lang, Feature, ChannelKey)"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
-
-    <SeniorStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
-
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Raid" Audience="ResolvedAudience"
-                        GuildAllianceId="GuildAllianceId" PerChannelRole="false" />
 
 <div class="card-grid mt-1">
     <AlertRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
     <OptInPointerCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
+    <SeniorStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
 
 <PoweredBy For="@(new[] { typeof(StfcSystem) })" />
