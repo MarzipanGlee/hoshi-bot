@@ -78,13 +78,13 @@
                     {
                         if (segments[3] == "alliance" && segments.Length >= 5 && int.TryParse(segments[4], out var allianceId))
                         {
-                            // Alliance crumb, e.g. "[EU164][LF] Lost Falcons" ({Region}{ServerId} +
-                            // tag + name) — the same server-designation convention as StfcServer.DisplayName.
+                            // Alliance crumb, e.g. "[EU-164][LF] Lost Falcons" — the same
+                            // designation as StfcServer.DisplayName, built from the same helper.
                             var a = await db.GuildAlliances
                                 .Where(ga => ga.Id == allianceId)
                                 .Select(ga => new { ga.StfcAlliance.Tag, ga.StfcAlliance.Name, ServerId = ga.StfcAlliance.Server.Id, Region = ga.StfcAlliance.Server.Region.Name })
                                 .FirstOrDefaultAsync();
-                            var allianceLabel = a is null ? segments[4] : $"[{a.Region}{a.ServerId}][{a.Tag}] {a.Name}";
+                            var allianceLabel = a is null ? segments[4] : $"[{StfcServer.RegionServer(a.Region, a.ServerId)}][{a.Tag}] {a.Name}";
                             result.Add((allianceLabel, $"manage/guild/{guildId}/alliance/{allianceId}"));
 
                             // The alliance's page (settings / command-bridge / features [+ feature slug]).

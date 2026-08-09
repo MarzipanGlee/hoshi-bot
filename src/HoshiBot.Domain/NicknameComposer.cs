@@ -64,10 +64,8 @@ public static partial class NicknameComposer
         string? suffix = null,
         string? noAllianceTag = null)
     {
-        // "EU-164", hyphenated: the region and the number are two facts, and "EU164" reads as one
-        // token. Note this is NOT StfcServer.DisplayName's "EU164 Mindmeld" convention — that is a
-        // dropdown label with room to breathe, this is a nickname prefix people scan at a glance.
-        var serverLabel = $"{regionName}-{serverId}";
+        // Same designation as everywhere else the pair is shown — see StfcServer.RegionServer.
+        var serverLabel = StfcServer.RegionServer(regionName, serverId);
         var serverTag = Include(serverMode, serverId, homeServers) && !string.IsNullOrWhiteSpace(regionName) ? $"[{serverLabel}]" : "";
 
         // A player with no alliance is treated as "foreign" (not one of the guild's own) and, when the

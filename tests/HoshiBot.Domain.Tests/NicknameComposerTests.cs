@@ -108,8 +108,8 @@ public class NicknameComposerTests
     [Fact]
     public void ServerTag_IsRegionAndServerHyphenated()
     {
-        // "EU-164", not "EU164": two facts, not one token. StfcServer.DisplayName keeps its own
-        // "EU164 Mindmeld" convention for dropdowns — these are deliberately different.
+        // "EU-164", not "EU164": two facts, not one token. Same designation as StfcServer's
+        // DisplayName, which is built from the same helper.
         Assert.Equal("[RG-164] Player",
             NicknameComposer.Build("Player", "RG", 164, allianceId: 1, allianceTag: "TAG",
                 NicknameTagMode.Never, NicknameTagMode.Always, [1], []));

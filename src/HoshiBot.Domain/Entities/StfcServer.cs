@@ -25,7 +25,16 @@ public class StfcServer
 
     public ICollection<StfcServerDiscordInvite> DiscordInvites { get; set; } = [];
 
-    // "{Region}{Id} {Name}" e.g. "EU164 Mindmeld" — the display convention used
-    // everywhere a server shows up in a list or dropdown (Region must be loaded/Included).
-    public string DisplayName => $"{Region?.Name}{Id} {Name}";
+    // "{Region}-{Id} {Name}" e.g. "EU-164 Mindmeld" — the display convention used everywhere a
+    // server shows up in a list or dropdown (Region must be loaded/Included).
+    public string DisplayName => $"{RegionServer(Region?.Name, Id)} {Name}";
+
+    // The region and the server number as one designation: "EU-164". Hyphenated because they are
+    // two facts — "EU164" reads as a single token, and the pair shows up in nicknames, breadcrumbs
+    // and dropdowns, where scanning it at a glance is the whole job.
+    //
+    // Here rather than inlined at each site so the three renderers cannot drift: this, the alliance
+    // breadcrumb, and NicknameComposer's server tag. They already had, which is why one page still
+    // said "EU164" after the others changed.
+    public static string RegionServer(string? regionName, int serverId) => $"{regionName}-{serverId}";
 }
