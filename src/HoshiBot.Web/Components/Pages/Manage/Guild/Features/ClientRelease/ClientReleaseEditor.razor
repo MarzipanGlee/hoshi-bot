@@ -21,10 +21,10 @@
         <p class="form-text mb-0">
             @Msg.WebClientRelease.PlatformRolesUsage(Lang)
         </p>
-        <RolePicker Label="Windows" CreateRoleName="Windows" @bind-Value="windowsRoleInput" @bind-Value:after="SaveWindowsRoleAsync" Roles="roles" />
-        <RolePicker Label="macOS" CreateRoleName="macOS" @bind-Value="macOsRoleInput" @bind-Value:after="SaveMacOsRoleAsync" Roles="roles" />
-        <RolePicker Label="Android" CreateRoleName="Android" @bind-Value="androidRoleInput" @bind-Value:after="SaveAndroidRoleAsync" Roles="roles" />
-        <RolePicker Label="iOS" CreateRoleName="iOS" @bind-Value="iosRoleInput" @bind-Value:after="SaveIosRoleAsync" Roles="roles" />
+        <RolePicker Label="Windows" CreateRoleName='@TagPrefixed("Windows")' @bind-Value="windowsRoleInput" @bind-Value:after="SaveWindowsRoleAsync" Roles="roles" />
+        <RolePicker Label="macOS" CreateRoleName='@TagPrefixed("macOS")' @bind-Value="macOsRoleInput" @bind-Value:after="SaveMacOsRoleAsync" Roles="roles" />
+        <RolePicker Label="Android" CreateRoleName='@TagPrefixed("Android")' @bind-Value="androidRoleInput" @bind-Value:after="SaveAndroidRoleAsync" Roles="roles" />
+        <RolePicker Label="iOS" CreateRoleName='@TagPrefixed("iOS")' @bind-Value="iosRoleInput" @bind-Value:after="SaveIosRoleAsync" Roles="roles" />
     </SettingsCard>
 </div>
 

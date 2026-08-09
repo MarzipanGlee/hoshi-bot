@@ -11,11 +11,14 @@
 }
 
 <div class="card-grid mt-1">
-    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AlertsOptInSettingKeys.Role)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AlertsOptInSettingKeys.Role)" CreateRoleName="Alerts"
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AlertsOptInSettingKeys.Role)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AlertsOptInSettingKeys.Role)" CreateRoleName="@AlertsRoleName"
             @bind-Value="roleIdInput" @bind-Value:after="SaveRoleAsync" Roles="roles" />
 </div>
 
 @code {
+
+    // Tag-prefixed like every other role this bot creates for an alliance.
+    private string AlertsRoleName => TagPrefixed("Alerts");
     protected override GuildFeature Feature => GuildFeature.AlertsOptIn;
 
     private List<Role> roles = [];

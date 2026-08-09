@@ -14,13 +14,16 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.Channel)"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="Diplomat"
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="@DiplomatRoleName"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
 </div>
 
 <PoweredBy For="@(new[] { typeof(StfcAlliance) })" />
 
 @code {
+
+    // Tag-prefixed like every other role this bot creates for an alliance.
+    private string DiplomatRoleName => TagPrefixed("Diplomat");
     protected override GuildFeature Feature => GuildFeature.Diplomacy;
 
     private List<IGuildChannel> channels = [];

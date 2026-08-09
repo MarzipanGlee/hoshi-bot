@@ -14,7 +14,7 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, RoeViolationReportsSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, RoeViolationReportsSettingKeys.Channel)" Kind="ChannelKind.Forum"
             CreateChannelName="roe-verstösse" @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="Diplomat"
+    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="@DiplomatRoleName"
             @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
 
     <SeniorStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
@@ -23,6 +23,9 @@
 <PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
 
 @code {
+
+    // Tag-prefixed like every other role this bot creates for an alliance.
+    private string DiplomatRoleName => TagPrefixed("Diplomat");
     protected override GuildFeature Feature => GuildFeature.RoeViolationReports;
 
     // The diplomat role is the Diplomacy feature's per-alliance DiplomatRole (both features are

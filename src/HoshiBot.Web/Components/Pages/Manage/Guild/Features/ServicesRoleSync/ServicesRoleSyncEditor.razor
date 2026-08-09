@@ -17,7 +17,7 @@
 <div class="card-grid mt-1">
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
         Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
-        CreateRoleName="Commodore" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
+        CreateRoleName="@ServicesRoleDefaultName" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, MemberRoleKey)"
         Usage="@Msg.WebEditor.Usage(Lang, Feature, MemberRoleKey)"
@@ -25,6 +25,9 @@
 </div>
 
 @code {
+
+    // Tag-prefixed like every other role this bot creates for an alliance.
+    private string ServicesRoleDefaultName => TagPrefixed("Commodore");
     protected override GuildFeature Feature => GuildFeature.ServicesRoleSync;
 
     // Not a real stored setting (the value lives on GuildAlliance.MemberRoleId, not

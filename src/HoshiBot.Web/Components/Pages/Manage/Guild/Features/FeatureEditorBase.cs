@@ -49,6 +49,12 @@ public abstract class FeatureEditorBase : ComponentBase
     protected bool Enabled { get; private set; }
     protected GuildSettings Settings { get; private set; } = new();
 
+    // This scope's alliance tag, or empty for a scope that has none. Loaded here rather than by each
+    // editor that wants it: prefixing is what every role this bot creates for an alliance does, and
+    // several editors were offering to create a bare "Alerts"/"Diplomat"/"Commodore" purely because
+    // the prefix was per-page work they had not done. See TagPrefixed.
+    protected string AllianceTag { get; private set; } = "";
+
     protected override async Task OnInitializedAsync()
     {
         Enabled = await FeatureService.IsEnabledAsync(GuildId, Feature, ResolvedAudience, GuildAllianceId);
@@ -57,8 +63,22 @@ public abstract class FeatureEditorBase : ComponentBase
         Settings = await db.GuildSettings.AsNoTracking().FirstOrDefaultAsync(s => s.GuildId == GuildId)
             ?? new GuildSettings { GuildId = GuildId };
 
+        if (GuildAllianceId is { } allianceId)
+        {
+            AllianceTag = await db.GuildAlliances.AsNoTracking()
+                .Where(a => a.Id == allianceId && a.GuildId == GuildId)
+                .Select(a => a.StfcAlliance.Tag)
+                .FirstOrDefaultAsync() ?? "";
+        }
+
         await OnSettingsLoadedAsync();
     }
+
+    // The name a create-role option offers: "LF-Alerts" for an alliance scope, bare "Alerts" where
+    // there is no tag to prefix with. Keeps a coalition guild's per-alliance roles distinguishable in
+    // a role list that would otherwise hold five identically-named ones.
+    protected string TagPrefixed(string name) =>
+        string.IsNullOrWhiteSpace(AllianceTag) ? name : $"{AllianceTag}-{name}";
 
     // Hook for a subclass to populate its own local *Input string fields from Settings
     // after the base load completes — string-bound since <select>/ChannelPicker/RolePicker

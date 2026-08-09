@@ -21,7 +21,7 @@
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
             Usage="@Msg.WebEditor.Usage(Lang, Feature, TerritoryCaptureServiceRemindersSettingKeys.ServicesRole)"
-            CreateRoleName="Commodore" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
+            CreateRoleName="@ServicesRoleDefaultName" @bind-Value="servicesRoleInput" @bind-Value:after="SaveServicesRoleAsync" Roles="roles" />
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, ServiceSelectionKey)">
         <p class="form-text mb-2">
@@ -34,6 +34,9 @@
 </div>
 
 @code {
+
+    // Tag-prefixed like every other role this bot creates for an alliance.
+    private string ServicesRoleDefaultName => TagPrefixed("Commodore");
     protected override GuildFeature Feature => GuildFeature.TerritoryCaptureServiceReminders;
 
     // Not a real stored setting key (the curation lives in TerritoryServiceSelection rows, and this
