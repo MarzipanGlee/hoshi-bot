@@ -86,9 +86,9 @@
                 <CollapseItems>
                     @foreach (var n in notes)
                     {
-                        <CollapseItem @key="n.Id" Text="@FullNickname(n.DiscordUserId)" IsCollapsed="true">
+                        <CollapseItem @key="n.Id" Text="@MemberLabel(n.DiscordUserId)" IsCollapsed="true">
                             <HeaderTemplate>
-                                <span>@FullNickname(n.DiscordUserId)</span>
+                                <span>@MemberLabel(n.DiscordUserId)</span>
                                 @if (n.PeerLoreHidden)
                                 {
                                     <span class="badge bg-warning text-dark ms-2">@Msg.WebMemberNotesAdmin.PeerLoreHiddenBadge(Lang)</span>
@@ -128,7 +128,7 @@
     private List<GuildMemberNote> notes = [];
     private List<MemberOption> memberOptions = [];
     private MemberDirectory members = MemberDirectory.Empty;
-    private IReadOnlyDictionary<ulong, string> memberNicknames = new Dictionary<ulong, string>();
+    private IReadOnlyDictionary<ulong, string> memberLabels = new Dictionary<ulong, string>();
     private ulong? addMemberId;
 
     protected override async Task OnAuthorizedParametersSetAsync() => await ReloadAsync();
@@ -137,19 +137,17 @@
     {
         loading = true;
         members = await DiscordData.GetMemberDirectoryAsync(ParsedGuildId);
-        // The full (untrimmed) nickname, alliance tag prefix and all — ordering the note cards by this
-        // instead of the tag-stripped display name naturally groups them by alliance, then name.
-        memberNicknames = await DiscordData.GetMemberNicknamesAsync(ParsedGuildId);
-        // Full nicknames (tag and all) here too — the dropdowns otherwise show several visually
-        // identical "Name" entries when members share a tag-stripped display name (alt accounts, or
-        // just a common name), with no way to tell them apart.
-        memberOptions = memberNicknames.Select(kv => new MemberOption(kv.Key, kv.Value)).OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        // The full nickname plus the username in brackets — see GetMemberLabelsAsync. Ordering the
+        // note cards by it groups them by alliance tag, then name, and the bracketed username tells
+        // two members with the same nickname apart.
+        memberLabels = await DiscordData.GetMemberLabelsAsync(ParsedGuildId);
+        memberOptions = memberLabels.Select(kv => new MemberOption(kv.Key, kv.Value)).OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
         await using var db = await DbFactory.CreateDbContextAsync();
         notes = await db.GuildMemberNotes.AsNoTracking()
             .Where(n => n.GuildId == ParsedGuildId)
             .ToListAsync();
-        notes = notes.OrderBy(n => FullNickname(n.DiscordUserId), StringComparer.OrdinalIgnoreCase).ToList();
+        notes = notes.OrderBy(n => MemberLabel(n.DiscordUserId), StringComparer.OrdinalIgnoreCase).ToList();
 
         var pending = await db.MemberNoteSuggestions.AsNoTracking()
             .Where(s => s.GuildId == ParsedGuildId && s.Status == MemberNoteSuggestionStatus.Pending)
@@ -220,7 +218,7 @@
         await ReloadAsync();
     }
 
-    private string FullNickname(ulong id) => memberNicknames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : members.DisplayName(id);
+    private string MemberLabel(ulong id) => memberLabels.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : members.DisplayName(id);
 
     private static string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 

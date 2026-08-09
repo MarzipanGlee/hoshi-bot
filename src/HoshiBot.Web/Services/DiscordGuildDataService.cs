@@ -278,9 +278,19 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
 
     // Like GetMemberDisplayNamesAsync but keeps the FULL nickname including any [TAG] prefix — used by
     // the Player Assignment page, where the admin wants to see each member's real Discord nickname.
-    public async Task<IReadOnlyDictionary<ulong, string>> GetMemberNicknamesAsync(ulong guildId)
+    // How a member is labelled in an admin list: their full guild nickname — alliance tag and all,
+    // which groups a list by alliance when sorted — followed by their Discord username in brackets.
+    //
+    // The username is what makes the label unique. Nicknames are not: alt accounts and common names
+    // produce several visually identical rows, and a picker showing "[LF] MarzipanGlee" twice gives
+    // an admin no way to tell which one they are about to write a note against. Discord usernames
+    // are globally unique, so the pair always distinguishes.
+    //
+    // Always appended, even where the nickname already looks distinct — a label whose shape depends
+    // on whether some other member happens to share a name is harder to scan, not easier.
+    public async Task<IReadOnlyDictionary<ulong, string>> GetMemberLabelsAsync(ulong guildId)
     {
-        var names = await cache.GetOrCreateAsync($"discord-guild-member-nicknames:{guildId}", async entry =>
+        var names = await cache.GetOrCreateAsync($"discord-guild-member-labels:{guildId}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
             var map = new Dictionary<ulong, string>();
@@ -288,7 +298,9 @@ public partial class DiscordGuildDataService(RestClient botRestClient, IMemoryCa
             {
                 if (member.IsBot)
                     continue;
-                map[member.Id] = member.Nickname ?? member.GlobalName ?? member.Username;
+
+                var display = member.Nickname ?? member.GlobalName ?? member.Username;
+                map[member.Id] = display == member.Username ? display : $"{display} ({member.Username})";
             }
             return map;
         });
