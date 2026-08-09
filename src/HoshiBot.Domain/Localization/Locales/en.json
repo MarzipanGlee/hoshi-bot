@@ -62,6 +62,7 @@
   "ChannelName.GuildLog": "hoshi-log",
   "ChannelName.GuildAdmin": "hoshi-admin",
   "ChannelName.GuildUserLog": "member-log",
+  "ChannelName.Boarding": "boarding",
   "ChannelName.AbsenceReport": "absences",
   "ChannelName.AbsenceReportStaff": "absences-staff",
   "ChannelName.RoeViolations": "roe-violations",

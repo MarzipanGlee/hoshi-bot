@@ -28,7 +28,6 @@
 
         <h2>@Msg.WebCommon.Channels(Lang)</h2>
         <div class="card-grid mt-1">
-            <ChannelPicker CardTitle="@Msg.WebAlliance.BoardingChannelTitle(Lang)" Usage="@($"{Msg.WebAlliance.NotImplementedYet(Lang)} {Msg.WebAlliance.BoardingChannelUsage(Lang)}")" @bind-Value="allianceBoardingChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.AllianceBoardingChannelId = ParseId(allianceBoardingChannelIdInput))" Channels="channels" />
             <ChannelPicker CardTitle="@Msg.WebAlliance.RemindersAlliesTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="remindersAlliesChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RemindersAlliesChannelId = ParseId(remindersAlliesChannelIdInput))" Channels="channels" />
             <ChannelPicker CardTitle="@Msg.WebAlliance.RulesDeTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="rulesDeChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesDeChannelId = ParseId(rulesDeChannelIdInput))" Channels="channels" />
             <ChannelPicker CardTitle="@Msg.WebAlliance.RulesEnTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="rulesEnChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.RulesEnChannelId = ParseId(rulesEnChannelIdInput))" Channels="channels" />
@@ -36,7 +35,7 @@
             <ChannelPicker CardTitle="@Msg.WebAlliance.SeniorStaffJobsTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="seniorStaffJobsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.SeniorStaffJobsChannelId = ParseId(seniorStaffJobsChannelIdInput))" Channels="channels" />
         </div>
 
-        @if (showMemberRole || showDiplomatRole || showSeniorStaffRole || showAlertRole || showNotificationRole)
+        @if (showMemberRole || showBoardingRole || showDiplomatRole || showSeniorStaffRole || showAlertRole || showNotificationRole)
         {
             <h2>@Msg.WebCommon.Roles(Lang)</h2>
             @if (createError is not null)
@@ -48,6 +47,10 @@
                 @if (showMemberRole)
                 {
                     <RolePicker CardTitle="@Msg.WebAlliance.MemberRoleTitle(Lang)" Usage="@Msg.WebAlliance.MemberRoleUsage(Lang)" CreateRoleName="@memberRoleName" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+                }
+                @if (showBoardingRole)
+                {
+                    <RolePicker CardTitle="@Msg.WebAlliance.BoardingRoleTitle(Lang)" Usage="@Msg.WebCommon.BoardingRoleUsage(Lang)" CreateRoleName="@boardingRoleName" @bind-Value="boardingRoleIdInput" @bind-Value:after="SaveBoardingRoleAsync" Roles="roles" />
                 }
                 @if (showDiplomatRole)
                 {
@@ -92,6 +95,7 @@
     private string allianceTag = "";
     private string memberRoleName = "Member";
     private string notificationRoleName = "Notifications";
+    private string boardingRoleName = "Boarding";
     private string alertRoleName = "Alerts";
     private string diplomatRoleName = "Diplomat";
     private string seniorStaffRoleName = "Senior Staff";
@@ -100,7 +104,6 @@
     private List<Role> roles = [];
     private DiscordCreateErrorKind? createError;
 
-    private string? allianceBoardingChannelIdInput;
     private string? remindersAlliesChannelIdInput;
     private string? rulesDeChannelIdInput;
     private string? rulesEnChannelIdInput;
@@ -109,6 +112,7 @@
     private string? defaultChannelCategoryIdInput;
     private string? memberRoleIdInput;
     private string? notificationRoleIdInput;
+    private string? boardingRoleIdInput;
     private string? alertRoleIdInput;
     private string? diplomatRoleIdInput;
     private string? seniorStaffRoleIdInput;
@@ -119,6 +123,7 @@
     // A shared role's card is shown only while some feature enabled for THIS alliance reads it —
     // see SharedSettingUsage for the mapping and why hiding is by usage rather than by value.
     private bool showMemberRole;
+    private bool showBoardingRole;
     private bool showAlertRole;
     private bool showDiplomatRole;
     private bool showSeniorStaffRole;
@@ -149,6 +154,7 @@
         allianceTag = alliance.StfcAlliance.Tag;
         memberRoleName = $"{allianceTag}-Member";
         notificationRoleName = $"{allianceTag}-Notifications";
+        boardingRoleName = $"{allianceTag}-Boarding";
         alertRoleName = $"{allianceTag}-Alerts";
         diplomatRoleName = $"{allianceTag}-Diplomat";
         seniorStaffRoleName = $"{allianceTag}-Senior-Staff";
@@ -157,7 +163,6 @@
         categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
         roles = await DiscordData.GetRolesAsync(ParsedGuildId);
 
-        allianceBoardingChannelIdInput = alliance.AllianceBoardingChannelId?.ToString();
         remindersAlliesChannelIdInput = alliance.RemindersAlliesChannelId?.ToString();
         rulesDeChannelIdInput = alliance.RulesDeChannelId?.ToString();
         rulesEnChannelIdInput = alliance.RulesEnChannelId?.ToString();
@@ -166,6 +171,7 @@
         defaultChannelCategoryIdInput = alliance.DefaultChannelCategoryId?.ToString();
         memberRoleIdInput = alliance.MemberRoleId?.ToString();
         notificationRoleIdInput = alliance.NotificationRoleId?.ToString();
+        boardingRoleIdInput = alliance.BoardingRoleId?.ToString();
         alertRoleIdInput = alliance.AlertRoleId?.ToString();
         diplomatRoleIdInput = alliance.DiplomatRoleId?.ToString();
         seniorStaffRoleIdInput = alliance.SeniorStaffRoleId?.ToString();
@@ -174,6 +180,7 @@
         guildLanguageName = Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId));
 
         showMemberRole = await AnyEnabledAsync(SharedSettingUsage.MemberRole, guildAllianceId);
+        showBoardingRole = await AnyEnabledAsync(SharedSettingUsage.BoardingRole, guildAllianceId);
         showAlertRole = await AnyEnabledAsync(SharedSettingUsage.AlertRole, guildAllianceId);
         showDiplomatRole = await AnyEnabledAsync(SharedSettingUsage.DiplomatRole, guildAllianceId);
         showSeniorStaffRole = await AnyEnabledAsync(SharedSettingUsage.SeniorStaffRole, guildAllianceId);
@@ -228,6 +235,8 @@
     }
 
     private Task SaveMemberRoleAsync() => SaveRoleAsync((a, id) => a.MemberRoleId = id, memberRoleIdInput, v => memberRoleIdInput = v, memberRoleName);
+    private Task SaveBoardingRoleAsync() => SaveRoleAsync((a, id) => a.BoardingRoleId = id, boardingRoleIdInput, v => boardingRoleIdInput = v, boardingRoleName);
+
     private Task SaveAlertRoleAsync() => SaveRoleAsync((a, id) => a.AlertRoleId = id, alertRoleIdInput, v => alertRoleIdInput = v, alertRoleName);
 
     private Task SaveDiplomatRoleAsync() => SaveRoleAsync((a, id) => a.DiplomatRoleId = id, diplomatRoleIdInput, v => diplomatRoleIdInput = v, diplomatRoleName);

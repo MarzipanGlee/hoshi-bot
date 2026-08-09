@@ -1,0 +1,264 @@
+@inherits FeatureEditorBase
+@namespace HoshiBot.Web.Components.Pages.Manage.Guild.Features.Boarding
+@using HoshiBot.Domain
+@using HoshiBot.Web.Services
+@using NetCord
+@inject DiscordGuildDataService DiscordData
+@inject IConfiguration Configuration
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+<p class="form-text">@((MarkupString)Msg.WebBoarding.Intro(Lang))</p>
+
+@if (rolesMissing)
+{
+    <p class="text-danger">@Msg.WebBoarding.RolesMissing(Lang)</p>
+}
+@foreach (var warning in hierarchyWarnings)
+{
+    @* Shown at configuration time, not just when a member presses the button: a role dragged above
+       the bot's is invisible until someone tries, and legacy failed exactly this way. *@
+    <p class="text-danger">@warning</p>
+}
+
+<div class="card-grid mt-1">
+    <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, BoardingSettingKeys.Channel)"
+                   Usage="@Msg.WebEditor.Usage(Lang, Feature, BoardingSettingKeys.Channel)"
+                   CreateChannelName="@BoardingChannelName"
+                   @bind-Value="channelInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, BoardingSettingKeys.Message)" Class="card-span-full">
+        <label for="boardingMessage" class="form-label">
+            @Msg.WebEditor.Label(Lang, Feature, BoardingSettingKeys.Message)
+        </label>
+        <textarea id="boardingMessage" class="form-control" rows="12"
+                  @bind="messageInput" @bind:after="SaveMessageAsync"></textarea>
+
+        <div>
+            <label for="boardingInsertChannel" class="form-label">@Msg.WebBoarding.InsertChannel(Lang)</label>
+            <select id="boardingInsertChannel" class="form-select" value="" @onchange="InsertChannelAsync">
+                <option value="">@Msg.WebBoarding.InsertChannelPlaceholder(Lang)</option>
+                @foreach (var channel in channels)
+                {
+                    <option value="@channel.Id">#@channel.Name</option>
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="boardingInsertRole" class="form-label">@Msg.WebBoarding.InsertRole(Lang)</label>
+            <select id="boardingInsertRole" class="form-select" value="" @onchange="InsertRoleAsync">
+                <option value="">@Msg.WebBoarding.InsertRolePlaceholder(Lang)</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role.Id">@@@role.Name</option>
+                }
+            </select>
+        </div>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, BoardingSettingKeys.ButtonLabel)">
+        <p class="form-text mt-0">@Msg.WebEditor.Usage(Lang, Feature, BoardingSettingKeys.ButtonLabel)</p>
+        <input type="text" class="form-control" maxlength="80" placeholder="@DefaultButtonLabel"
+               @bind="buttonLabelInput" @bind:after="SaveButtonLabelAsync" />
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, BoardingSettingKeys.WelcomeDm)" Class="card-span-full">
+        <label for="boardingDm" class="form-label">
+            @((MarkupString)Msg.WebEditor.Label(Lang, Feature, BoardingSettingKeys.WelcomeDm))
+        </label>
+        <textarea id="boardingDm" class="form-control" rows="3"
+                  @bind="welcomeDmInput" @bind:after="SaveWelcomeDmAsync"></textarea>
+    </SettingsCard>
+
+    <SettingsCard Title="@Msg.WebBoarding.PublishCardTitle(Lang)">
+        <p class="form-text mt-0">@Msg.WebBoarding.PublishUsage(Lang)</p>
+        <button class="btn btn-primary" disabled="@busy" @onclick="() => QueueAsync(BoardingRequestKind.Publish)">
+            @Msg.WebBoarding.Publish(Lang)
+        </button>
+        <p class="form-text mb-0">@Msg.WebBoarding.BackfillUsage(Lang)</p>
+        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => QueueAsync(BoardingRequestKind.Backfill)">
+            @Msg.WebBoarding.Backfill(Lang)
+        </button>
+        @if (status is { Length: > 0 })
+        {
+            <p class="form-text mb-0">@status</p>
+        }
+    </SettingsCard>
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.Boarding;
+
+    private List<IGuildChannel> channels = [];
+    private List<Role> roles = [];
+    private string? channelInput;
+    private string? messageInput;
+    private string? buttonLabelInput;
+    private string? welcomeDmInput;
+    private string? status;
+    private bool busy;
+    private bool rolesMissing;
+    private readonly List<string> hierarchyWarnings = [];
+
+    // In the scope's language, like every other channel this bot offers to create.
+    private string BoardingChannelName => Msg.ChannelName.Boarding(ScopeLanguage);
+
+    // What the button says when the caption is blank — shown as the input's placeholder so an admin
+    // can see the default without having to type it.
+    private string DefaultButtonLabel => Msg.Announce.ReadButtonPlain(ScopeLanguage);
+
+    protected override async Task OnSettingsLoadedAsync()
+    {
+        channels = (await DiscordData.GetChannelsAsync(GuildId))
+            .Where(c => c is TextGuildChannel or AnnouncementGuildChannel)
+            .OrderBy(c => c.Name)
+            .ToList();
+
+        roles = (await DiscordData.GetRolesAsync(GuildId))
+            .Where(r => r.Id != GuildId && !r.Managed)
+            .OrderBy(r => r.Name)
+            .ToList();
+
+        channelInput = (await GetSnowflakeAsync(BoardingSettingKeys.Channel))?.ToString();
+        buttonLabelInput = await GetTextAsync(BoardingSettingKeys.ButtonLabel);
+        welcomeDmInput = await GetTextAsync(BoardingSettingKeys.WelcomeDm);
+
+        var stored = await GetTextAsync(BoardingSettingKeys.Message);
+        messageInput = Normalize(stored);
+        if (messageInput != stored)
+            await SetTextAsync(BoardingSettingKeys.Message, messageInput);
+
+        await CheckRolesAsync();
+    }
+
+    // Both roles present, and both actually assignable by the bot. The second half is the check
+    // legacy lacked: a moderator dragging a role above the bot's breaks boarding silently, and the
+    // admin who could fix it never finds out.
+    private async Task CheckRolesAsync()
+    {
+        hierarchyWarnings.Clear();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var (memberRoleId, boardingRoleId) = ResolvedAudience == GuildAudience.Alliance && GuildAllianceId is { } allianceId
+            ? await db.GuildAlliances.Where(a => a.GuildId == GuildId && a.Id == allianceId)
+                .Select(a => new ValueTuple<ulong?, ulong?>(a.MemberRoleId, a.BoardingRoleId)).FirstOrDefaultAsync()
+            : await db.GuildAudienceSettings.Where(a => a.GuildId == GuildId && a.Audience == ResolvedAudience)
+                .Select(a => new ValueTuple<ulong?, ulong?>(a.MemberRoleId, a.BoardingRoleId)).FirstOrDefaultAsync();
+
+        rolesMissing = memberRoleId is null || boardingRoleId is null;
+
+        if (!ulong.TryParse(Configuration["Discord:ClientId"], out var botUserId))
+            return;
+
+        var botStatus = await DiscordData.GetBotRoleStatusAsync(GuildId, botUserId);
+        foreach (var roleId in new[] { memberRoleId, boardingRoleId })
+        {
+            if (roleId is not { } id || !botStatus.AllRolesById.TryGetValue(id, out var role))
+                continue;
+
+            if (role.RawPosition >= botStatus.HighestRolePosition)
+                hierarchyWarnings.Add(Msg.WebBoarding.RoleOutranked(Lang, role.Name, botStatus.TopRoleName));
+        }
+    }
+
+    private Task SaveChannelAsync() =>
+        SetSnowflakeAsync(BoardingSettingKeys.Channel, ParseId(channelInput));
+
+    private Task SaveButtonLabelAsync() =>
+        SetTextAsync(BoardingSettingKeys.ButtonLabel, Blank(buttonLabelInput));
+
+    private Task SaveWelcomeDmAsync() =>
+        SetTextAsync(BoardingSettingKeys.WelcomeDm, Blank(welcomeDmInput));
+
+    private Task InsertChannelAsync(ChangeEventArgs e) => AppendMentionAsync(e, id => $"<#{id}>");
+
+    private Task InsertRoleAsync(ChangeEventArgs e) => AppendMentionAsync(e, id => $"<@&{id}>");
+
+    private async Task AppendMentionAsync(ChangeEventArgs e, Func<ulong, string> mention)
+    {
+        if (e.Value?.ToString() is not { Length: > 0 } raw || !ulong.TryParse(raw, out var id))
+            return;
+
+        var separator = string.IsNullOrWhiteSpace(messageInput) ? "" : "\n";
+        messageInput = $"{messageInput}{separator}{mention(id)}";
+        await SaveMessageAsync();
+    }
+
+    // Normalised on save as well as on insert: the usual way to write this is to paste pills copied
+    // out of Discord, which look right and are inert.
+    private Task SaveMessageAsync()
+    {
+        messageInput = Normalize(messageInput);
+        return SetTextAsync(BoardingSettingKeys.Message, messageInput);
+    }
+
+    private string Normalize(string? text) => DiscordMentionText.Normalize(
+        text,
+        channels.GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase),
+        roles.GroupBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase));
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    // Web cannot post to Discord itself, so both buttons enqueue a row for BoardingSyncJob and watch
+    // it. The row vanishing means done; a row still there carrying LastError means the bot tried and
+    // could not — surface that rather than spinning forever.
+    private async Task QueueAsync(BoardingRequestKind kind)
+    {
+        busy = true;
+        status = Msg.WebBoarding.StatusQueued(Lang);
+        await CheckRolesAsync();
+
+        int requestId;
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            var request = new BoardingRequest
+            {
+                GuildId = GuildId,
+                Audience = ResolvedAudience,
+                GuildAllianceId = GuildAllianceId,
+                Kind = kind,
+                RequestedAt = DateTimeOffset.UtcNow,
+            };
+            db.BoardingRequests.Add(request);
+            await db.SaveChangesAsync();
+            requestId = request.Id;
+        }
+
+        // The job runs every 30s, so ~60s of polling covers a tick plus the work.
+        for (var attempt = 0; attempt < 30; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+
+            string? lastError;
+            bool stillPending;
+            await using (var db = await DbFactory.CreateDbContextAsync())
+            {
+                var row = await db.BoardingRequests.Where(r => r.Id == requestId)
+                    .Select(r => new { r.LastError })
+                    .FirstOrDefaultAsync();
+                stillPending = row is not null;
+                lastError = row?.LastError;
+            }
+
+            if (!stillPending)
+            {
+                status = Msg.WebBoarding.StatusDone(Lang);
+                busy = false;
+                return;
+            }
+
+            if (lastError is { Length: > 0 })
+            {
+                status = Msg.WebBoarding.StatusFailed(Lang, lastError);
+                busy = false;
+                return;
+            }
+
+            StateHasChanged();
+        }
+
+        status = Msg.WebBoarding.StatusTimedOut(Lang);
+        busy = false;
+    }
+}

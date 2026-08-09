@@ -67,6 +67,20 @@ public static partial class Msg
         public static string NotificationRole(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.NotificationRole");
 
+        // The two roles Boarding moves a member between. Suffixed titles, because these appear on a
+        // feature editor's mixed grid as well as on the settings pages' Roles group.
+        public static string BoardingRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.BoardingRole");
+
+        public static string BoardingRoleUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.BoardingRoleUsage");
+
+        public static string MemberRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.MemberRole");
+
+        public static string MemberRoleUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.MemberRoleUsage");
+
         public static string AlertRole(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.AlertRole");
 

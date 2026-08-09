@@ -50,15 +50,30 @@
                            @bind-Value="categoryInput" @bind-Value:after="SaveCategoryAsync" />
         </div>
 
-        @* Shown only while a feature enabled for THIS audience reads it — see SharedSettingUsage. *@
-        @if (showSeniorStaff)
+        @* Each shown only while a feature enabled for THIS audience reads it — see SharedSettingUsage. *@
+        @if (showSeniorStaff || showBoardingRoles)
         {
             <h2>@Msg.WebCommon.Roles(Lang)</h2>
             <div class="card-grid mt-1">
-                <RolePicker CardTitle="@Msg.WebCommon.SeniorStaffRole(Lang)"
-                            Usage="@Msg.WebCommon.SeniorStaffRoleUsage(Lang)"
-                            CreateRoleName="Senior Staff" Roles="roles"
-                            @bind-Value="seniorStaffInput" @bind-Value:after="SaveSeniorStaffAsync" />
+                @if (showSeniorStaff)
+                {
+                    <RolePicker CardTitle="@Msg.WebCommon.SeniorStaffRole(Lang)"
+                                Usage="@Msg.WebCommon.SeniorStaffRoleUsage(Lang)"
+                                CreateRoleName="Senior Staff" Roles="roles"
+                                @bind-Value="seniorStaffInput" @bind-Value:after="SaveSeniorStaffAsync" />
+                }
+                @if (showBoardingRoles)
+                {
+                    <RolePicker CardTitle="@Msg.WebCommon.MemberRole(Lang)"
+                                Usage="@Msg.WebCommon.MemberRoleUsage(Lang)"
+                                CreateRoleName="Member" Roles="roles"
+                                @bind-Value="memberRoleInput" @bind-Value:after="SaveMemberRoleAsync" />
+
+                    <RolePicker CardTitle="@Msg.WebCommon.BoardingRole(Lang)"
+                                Usage="@Msg.WebCommon.BoardingRoleUsage(Lang)"
+                                CreateRoleName="Boarding" Roles="roles"
+                                @bind-Value="boardingRoleInput" @bind-Value:after="SaveBoardingRoleAsync" />
+                }
             </div>
         }
 
@@ -120,6 +135,8 @@
         languageInput = settings?.Language;
         categoryInput = settings?.DefaultChannelCategoryId?.ToString();
         seniorStaffInput = settings?.SeniorStaffRoleId?.ToString();
+        memberRoleInput = settings?.MemberRoleId?.ToString();
+        boardingRoleInput = settings?.BoardingRoleId?.ToString();
         roles = await DiscordData.GetRolesAsync(ParsedGuildId);
 
         categories = await DiscordData.GetCategoriesAsync(ParsedGuildId);
@@ -128,15 +145,26 @@
 
         showSeniorStaff = await FeatureService.AnyEnabledAsync(
             ParsedGuildId, SharedSettingUsage.SeniorStaffRole, audience, null);
+
+        // One flag for both: Boarding is the only reader of either, and it needs the pair.
+        showBoardingRoles = await FeatureService.AnyEnabledAsync(
+            ParsedGuildId, SharedSettingUsage.BoardingRole, audience, null);
     }
 
     private bool showSeniorStaff;
+    private bool showBoardingRoles;
+    private string? memberRoleInput;
+    private string? boardingRoleInput;
 
     private Task SaveLanguageAsync() => UpdateAsync(a => a.Language = languageInput);
 
     private Task SaveCategoryAsync() => UpdateAsync(a => a.DefaultChannelCategoryId = ParseId(categoryInput));
 
     private Task SaveSeniorStaffAsync() => UpdateAsync(a => a.SeniorStaffRoleId = ParseId(seniorStaffInput));
+
+    private Task SaveMemberRoleAsync() => UpdateAsync(a => a.MemberRoleId = ParseId(memberRoleInput));
+
+    private Task SaveBoardingRoleAsync() => UpdateAsync(a => a.BoardingRoleId = ParseId(boardingRoleInput));
 
     // One row per audience holding every audience-level setting, created on first use and deleted
     // once nothing is set — so "inherit everything" stays the absence of a row rather than a row
@@ -150,7 +178,10 @@
         var row = existing ?? new GuildAudienceSettings { GuildId = ParsedGuildId, Audience = audience };
         apply(row);
 
-        if (row.Language is null && row.DefaultChannelCategoryId is null && row.SeniorStaffRoleId is null)
+        // EVERY column, or the row is deleted while one of them still holds a value. Adding a
+        // setting here means adding it to this test in the same breath.
+        if (row.Language is null && row.DefaultChannelCategoryId is null && row.SeniorStaffRoleId is null
+            && row.MemberRoleId is null && row.BoardingRoleId is null)
         {
             if (existing is not null)
                 db.GuildAudienceSettings.Remove(existing);

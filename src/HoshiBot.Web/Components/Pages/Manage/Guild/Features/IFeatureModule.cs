@@ -89,6 +89,23 @@ public record FeatureModuleContext(
         return alliance is null ? null : select(alliance);
     }
 
+    // The same question for a role that exists on BOTH GuildAlliance and GuildAudienceSettings —
+    // the member and boarding roles do, because Boarding runs for every audience. Two selectors
+    // because the two columns live on two entities; GetAllianceRoleAsync above is the Alliance-only
+    // case and returns null everywhere else, which for a per-audience feature would read as "not
+    // configured" no matter what the admin set.
+    public async Task<ulong?> GetScopeRoleAsync(ulong guildId, GuildAudience audience, int? guildAllianceId,
+        Func<GuildAlliance, ulong?> fromAlliance, Func<GuildAudienceSettings, ulong?> fromAudience)
+    {
+        if (audience == GuildAudience.Alliance)
+            return await GetAllianceRoleAsync(guildId, audience, guildAllianceId, fromAlliance);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var settings = await db.GuildAudienceSettings.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.GuildId == guildId && a.Audience == audience);
+        return settings is null ? null : fromAudience(settings);
+    }
+
     public Task<ulong?> GetSnowflakeAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key) =>
         Snapshot is { } s ? Task.FromResult(s.GetSnowflake(feature, audience, guildAllianceId, key))
             : Settings.GetSnowflakeAsync(guildId, feature, audience, guildAllianceId, key);

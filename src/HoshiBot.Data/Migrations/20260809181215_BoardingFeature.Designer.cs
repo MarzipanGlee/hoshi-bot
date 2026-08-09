@@ -770,9 +770,6 @@ namespace HoshiBot.Data.Migrations
                     b.Property<decimal?>("AlertRoleId")
                         .HasColumnType("numeric(20,0)");
 
-                    b.Property<decimal?>("AllianceBoardingChannelId")
-                        .HasColumnType("numeric(20,0)");
-
                     b.Property<decimal?>("BoardingRoleId")
                         .HasColumnType("numeric(20,0)");
 

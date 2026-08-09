@@ -36,6 +36,10 @@ public static partial class Msg
         public static string GuildUserLog(Language lang) =>
             MessageCatalog.Format(lang, "ChannelName.GuildUserLog");
 
+        // Same word in both languages, but a catalog key all the same: the next locale will not be.
+        public static string Boarding(Language lang) =>
+            MessageCatalog.Format(lang, "ChannelName.Boarding");
+
         public static string AbsenceReport(Language lang) =>
             MessageCatalog.Format(lang, "ChannelName.AbsenceReport");
 

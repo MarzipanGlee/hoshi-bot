@@ -132,11 +132,47 @@ namespace HoshiBot.Data.Migrations
                 name: "IX_BoardingRequests_RequestedAt",
                 table: "BoardingRequests",
                 column: "RequestedAt");
+
+            // Adopt the ported AllianceBoardingChannelId as the Alliance scope's boarding channel
+            // rather than discarding it. It has sat on the alliance settings page labelled "not
+            // implemented yet" since the port, holding the channel legacy boarded people in — which
+            // is exactly what this feature needs. An admin who filled it in finds Boarding already
+            // pointing at the right place.
+            //
+            // 38 is GuildFeature.Boarding and 1 is GuildAudience.Alliance, pinned as literals: both
+            // enums are append-only, and a migration must not shift meaning if either is reordered.
+            migrationBuilder.Sql("""
+                INSERT INTO "GuildFeatureSettingSnowflakes" ("GuildId", "Feature", "Audience", "Key", "Value", "GuildAllianceId")
+                SELECT a."GuildId", 38, 1, 'Channel', a."AllianceBoardingChannelId", a."Id"
+                FROM "GuildAlliances" a
+                WHERE a."AllianceBoardingChannelId" IS NOT NULL;
+                """);
+
+            // The value now lives where it is read, so the dead column goes with it.
+            migrationBuilder.DropColumn(
+                name: "AllianceBoardingChannelId",
+                table: "GuildAlliances");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Put the channel back where it came from before the settings rows are removed.
+            migrationBuilder.AddColumn<decimal>(
+                name: "AllianceBoardingChannelId",
+                table: "GuildAlliances",
+                type: "numeric(20,0)",
+                nullable: true);
+
+            migrationBuilder.Sql("""
+                UPDATE "GuildAlliances" a
+                SET "AllianceBoardingChannelId" = s."Value"
+                FROM "GuildFeatureSettingSnowflakes" s
+                WHERE s."Feature" = 38 AND s."Audience" = 1 AND s."Key" = 'Channel' AND s."GuildAllianceId" = a."Id";
+                """);
+
+            migrationBuilder.Sql("""DELETE FROM "GuildFeatureSettingSnowflakes" WHERE "Feature" = 38;""");
+
             migrationBuilder.DropTable(
                 name: "BoardingEntries");
 

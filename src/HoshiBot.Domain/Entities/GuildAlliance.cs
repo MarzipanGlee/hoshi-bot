@@ -71,8 +71,8 @@ public class GuildAlliance
     public ulong? SeniorStaffRoleId { get; set; }
 
     // Channels — alliance-scoped config formerly on GuildSettings (moved so a coalition guild
-    // can configure each linked alliance independently).
-    public ulong? AllianceBoardingChannelId { get; set; }
+    // can configure each linked alliance independently). No boarding channel: it moved into the
+    // Boarding feature's own settings when that feature was built, which is where it is read.
     public ulong? RemindersAlliesChannelId { get; set; }
     public ulong? RulesDeChannelId { get; set; }
     public ulong? RulesEnChannelId { get; set; }

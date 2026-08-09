@@ -49,7 +49,6 @@ public static class GuildSettingsSeedData
         AlertRoleId = 1253175695354364066,
         BoardingRoleId = 1269760517807800320,
 
-        AllianceBoardingChannelId = 955406358356852746,
         RemindersAlliesChannelId = 1273592443954003968,
         RulesDeChannelId = 803965908309245962,
         RulesEnChannelId = 957288857915752468,

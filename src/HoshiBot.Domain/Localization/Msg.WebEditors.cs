@@ -796,6 +796,59 @@ public static partial class Msg
             MessageCatalog.Format(lang, "Web.Editor.BotSupport.Intro");
     }
 
+    // The Boarding editor's own strings. The per-setting card titles and labels come from the
+    // dynamic Web.Editor.Boarding.{key}.* convention instead.
+    public static class WebBoarding
+    {
+        public static string Intro(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Editor.Boarding.Intro");
+
+        public static string InsertChannel(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.InsertChannel");
+
+        public static string InsertChannelPlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.InsertChannelPlaceholder");
+
+        public static string InsertRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.InsertRole");
+
+        public static string InsertRolePlaceholder(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.InsertRolePlaceholder");
+
+        public static string PublishCardTitle(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.PublishCardTitle");
+
+        public static string PublishUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.PublishUsage");
+
+        public static string Publish(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.Publish");
+
+        public static string BackfillUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.BackfillUsage");
+
+        public static string Backfill(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.Backfill");
+
+        public static string StatusQueued(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.StatusQueued");
+
+        public static string StatusDone(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.StatusDone");
+
+        public static string StatusFailed(Language lang, string error) =>
+            MessageCatalog.Format(lang, "Web.Boarding.StatusFailed", ("error", error));
+
+        public static string StatusTimedOut(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.StatusTimedOut");
+
+        public static string RolesMissing(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Boarding.RolesMissing");
+
+        public static string RoleOutranked(Language lang, string role, string botRole) =>
+            MessageCatalog.Format(lang, "Web.Boarding.RoleOutranked", ("role", role), ("botRole", botRole));
+    }
+
     public static class WebChannelGuide
     {
         // Contains inline <strong> markup — render via MarkupString.
