@@ -73,6 +73,14 @@ File placement rules:
   user-dedicated threads → the addressee, admin notifications → the guild language.
   See [docs/localization-plan.md](docs/localization-plan.md) for the full rules and
   the add-a-locale recipe.
+- **Card and section titles are Title Case in English** — "Server Tag", "Gemini API
+  Key", "Test Channel (optional)". Minor words stay lowercase unless first or last
+  (`a an the and or of for to in on with per by from`), and a parenthetical qualifier
+  stays lowercase. Two exceptions, both deliberate: a title shaped like a sentence or
+  a question keeps sentence case ("How it works", "Ready to upgrade your Discord?"),
+  because it is prose rather than a label; and **German is not recased** — German has
+  no title case, so its nouns are capitalized by orthography and everything else is
+  not. Applying the English rule to German would simply be wrong.
 - **LLM prompt text is not catalog material** — prompts stay in code (English or
   German as the feature requires) and carry a dynamic "Answer in {language}."
   instruction where the reply is user-facing.

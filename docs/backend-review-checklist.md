@@ -323,11 +323,11 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 - [x] Enable switch, description and any "requires" badges
 - [x] How it works
-- [x] Alliance tag
-- [x] Server tag — renders `[EU-164]` now
+- [x] Alliance Tag
+- [x] Server Tag — renders `[EU-164]` now
 - [x] No-Alliance Tag (new)
 - [x] Member Name Suffix
-- [x] Excluded roles — the add picker can create `No-Nickname-Sync`
+- [x] Excluded Roles — the add picker can create `No-Nickname-Sync`
 
 ### Notification Opt-In
 
