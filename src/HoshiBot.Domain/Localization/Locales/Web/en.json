@@ -429,7 +429,6 @@
   "Web.Editor.PlayerLink.UnlinkedRole.Usage": "Given to every member who has no in-game player linked yet, and taken away again the moment one is. Useful as a nudge, or to gate channels until someone is identified. Leave blank to assign nothing. Bots are ignored.",
 
   "Web.Editor.PlayerAssignmentsAdmin.Loading": "Loading members…",
-  "Web.Editor.PlayerAssignmentsAdmin.Heading": "Player Assignment",
   "Web.Editor.PlayerAssignmentsAdmin.Intro": "Assign each member to their in-game player(s). The links are <strong>global to the person</strong> — they apply in every server they share with Hoshi. The {icon:Text.Primary} marks the player that represents them <strong>here</strong>, which is what drives this server's automatic role assignment (rank, ops level, nickname); members can also set it themselves on their own profile page. A player can be linked to multiple Discord accounts (e.g. alt accounts).",
   "Web.Editor.PlayerAssignmentsAdmin.SearchMemberLabel": "Search member",
   "Web.Editor.PlayerAssignmentsAdmin.SearchPlaceholder": "Name…",

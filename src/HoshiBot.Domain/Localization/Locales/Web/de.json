@@ -429,7 +429,6 @@
   "Web.Editor.PlayerLink.UnlinkedRole.Usage": "Erhält jedes Mitglied, das noch keinen In-Game-Spieler verknüpft hat — und verliert sie wieder, sobald eine Verknüpfung besteht. Praktisch als Erinnerung oder um Kanäle zu sperren, bis jemand zugeordnet ist. Leer lassen, um nichts zu vergeben. Bots werden ignoriert.",
 
   "Web.Editor.PlayerAssignmentsAdmin.Loading": "Mitglieder werden geladen…",
-  "Web.Editor.PlayerAssignmentsAdmin.Heading": "Spieler-Zuordnung",
   "Web.Editor.PlayerAssignmentsAdmin.Intro": "Ordne jedem Mitglied seine(n) Ingame-Spieler zu. Die Verknüpfungen gelten <strong>global für die Person</strong> — sie greifen in jedem Server, den sie mit Hoshi teilt. Der {icon:Text.Primary} markiert den Spieler, der sie <strong>hier</strong> repräsentiert — das steuert die automatische Rollenvergabe dieses Servers (Rang, Ops-Level, Spitzname); Mitglieder können ihn auch selbst auf ihrer eigenen Profilseite setzen. Ein Spieler kann mit mehreren Discord-Accounts verknüpft sein (z. B. Alt-Accounts).",
   "Web.Editor.PlayerAssignmentsAdmin.SearchMemberLabel": "Mitglied suchen",
   "Web.Editor.PlayerAssignmentsAdmin.SearchPlaceholder": "Name…",

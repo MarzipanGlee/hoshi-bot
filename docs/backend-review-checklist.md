@@ -340,19 +340,19 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 `ops-level-roles` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] Role tiers
+- [x] Enable switch, description and any "requires" badges
+- [x] Role tiers
 
 ### Player Assignment
 
 `player-link` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] How it works
-- [ ] Open player assignments
-- [ ] Status
-- [ ] Not-Linked Role
-- [ ] Extra page: `assignments`
+- [x] Enable switch, description and any "requires" badges
+- [x] How it works
+- [x] Open player assignments
+- [x] Status
+- [x] Not-Linked Role
+- [x] Extra page: `assignments`
 
 ### Raid Alerts
 

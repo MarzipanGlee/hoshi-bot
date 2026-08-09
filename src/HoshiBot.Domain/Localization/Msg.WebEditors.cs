@@ -692,9 +692,6 @@ public static partial class Msg
         public static string Loading(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.PlayerAssignmentsAdmin.Loading");
 
-        public static string Heading(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Editor.PlayerAssignmentsAdmin.Heading");
-
         public static string Intro(Language lang) =>
             MessageCatalog.Format(lang, "Web.Editor.PlayerAssignmentsAdmin.Intro");
 

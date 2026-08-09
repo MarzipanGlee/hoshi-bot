@@ -13,7 +13,9 @@
     }
     else
     {
-        <h1>@Msg.WebPlayerAssignmentsAdmin.Heading(Lang)</h1>
+        @* The same string the PageTitle and the breadcrumb use: the h1 had its own copy and had drifted
+       to the singular, so one page announced itself under two names. *@
+    <h1>@Msg.WebFeature.ExtraTitle(Lang, GuildFeature.PlayerLink, "assignments")</h1>
         <p class="text-muted">
             @((MarkupString)Msg.WebPlayerAssignmentsAdmin.Intro(Lang))
         </p>
