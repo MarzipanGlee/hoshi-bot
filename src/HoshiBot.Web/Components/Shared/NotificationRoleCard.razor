@@ -1,0 +1,44 @@
+@using NetCord
+@inject IDbContextFactory<HoshiBotDbContext> DbFactory
+@inject DiscordGuildDataService DiscordData
+
+@* The alliance's notification role, shown by every feature that pings it: the absence-clean notice,
+   an elevated announcement, the weekly capture digest, the weekly raid report.
+
+   Extracted once a fourth feature needed it — the first three each carried their own copy of this
+   markup plus a field and a load line, which is three places to update and four chances to drift. *@
+<OwnedElsewhereCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
+                    Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)" Lang="Lang"
+                    Value="@display"
+                    Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
+                    LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
+                    LinkHref="@OwnerHref" />
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
+
+    private string? display;
+
+    private string OwnerHref => $"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        display = null;
+        if (GuildAllianceId is not { } allianceId)
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var roleId = await db.GuildAlliances.AsNoTracking()
+            .Where(a => a.GuildId == GuildId && a.Id == allianceId)
+            .Select(a => a.NotificationRoleId)
+            .FirstOrDefaultAsync();
+        if (roleId is not { } id)
+            return;
+
+        var roles = await DiscordData.GetRolesAsync(GuildId);
+        display = roles.FirstOrDefault(r => r.Id == id) is { } role ? $"@{role.Name}" : null;
+    }
+}

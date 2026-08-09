@@ -4,7 +4,6 @@
 @inherits FeatureEditorBase
 @using HoshiBot.Domain
 @inject DiscordGuildDataService DiscordData
-@inject GuildAllianceService AllianceService
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
@@ -23,12 +22,7 @@
     {
         @* Keyed under Announcements (this editor's wording), even though the value is stored
            under the Absences feature — the Absences page carries its own wording for it. *@
-    <OwnedElsewhereCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
-            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)" Lang="Lang"
-            Value="@RoleDisplay(notificationRoleId)"
-            Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
-            LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
-            LinkHref="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")" />
+    <NotificationRoleCard GuildId="GuildId" GuildAllianceId="GuildAllianceId" />
     }
 
     <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, AnnouncementsSettingKeys.WarningsRole)"
@@ -46,29 +40,15 @@
     private string? draftChannelInput;
     private string? testChannelInput;
     private string? warningsRoleInput;
-    private ulong? notificationRoleId;
-
-    private string? RoleDisplay(ulong? roleId) =>
-        roleId is { } id && roles.FirstOrDefault(r => r.Id == id) is { } role ? $"@{role.Name}" : null;
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        // The notification role belongs to the alliance, not to this feature — read here, changed on
-        // the alliance settings page (see AllianceOwnedRoleCard).
-        var alliance = GuildAllianceId is { } roleAllianceId ? await AllianceService.FindByIdAsync(GuildId, roleAllianceId) : null;
-
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
         channelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.Channel))?.ToString();
         draftChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.DraftChannel))?.ToString();
         testChannelInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.TestChannel))?.ToString();
         warningsRoleInput = (await GetSnowflakeAsync(AnnouncementsSettingKeys.WarningsRole))?.ToString();
-
-        // Shown/stored only for the Alliance audience: it's the per-alliance Absences-owned role
-        // (same value as on the Absences/TC pages), and GetSnowflakeAsync's scope guard rejects
-        // the Alliance audience with a null alliance id anyway.
-        if (ResolvedAudience == GuildAudience.Alliance)
-            notificationRoleId = alliance?.NotificationRoleId;
     }
 
     private Task SaveChannelAsync() =>

@@ -20,13 +20,20 @@
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, RaidAlertsSettingKeys.ReportTime)">
         <p class="form-text mb-2">@Msg.WebEditor.Usage(Lang, Feature, RaidAlertsSettingKeys.ReportTime)</p>
-        <input type="time" step="3600" id="raidReportTime" class="form-control"
-               value="@reportTimeInput" @onchange="OnReportTimeChanged" />
+        @* A plain hour list rather than a time input: the setting has whole-hour resolution, and a
+           time picker invites minutes it would only round away. *@
+        <select class="form-select" id="raidReportHour" value="@reportHour" @onchange="OnReportHourChangedAsync">
+            @for (var hour = 0; hour < 24; hour++)
+            {
+                <option value="@hour">@hour</option>
+            }
+        </select>
     </SettingsCard>
 </div>
 
 <div class="card-grid mt-1">
     <AlertRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
+    <NotificationRoleCard GuildId="GuildId" GuildAllianceId="GuildAllianceId" />
     <OptInPointerCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
     <SeniorStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
@@ -38,32 +45,35 @@
 
     private List<IGuildChannel> channels = [];
     private string? channelIdInput;
-    private string? reportTimeInput;
+    private int reportHour;
 
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
         channelIdInput = (await GetSnowflakeAsync(RaidAlertsSettingKeys.ReportChannel))?.ToString();
-        reportTimeInput = await GetTextAsync(RaidAlertsSettingKeys.ReportTime) ?? RaidReportScheduler.DefaultLocalTime;
+        reportHour = ParseHour(await GetTextAsync(RaidAlertsSettingKeys.ReportTime));
     }
 
     private Task SaveChannelAsync() =>
         SetSnowflakeAsync(RaidAlertsSettingKeys.ReportChannel, ParseId(channelIdInput));
 
-    // Whole hours only — the input's step is a hint the browser need not honour, so the value is
-    // snapped here too rather than trusting it.
-    private async Task OnReportTimeChanged(ChangeEventArgs e)
+    // Stored as "HH:mm" like the capture digest's own fire times, so both read the same way in the
+    // settings table and the service parses one format. The dropdown just picks the hour.
+    //
+    // An awaited handler rather than @bind with a saving setter: a property setter cannot await, so
+    // the write would be fire-and-forget and a failed save would pass silently.
+    private async Task OnReportHourChangedAsync(ChangeEventArgs e)
     {
-        reportTimeInput = SnapToHour(e.Value?.ToString());
-        await SetTextAsync(RaidAlertsSettingKeys.ReportTime, reportTimeInput);
+        if (!int.TryParse(e.Value?.ToString(), CultureInfo.InvariantCulture, out var hour) || hour is < 0 or > 23)
+            return;
+
+        reportHour = hour;
+        await SetTextAsync(RaidAlertsSettingKeys.ReportTime,
+            new TimeOnly(hour, 0).ToString("HH:mm", CultureInfo.InvariantCulture));
     }
 
-    private static string? SnapToHour(string? raw)
-    {
-        if (!TimeOnly.TryParseExact(raw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t))
-            return raw;
-
-        var hour = (t.Minute >= 30 ? t.Hour + 1 : t.Hour) % 24;
-        return new TimeOnly(hour, 0).ToString("HH:mm", CultureInfo.InvariantCulture);
-    }
+    private static int ParseHour(string? raw) =>
+        TimeOnly.TryParseExact(raw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed.Hour
+            : TimeOnly.ParseExact(RaidReportScheduler.DefaultLocalTime, "HH:mm", CultureInfo.InvariantCulture).Hour;
 }

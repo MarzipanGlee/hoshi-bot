@@ -33,12 +33,7 @@
         <p class="form-text mb-0">
             @((MarkupString)Msg.WebEditor.Usage(Lang, Feature, WeeklyMentionRoleKey))
         </p>
-    <OwnedElsewhereCard Title="@Msg.WebAlliance.NotificationRoleTitle(Lang)"
-            Label="@Msg.WebAlliance.NotificationRoleUsage(Lang)" Lang="Lang"
-            Value="@RoleDisplay(notificationRoleId)"
-            Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
-            LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
-            LinkHref="@($"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings")" />
+    <NotificationRoleCard GuildId="GuildId" GuildAllianceId="GuildAllianceId" />
     </SettingsCard>
 
     <SettingsCard Title="@Msg.WebEditor.CardTitle(Lang, Feature, DigestScheduleKey)">
@@ -82,10 +77,6 @@
     private string? zoneSlot3Input;
     private string? zoneSlot4Input;
     private string? zoneSlot5Input;
-    private ulong? notificationRoleId;
-
-    private string? RoleDisplay(ulong? roleId) =>
-        roleId is { } id && roles.FirstOrDefault(r => r.Id == id) is { } role ? $"@{role.Name}" : null;
     private string? instructionsInput;
     private string? weeklyDigestTimeInput;
     private string? dailyDigestTimeInput;
@@ -95,8 +86,8 @@
 
     protected override async Task OnSettingsLoadedAsync()
     {
-        // One fetch, three uses: the notification role (owned by the alliance, shown read-only
-        // here), the digest timezone, and the tag that prefixes any role this page creates.
+        // One fetch, two uses: the digest timezone and the tag that prefixes any role this page
+        // creates. The notification role card reads its own value now.
         var alliance = GuildAllianceId is { } roleAllianceId ? await AllianceService.FindByIdAsync(GuildId, roleAllianceId) : null;
         allianceTag = alliance?.StfcAlliance.Tag ?? "";
 
@@ -108,7 +99,6 @@
         zoneSlot3Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot3Role))?.ToString();
         zoneSlot4Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot4Role))?.ToString();
         zoneSlot5Input = (await GetSnowflakeAsync(TerritoryCaptureSettingKeys.ZoneSlot5Role))?.ToString();
-        notificationRoleId = alliance?.NotificationRoleId;
         instructionsInput = await GetTextAsync(TerritoryCaptureSettingKeys.Instructions);
 
         weeklyDigestTimeInput = await GetTextAsync(TerritoryCaptureSettingKeys.WeeklyDigestTime) ?? TerritoryCaptureSettingKeys.DefaultWeeklyTime;
