@@ -135,7 +135,7 @@
         isOpen = false;
 
         // Move the open page to the new guild too — switching used to refresh only the sidebar and
-        // leave the page itself on the previous guild's data. Same idea as AllianceSelector's
+        // leave the page itself on the previous guild's data. Same idea as the alliance-scoped
         // /alliance/{id} rewrite, but a page can be inapplicable to the new guild (an audience it
         // doesn't serve, an alliance it doesn't have), so GuildScopedUrl decides where to land.
         if (previousGuildId is not { } oldGuildId || oldGuildId == guildId)

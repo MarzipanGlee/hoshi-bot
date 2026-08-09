@@ -8,7 +8,7 @@ namespace HoshiBot.Web.Components.Pages.Manage.Guild.Alliance;
 // which linked alliance the page targets and canonicalize the URL to /alliance/{id}/{slug}.
 // Mirrors FeatureSettings.razor's alliance-resolution precedence (validated route id → top-bar
 // selection → primary link) so all alliance-scoped pages behave identically, and the top-bar
-// AllianceSelector's /alliance/{id}/... rewrite lands on a real page.
+// nav menu's /alliance/{id}/... links land on a real page.
 public abstract class AllianceAdminPageBase : GuildAdminPageBase
 {
     [Parameter] public int? GuildAllianceIdRaw { get; set; }
@@ -38,7 +38,7 @@ public abstract class AllianceAdminPageBase : GuildAdminPageBase
             return;
         }
 
-        // Canonicalize so the URL is deep-linkable and the AllianceSelector's rewrite works. The
+        // Canonicalize so the URL is deep-linkable and every per-alliance link resolves. The
         // Overview page's PageSlug is "", so it canonicalizes to the bare /alliance/{id} (no trailing
         // slash) rather than /alliance/{id}/.
         if (GuildAllianceIdRaw != id)

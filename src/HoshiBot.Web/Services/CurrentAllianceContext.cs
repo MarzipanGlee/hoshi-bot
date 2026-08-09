@@ -7,10 +7,13 @@ namespace HoshiBot.Web.Services;
 
 // Scoped per-circuit "which of the current guild's alliances am I configuring" state, the
 // alliance-level companion to CurrentGuildContext. Only meaningful once a guild is selected;
-// tracks that guild's linked alliances and the chosen one, so the top-bar AllianceSelector and
-// the sidebar's Alliance nav group know what to show, and the feature editors know which
-// alliance's settings to load. A guild with one alliance auto-selects it (the selector hides);
-// a coalition guild with several remembers the last pick per guild.
+// tracks that guild's linked alliances and the chosen one, so the sidebar's Alliance nav groups
+// know what to show, and the feature editors know which alliance's settings to load.
+//
+// The "chosen one" no longer has a picker of its own — the sidebar lists every alliance as its own
+// group, which is a better selector than a dropdown was. It survives as the fallback for the
+// alliance-less routes (/manage/guild/{id}/alliance/settings), remembered per guild so returning
+// to a coalition guild lands where you left off rather than always on the first alliance.
 public class CurrentAllianceContext(
     CurrentGuildContext guildContext,
     GuildAllianceService allianceService,

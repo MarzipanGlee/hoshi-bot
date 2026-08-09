@@ -179,7 +179,7 @@
         ResolveAudience();
 
         // Canonicalize the no-id alliance form (/alliance/features) to /alliance/{id}/features so
-        // the URL is deep-linkable and the AllianceSelector's /alliance/{id} rewrite works.
+        // the URL is deep-linkable and the nav menu's per-alliance links land on a real page.
         if (audience == GuildAudience.Alliance && GuildAllianceIdRaw is null && scopeAllianceId is { } id)
         {
             Nav.NavigateTo($"manage/guild/{GuildId}/alliance/{id}/features", replace: true);
