@@ -31,6 +31,11 @@
 @code {
     protected override GuildFeature Feature => GuildFeature.ClientRelease;
 
+    // Platform roles describe the member's device, not their alliance — one "Windows" role serves
+    // the whole guild, and a per-alliance "LF-Windows" would split the same people across five roles
+    // that all mean the same thing.
+    protected override bool TagCreatedRoles => false;
+
     private List<Role> roles = [];
     private string? windowsRoleInput;
     private string? macOsRoleInput;

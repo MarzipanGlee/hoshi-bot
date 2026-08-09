@@ -74,11 +74,18 @@ public abstract class FeatureEditorBase : ComponentBase
         await OnSettingsLoadedAsync();
     }
 
+    // Whether the roles this editor offers to create belong to the alliance. Override to false where
+    // a role describes the MEMBER rather than their alliance — Client Releases' platform roles are
+    // the case that prompted this: someone on Windows is on Windows whichever alliance they are in,
+    // so one "Windows" role for the guild is right and "LF-Windows" would fragment it per alliance.
+    protected virtual bool TagCreatedRoles => true;
+
     // The name a create-role option offers: "LF-Alerts" for an alliance scope, bare "Alerts" where
-    // there is no tag to prefix with. Keeps a coalition guild's per-alliance roles distinguishable in
-    // a role list that would otherwise hold five identically-named ones.
+    // there is no tag to prefix with or where the editor opted out above. Keeps a coalition guild's
+    // per-alliance roles distinguishable in a role list that would otherwise hold five
+    // identically-named ones.
     protected string TagPrefixed(string name) =>
-        string.IsNullOrWhiteSpace(AllianceTag) ? name : $"{AllianceTag}-{name}";
+        !TagCreatedRoles || string.IsNullOrWhiteSpace(AllianceTag) ? name : $"{AllianceTag}-{name}";
 
     // Hook for a subclass to populate its own local *Input string fields from Settings
     // after the base load completes — string-bound since <select>/ChannelPicker/RolePicker
