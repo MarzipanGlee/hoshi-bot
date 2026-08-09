@@ -13,6 +13,15 @@ public static partial class Msg
         public static string Heading(Language lang) =>
             MessageCatalog.Format(lang, "Web.Audit.Heading");
 
+        public static string ExpectationsLead(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.ExpectationsLead");
+
+        public static string ManageExpectations(Language lang, int count) =>
+            MessageCatalog.Format(lang, "Web.Audit.ManageExpectations", ("count", count));
+
+        public static string BackToPermissionCheck(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Audit.BackToPermissionCheck");
+
         public static string Lead(Language lang) =>
             MessageCatalog.Format(lang, "Web.Audit.Lead");
 

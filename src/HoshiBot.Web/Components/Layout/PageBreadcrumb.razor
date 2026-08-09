@@ -35,6 +35,7 @@
         ["audience"] = Msg.WebNav.Audience,
         ["alliances"] = Msg.WebCommon.Alliances,
         ["permission-check"] = Msg.WebNav.PermissionCheck,
+        ["expectations"] = Msg.WebAudit.ExpectedPermissionsTitle,
     };
 
     [CascadingParameter] public Language Lang { get; set; }
@@ -98,7 +99,18 @@
                         }
                         else if (CrudLabels.TryGetValue(segments[3], out var pageLabel))
                         {
-                            result.Add((pageLabel(Lang), null));
+                            // A guild page's own sub-page (permission-check/expectations) gets both
+                            // crumbs, with the parent linked — it used to render only the parent as
+                            // a leaf, so the sub-page looked like the page it sits under.
+                            if (segments.Length >= 5 && CrudLabels.TryGetValue(segments[4], out var subPageLabel))
+                            {
+                                result.Add((pageLabel(Lang), $"manage/guild/{guildId}/{segments[3]}"));
+                                result.Add((subPageLabel(Lang), null));
+                            }
+                            else
+                            {
+                                result.Add((pageLabel(Lang), null));
+                            }
                         }
                         else if (AudienceDisplay.TryParseSlug(segments[3], out var aud) && segments.Length >= 5)
                         {

@@ -39,6 +39,7 @@ The landing page after login, and the only route with no guild in it.
 - [x] **Features (guild-wide)** — `/manage/guild/{id}/features`
 - [ ] **Setup Wizard** — `/manage/guild/{id}/setup-wizard`
 - [ ] **Permission Check** — `/manage/guild/{id}/permission-check`
+- [ ] **Expected Permissions** — `/manage/guild/{id}/permission-check/expectations`
 
 ### Guild settings — `/manage/guild/{id}/settings`
 

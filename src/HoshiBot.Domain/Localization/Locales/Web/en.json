@@ -874,6 +874,9 @@
   "Web.Audit.LevelChannel": "channel",
   "Web.Audit.FixExpectationError": "Could not update the permission overwrite on Discord — does the bot have Manage Roles/Manage Channels permission in this server?",
 
+  "Web.Audit.BackToPermissionCheck": "Back to Permission Check",
+  "Web.Audit.ManageExpectations": "Expected permissions ({count} defined)",
+  "Web.Audit.ExpectationsLead": "Rules for what a channel's permissions should be for a given role. The audit on the Permission Check page compares each rule against what Discord actually has, and can fix a mismatch for you.",
   "Web.Audit.ExpectedPermissionsTitle": "Expected Permissions",
   "Web.Audit.AllowColumn": "Allow",
   "Web.Audit.DenyColumn": "Deny",

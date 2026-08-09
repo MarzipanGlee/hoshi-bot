@@ -32,10 +32,12 @@
                           OnReCheck="ReCheckBotAccessAsync"
                           OnFix="FixBotAccessAsync" />
 
-    <ExpectationEditor Context="context"
-                       Expectations="expectations"
-                       OnSave="SaveExpectationAsync"
-                       OnDelete="DeleteExpectationAsync" />
+    @* The rules themselves are written once and rarely revisited, and their add form carries a
+       radio grid of every Discord permission — on this page it pushed the audit below out of
+       sight. The audit stays here; the rules live one click away. *@
+    <p class="mt-4">
+        <a href="@($"manage/guild/{GuildId}/permission-check/expectations")">@Msg.WebAudit.ManageExpectations(Lang, expectations.Count)</a>
+    </p>
 
     <ExpectationAuditSection Context="context"
                              Results="auditResults"
@@ -140,15 +142,4 @@
         RunAudit();
     }
 
-    private async Task SaveExpectationAsync(ExpectationSaveRequest request)
-    {
-        await Audit.SaveExpectationAsync(ParsedGuildId, request);
-        await LoadAsync();
-    }
-
-    private async Task DeleteExpectationAsync(ChannelPermissionExpectation expectation)
-    {
-        await Audit.DeleteExpectationAsync(expectation);
-        await LoadAsync();
-    }
 }

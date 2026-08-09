@@ -874,6 +874,9 @@
   "Web.Audit.LevelChannel": "der Kanal",
   "Web.Audit.FixExpectationError": "Die Berechtigungsüberschreibung konnte auf Discord nicht aktualisiert werden — hat der Bot in diesem Server die Berechtigung \"Rollen verwalten\"/\"Kanäle verwalten\"?",
 
+  "Web.Audit.BackToPermissionCheck": "Zurück zur Rechteprüfung",
+  "Web.Audit.ManageExpectations": "Erwartete Rechte ({count} definiert)",
+  "Web.Audit.ExpectationsLead": "Regeln dafür, welche Kanalrechte eine Rolle haben soll. Die Prüfung auf der Rechte-Seite vergleicht jede Regel mit dem, was Discord tatsächlich gesetzt hat, und kann Abweichungen für Dich korrigieren.",
   "Web.Audit.ExpectedPermissionsTitle": "Erwartete Berechtigungen",
   "Web.Audit.AllowColumn": "Erlauben",
   "Web.Audit.DenyColumn": "Verbieten",

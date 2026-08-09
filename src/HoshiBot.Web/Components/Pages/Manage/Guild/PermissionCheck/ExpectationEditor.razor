@@ -1,4 +1,4 @@
-@* The "Expected Permissions" section of the Permission Check page: the saved expectations
+@* The "Expected Permissions" editor, on its own page off Permission Check: the saved expectations
    table plus the add/edit form with its Neutral/Allow/Deny radio grid. The form's transient
    state (which row is being edited, the radio selections) is purely UI and lives here; the
    actual save/delete goes back to the page via OnSave/OnDelete.
@@ -7,7 +7,10 @@
 @namespace HoshiBot.Web.Components.Pages.Manage.Guild
 @using NetCord
 
-<h2>@Msg.WebAudit.ExpectedPermissionsTitle(Lang)</h2>
+@if (ShowHeading)
+{
+    <h2>@Msg.WebAudit.ExpectedPermissionsTitle(Lang)</h2>
+}
 <table class="table">
     <thead><tr><th>@Msg.WebCommon.Channel(Lang)</th><th>@Msg.WebCommon.Role(Lang)</th><th>@Msg.WebAudit.AllowColumn(Lang)</th><th>@Msg.WebAudit.DenyColumn(Lang)</th><th></th></tr></thead>
     <tbody>
@@ -88,6 +91,9 @@
 
 @code {
     [CascadingParameter] public Language Lang { get; set; }
+
+    // Off where the host page's own h1 already names it.
+    [Parameter] public bool ShowHeading { get; set; } = true;
 
     private enum PermissionState { Neutral, Allow, Deny }
 

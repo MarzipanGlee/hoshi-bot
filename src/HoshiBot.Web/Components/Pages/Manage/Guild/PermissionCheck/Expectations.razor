@@ -1,0 +1,60 @@
+@page "/manage/guild/{GuildId}/permission-check/expectations"
+@namespace HoshiBot.Web.Components.Pages.Manage.Guild
+@inherits GuildAdminPageBase
+@inject PermissionAuditService Audit
+
+@* Its own page rather than a third section on Permission Check: the add form carries a radio grid
+   with every Discord permission in it, which pushed the audit below it out of sight. Permission
+   Check keeps the two things an admin looks at regularly — what the bot can reach, and what the
+   audit found — and links here for the rules themselves, which are written once and rarely
+   revisited. *@
+<PageTitle>@Msg.WebAudit.ExpectedPermissionsTitle(Lang)</PageTitle>
+
+<AuthorizedGuildView Authorized="Authorized">
+    <h1>@Msg.WebAudit.ExpectedPermissionsTitle(Lang)</h1>
+    <p>@Msg.WebAudit.ExpectationsLead(Lang)</p>
+
+    @if (discordDataError is not null)
+    {
+        <div class="alert alert-warning">@discordDataError</div>
+    }
+
+    <ExpectationEditor Context="context"
+                       Expectations="expectations"
+                       ShowHeading="false"
+                       OnSave="SaveExpectationAsync"
+                       OnDelete="DeleteExpectationAsync" />
+
+    <p class="mt-4">
+        <a href="@($"manage/guild/{GuildId}/permission-check")">@Msg.WebAudit.BackToPermissionCheck(Lang)</a>
+    </p>
+</AuthorizedGuildView>
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    private PermissionAuditContext context = PermissionAuditContext.Empty;
+    private List<ChannelPermissionExpectation> expectations = [];
+    private string? discordDataError;
+
+    protected override async Task OnAuthorizedParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        expectations = await Audit.GetExpectationsAsync(ParsedGuildId);
+        context = await Audit.LoadContextAsync(ParsedGuildId, context, Lang);
+        discordDataError = context.DiscordDataError;
+    }
+
+    private async Task SaveExpectationAsync(ExpectationSaveRequest request)
+    {
+        await Audit.SaveExpectationAsync(ParsedGuildId, request);
+        await LoadAsync();
+    }
+
+    private async Task DeleteExpectationAsync(ChannelPermissionExpectation expectation)
+    {
+        await Audit.DeleteExpectationAsync(expectation);
+        await LoadAsync();
+    }
+}
