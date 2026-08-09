@@ -139,11 +139,13 @@
     // The names the three bridges already carry in practice, so "create" produces what an admin
     // would have made by hand. Not tag-prefixed like the ROLES are: a channel lives inside the
     // alliance's own category, which supplies the scoping a role name has to carry itself.
-    private static string ChannelName(CommandBridgeKind bridge) => bridge switch
+    // In the alliance's language — see FeatureEditorBase.ScopeLanguage. A bridge is a channel every
+    // member of that alliance reads, so it is named the way they read.
+    private string ChannelName(CommandBridgeKind bridge) => bridge switch
     {
-        CommandBridgeKind.Staff => "command-bridge-staff",
-        CommandBridgeKind.Friends => "command-bridge-friends",
-        _ => "command-bridge",
+        CommandBridgeKind.Staff => Msg.ChannelName.CommandBridgeStaff(ScopeLanguage),
+        CommandBridgeKind.Friends => Msg.ChannelName.CommandBridgeFriends(ScopeLanguage),
+        _ => Msg.ChannelName.CommandBridge(ScopeLanguage),
     };
 
     private async Task OnChannelChangedAsync(CommandBridgeKind bridge, string? value)

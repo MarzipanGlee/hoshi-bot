@@ -13,6 +13,17 @@ public static partial class Msg
     // up. Umlauts survive — legacy's own channels use them.
     public static class ChannelName
     {
+        // The German names are legacy's own — the staff bridge was already "führungsstab", which is
+        // where the Senior Staff role's name came from.
+        public static string CommandBridge(Language lang) =>
+            MessageCatalog.Format(lang, "ChannelName.CommandBridge");
+
+        public static string CommandBridgeStaff(Language lang) =>
+            MessageCatalog.Format(lang, "ChannelName.CommandBridgeStaff");
+
+        public static string CommandBridgeFriends(Language lang) =>
+            MessageCatalog.Format(lang, "ChannelName.CommandBridgeFriends");
+
         public static string AbsenceReport(Language lang) =>
             MessageCatalog.Format(lang, "ChannelName.AbsenceReport");
 
