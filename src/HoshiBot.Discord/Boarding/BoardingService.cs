@@ -33,6 +33,7 @@ public class BoardingService(
     EmbedBranding embedBranding,
     GuildFeatureSettingsService settingsService,
     BoardingRoles boardingRoles,
+    MemberRoles memberRoles,
     ReadReceiptService readReceipts,
     LanguageResolver languageResolver,
     NotificationDispatcher dispatcher,
@@ -52,12 +53,16 @@ public class BoardingService(
     {
         var channelId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.Boarding, audience, guildAllianceId, BoardingSettingKeys.Channel);
         var message = await settingsService.GetTextAsync(guildId, GuildFeature.Boarding, audience, guildAllianceId, BoardingSettingKeys.Message);
-        var roles = await boardingRoles.ForScopeAsync(guildId, audience, guildAllianceId);
+        var memberRoleId = await memberRoles.ForScopeAsync(guildId, audience, guildAllianceId);
+        var boardingRoleId = await boardingRoles.ForScopeAsync(guildId, audience, guildAllianceId);
 
         // Refuse rather than post half a feature: a welcome message whose button cannot grant a role
         // is worse than no message, because a member presses it and nothing happens.
-        if (channelId is not { } boardingChannelId || string.IsNullOrWhiteSpace(message) || !roles.Complete)
+        if (channelId is not { } boardingChannelId || string.IsNullOrWhiteSpace(message)
+            || memberRoleId is null || boardingRoleId is null)
+        {
             return false;
+        }
 
         if (cooldown.IsCoolingDown(boardingChannelId, BotAction.RefreshBoardingMessage))
             return false;
@@ -150,8 +155,7 @@ public class BoardingService(
         if (await db.BoardingEntries.AnyAsync(e => e.GuildId == guildId && e.DiscordUserId == member.Id, cancellationToken))
             return false;
 
-        var roles = await boardingRoles.ForScopeAsync(guildId, scope.Audience, scope.GuildAllianceId);
-        if (roles.BoardingRoleId is not { } boardingRoleId)
+        if (await boardingRoles.ForScopeAsync(guildId, scope.Audience, scope.GuildAllianceId) is not { } boardingRoleId)
             return false;
 
         var post = await FindPostAsync(guildId, scope, cancellationToken);
@@ -160,7 +164,8 @@ public class BoardingService(
 
         // Already a member — nothing to board them into. Recording the entry anyway stops the job
         // reconsidering them on every pass.
-        if (roles.MemberRoleId is { } memberRoleId && member.RoleIds.Contains(memberRoleId))
+        var memberRoleId = await memberRoles.ForScopeAsync(guildId, scope.Audience, scope.GuildAllianceId);
+        if (memberRoleId is { } existingMemberRole && member.RoleIds.Contains(existingMemberRole))
         {
             db.BoardingEntries.Add(NewEntry(guildId, member.Id, post.Id, BoardingStatus.Confirmed, confirmed: true));
             await db.SaveChangesAsync(cancellationToken);
@@ -204,8 +209,7 @@ public class BoardingService(
     // roles, so a click that failed halfway last time finishes this time.
     public async Task<string?> OnConfirmedAsync(ReadablePost post, GuildUser member, Language lang)
     {
-        var roles = await boardingRoles.ForScopeAsync(post.GuildId, post.Audience, post.GuildAllianceId);
-        if (roles.MemberRoleId is not { } memberRoleId)
+        if (await memberRoles.ForScopeAsync(post.GuildId, post.Audience, post.GuildAllianceId) is not { } memberRoleId)
             return null;
 
         var entry = await db.BoardingEntries.FirstOrDefaultAsync(e => e.GuildId == post.GuildId && e.DiscordUserId == member.Id);
@@ -224,7 +228,8 @@ public class BoardingService(
             return Msg.Boarding.RoleFailed(lang);
         }
 
-        if (roles.BoardingRoleId is { } boardingRoleId && member.RoleIds.Contains(boardingRoleId))
+        if (await boardingRoles.ForScopeAsync(post.GuildId, post.Audience, post.GuildAllianceId) is { } boardingRoleId
+            && member.RoleIds.Contains(boardingRoleId))
             await TryRemoveRoleAsync(post.GuildId, member, boardingRoleId);
 
         if (entry is not null)

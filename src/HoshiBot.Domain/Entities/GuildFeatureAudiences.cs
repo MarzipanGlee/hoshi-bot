@@ -9,7 +9,10 @@ public static class GuildFeatureAudiences
     public static GuildAudience RelevantAudiences(GuildFeature feature) => feature switch
     {
         GuildFeature.Absences => GuildAudience.Alliance,
-        GuildFeature.MemberLore => GuildAudience.Alliance,
+        // Every audience: knowing who your members are is not an alliance-only wish, and the two
+        // things the interview needs — a member role to pick candidates from and somewhere to store
+        // what it learns — exist for a server, veil group or community just as well.
+        GuildFeature.MemberLore => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         // Guild-wide: player↔member assignment spans every alliance/server a guild's members belong
         // to, so it's a single guild-level toggle (Guild audience), not per-alliance.
         GuildFeature.PlayerLink => GuildAudience.Guild,

@@ -51,6 +51,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DiplomatRoles>();
         services.AddScoped<AlertRoles>();
         services.AddScoped<BoardingRoles>();
+        services.AddScoped<MemberRoles>();
         services.AddScoped<AiChatHealthService>();
         services.AddScoped<MemoryService>();
         services.AddScoped<PlayerLinkService>();

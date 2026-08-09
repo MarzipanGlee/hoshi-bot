@@ -43,7 +43,7 @@ public class MemberInterviewService(
     // Sends the opener DM and creates the interview. Returns true if the DM went through (counts
     // against the daily budget); false if the member's DMs are closed (recorded Undeliverable) or an
     // interview already exists.
-    public async Task<bool> InviteAsync(ulong guildId, int guildAllianceId, ulong userId, CancellationToken cancellationToken)
+    public async Task<bool> InviteAsync(ulong guildId, GuildAudience audience, int? guildAllianceId, ulong userId, CancellationToken cancellationToken)
     {
         if (await db.MemberInterviews.AnyAsync(i => i.GuildId == guildId && i.DiscordUserId == userId, cancellationToken))
             return false;
@@ -62,6 +62,7 @@ public class MemberInterviewService(
         var interview = new MemberInterview
         {
             GuildId = guildId,
+            Audience = audience,
             GuildAllianceId = guildAllianceId,
             DiscordUserId = userId,
             Status = messageId is null ? MemberInterviewStatus.Undeliverable : MemberInterviewStatus.Invited,
@@ -259,11 +260,11 @@ public class MemberInterviewService(
     // Grants the configured "interview completed" role (if any) when a member finishes their interview.
     private async Task AssignCompletedRoleAsync(MemberInterview interview)
     {
-        if (interview.GuildAllianceId is not { } guildAllianceId)
-            return;
-
+        // The interview's own scope, recorded when it was created. Reading the Alliance audience
+        // unconditionally worked while that was the only one Member Lore had; now a server or
+        // community interview would look in a scope that has no settings.
         var roleId = await settingsService.GetSnowflakeAsync(
-            interview.GuildId, GuildFeature.MemberLore, GuildAudience.Alliance, guildAllianceId, MemberLoreSettingKeys.CompletedRole);
+            interview.GuildId, GuildFeature.MemberLore, interview.Audience, interview.GuildAllianceId, MemberLoreSettingKeys.CompletedRole);
         if (roleId is not { } role)
             return;
 

@@ -14,6 +14,11 @@ public class MemberInterview
 
     // The linked alliance (GuildAlliance.Id) this interview was started for — used to resolve the
     // per-alliance MemberLore settings (e.g. the completed role) when the interview finishes.
+    // The scope that invited this member. GuildAllianceId alone was enough while Member Lore was
+    // an alliance-only feature; with every audience able to run it, a null alliance no longer means
+    // "no scope" — it means one of the three audiences that have no alliance.
+    public GuildAudience Audience { get; set; }
+
     public int? GuildAllianceId { get; set; }
 
     public ulong DiscordUserId { get; set; }

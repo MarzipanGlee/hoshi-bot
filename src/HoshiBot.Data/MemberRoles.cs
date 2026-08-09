@@ -3,14 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HoshiBot.Data;
 
-// The temporary role a member holds until they confirm the welcome message, per scope.
+// "You belong here", per scope — the role an alliance, server, veil group or community gives the
+// people who are actually theirs.
 //
-// Its companion — the member role they get in exchange — lives in MemberRoles, because Member Lore
-// reads that one too. This class kept both until it did.
-//
-// Same shape as SeniorStaffRoles/DiplomatRoles/AlertRoles: the Alliance audience reads
-// GuildAlliance, every other audience reads GuildAudienceSettings.
-public class BoardingRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
+// Its own class rather than a field on Boarding's, because two features read it for different
+// reasons: Boarding grants it when someone confirms the welcome message, and Member Lore uses it to
+// decide who is worth interviewing. Same shape as SeniorStaffRoles/DiplomatRoles/AlertRoles.
+public class MemberRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
 {
     public async Task<ulong?> ForScopeAsync(ulong guildId, GuildAudience audience, int? guildAllianceId)
     {
@@ -20,13 +19,13 @@ public class BoardingRoles(IDbContextFactory<HoshiBotDbContext> dbFactory)
         {
             return await db.GuildAlliances
                 .Where(a => a.GuildId == guildId && a.Id == allianceId)
-                .Select(a => a.BoardingRoleId)
+                .Select(a => a.MemberRoleId)
                 .FirstOrDefaultAsync();
         }
 
         return await db.GuildAudienceSettings
             .Where(a => a.GuildId == guildId && a.Audience == audience)
-            .Select(a => a.BoardingRoleId)
+            .Select(a => a.MemberRoleId)
             .FirstOrDefaultAsync();
     }
 }

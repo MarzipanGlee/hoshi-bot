@@ -23,6 +23,7 @@ public class MemberInterviewInviteJob(
     GatewayClient gatewayClient,
     GuildFeatureService featureService,
     GuildFeatureSettingsService settingsService,
+    MemberRoles memberRoles,
     AiChatModelResolver modelResolver,
     MemberInterviewService interviews,
     ILogger<MemberInterviewInviteJob> logger) : IJob
@@ -32,15 +33,22 @@ public class MemberInterviewInviteJob(
     private const int ActivityWindowDays = 90;
 
     public Task Execute(IJobExecutionContext context) =>
-        // recheckAudience null: MemberLore is per-alliance — the body gates on the guild's enabled
-        // alliance links (GetEnabledAllianceIdsAsync), not a single audience.
+        // recheckAudience null: MemberLore runs per SCOPE — the body walks every enabled
+        // (audience, alliance) pair rather than one audience or one alliance list.
         this.ForEachEnabledGuildAsync(featureService, GuildFeature.MemberLore, null, logger,
             guildId => ProcessGuildAsync(guildId, context.CancellationToken), context.CancellationToken);
 
     private async Task ProcessGuildAsync(ulong guildId, CancellationToken cancellationToken)
     {
-        var linkIds = await featureService.GetEnabledAllianceIdsAsync(guildId, GuildFeature.MemberLore);
-        if (linkIds.Count == 0)
+        // Every scope the feature is on for. It used to be the alliance links alone, which is all
+        // there was when Member Lore was an alliance-only feature.
+        var scopes = (await db.GuildEnabledFeatures
+            .Where(f => f.GuildId == guildId && f.Feature == GuildFeature.MemberLore)
+            .Select(f => new { f.Audience, f.GuildAllianceId })
+            .ToListAsync(cancellationToken))
+            .Select(f => (f.Audience, f.GuildAllianceId))
+            .ToList();
+        if (scopes.Count == 0)
             return;
 
         // The interview reuses the guild's AI-chat model — don't DM anyone into a dead conversation
@@ -53,29 +61,27 @@ public class MemberInterviewInviteJob(
         }
 
         var sentThisRun = 0;
-        foreach (var linkId in linkIds)
+        foreach (var (audience, linkId) in scopes)
         {
             if (sentThisRun >= MaxPerRun)
                 break;
 
-            var campaignActive = await settingsService.GetTextAsync(guildId, GuildFeature.MemberLore, GuildAudience.Alliance, linkId, MemberLoreSettingKeys.CampaignActive);
+            var campaignActive = await settingsService.GetTextAsync(guildId, GuildFeature.MemberLore, audience, linkId, MemberLoreSettingKeys.CampaignActive);
             if (!string.Equals(campaignActive, "true", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var link = await db.GuildAlliances.FirstOrDefaultAsync(ga => ga.Id == linkId, cancellationToken);
-            if (link is null)
-                continue;
-
-            var memberRole = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.MemberLore, GuildAudience.Alliance, linkId, MemberLoreSettingKeys.MemberRole)
-                ?? link.MemberRoleId;
+            // The feature's own override, else the scope's member role — which for an alliance is
+            // GuildAlliance.MemberRoleId and for the other audiences GuildAudienceSettings'.
+            var memberRole = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.MemberLore, audience, linkId, MemberLoreSettingKeys.MemberRole)
+                ?? await memberRoles.ForScopeAsync(guildId, audience, linkId);
             if (memberRole is not { } memberRoleId)
             {
-                logger.LogInformation("MemberLore campaign active for guild {GuildId} alliance {LinkId} but no member role set; skipping.", guildId, linkId);
+                logger.LogInformation("MemberLore campaign active for guild {GuildId} scope {Audience}/{LinkId} but no member role set; skipping.", guildId, audience, linkId);
                 continue;
             }
 
             var maxPerDay = int.TryParse(
-                await settingsService.GetTextAsync(guildId, GuildFeature.MemberLore, GuildAudience.Alliance, linkId, MemberLoreSettingKeys.MaxInterviewsPerDay),
+                await settingsService.GetTextAsync(guildId, GuildFeature.MemberLore, audience, linkId, MemberLoreSettingKeys.MaxInterviewsPerDay),
                 out var parsed) ? parsed : DefaultMaxPerDay;
 
             var dayAgo = DateTimeOffset.UtcNow.AddHours(-24);
@@ -106,7 +112,7 @@ public class MemberInterviewInviteJob(
             {
                 if (sentThisLink >= budget)
                     break;
-                if (await interviews.InviteAsync(guildId, linkId, userId, cancellationToken))
+                if (await interviews.InviteAsync(guildId, audience, linkId, userId, cancellationToken))
                 {
                     sentThisLink++;
                     sentThisRun++;
