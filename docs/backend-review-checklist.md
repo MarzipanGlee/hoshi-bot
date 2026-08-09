@@ -256,8 +256,7 @@ Once per audience the guild serves (Server, Community, Veil Group).
 `command-bridge` · Alliance
 
 - [ ] Enable switch, description and any "requires" badges
-- [ ] Channel
-- [ ] false
+- [ ] One card per bridge (User / Staff / Friends) — heading, subtitle, channel picker, Publish
 
 ### Conditional Roles
 
@@ -415,8 +414,7 @@ Once per audience the guild serves (Server, Community, Veil Group).
 - [ ] Enable switch, description and any "requires" badges
 - [ ] How it works
 - [ ] Foreign-Server Role
-- [ ] Server Roles
-- [ ] false
+- [ ] Server Roles — one row per linked server, each with its own role picker
 
 ### Services Role Sync
 
