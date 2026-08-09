@@ -64,6 +64,9 @@ public static partial class Msg
         public static string Channel(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.Channel");
 
+        public static string Defaults(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.Defaults");
+
         public static string Channels(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.Channels");
 

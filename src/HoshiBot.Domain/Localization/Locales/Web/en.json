@@ -566,6 +566,7 @@
   "Web.Common.Importing": "Importing...",
   "Web.Common.ImportFailed": "Import failed: {message}",
   "Web.Common.Channel": "Channel",
+  "Web.Common.Defaults": "Defaults",
   "Web.Common.Channels": "Channels",
   "Web.Common.Role": "Role",
   "Web.Common.Roles": "Roles",

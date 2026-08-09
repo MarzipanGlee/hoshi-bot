@@ -38,29 +38,36 @@
             </div>
         }
 
+        @* Its own group, above the rest: not one setting among the others but the default they
+           get created under. Never hidden — every audience creates channels, so every audience
+           needs somewhere to put them. Mirrors the Alliance audience's own Settings page. *@
+        <h2>@Msg.WebCommon.Defaults(Lang)</h2>
+        <div class="card-grid mt-1">
+            <ChannelPicker CardTitle="@Msg.WebAlliance.DefaultCategoryTitle(Lang)"
+                           Usage="@Msg.WebAlliance.DefaultCategoryUsage(Lang)"
+                           PlaceholderText="@Msg.WebAlliance.ServerRootPlaceholder(Lang)"
+                           CategorySelect="true" CreateChannelName="Hoshi Bot" Channels="categories"
+                           @bind-Value="categoryInput" @bind-Value:after="SaveCategoryAsync" />
+        </div>
+
+        @* Shown only while a feature enabled for THIS audience reads it — see SharedSettingUsage. *@
+        @if (showSeniorStaff)
+        {
+            <h2>@Msg.WebCommon.Roles(Lang)</h2>
+            <div class="card-grid mt-1">
+                <RolePicker CardTitle="@Msg.WebCommon.SeniorStaffRole(Lang)"
+                            Usage="@Msg.WebCommon.SeniorStaffRoleUsage(Lang)"
+                            CreateRoleName="Senior Staff" Roles="roles"
+                            @bind-Value="seniorStaffInput" @bind-Value:after="SaveSeniorStaffAsync" />
+            </div>
+        }
+
         <h2>@Msg.WebCommon.Regional(Lang)</h2>
         <div class="card-grid mt-1">
             <LanguagePicker CardTitle="@Msg.WebGuild.LanguageTitle(Lang)"
                             Usage="@Msg.WebGuild.AudienceLanguageUsage(Lang)"
                             InheritedLabel="@InheritedLanguageLabel"
                             @bind-Value="languageInput" @bind-Value:after="SaveLanguageAsync" />
-
-            @* Shown only while a feature enabled for THIS audience reads it — see SharedSettingUsage. *@
-            @if (showSeniorStaff)
-            {
-                <RolePicker CardTitle="@Msg.WebCommon.SeniorStaffRole(Lang)"
-                            Usage="@Msg.WebCommon.SeniorStaffRoleUsage(Lang)"
-                            CreateRoleName="Senior Staff" Roles="roles"
-                            @bind-Value="seniorStaffInput" @bind-Value:after="SaveSeniorStaffAsync" />
-            }
-
-            @* The same setting the Alliance audience has on its own page, and never hidden — every
-               audience creates channels, so every audience needs somewhere to put them. *@
-            <ChannelPicker CardTitle="@Msg.WebAlliance.DefaultCategoryTitle(Lang)"
-                           Usage="@Msg.WebAlliance.DefaultCategoryUsage(Lang)"
-                           PlaceholderText="@Msg.WebAlliance.ServerRootPlaceholder(Lang)"
-                           CategorySelect="true" CreateChannelName="Hoshi Bot" Channels="categories"
-                           @bind-Value="categoryInput" @bind-Value:after="SaveCategoryAsync" />
         </div>
     }
 </AuthorizedGuildView>
