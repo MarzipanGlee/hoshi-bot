@@ -17,51 +17,53 @@
             Usage="@Msg.WebEditor.Usage(Lang, Feature, ServerTagRolesSettingKeys.ForeignServerRole)"
             AllowNone="true" CreateRoleName="@ForeignRoleDefaultName"
             @bind-Value="foreignRoleInput" @bind-Value:after="SaveForeignRoleAsync" Roles="roles" />
-</div>
 
-@* Full width and outside the card grid: a coalition Discord can track a good number of servers, so
-   this is one table rather than the card-per-tier grid RoleTierEditor renders for the 5 ranks. *@
-<SettingsCard Title="@Msg.WebServerTagRoles.ServersCardTitle(Lang)">
-    <p class="form-text mt-0">@Msg.WebServerTagRoles.ServersUsage(Lang)</p>
+    @* Full width, but INSIDE the grid: a coalition Discord can track a good number of servers, so this
+       is one table rather than the card-per-tier grid RoleTierEditor renders for the 5 ranks. It sat
+       outside the grid before, which gave it no top margin at all — card-span-full gets the full width
+       and the grid's own 1rem gap, instead of a margin picked by hand to look about right. *@
+    <SettingsCard Title="@Msg.WebServerTagRoles.ServersCardTitle(Lang)" Class="card-span-full">
+        <p class="form-text mt-0">@Msg.WebServerTagRoles.ServersUsage(Lang)</p>
 
-    @if (saveError is not null)
-    {
-        <p class="text-danger">@saveError.Value.Text(Lang)</p>
-    }
+        @if (saveError is not null)
+        {
+            <p class="text-danger">@saveError.Value.Text(Lang)</p>
+        }
 
-    @if (servers.Count == 0)
-    {
-        <p class="form-text mb-0">@Msg.WebServerTagRoles.NoServers(Lang)</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>@Msg.WebServerTagRoles.ColServer(Lang)</th>
-                        <th>@Msg.WebServerTagRoles.ColRole(Lang)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in servers)
-                    {
-                        <tr @key="row.ServerId">
-                            <td class="text-nowrap">
-                                <strong>@row.DefaultName</strong>
-                                <span class="text-muted ms-1">@row.Label</span>
-                            </td>
-                            <td>
-                                <RolePicker ShowLabel="false" CreateRoleName="@row.DefaultName"
-                                        @bind-Value="row.RoleId" @bind-Value:after="() => SaveServerRoleAsync(row)" Roles="roles" />
-                            </td>
+        @if (servers.Count == 0)
+        {
+            <p class="form-text mb-0">@Msg.WebServerTagRoles.NoServers(Lang)</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>@Msg.WebServerTagRoles.ColServer(Lang)</th>
+                            <th>@Msg.WebServerTagRoles.ColRole(Lang)</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-</SettingsCard>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in servers)
+                        {
+                            <tr @key="row.ServerId">
+                                <td class="text-nowrap">
+                                    <strong>@row.DefaultName</strong>
+                                    <span class="text-muted ms-1">@row.Label</span>
+                                </td>
+                                <td>
+                                    <RolePicker ShowLabel="false" CreateRoleName="@row.DefaultName"
+                                            @bind-Value="row.RoleId" @bind-Value:after="() => SaveServerRoleAsync(row)" Roles="roles" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </SettingsCard>
+</div>
 
 <PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
 

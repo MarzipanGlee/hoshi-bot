@@ -36,7 +36,7 @@ The landing page after login, and the only route with no guild in it.
 - [x] **Overview** — `/manage/guild/{id}`
 - [x] **Audience** — `/manage/guild/{id}/audience`
 - [x] **Alliances** — `/manage/guild/{id}/alliances`
-- [ ] **Features (guild-wide)** — `/manage/guild/{id}/features`
+- [x] **Features (guild-wide)** — `/manage/guild/{id}/features`
 - [ ] **Setup Wizard** — `/manage/guild/{id}/setup-wizard`
 - [ ] **Permission Check** — `/manage/guild/{id}/permission-check`
 
@@ -371,9 +371,9 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 `rank-roles` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] No-Rank Role
-- [ ] Role tiers
+- [x] Enable switch, description and any "requires" badges
+- [x] No-Rank Role
+- [x] Role tiers
 
 ### Read Confirmation
 
@@ -411,10 +411,10 @@ Once per audience the guild serves (Server, Community, Veil Group).
 
 `server-tag-roles` · Guild
 
-- [ ] Enable switch, description and any "requires" badges
-- [ ] How it works
-- [ ] Foreign-Server Role
-- [ ] Server Roles — one row per linked server, each with its own role picker
+- [x] Enable switch, description and any "requires" badges
+- [x] How it works
+- [x] Foreign-Server Role
+- [x] Server Roles — one row per linked server, each with its own role picker
 
 ### Services Role Sync
 
