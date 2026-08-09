@@ -79,6 +79,8 @@
   "Web.Feature.RankRoles.Description": "Weist jedem Mitglied eine von fünf Discord-Rollen passend zu seinem aktuellen STFC-Allianzrang (Admiral/Commodore/Premier/Operative/Agent) zu, laufend synchronisiert aus importierten Spielerdaten — ein Rollensatz für die ganze Guild.",
   "Web.Feature.BotSupport.Title": "Bot-Hilfe",
   "Web.Feature.BotSupport.Description": "Ergänzt die Kommandobrücke um eine Hilfe-Schaltfläche, die Mitglieder auf den Kanal verweist, in dem sie Fragen zum Bot stellen können.",
+  "Web.Feature.Boarding.Description": "Eine Willkommensnachricht, die neue Mitglieder bestätigen, um hereinzukommen: Du schreibst den Text, sie drücken den Button, und der Bot tauscht ihre Boarding-Rolle gegen die Mitglieder-Rolle. Optional mit einer kurzen DM als Hinweis, die nach der Bestätigung gelöscht wird.",
+  "Web.Feature.Boarding.Title": "Boarding",
   "Web.Feature.ChannelGuide.Title": "Kanal-Wegweiser",
   "Web.Feature.ChannelGuide.Description": "Ergänzt die Kommandobrücke um eine Schaltfläche „Hilfe bei was anderem“, die eine von Dir verfasste Nachricht zeigt und Mitglieder auf die Kanäle verweist, in die ihre Frage gehört.",
   "Web.Editor.BotSupport.Intro": "Ist dies aktiviert, trägt die Kommandobrücke eine <strong>Hilfe</strong>-Schaltfläche. Ein Klick zeigt einen kurzen Hinweis mit dem unten gewählten Kanal, damit ein Mitglied mit einem Bot-Problem weiss, wo es das melden kann. Der Bot <em>erwähnt</em> den Kanal nur — er schreibt nie hinein und braucht dort deshalb keine Rechte.",

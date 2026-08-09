@@ -147,6 +147,11 @@ public static class GuildFeaturePermissions
             FeatureChannelSlot.Setting(RaidAlertsSettingKeys.ReportChannel, ChannelAccessProfile.PostAndPing),
         ],
         GuildFeature.ShieldReminders => [FeatureChannelSlot.Alert(GuildAlertChannelKind.Shield, ChannelAccessProfile.PostAndPing)],
+
+        // Post only: the standing message is an embed, so the channel and role mentions in it render
+        // without pinging, and the bot edits nothing but its own message. The permission that
+        // actually matters for this feature is ManageRoles, declared guild-wide below.
+        GuildFeature.Boarding => [FeatureChannelSlot.Setting(BoardingSettingKeys.Channel, ChannelAccessProfile.Post)],
         GuildFeature.ServerStatus => [FeatureChannelSlot.Alert(GuildAlertChannelKind.ServerStatus, ChannelAccessProfile.PostAndPing)],
         GuildFeature.InfiniteIncursions => [FeatureChannelSlot.Alert(GuildAlertChannelKind.InfiniteIncursions, ChannelAccessProfile.PostAndPing)],
         GuildFeature.AllianceTournament => [FeatureChannelSlot.Alert(GuildAlertChannelKind.AllianceTournament, ChannelAccessProfile.PostAndPing)],
@@ -190,7 +195,8 @@ public static class GuildFeaturePermissions
             or GuildFeature.TerritoryCapture
             or GuildFeature.ServicesRoleSync
             or GuildFeature.NotificationOptIn
-            or GuildFeature.MemberLore => BotPermission.ManageRoles,
+            or GuildFeature.MemberLore
+            or GuildFeature.Boarding => BotPermission.ManageRoles,
 
         // Renames members to match their linked player. The only feature that needs this, which is
         // why asking every guild for it at invite time was the clearest case of over-granting.

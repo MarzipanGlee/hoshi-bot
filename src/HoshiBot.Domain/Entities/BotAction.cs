@@ -57,4 +57,11 @@ public enum BotAction
 
     /// Keeping the standing "how to write an announcement" hub in the draft channel up to date.
     RefreshAnnouncementDraftHub,
+
+    /// Moving a member between the boarding and member roles. Almost always fails because a role was
+    /// dragged above the bot's own, which is invisible until someone clicks the button.
+    BoardMember,
+
+    /// Keeping the standing boarding message up to date.
+    RefreshBoardingMessage,
 }

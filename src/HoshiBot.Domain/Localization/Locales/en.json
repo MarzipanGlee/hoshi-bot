@@ -150,6 +150,8 @@
   "Announce.SeverityDescriptionHigh": "Warning (pings the warnings role)",
   "Announce.SeverityDescriptionDirect": "Bot announcement (no ping)",
   "Announce.DraftHubOutro": "Click one of those reactions and I'll post a preview here for you to check, which you can then correct or publish.",
+  "Notify.Action.BoardMember": "move a member between the boarding and member roles",
+  "Notify.Action.RefreshBoardingMessage": "refresh the boarding message",
   "Notify.Action.RefreshAnnouncementDraftHub": "refresh the announcement draft hub",
   "Announce.FieldRemarks": "Remarks",
   "Announce.RemarksReadReceipt": "Once you've read this, please click the ✅ read-receipt button.",

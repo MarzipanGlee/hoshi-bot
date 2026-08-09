@@ -34,4 +34,14 @@ public class GuildAudienceSettings
     // GuildAlliance.SeniorStaffRoleId. Announcements is the one feature that reaches a
     // Server/VeilGroup/Community audience and needs a staff role for its attribution line.
     public ulong? SeniorStaffRoleId { get; set; }
+
+    // This audience's "you belong here" role, and the temporary one a member holds until they
+    // confirm the boarding message. The Alliance audience keeps its own pair on GuildAlliance —
+    // these are for the audiences that have no alliance to hang them on.
+    //
+    // Boarding is the first feature to need a member role outside the Alliance audience, which is
+    // why they arrive together rather than one at a time.
+    public ulong? MemberRoleId { get; set; }
+
+    public ulong? BoardingRoleId { get; set; }
 }

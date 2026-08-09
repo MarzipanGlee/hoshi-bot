@@ -90,6 +90,7 @@ public static class GuildFeatureAudiences
         // while the community channel does not. Each post records the answer for ITS scope at the
         // moment it is made, so the matrix is only ever read once per post.
         GuildFeature.ReadReceipts => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
+        GuildFeature.Boarding => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup | GuildAudience.Community,
         _ => GuildAudience.None,
     };
 

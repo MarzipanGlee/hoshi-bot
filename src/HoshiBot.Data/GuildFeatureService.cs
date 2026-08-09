@@ -150,7 +150,18 @@ public class GuildFeatureService(IDbContextFactory<HoshiBotDbContext> dbFactory)
         if (enabled)
         {
             if (existing is null)
-                db.GuildEnabledFeatures.Add(new GuildEnabledFeature { GuildId = guildId, Feature = feature, Audience = audience, GuildAllianceId = guildAllianceId });
+            {
+                // EnabledAt is stamped here and only here — see the field's comment for why it does
+                // not live in a feature's settings.
+                db.GuildEnabledFeatures.Add(new GuildEnabledFeature
+                {
+                    GuildId = guildId,
+                    Feature = feature,
+                    Audience = audience,
+                    GuildAllianceId = guildAllianceId,
+                    EnabledAt = DateTimeOffset.UtcNow,
+                });
+            }
         }
         else if (existing is not null)
         {

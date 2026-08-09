@@ -82,6 +82,11 @@ public class HoshiBotDbContext(DbContextOptions<HoshiBotDbContext> options) : Db
 
     public DbSet<CommandBridgeRepublishRequest> CommandBridgeRepublishRequests => Set<CommandBridgeRepublishRequest>();
 
+    // Who the bot has boarded, and the Publish/Backfill jobs the Web admin queued for it.
+    public DbSet<BoardingEntry> BoardingEntries => Set<BoardingEntry>();
+
+    public DbSet<BoardingRequest> BoardingRequests => Set<BoardingRequest>();
+
     public DbSet<Alert> Alerts => Set<Alert>();
 
     public DbSet<AlertNotification> AlertNotifications => Set<AlertNotification>();

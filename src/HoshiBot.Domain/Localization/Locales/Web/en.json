@@ -79,6 +79,8 @@
   "Web.Feature.RankRoles.Description": "Assigns each member one of five Discord roles matching their current STFC in-alliance rank (Admiral/Commodore/Premier/Operative/Agent), kept in sync from imported player data — one set of roles for the whole guild.",
   "Web.Feature.BotSupport.Title": "Bot Support",
   "Web.Feature.BotSupport.Description": "Adds a Help button to the user Command Bridge that points members at the channel where they can ask about the bot itself.",
+  "Web.Feature.Boarding.Description": "A welcome message new members confirm to get in: you write the text, they press the button, and the bot swaps their boarding role for the member role. Optionally DMs them a short pointer at it, deleted once they confirm.",
+  "Web.Feature.Boarding.Title": "Boarding",
   "Web.Feature.ChannelGuide.Title": "Channel Guide",
   "Web.Feature.ChannelGuide.Description": "Adds a \"Help with something else\" button to the user Command Bridge showing a message you write, pointing members at the channels where their question belongs.",
   "Web.Editor.BotSupport.Intro": "With this on, the user Command Bridge carries a <strong>Help</strong> button. Clicking it shows a short note naming the channel below, so a member with a bot problem knows where to raise it. The bot only <em>mentions</em> that channel — it never posts there, so it needs no permissions on it.",

@@ -158,4 +158,15 @@ public enum GuildFeature
     // ReadablePost.ReadReceiptsEnabled), so changing the setting only ever affects new posts.
     // Keep last so existing enum ordinals/DB rows don't shift.
     ReadReceipts,
+
+    // The welcome message a new member confirms to get in: a standing post an admin writes, carrying
+    // the button that grants the member role and takes the boarding role away. Legacy had it and the
+    // port left the pieces behind — GuildAlliance.BoardingRoleId, AllianceBoardingChannelId and
+    // ReadablePostKind.WelcomeMessage all predate this feature and were waiting for it.
+    //
+    // Per audience: an alliance boards the members whose linked player is actually in it, while a
+    // server/veil-group/community Discord boards everyone who joins. A member is boarded once,
+    // by the narrowest scope that claims them.
+    // Keep last so existing enum ordinals/DB rows don't shift.
+    Boarding,
 }

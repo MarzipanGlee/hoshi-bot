@@ -254,6 +254,26 @@ public class NotificationDispatcher(
         }
     }
 
+    // Deletes a DM the bot sent earlier. Boarding's welcome DM is a pointer at the standing message,
+    // so once the member has confirmed it is just clutter in a channel they cannot clear themselves.
+    //
+    // The DM channel is re-resolved rather than stored: it is stable per user, and a cached id is one
+    // more thing that can be wrong. Every failure is swallowed — the member may have deleted the
+    // message, blocked the bot, or never received it. None of those are worth failing a confirmation
+    // over, and there is nothing an admin could do about any of them.
+    public async Task DeleteDirectMessageAsync(ulong userId, ulong messageId)
+    {
+        try
+        {
+            var dmChannel = await gatewayClient.Rest.GetDMChannelAsync(userId);
+            await gatewayClient.Rest.DeleteMessageAsync(dmChannel.Id, messageId);
+        }
+        catch (RestException ex)
+        {
+            logger.LogInformation("Could not delete DM {MessageId} to user {UserId}: {StatusCode}", messageId, userId, ex.StatusCode);
+        }
+    }
+
     // Throttles repeat admin notifications for the same (guild, action, channel) — called from
     // recurring Quartz jobs (every 5-15 min) as well as one-shot user actions (Tickets, RoE), so a
     // persistent misconfiguration would otherwise re-notify on every single run forever.

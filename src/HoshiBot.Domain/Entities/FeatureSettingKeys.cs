@@ -70,6 +70,29 @@ public static class RaidAlertsSettingKeys
     public const string ReportLastWeek = "ReportLastWeek";
 }
 
+// The boarding message a new member confirms to get in. Per scope, like the feature.
+public static class BoardingSettingKeys
+{
+    // Where the standing message lives.
+    public const string Channel = "Channel";
+
+    // The message itself: admin-authored markdown with channel and role mentions, normalised on
+    // save the way the Channel Guide's is.
+    public const string Message = "Message";
+
+    // The confirm button's caption. Unset -> Msg.Announce.ReadButtonPlain, i.e. legacy's own
+    // "Gelesen und verstanden".
+    public const string ButtonLabel = "ButtonLabel";
+
+    // A short DM pointing the new member at the standing message, deleted once they confirm.
+    // BLANK BY DEFAULT and blank means no DM at all — see CONTRIBUTING's member-messaging rule.
+    // The backfill never sends one regardless of this setting.
+    public const string WelcomeDm = "WelcomeDm";
+
+    // The posted standing message, so a change edits in place instead of posting a second one.
+    public const string MessageId = "MessageId";
+}
+
 public static class ClientReleaseSettingKeys
 {
     // One opt-in role per game-client platform, pinged only when THAT platform releases a new

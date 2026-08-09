@@ -150,6 +150,8 @@
   "Announce.SeverityDescriptionHigh": "Warnung (mit Ping der Warnungsrolle)",
   "Announce.SeverityDescriptionDirect": "Bot-Ankündigung (ohne Ping)",
   "Announce.DraftHubOutro": "Beim Klicken auf eine der genannten Reaktionen erstelle ich eine Vorschau der Ankündigung zur Kontrolle hier im Kanal, die Du danach korrigieren oder publizieren kannst.",
+  "Notify.Action.BoardMember": "ein Mitglied zwischen Boarding- und Mitglieder-Rolle verschieben",
+  "Notify.Action.RefreshBoardingMessage": "die Boarding-Nachricht aktualisieren",
   "Notify.Action.RefreshAnnouncementDraftHub": "die Ankündigungs-Entwurfsübersicht aktualisieren",
   "Announce.FieldRemarks": "Anmerkungen",
   "Announce.RemarksReadReceipt": "Wenn Du diese Mitteilung gelesen hast, klicke bitte auf die Schaltfläche ✅ Lesebestätigung.",

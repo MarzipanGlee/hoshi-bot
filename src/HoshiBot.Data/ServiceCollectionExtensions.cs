@@ -50,6 +50,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SeniorStaffRoles>();
         services.AddScoped<DiplomatRoles>();
         services.AddScoped<AlertRoles>();
+        services.AddScoped<BoardingRoles>();
         services.AddScoped<AiChatHealthService>();
         services.AddScoped<MemoryService>();
         services.AddScoped<PlayerLinkService>();

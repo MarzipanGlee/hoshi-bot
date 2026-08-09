@@ -36,6 +36,7 @@ public static class SharedSettingUsage
     [
         GuildFeature.MemberLore,            // who gets interview-invited
         GuildFeature.TerritoryCapture,      // zone-slot role sync gates on alliance membership
+        GuildFeature.Boarding,              // what confirming the welcome message grants
     ];
 
     public static readonly IReadOnlyList<GuildFeature> AlertRole =
@@ -54,9 +55,6 @@ public static class SharedSettingUsage
         GuildFeature.RoeViolationReports,   // pinged once a case is marked ready
     ];
 
-    // Empty on purpose, which hides it unconditionally: nothing in the bot reads it. It is ported
-    // config waiting for the feature that used it, and an empty list says so in the one place that
-    // decides whether a card appears. Deleting the column is the real fix and is deliberately not
-    // done here — that drops a guild's stored ids, which is the admin's call.
-    public static readonly IReadOnlyList<GuildFeature> BoardingRole = [];
+    // No longer empty: this is the feature that was "waiting for the feature that used it".
+    public static readonly IReadOnlyList<GuildFeature> BoardingRole = [GuildFeature.Boarding];
 }
