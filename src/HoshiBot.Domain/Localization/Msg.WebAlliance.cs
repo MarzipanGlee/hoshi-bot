@@ -55,8 +55,6 @@ public static partial class Msg
         public static string UserNotificationsUsage(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.UserNotificationsUsage");
 
-
-
         public static string SeniorStaffJobsTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.SeniorStaffJobsTitle");
 
@@ -74,9 +72,6 @@ public static partial class Msg
 
         public static string MemberRoleUsage(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.MemberRoleUsage");
-
-        public static string DiplomatRoleTitle(Language lang) =>
-            MessageCatalog.Format(lang, "Web.Alliance.DiplomatRoleTitle");
 
         public static string NotificationRoleTitle(Language lang) =>
             MessageCatalog.Format(lang, "Web.Alliance.NotificationRoleTitle");

@@ -37,11 +37,18 @@ public static class SharedSettingUsage
         GuildFeature.TerritoryCapture,      // zone-slot role sync gates on alliance membership
     ];
 
-    // Empty on purpose, which hides them unconditionally: nothing in the bot reads either one. They
-    // are ported config waiting for the features that used them, and an empty list says so in the
-    // one place that decides whether a card appears. Deleting the columns is the real fix and is
-    // deliberately not done here — that drops a guild's stored ids, which is the admin's call.
-    public static readonly IReadOnlyList<GuildFeature> DiplomatRole = [];
+    // Diplomacy is listed even though it is settings-only today and reads nothing: its editor shows
+    // the read-only Diplomat card, and that card links here. A feature whose editor shows a shared
+    // card must appear in that card's list, or the link lands on a page where the picker is hidden.
+    public static readonly IReadOnlyList<GuildFeature> DiplomatRole =
+    [
+        GuildFeature.Diplomacy,
+        GuildFeature.RoeViolationReports,   // pinged once a case is marked ready
+    ];
 
+    // Empty on purpose, which hides it unconditionally: nothing in the bot reads it. It is ported
+    // config waiting for the feature that used it, and an empty list says so in the one place that
+    // decides whether a card appears. Deleting the column is the real fix and is deliberately not
+    // done here — that drops a guild's stored ids, which is the admin's call.
     public static readonly IReadOnlyList<GuildFeature> BoardingRole = [];
 }

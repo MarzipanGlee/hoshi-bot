@@ -84,7 +84,6 @@ public static class ClientReleaseSettingKeys
 public static class DiplomacySettingKeys
 {
     public const string Channel = "Channel";
-    public const string DiplomatRole = "DiplomatRole";
 }
 
 public static class TerritoryCaptureSettingKeys

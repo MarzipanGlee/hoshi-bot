@@ -242,8 +242,6 @@
 
   "Web.Editor.Diplomacy.Channel.CardTitle": "Diplomacy",
   "Web.Editor.Diplomacy.Channel.Usage": "Where diplomacy status changes (/set-diplomacy) are announced.",
-  "Web.Editor.Diplomacy.DiplomatRole.CardTitle": "Diplomat",
-  "Web.Editor.Diplomacy.DiplomatRole.Usage": "Role for members who can run /set-diplomacy for this guild's alliance.",
 
   "Web.Editor.HoshiSay.AllowedRole.CardTitle": "Allowed role",
   "Web.Editor.HoshiSay.AllowedRole.Usage": "Members with this role may run /hoshi-say. The command posts into whatever channel it's used in, so an admin just stands in the target channel and runs it — role membership is the permission gate.",
@@ -449,8 +447,6 @@
 
   "Web.Editor.RoeViolationReports.Channel.CardTitle": "RoE Violations",
   "Web.Editor.RoeViolationReports.Channel.Usage": "Where /report-roe-violation reports are posted — must be a Forum channel.",
-  "Web.Editor.RoeViolationReports.DiplomatRole.CardTitle": "Diplomat",
-  "Web.Editor.RoeViolationReports.DiplomatRole.Usage": "Per-alliance role pinged in the report thread once the reporter marks a case ready. This is the same Diplomat role as the Diplomacy feature.",
 
   "Web.Editor.ServerStatus.Intro": "Announces when a tracked STFC server (see this guild's Scope) goes up/down or in/out of maintenance. Currently fed by a one-time seed, not a live sync — see StfcServerStatus for why.",
 
@@ -566,6 +562,8 @@
   "Web.Common.Importing": "Importing...",
   "Web.Common.ImportFailed": "Import failed: {message}",
   "Web.Common.Channel": "Channel",
+  "Web.Common.DiplomatRole": "Diplomat Role",
+  "Web.Common.DiplomatRoleUsage": "This alliance's diplomats — pinged in a RoE report thread once the reporter marks a case ready. The Diplomacy feature will use the same role once it is built. Each alliance names its own.",
   "Web.Common.Defaults": "Defaults",
   "Web.Common.Channels": "Channels",
   "Web.Common.Role": "Role",
@@ -745,7 +743,6 @@
   "Web.Alliance.ServerRootPlaceholder": "— server root —",
   "Web.Alliance.MemberRoleTitle": "Member",
   "Web.Alliance.MemberRoleUsage": "This alliance's general membership role.",
-  "Web.Alliance.DiplomatRoleTitle": "Diplomat",
   "Web.Alliance.NotificationRoleTitle": "Notification Role",
   "Web.Alliance.NotificationRoleUsage": "The role members opt into to be pinged for alliance activity — the Territory Capture weekly digest, Elevated announcements and the absence notices. Kept absence-clean automatically: a member with an active absence that suppresses notifications is removed until it ends.",
   "Web.Alliance.BoardingRoleTitle": "Boarding",

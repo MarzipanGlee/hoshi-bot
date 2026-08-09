@@ -36,7 +36,7 @@
             <ChannelPicker CardTitle="@Msg.WebAlliance.SeniorStaffJobsTitle(Lang)" Usage="@Msg.WebAlliance.NotImplementedYet(Lang)" @bind-Value="seniorStaffJobsChannelIdInput" @bind-Value:after="() => SaveAsync(a => a.SeniorStaffJobsChannelId = ParseId(seniorStaffJobsChannelIdInput))" Channels="channels" />
         </div>
 
-        @if (showMemberRole || showSeniorStaffRole || showNotificationRole)
+        @if (showMemberRole || showDiplomatRole || showSeniorStaffRole || showNotificationRole)
         {
             <h2>@Msg.WebCommon.Roles(Lang)</h2>
             @if (createError is not null)
@@ -48,6 +48,10 @@
                 @if (showMemberRole)
                 {
                     <RolePicker CardTitle="@Msg.WebAlliance.MemberRoleTitle(Lang)" Usage="@Msg.WebAlliance.MemberRoleUsage(Lang)" CreateRoleName="@memberRoleName" @bind-Value="memberRoleIdInput" @bind-Value:after="SaveMemberRoleAsync" Roles="roles" />
+                }
+                @if (showDiplomatRole)
+                {
+                    <RolePicker CardTitle="@Msg.WebCommon.DiplomatRole(Lang)" Usage="@Msg.WebCommon.DiplomatRoleUsage(Lang)" CreateRoleName="@diplomatRoleName" @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
                 }
                 @if (showSeniorStaffRole)
                 {
@@ -84,6 +88,7 @@
     private string allianceTag = "";
     private string memberRoleName = "Member";
     private string notificationRoleName = "Notifications";
+    private string diplomatRoleName = "Diplomat";
     private string seniorStaffRoleName = "Senior Staff";
     private List<IGuildChannel> channels = [];
     private List<CategoryGuildChannel> categories = [];
@@ -99,6 +104,7 @@
     private string? defaultChannelCategoryIdInput;
     private string? memberRoleIdInput;
     private string? notificationRoleIdInput;
+    private string? diplomatRoleIdInput;
     private string? seniorStaffRoleIdInput;
     private string? timeZoneIdInput;
     private string? languageInput;
@@ -107,6 +113,7 @@
     // A shared role's card is shown only while some feature enabled for THIS alliance reads it —
     // see SharedSettingUsage for the mapping and why hiding is by usage rather than by value.
     private bool showMemberRole;
+    private bool showDiplomatRole;
     private bool showSeniorStaffRole;
     private bool showNotificationRole;
 
@@ -135,6 +142,7 @@
         allianceTag = alliance.StfcAlliance.Tag;
         memberRoleName = $"{allianceTag}-Member";
         notificationRoleName = $"{allianceTag}-Notifications";
+        diplomatRoleName = $"{allianceTag}-Diplomat";
         seniorStaffRoleName = $"{allianceTag}-Senior-Staff";
 
         channels = await DiscordData.GetChannelsAsync(ParsedGuildId);
@@ -150,12 +158,14 @@
         defaultChannelCategoryIdInput = alliance.DefaultChannelCategoryId?.ToString();
         memberRoleIdInput = alliance.MemberRoleId?.ToString();
         notificationRoleIdInput = alliance.NotificationRoleId?.ToString();
+        diplomatRoleIdInput = alliance.DiplomatRoleId?.ToString();
         seniorStaffRoleIdInput = alliance.SeniorStaffRoleId?.ToString();
         timeZoneIdInput = alliance.TimeZoneId ?? GuildAlliance.DefaultTimeZoneId;
         languageInput = alliance.Language;
         guildLanguageName = Languages.NativeName(await LanguageResolver.ForGuildAsync(ParsedGuildId));
 
         showMemberRole = await AnyEnabledAsync(SharedSettingUsage.MemberRole, guildAllianceId);
+        showDiplomatRole = await AnyEnabledAsync(SharedSettingUsage.DiplomatRole, guildAllianceId);
         showSeniorStaffRole = await AnyEnabledAsync(SharedSettingUsage.SeniorStaffRole, guildAllianceId);
         showNotificationRole = await AnyEnabledAsync(SharedSettingUsage.NotificationRole, guildAllianceId);
     }
@@ -208,6 +218,8 @@
     }
 
     private Task SaveMemberRoleAsync() => SaveRoleAsync((a, id) => a.MemberRoleId = id, memberRoleIdInput, v => memberRoleIdInput = v, memberRoleName);
+    private Task SaveDiplomatRoleAsync() => SaveRoleAsync((a, id) => a.DiplomatRoleId = id, diplomatRoleIdInput, v => diplomatRoleIdInput = v, diplomatRoleName);
+
     private Task SaveSeniorStaffRoleAsync() => SaveRoleAsync((a, id) => a.SeniorStaffRoleId = id, seniorStaffRoleIdInput, v => seniorStaffRoleIdInput = v, seniorStaffRoleName);
     private Task SaveNotificationRoleAsync() => SaveRoleAsync((a, id) => a.NotificationRoleId = id, notificationRoleIdInput, v => notificationRoleIdInput = v, notificationRoleName);
 

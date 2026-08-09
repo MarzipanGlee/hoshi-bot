@@ -242,8 +242,6 @@
 
   "Web.Editor.Diplomacy.Channel.CardTitle": "Diplomatie",
   "Web.Editor.Diplomacy.Channel.Usage": "Wo Änderungen des Diplomatie-Status (/set-diplomacy) verkündet werden.",
-  "Web.Editor.Diplomacy.DiplomatRole.CardTitle": "Diplomat",
-  "Web.Editor.Diplomacy.DiplomatRole.Usage": "Rolle für Mitglieder, die /set-diplomacy für die Allianz dieser Guild ausführen dürfen.",
 
   "Web.Editor.HoshiSay.AllowedRole.CardTitle": "Erlaubte Rolle",
   "Web.Editor.HoshiSay.AllowedRole.Usage": "Mitglieder mit dieser Rolle dürfen /hoshi-say ausführen. Der Befehl postet in den Kanal, in dem er genutzt wird — ein Admin stellt sich also einfach in den Zielkanal und führt ihn dort aus; die Rollenmitgliedschaft ist die Berechtigungsschranke.",
@@ -449,8 +447,6 @@
 
   "Web.Editor.RoeViolationReports.Channel.CardTitle": "RoE-Verstöße",
   "Web.Editor.RoeViolationReports.Channel.Usage": "Wo /report-roe-violation-Meldungen gepostet werden — muss ein Forum-Kanal sein.",
-  "Web.Editor.RoeViolationReports.DiplomatRole.CardTitle": "Diplomat",
-  "Web.Editor.RoeViolationReports.DiplomatRole.Usage": "Rolle pro Allianz, die im Meldungs-Thread gepingt wird, sobald der Melder einen Fall als bereit markiert. Dies ist dieselbe Diplomat-Rolle wie beim Diplomacy-Feature.",
 
   "Web.Editor.ServerStatus.Intro": "Kündigt an, wenn ein verfolgter STFC-Server (siehe Verknüpfungen dieser Guild) hoch-/runterfährt oder in den/aus dem Wartungsmodus geht. Aktuell aus einer einmaligen Voreingabe gespeist, kein Live-Sync — warum, steht in StfcServerStatus.",
 
@@ -566,6 +562,8 @@
   "Web.Common.Importing": "Importiere...",
   "Web.Common.ImportFailed": "Import fehlgeschlagen: {message}",
   "Web.Common.Channel": "Kanal",
+  "Web.Common.DiplomatRole": "Diplomaten-Rolle",
+  "Web.Common.DiplomatRoleUsage": "Die Diplomaten dieser Allianz — werden im RoE-Meldungs-Thread erwähnt, sobald der Melder einen Fall als bereit markiert. Die Diplomatie-Funktion wird dieselbe Rolle verwenden, sobald sie gebaut ist. Jede Allianz benennt ihre eigenen.",
   "Web.Common.Defaults": "Standardwerte",
   "Web.Common.Channels": "Kanäle",
   "Web.Common.Role": "Rolle",
@@ -745,7 +743,6 @@
   "Web.Alliance.ServerRootPlaceholder": "— Serverstamm —",
   "Web.Alliance.MemberRoleTitle": "Mitglied",
   "Web.Alliance.MemberRoleUsage": "Die allgemeine Mitgliedsrolle dieser Allianz.",
-  "Web.Alliance.DiplomatRoleTitle": "Diplomat",
   "Web.Alliance.NotificationRoleTitle": "Benachrichtigungsrolle",
   "Web.Alliance.NotificationRoleUsage": "Die Rolle, in die sich Mitglieder eintragen, um bei Allianz-Aktivitäten gepingt zu werden — der wöchentliche Gebietsübernahme-Digest, erhöhte Ankündigungen und die Abwesenheitsmeldungen. Wird automatisch abwesenheitsbereinigt: Wer eine aktive Abwesenheit mit unterdrückten Benachrichtigungen hat, wird bis zu deren Ende entfernt.",
   "Web.Alliance.BoardingRoleTitle": "Boarding",

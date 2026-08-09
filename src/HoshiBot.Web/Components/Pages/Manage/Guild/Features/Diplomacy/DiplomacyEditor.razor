@@ -5,52 +5,30 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
-@if (createRoleError is not null)
-{
-    <p class="text-danger">@createRoleError.Value.Text(Lang)</p>
-}
-
 <div class="card-grid mt-1">
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.Channel)"
             @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="@DiplomatRoleName"
-            @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+    <DiplomatRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
 
 <PoweredBy For="@(new[] { typeof(StfcAlliance) })" />
 
 @code {
-
-    // Tag-prefixed like every other role this bot creates for an alliance.
-    private string DiplomatRoleName => TagPrefixed("Diplomat");
     protected override GuildFeature Feature => GuildFeature.Diplomacy;
 
     private List<IGuildChannel> channels = [];
     private List<Role> roles = [];
     private string? channelIdInput;
-    private string? diplomatRoleIdInput;
-    private DiscordCreateErrorKind? createRoleError;
 
     protected override async Task OnSettingsLoadedAsync()
     {
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
         channelIdInput = (await GetSnowflakeAsync(DiplomacySettingKeys.Channel))?.ToString();
-        diplomatRoleIdInput = (await GetSnowflakeAsync(DiplomacySettingKeys.DiplomatRole))?.ToString();
     }
 
     private Task SaveChannelAsync() =>
         SetSnowflakeAsync(DiplomacySettingKeys.Channel, ParseId(channelIdInput));
 
-    private async Task SaveDiplomatRoleAsync()
-    {
-        createRoleError = null;
-        (var roleId, diplomatRoleIdInput, createRoleError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, diplomatRoleIdInput, "Diplomat");
-        if (createRoleError is not null)
-            return;
-
-        roles = await DiscordData.GetRolesAsync(GuildId);
-        await SetSnowflakeAsync(DiplomacySettingKeys.DiplomatRole, roleId);
-    }
 }

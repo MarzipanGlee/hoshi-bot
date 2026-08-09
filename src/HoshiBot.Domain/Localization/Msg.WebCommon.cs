@@ -64,6 +64,12 @@ public static partial class Msg
         public static string Channel(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.Channel");
 
+        public static string DiplomatRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.DiplomatRole");
+
+        public static string DiplomatRoleUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.DiplomatRoleUsage");
+
         public static string Defaults(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.Defaults");
 

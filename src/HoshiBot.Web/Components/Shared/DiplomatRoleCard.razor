@@ -1,0 +1,41 @@
+@using NetCord
+@inject DiplomatRoles DiplomatRoles
+@inject DiscordGuildDataService DiscordData
+
+@* The alliance's Diplomat role, shown by both features it belongs to: the RoE report thread's ping
+   once a case is marked ready, and Diplomacy — which is settings-only today and will use it once
+   built.
+
+   Read-only, and owned by the alliance. It used to be the Diplomacy feature's own setting that RoE
+   Violation Reports reached across to read and write — so the same role had two editors, and the
+   RoE page's help text had to explain in prose that it was the same one. *@
+<OwnedElsewhereCard Title="@Msg.WebCommon.DiplomatRole(Lang)"
+                    Label="@Msg.WebCommon.DiplomatRoleUsage(Lang)" Lang="Lang"
+                    Value="@display"
+                    Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
+                    LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
+                    LinkHref="@OwnerHref" />
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
+
+    private string? display;
+
+    private string OwnerHref => $"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (await DiplomatRoles.ForScopeAsync(GuildId, Audience, GuildAllianceId) is not { } roleId)
+        {
+            display = null;
+            return;
+        }
+
+        var roles = await DiscordData.GetRolesAsync(GuildId);
+        display = roles.FirstOrDefault(r => r.Id == roleId) is { } role ? $"@{role.Name}" : null;
+    }
+}

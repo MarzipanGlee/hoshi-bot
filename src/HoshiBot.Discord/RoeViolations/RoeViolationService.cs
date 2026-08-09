@@ -25,6 +25,7 @@ public class RoeViolationService(
     EmbedBranding embedBranding,
     GuildFeatureSettingsService settingsService,
     SeniorStaffRoles seniorStaffRoles,
+    DiplomatRoles diplomatRoles,
     GuildAllianceService allianceService,
     PlayerLinkService playerLinkService,
     LanguageResolver languageResolver)
@@ -112,10 +113,9 @@ public class RoeViolationService(
 
         // Mentioned inline in the instructions so the reporter knows who picks the case up; the
         // same per-alliance Diplomat role that SetReadyForDiplomatAsync pings later.
-        var diplomatRoleId = guildAllianceId is null
-            ? null
-            : await settingsService.GetSnowflakeAsync(
-                guildId, GuildFeature.Diplomacy, GuildAudience.Alliance, guildAllianceId, DiplomacySettingKeys.DiplomatRole);
+        var diplomatRoleId = guildAllianceId is { } diplomatAllianceId
+            ? await diplomatRoles.ForAllianceAsync(guildId, diplomatAllianceId)
+            : null;
         var diplomatMention = diplomatRoleId is { } diplomatId ? $"<@&{diplomatId}>" : Msg.Roe.DiplomatFallback(lang);
 
         var report = new RoeViolationReport
@@ -209,10 +209,9 @@ public class RoeViolationService(
         // The diplomat pinged is the one for the report's own alliance (fallback to primary for
         // legacy reports created before per-alliance scoping).
         var diplomacyAllianceId = report.GuildAllianceId ?? await allianceService.GetPrimaryIdAsync(report.GuildId);
-        var diplomatRoleId = diplomacyAllianceId is null
-            ? null
-            : await settingsService.GetSnowflakeAsync(
-                report.GuildId, GuildFeature.Diplomacy, GuildAudience.Alliance, diplomacyAllianceId, DiplomacySettingKeys.DiplomatRole);
+        var diplomatRoleId = diplomacyAllianceId is { } readyAllianceId
+            ? await diplomatRoles.ForAllianceAsync(report.GuildId, readyAllianceId)
+            : null;
         var mention = diplomatRoleId is { } roleId ? $"<@&{roleId}>" : null;
 
         var reporterLang = await languageResolver.ForUserAsync(report.ReportedByDiscordUserId, scopeGuildId: report.GuildId);

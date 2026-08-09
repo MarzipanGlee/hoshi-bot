@@ -14,8 +14,7 @@
     <ChannelPicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, RoeViolationReportsSettingKeys.Channel)" Usage="@Msg.WebEditor.Usage(Lang, Feature, RoeViolationReportsSettingKeys.Channel)" Kind="ChannelKind.Forum"
             CreateChannelName="roe-verstösse" @bind-Value="channelIdInput" @bind-Value:after="SaveChannelAsync" Channels="channels" />
 
-    <RolePicker CardTitle="@Msg.WebEditor.CardTitle(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" Usage="@Msg.WebEditor.Usage(Lang, Feature, DiplomacySettingKeys.DiplomatRole)" CreateRoleName="@DiplomatRoleName"
-            @bind-Value="diplomatRoleIdInput" @bind-Value:after="SaveDiplomatRoleAsync" Roles="roles" />
+    <DiplomatRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 
     <SeniorStaffRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
@@ -23,18 +22,10 @@
 <PoweredBy For="@(new[] { typeof(StfcPlayer) })" />
 
 @code {
-
-    // Tag-prefixed like every other role this bot creates for an alliance.
-    private string DiplomatRoleName => TagPrefixed("Diplomat");
     protected override GuildFeature Feature => GuildFeature.RoeViolationReports;
-
-    // The diplomat role is the Diplomacy feature's per-alliance DiplomatRole (both features are
-    // Alliance-scoped) — RoE reuses that same role rather than defining its own, so it's read/
-    // written under GuildFeature.Diplomacy here while everything else stays under RoE's own key.
     private List<IGuildChannel> channels = [];
     private List<Role> roles = [];
     private string? channelIdInput;
-    private string? diplomatRoleIdInput;
     private DiscordCreateErrorKind? createError;
 
     protected override async Task OnSettingsLoadedAsync()
@@ -42,7 +33,6 @@
         channels = await DiscordData.GetChannelsAsync(GuildId);
         roles = await DiscordData.GetRolesAsync(GuildId);
         channelIdInput = (await GetSnowflakeAsync(RoeViolationReportsSettingKeys.Channel))?.ToString();
-        diplomatRoleIdInput = (await GetSnowflakeAsync(GuildFeature.Diplomacy, DiplomacySettingKeys.DiplomatRole))?.ToString();
     }
 
     private async Task SaveChannelAsync()
@@ -56,14 +46,4 @@
         await SetSnowflakeAsync(RoeViolationReportsSettingKeys.Channel, channelId);
     }
 
-    private async Task SaveDiplomatRoleAsync()
-    {
-        createError = null;
-        (var roleId, diplomatRoleIdInput, createError) = await DiscordData.EnsureRoleOrErrorAsync(GuildId, diplomatRoleIdInput, "Diplomat");
-        if (createError is not null)
-            return;
-
-        roles = await DiscordData.GetRolesAsync(GuildId);
-        await SetSnowflakeAsync(GuildFeature.Diplomacy, DiplomacySettingKeys.DiplomatRole, roleId);
-    }
 }
