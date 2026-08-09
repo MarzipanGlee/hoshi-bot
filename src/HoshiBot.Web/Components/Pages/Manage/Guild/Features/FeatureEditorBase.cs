@@ -40,6 +40,9 @@ public abstract class FeatureEditorBase : ComponentBase
     [Inject]
     protected GuildFeatureSettingsService SettingsService { get; set; } = null!;
 
+    [Inject]
+    protected LanguageResolver LanguageResolver { get; set; } = null!;
+
     protected abstract GuildFeature Feature { get; }
 
     // The concrete audience this editor acts on: the explicit parameter for multi-audience
@@ -54,6 +57,12 @@ public abstract class FeatureEditorBase : ComponentBase
     // several editors were offering to create a bare "Alerts"/"Diplomat"/"Commodore" purely because
     // the prefix was per-page work they had not done. See TagPrefixed.
     protected string AllianceTag { get; private set; } = "";
+
+    // The language of the SCOPE this editor configures — not the admin's UI language. Anything the
+    // editor creates that the guild will live with (a channel name, say) is read by members, so it
+    // follows the scope the way a public post does: an English alliance was being offered a channel
+    // called "abwesenheiten" because the default was a German literal in the editor.
+    protected Language ScopeLanguage { get; private set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -70,6 +79,10 @@ public abstract class FeatureEditorBase : ComponentBase
                 .Select(a => a.StfcAlliance.Tag)
                 .FirstOrDefaultAsync() ?? "";
         }
+
+        ScopeLanguage = GuildAllianceId is { } languageAllianceId
+            ? await LanguageResolver.ForAllianceAsync(languageAllianceId)
+            : await LanguageResolver.ForGuildAsync(GuildId);
 
         await OnSettingsLoadedAsync();
     }

@@ -33,11 +33,11 @@
     private GuildAlliance? alliance;
     private DiscordCreateErrorKind? createError;
 
-    // Legacy's own wording for these channels ("Abwesenheiten"), lowercased like every other channel
-    // this bot offers to create. Not tag-prefixed: a channel already lives in the alliance's own
-    // category, unlike a role, which shares one flat list with every other alliance's.
-    private const string ReportChannelName = "abwesenheiten";
-    private const string StaffChannelName = "abwesenheiten-stab";
+    // In the ALLIANCE's language, not the admin's — see FeatureEditorBase.ScopeLanguage. Not
+    // tag-prefixed: a channel already lives in the alliance's own category, unlike a role, which
+    // shares one flat list with every other alliance's.
+    private string ReportChannelName => Msg.ChannelName.AbsenceReport(ScopeLanguage);
+    private string StaffChannelName => Msg.ChannelName.AbsenceReportStaff(ScopeLanguage);
 
     protected override async Task OnSettingsLoadedAsync()
     {
