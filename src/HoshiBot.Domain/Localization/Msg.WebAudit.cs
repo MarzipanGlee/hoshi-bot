@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using HoshiBot.Domain.Entities;
 
 namespace HoshiBot.Domain.Localization;
@@ -49,12 +50,29 @@ public static partial class Msg
         // Per-permission display label ("Web.Audit.Perm.<EnumName>"). Enum-driven keys
         // have no compile check — an unmapped permission falls back to its enum name
         // rather than leaking a raw catalog key into the UI.
+        // A permission's display name. The catalog holds curated labels for the handful the bot
+        // itself asks for; everything else is a Discord permission we only ever show in the
+        // expectation editor's grid, and there are ~50 of them.
+        //
+        // Those fall back to the enum name with spaces inserted rather than to the raw
+        // "CreateInstantInvite", which sat in the same column as the curated "Add Reactions" and
+        // read as two different conventions. Deriving beats adding 50 translated strings twice
+        // over: the names are English identifiers either way, and a permission Discord adds later
+        // is spaced without anyone noticing it appeared.
         public static string Perm(Language lang, string name)
         {
             var key = $"Web.Audit.Perm.{name}";
             var label = MessageCatalog.Format(lang, key);
-            return label == key ? name : label;
+            return label == key ? SpacePascalCase(name) : label;
         }
+
+        // Splits before a capital that follows a lowercase or digit, and before the last capital of
+        // a run that starts a new word ("SendTtsMessages" -> "Send Tts Messages", and an all-caps
+        // "UseVAD" -> "Use VAD" if Discord ever names one that way).
+        private static readonly Regex WordBoundary =
+            new(@"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", RegexOptions.Compiled);
+
+        internal static string SpacePascalCase(string name) => WordBoundary.Replace(name, " ");
 
         // The same enum-keyed pattern for a channel's access profile ("Web.Audit.Profile.<Name>") —
         // what the bot DOES in a channel, which is more use to an admin than a list of bits.
