@@ -20,7 +20,8 @@ public class NotificationDispatcher(
     EmbedBranding embedBranding,
     GuildFeatureService featureService,
     ChannelCooldown cooldown,
-    LanguageResolver languageResolver)
+    LanguageResolver languageResolver,
+    AlertRoles alertRoles)
 {
     // Plain-string overload for callers whose content is language-independent or already
     // rendered; the factory overload below is the localized path.
@@ -78,25 +79,34 @@ public class NotificationDispatcher(
 
         foreach (var channel in channels)
         {
-            var lang = await ResolveChannelLanguageAsync(guildId, channel.Audience);
+            var lang = await ResolveChannelLanguageAsync(guildId, channel.Audience, channel.GuildAllianceId);
             if (!rendered.TryGetValue(lang, out var r))
                 rendered[lang] = r = (content(lang), buttons?.Invoke(lang), embed is null ? null : await embed(lang));
 
+            // Raid/shield rows carry no role of their own — they ping whatever members can opt into,
+            // which is the alliance's. A row with neither posts unprefixed rather than not at all:
+            // an alert nobody is pinged about still beats a silent one.
+            var mention = channel.RoleId
+                ?? (channel.GuildAllianceId is { } allianceId ? await alertRoles.ForAllianceAsync(guildId, allianceId) : null);
+            var prefix = mention is { } roleId ? $"<@&{roleId}> " : "";
+
             results.Add((channel.ChannelId, await TrySendToChannelAsync(guildId, channel.ChannelId,
-                $"<@&{channel.RoleId}> {r.Content}", r.Buttons, r.Embed, "alert")));
+                $"{prefix}{r.Content}", r.Buttons, r.Embed, "alert")));
         }
 
         return results;
     }
 
-    // GuildAlertChannel rows are audience-tagged but not alliance-tagged, so an
-    // Alliance-audience row can't resolve a specific alliance's language — it gets the
-    // guild language instead (documented edge in docs/localization-plan.md). Guild/None
-    // rows are guild-scoped by definition.
-    private Task<Language> ResolveChannelLanguageAsync(ulong guildId, GuildAudience audience) =>
-        audience is GuildAudience.Alliance or GuildAudience.Guild or GuildAudience.None
-            ? languageResolver.ForGuildAsync(guildId)
-            : languageResolver.ForAudienceAsync(guildId, audience);
+    // An Alliance row now names its alliance, so it renders in THAT alliance's language rather than
+    // falling back to the guild's — the edge documented in docs/localization-plan.md, closed by the
+    // same column that lets the row resolve its alert role. Guild/None rows are guild-scoped by
+    // definition; a null alliance on an Alliance row (a pre-tagging leftover) keeps the old fallback.
+    private Task<Language> ResolveChannelLanguageAsync(ulong guildId, GuildAudience audience, int? guildAllianceId) =>
+        audience == GuildAudience.Alliance && guildAllianceId is { } allianceId
+            ? languageResolver.ForAllianceAsync(allianceId)
+            : audience is GuildAudience.Alliance or GuildAudience.Guild or GuildAudience.None
+                ? languageResolver.ForGuildAsync(guildId)
+                : languageResolver.ForAudienceAsync(guildId, audience);
 
     // One channel send plus the shared undeliverable handling (warn log, activity-log entry,
     // throttled admin ping) used by both SendToChannelsAsync and SendToChannelIdsAsync — the two

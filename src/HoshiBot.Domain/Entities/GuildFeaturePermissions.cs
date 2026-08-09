@@ -183,7 +183,7 @@ public static class GuildFeaturePermissions
             or GuildFeature.Absences
             or GuildFeature.TerritoryCapture
             or GuildFeature.ServicesRoleSync
-            or GuildFeature.AlertsOptIn
+            or GuildFeature.NotificationOptIn
             or GuildFeature.MemberLore => BotPermission.ManageRoles,
 
         // Renames members to match their linked player. The only feature that needs this, which is

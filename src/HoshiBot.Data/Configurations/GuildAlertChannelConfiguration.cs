@@ -15,5 +15,12 @@ public class GuildAlertChannelConfiguration : IEntityTypeConfiguration<GuildAler
             .WithMany()
             .HasForeignKey(c => c.GuildId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Unlinking an alliance takes its alert channels with it — a row naming an alliance that no
+        // longer exists could never resolve a role to ping.
+        builder.HasOne(c => c.GuildAlliance)
+            .WithMany()
+            .HasForeignKey(c => c.GuildAllianceId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

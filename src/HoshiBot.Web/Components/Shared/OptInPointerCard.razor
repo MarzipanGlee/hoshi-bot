@@ -1,0 +1,19 @@
+@* Points at Notification Opt-In from the features whose pings members can turn off for themselves.
+   Without it the connection is invisible from this side: an admin configures an alert here and has
+   no way to know members can decline it, or where they do that. *@
+<OwnedElsewhereCard Title="@Msg.WebFeature.Title(Lang, GuildFeature.NotificationOptIn)"
+                    Label="@Msg.WebFeature.Description(Lang, GuildFeature.NotificationOptIn)" Lang="Lang"
+                    Value="@Msg.WebCommon.OptInHint(Lang)" Hint=""
+                    LinkText="@Msg.WebCommon.OpenOptInFeature(Lang)"
+                    LinkHref="@Href" />
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
+
+    private string Href =>
+        $"{AudienceDisplay.FeatureScopePrefix(GuildId, Audience, GuildAllianceId)}/features/notification-opt-in";
+}

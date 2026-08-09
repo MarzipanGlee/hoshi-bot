@@ -1,0 +1,13 @@
+@inherits FeatureEditorBase
+
+<FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
+
+@* Nothing to configure here beyond the switch: the menu is built from what the other features
+   already declare — the alliance's alert role, and Client Releases' platform roles. *@
+<div class="card-grid mt-1">
+    <AlertRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
+</div>
+
+@code {
+    protected override GuildFeature Feature => GuildFeature.NotificationOptIn;
+}

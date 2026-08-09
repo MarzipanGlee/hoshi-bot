@@ -37,6 +37,13 @@ public static class SharedSettingUsage
         GuildFeature.TerritoryCapture,      // zone-slot role sync gates on alliance membership
     ];
 
+    public static readonly IReadOnlyList<GuildFeature> AlertRole =
+    [
+        GuildFeature.RaidAlerts,            // pings it
+        GuildFeature.ShieldReminders,       // pings it
+        GuildFeature.NotificationOptIn,     // members toggle it
+    ];
+
     // Diplomacy is listed even though it is settings-only today and reads nothing: its editor shows
     // the read-only Diplomat card, and that card links here. A feature whose editor shows a shared
     // card must appear in that card's list, or the link lands on a page where the picker is hidden.

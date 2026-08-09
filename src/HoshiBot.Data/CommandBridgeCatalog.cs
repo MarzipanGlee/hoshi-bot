@@ -48,7 +48,7 @@ public static class CommandBridgeCatalog
         new(CommandBridgeKind.User, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", Icons.Reminder, GuildFeature.ShieldReminders),
         new(CommandBridgeKind.User, 0, "raid-report", "Feature.RaidAlerts", Icons.Alert, GuildFeature.RaidAlerts),
         new(CommandBridgeKind.User, 1, "announcement-show-unread", "BridgeItem.AnnouncementsUnread", Icons.Unread, GuildFeature.ReadReceipts),
-        new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
+        new(CommandBridgeKind.User, 1, "alerts-manage", "Feature.NotificationOptIn", Icons.RemindersOn, GuildFeature.NotificationOptIn),
         new(CommandBridgeKind.User, 1, "absence-manage", "Feature.Absences", Icons.Absence, GuildFeature.Absences),
         new(CommandBridgeKind.User, 2, "contact-senior-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
         new(CommandBridgeKind.User, 2, "channel-guide", "BridgeItem.ChannelGuide", Icons.ChannelGuide, GuildFeature.ChannelGuide),
@@ -66,7 +66,7 @@ public static class CommandBridgeCatalog
         // ---- Friends bridge ("Kommandobrücke Freunde") — a trimmed user subset ----
         new(CommandBridgeKind.Friends, 0, "shield-reminder-setup", "BridgeItem.ShieldReminderSetup", Icons.Reminder, GuildFeature.ShieldReminders),
         new(CommandBridgeKind.Friends, 0, "raid-report", "Feature.RaidAlerts", Icons.Alert, GuildFeature.RaidAlerts),
-        new(CommandBridgeKind.Friends, 0, "alerts-manage", "Feature.AlertsOptIn", Icons.RemindersOn, GuildFeature.AlertsOptIn),
+        new(CommandBridgeKind.Friends, 0, "alerts-manage", "Feature.NotificationOptIn", Icons.RemindersOn, GuildFeature.NotificationOptIn),
         new(CommandBridgeKind.Friends, 0, "contact-senior-staff", "BridgeItem.ContactStaff", Icons.ContactStaff, null, CommandBridgeButtonKind.ContactStaff),
     ];
 

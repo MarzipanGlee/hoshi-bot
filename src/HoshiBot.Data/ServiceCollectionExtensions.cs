@@ -49,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<GuildAllianceService>();
         services.AddScoped<SeniorStaffRoles>();
         services.AddScoped<DiplomatRoles>();
+        services.AddScoped<AlertRoles>();
         services.AddScoped<AiChatHealthService>();
         services.AddScoped<MemoryService>();
         services.AddScoped<PlayerLinkService>();

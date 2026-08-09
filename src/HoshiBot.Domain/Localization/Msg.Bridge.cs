@@ -248,7 +248,7 @@ public static partial class Msg
 
 
         public static string AlertsManage(Language lang) =>
-            MessageCatalog.Format(lang, "Feature.AlertsOptIn");
+            MessageCatalog.Format(lang, "Feature.NotificationOptIn");
 
         public static string RaidReport(Language lang) =>
             MessageCatalog.Format(lang, "Feature.RaidAlerts");

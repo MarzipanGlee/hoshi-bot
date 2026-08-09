@@ -26,6 +26,8 @@
         <RolePicker Label="Android" CreateRoleName='@TagPrefixed("Android")' @bind-Value="androidRoleInput" @bind-Value:after="SaveAndroidRoleAsync" Roles="roles" />
         <RolePicker Label="iOS" CreateRoleName='@TagPrefixed("iOS")' @bind-Value="iosRoleInput" @bind-Value:after="SaveIosRoleAsync" Roles="roles" />
     </SettingsCard>
+
+    <OptInPointerCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
 </div>
 
 @code {

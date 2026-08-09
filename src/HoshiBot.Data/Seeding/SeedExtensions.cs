@@ -179,16 +179,16 @@ public static class SeedExtensions
             db.GuildAlliances.Add(ownAlliance);
 
             // Raid/Shield alert channels are an Alliance-only feature — the only audience this
-            // seeded guild uses (see GuildSettingsSeedData's doc comment). GuildAlertChannel is not
-            // per-alliance (stays audience-scoped), so no link reference here.
+            // seeded guild uses (see GuildSettingsSeedData's doc comment). Rows are alliance-tagged
+            // so each can resolve whose alert role to ping and which language to render in.
             db.GuildAlertChannels.AddRange(GuildSettingsSeedData.AlertChannels.Select(c =>
                 new GuildAlertChannel
                 {
                     GuildId = GuildSettingsSeedData.GuildId,
                     Kind = c.Kind,
                     ChannelId = c.ChannelId,
-                    RoleId = c.RoleId,
                     Audience = GuildAudience.Alliance,
+                    GuildAlliance = ownAlliance,
                 }));
 
             db.GuildFeatureSettingSnowflakes.AddRange(GuildSettingsSeedData.SnowflakeSettings.Select(s =>

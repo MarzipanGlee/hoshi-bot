@@ -2,7 +2,6 @@ using HoshiBot.Domain.Entities;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.Absences;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiBackend;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AiChat;
-using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AlertsOptIn;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AllianceTagRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AllianceTournament;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.AnnouncementForwarder;
@@ -19,6 +18,7 @@ using HoshiBot.Web.Components.Pages.Manage.Guild.Features.InfiniteIncursions;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.MemberLore;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.MemberOnboarding;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.NicknameSync;
+using HoshiBot.Web.Components.Pages.Manage.Guild.Features.NotificationOptIn;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.OpsLevelRoles;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.PlayerLink;
 using HoshiBot.Web.Components.Pages.Manage.Guild.Features.RaidAlerts;
@@ -52,7 +52,7 @@ public static class FeatureCatalog
         new AllianceTagRolesFeature(),
         new AiChatFeature(),
         new AiBackendFeature(),
-        new AlertsOptInFeature(),
+        new NotificationOptInFeature(),
         new AllianceTournamentFeature(),
         new AnnouncementForwarderFeature(),
         new AnnouncementsFeature(),

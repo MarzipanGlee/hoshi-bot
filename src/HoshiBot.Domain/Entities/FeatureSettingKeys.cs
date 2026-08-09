@@ -52,18 +52,13 @@ public static class AnonymousMessagingSettingKeys
     public const string Channel = "Channel";
 }
 
-public static class AlertsOptInSettingKeys
-{
-    public const string Role = "Role";
-}
-
 public static class ClientReleaseSettingKeys
 {
     // One opt-in role per game-client platform, pinged only when THAT platform releases a new
     // version. Guild-wide (client news isn't per-alliance): stored at the None/null scope, so the
     // same four roles show on every audience tab and the opt-in wizard reads them without an
     // alliance. Linux has no version-check source, so it has no role. Members opt in/out via the
-    // alerts hub button, alongside the AlertsOptIn role.
+    // alerts hub button, alongside the NotificationOptIn role.
     public const string WindowsRole = "WindowsRole";
     public const string MacOSRole = "MacOSRole";
     public const string AndroidRole = "AndroidRole";

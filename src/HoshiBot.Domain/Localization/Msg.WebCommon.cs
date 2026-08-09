@@ -64,6 +64,19 @@ public static partial class Msg
         public static string Channel(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.Channel");
 
+        public static string AlertRole(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.AlertRole");
+
+        public static string AlertRoleUsage(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.AlertRoleUsage");
+
+        // The cross-feature pointer shown by every feature whose pings members can opt out of.
+        public static string OptInHint(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.OptInHint");
+
+        public static string OpenOptInFeature(Language lang) =>
+            MessageCatalog.Format(lang, "Web.Common.OpenOptInFeature");
+
         public static string DiplomatRole(Language lang) =>
             MessageCatalog.Format(lang, "Web.Common.DiplomatRole");
 

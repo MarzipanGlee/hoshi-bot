@@ -58,7 +58,7 @@ public static class GuildFeatureDependencies
         GuildFeature.ShieldReminders => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.Absences => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.Announcements => [new(GuildFeature.CommandBridge, HasNote: true)],
-        GuildFeature.AlertsOptIn => [new(GuildFeature.CommandBridge, HasNote: true)],
+        GuildFeature.NotificationOptIn => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.RoeViolationReports => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.Tickets => [new(GuildFeature.CommandBridge, HasNote: true)],
         GuildFeature.AnonymousMessaging => [new(GuildFeature.CommandBridge, HasNote: true)],

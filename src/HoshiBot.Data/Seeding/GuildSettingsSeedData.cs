@@ -46,6 +46,7 @@ public static class GuildSettingsSeedData
 
         MemberRoleId = OwnAllianceMemberRoleId,
         DiplomatRoleId = OwnAllianceDiplomatRoleId,
+        AlertRoleId = 1253175695354364066,
         BoardingRoleId = 1269760517807800320,
 
         AllianceBoardingChannelId = 955406358356852746,
@@ -70,7 +71,6 @@ public static class GuildSettingsSeedData
         (GuildFeature.RoeViolationReports, RoeViolationReportsSettingKeys.Channel, 1022092671378001920),
         (GuildFeature.ShieldReminders, "Channel", 1252972665044603083),
         (GuildFeature.AnonymousMessaging, AnonymousMessagingSettingKeys.Channel, 1254418233788858480),
-        (GuildFeature.AlertsOptIn, AlertsOptInSettingKeys.Role, 1253175695354364066),
         // Moved off GuildSettings.RemindersChannelId / WarningsRoleId into their features.
         (GuildFeature.TerritoryCapture, TerritoryCaptureSettingKeys.DigestChannel, 832991289423167579),
         // Moved off GuildAlliance.RemindersServicesChannelId into the feature (ServicesRole is a
@@ -85,12 +85,14 @@ public static class GuildSettingsSeedData
         (GuildFeature.RankRoles, RankRolesSettingKeys.CommodoreRole, 1255229709546033294),
     ];
 
-    public static readonly (GuildAlertChannelKind Kind, ulong ChannelId, ulong RoleId)[] AlertChannels =
+    // Channels only: raid and shield rows ping the alliance's AlertRoleId, so there is no
+    // per-row role to seed.
+    public static readonly (GuildAlertChannelKind Kind, ulong ChannelId)[] AlertChannels =
     [
-        (GuildAlertChannelKind.Raid, 1252972665044603083, 793383681233518633),
-        (GuildAlertChannelKind.Raid, 1253299015181795430, 936759742691434526),
-        (GuildAlertChannelKind.Shield, 1252972665044603083, 793383681233518633),
-        (GuildAlertChannelKind.Shield, 793376920343019530, 936759742691434526),
+        (GuildAlertChannelKind.Raid, 1252972665044603083),
+        (GuildAlertChannelKind.Raid, 1253299015181795430),
+        (GuildAlertChannelKind.Shield, 1252972665044603083),
+        (GuildAlertChannelKind.Shield, 793376920343019530),
     ];
 
     // This guild actively uses all 12 features today — seeded as enabled so the dev DB

@@ -73,6 +73,22 @@ public record FeatureModuleContext(
     IDbContextFactory<HoshiBotDbContext> DbFactory,
     FeatureSettingsSnapshot? Snapshot = null)
 {
+    // A shared role owned by the scope rather than by a feature (see SharedSettingUsage). Read
+    // through DbFactory rather than by taking another constructor parameter — the record is built in
+    // three places, and a module asking "is my scope configured" should not force all of them to
+    // learn about every shared-role accessor.
+    public async Task<ulong?> GetAllianceRoleAsync(ulong guildId, GuildAudience audience, int? guildAllianceId,
+        Func<GuildAlliance, ulong?> select)
+    {
+        if (audience != GuildAudience.Alliance || guildAllianceId is not { } allianceId)
+            return null;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var alliance = await db.GuildAlliances.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.GuildId == guildId && a.Id == allianceId);
+        return alliance is null ? null : select(alliance);
+    }
+
     public Task<ulong?> GetSnowflakeAsync(ulong guildId, GuildFeature feature, GuildAudience audience, int? guildAllianceId, string key) =>
         Snapshot is { } s ? Task.FromResult(s.GetSnowflake(feature, audience, guildAllianceId, key))
             : Settings.GetSnowflakeAsync(guildId, feature, audience, guildAllianceId, key);

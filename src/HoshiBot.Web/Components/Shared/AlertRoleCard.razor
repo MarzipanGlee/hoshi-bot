@@ -1,0 +1,37 @@
+@using NetCord
+@inject AlertRoles AlertRoles
+@inject DiscordGuildDataService DiscordData
+
+@* The alliance's alert role: what raid and shield alerts ping, and what members toggle in the
+   Notification Opt-In menu. One role by construction — it used to be a per-channel role plus a
+   separate opt-in role that nothing kept in step. *@
+<OwnedElsewhereCard Title="@Msg.WebCommon.AlertRole(Lang)"
+                    Label="@Msg.WebCommon.AlertRoleUsage(Lang)" Lang="Lang"
+                    Value="@display"
+                    Hint="@Msg.WebCommon.OwnedByAllianceSettings(Lang)"
+                    LinkText="@Msg.WebCommon.OpenAllianceSettings(Lang)"
+                    LinkHref="@OwnerHref" />
+
+@code {
+    [CascadingParameter] public Language Lang { get; set; }
+
+    [Parameter, EditorRequired] public ulong GuildId { get; set; }
+    [Parameter, EditorRequired] public GuildAudience Audience { get; set; }
+    [Parameter] public int? GuildAllianceId { get; set; }
+
+    private string? display;
+
+    private string OwnerHref => $"manage/guild/{GuildId}/alliance/{GuildAllianceId}/settings";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (await AlertRoles.ForScopeAsync(GuildId, Audience, GuildAllianceId) is not { } roleId)
+        {
+            display = null;
+            return;
+        }
+
+        var roles = await DiscordData.GetRolesAsync(GuildId);
+        display = roles.FirstOrDefault(r => r.Id == roleId) is { } role ? $"@{role.Name}" : null;
+    }
+}

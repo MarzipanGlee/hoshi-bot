@@ -17,7 +17,7 @@ public static class GuildFeatureAudiences
         GuildFeature.ShieldReminders => GuildAudience.Alliance,
         GuildFeature.TerritoryCapture => GuildAudience.Alliance,
         GuildFeature.RoeViolationReports => GuildAudience.Alliance,
-        GuildFeature.AlertsOptIn => GuildAudience.Alliance,
+        GuildFeature.NotificationOptIn => GuildAudience.Alliance,
         GuildFeature.Diplomacy => GuildAudience.Alliance,
         GuildFeature.RaidAlerts => GuildAudience.Alliance,
         GuildFeature.ServerStatus => GuildAudience.Alliance | GuildAudience.Server | GuildAudience.VeilGroup,

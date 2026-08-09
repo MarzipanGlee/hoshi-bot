@@ -25,7 +25,8 @@ public class AlertService(
     PlayerLinkService playerLinkService,
     LanguageResolver languageResolver,
     GuildMemberNames memberNames,
-    SeniorStaffRoles seniorStaffRoles)
+    SeniorStaffRoles seniorStaffRoles,
+    AlertRoles alertRoles)
 {
     // Rendering rules (docs/localization-plan.md sub-phase 6e): status strings returned to an
     // interaction render in the ACTING user's language, DMs in the recipient's, the public
@@ -499,7 +500,7 @@ public class AlertService(
         ("client-ios", "iOS", StfcClientPlatform.IOS),
     ];
 
-    // Every opt-in role available to the member: the AlertsOptIn "alerts" role (scoped to the
+    // Every opt-in role available to the member: the NotificationOptIn "alerts" role (scoped to the
     // member's alliance) plus the four guild-wide ClientRelease platform roles. A role is
     // included only when its feature is enabled and the role configured; HasRole reflects the
     // member's current membership. Order is stable — alerts first, then the platforms.
@@ -507,13 +508,13 @@ public class AlertService(
     {
         var configured = new List<(string Key, string Label, ulong RoleId)>();
 
-        if (await featureService.IsEnabledAsync(guildId, GuildFeature.AlertsOptIn))
+        if (await featureService.IsEnabledAsync(guildId, GuildFeature.NotificationOptIn))
         {
             var allianceId = (await allianceService.FindByMemberAsync(guildId, userId))?.Id
                 ?? await allianceService.GetPrimaryIdAsync(guildId);
             if (allianceId is not null)
             {
-                var roleId = await settingsService.GetSnowflakeAsync(guildId, GuildFeature.AlertsOptIn, GuildAudience.Alliance, allianceId, AlertsOptInSettingKeys.Role);
+                var roleId = await alertRoles.ForAllianceAsync(guildId, allianceId.Value);
                 if (roleId is { } r)
                 {
                     // The list is shown ephemerally to the member — their language.

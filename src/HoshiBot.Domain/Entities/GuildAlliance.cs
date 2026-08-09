@@ -45,6 +45,15 @@ public class GuildAlliance
     // moved together and gave each page its own chance to name the role it might create.
     public ulong? NotificationRoleId { get; set; }
 
+    // The opt-in role for this alliance's raid and shield alerts — the one members toggle in the
+    // Notification Opt-In menu, and the one those alerts actually ping.
+    //
+    // One role, because it was two settings that had to agree by hand and silently didn't: the role
+    // members could toggle lived in Notification Opt-In's settings, while the role an alert actually
+    // pinged lived on each alert-channel row. A raid channel pointing at a third role meant members
+    // opted into something that was never mentioned, with nothing anywhere to show the mismatch.
+    public ulong? AlertRoleId { get; set; }
+
     // This alliance's senior staff — Star Trek's own word for a ship's leadership body (the CO plus
     // the senior crew holding positions of authority), which is exactly what this gates: reporting a
     // RoE violation on behalf of an own player, ending another commander's raid alert, confirming an

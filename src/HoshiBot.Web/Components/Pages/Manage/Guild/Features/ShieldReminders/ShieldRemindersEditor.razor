@@ -3,7 +3,13 @@
 
 <FeatureEnableSwitch Enabled="Enabled" OnToggle="ToggleEnabledAsync" />
 
-<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="ResolvedAudience" />
+<AlertChannelListEditor GuildId="GuildId" Kind="GuildAlertChannelKind.Shield" Audience="ResolvedAudience"
+                        GuildAllianceId="GuildAllianceId" PerChannelRole="false" />
+
+<div class="card-grid mt-1">
+    <AlertRoleCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
+    <OptInPointerCard GuildId="GuildId" Audience="ResolvedAudience" GuildAllianceId="GuildAllianceId" />
+</div>
 
 <PoweredBy For="@(new[] { typeof(StfcSystem) })" />
 

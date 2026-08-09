@@ -13,7 +13,7 @@ public enum GuildFeature
     AnonymousMessaging,
     RoeViolationReports,
     Absences,
-    AlertsOptIn,
+    NotificationOptIn,
     Diplomacy,
     ServerStatus,
     InfiniteIncursions,
