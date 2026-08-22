@@ -26,7 +26,8 @@ public class StfcServer
     public ICollection<StfcServerDiscordInvite> DiscordInvites { get; set; } = [];
 
     // "{Region}-{Id} {Name}" e.g. "EU-164 Mindmeld" — the display convention used everywhere a
-    // server shows up in a list or dropdown (Region must be loaded/Included).
+    // server shows up in a list or dropdown. Degrades to "164 Mindmeld" when Region was not
+    // loaded/Included, rather than showing a leading dash.
     public string DisplayName => $"{RegionServer(Region?.Name, Id)} {Name}";
 
     // The region and the server number as one designation: "EU-164". Hyphenated because they are
@@ -36,5 +37,10 @@ public class StfcServer
     // Here rather than inlined at each site so the three renderers cannot drift: this, the alliance
     // breadcrumb, and NicknameComposer's server tag. They already had, which is why one page still
     // said "EU164" after the others changed.
-    public static string RegionServer(string? regionName, int serverId) => $"{regionName}-{serverId}";
+    // No region, no separator. A caller that did not Include the region used to get "-164", a bare
+    // dash with nothing in front of it — visible on Import Players, whose RegionServerPicker filters
+    // by region and so never loaded it. The number alone is also the right label there: the region
+    // is already named in the field beside it.
+    public static string RegionServer(string? regionName, int serverId) =>
+        string.IsNullOrWhiteSpace(regionName) ? $"{serverId}" : $"{regionName}-{serverId}";
 }

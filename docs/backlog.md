@@ -21,18 +21,6 @@ plain on purpose — decide per-case whether they're worth converting:
 
 ## Small engineering follow-ups
 
-- **A bare `-164 Mindmeld` in region-filtered server dropdowns.** `StfcServer.DisplayName` is
-  `"{Region}-{Id} {Name}"` since the region-server designation was hyphenated (2026-08-09), but
-  `RegionServerPicker` queries `db.StfcServers.Where(s => s.RegionId == regionId)` with no
-  `Include(s => s.Region)`, so `Region?.Name` is null and the label starts with the separator.
-  Visible on Import Players, and anywhere else that picker appears.
-
-  It rendered `164 Mindmeld` before the hyphen, so this is a regression that change made visible
-  rather than a new omission. The fix is one line, and the choice is which one: have
-  `StfcServer.RegionServer` drop the separator when the region name is blank (restores `164
-  Mindmeld`, and right for a picker whose sibling field already says EU), or `Include` the region
-  (gives `EU-164 Mindmeld`, redundant beside that field). The first is preferred.
-
 - **`ReadReceiptButtonModule`'s post-click edit cannot succeed from the unread list.** After
   recording a receipt it calls `ModifyMessageAsync(Context.Channel.Id, Context.Message.Id, …)` to
   redraw the count. Clicked on the post itself that is right; clicked from the Command Bridge's
