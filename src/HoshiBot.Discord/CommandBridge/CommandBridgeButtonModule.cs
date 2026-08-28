@@ -80,6 +80,36 @@ public class CommandBridgeButtonModule(AlertService alertService, ReadReceiptSer
                 new TextInputProperties("attacker", TextInputStyle.Short) { Value = attacker, Placeholder = Msg.Bridge.AttackerPlaceholder(lang), Required = false }),
         ]));
 
+    // The confirm/abort pair for a raid report. The buttons themselves are built in
+    // CommandBridgeModalModule, where the modal submission renders the confirmation — but they are
+    // BUTTONS, so they have to be handled here.
+    [ComponentInteraction("raid-report-confirm")]
+    public Task ConfirmRaidReport(int pendingId) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            var lang = await ActingUserLanguageAsync();
+
+            // Bound to the caller by GetAsync, so one member cannot confirm another's pending report.
+            if (await pendingModalInputService.GetAsync(pendingId, Context.User.Id) is not { } pending)
+                return await embedBranding.BrandedEditAsync(Context.Guild!.Id, Msg.Bridge.RaidConfirmExpired(lang));
+
+            await pendingModalInputService.DeleteAsync(pendingId);
+
+            var result = await alertService.ReportRaidAsync(Context.Guild!.Id, Context.User.Id, ulong.Parse(pending.Field1!),
+                pending.Field3!, Enum.Parse<RaidServerLocation>(pending.Field2!),
+                string.IsNullOrWhiteSpace(pending.Field4) ? null : pending.Field4);
+
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
+        });
+
+    [ComponentInteraction("raid-report-abort")]
+    public Task AbortRaidReport(int pendingId) =>
+        Context.Interaction.ModifyDelayedResponseAsync(async () =>
+        {
+            await pendingModalInputService.DeleteAsync(pendingId);
+            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, Msg.Bridge.RaidConfirmAborted(await ActingUserLanguageAsync()));
+        });
+
     [ComponentInteraction("shield-reminder-setup")]
     public async Task<InteractionCallbackProperties> ShieldReminderSetup()
     {

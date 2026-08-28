@@ -109,33 +109,11 @@ public class CommandBridgeModalModule(AlertService alertService, PendingModalInp
         };
     }
 
-    [ComponentInteraction("raid-report-confirm")]
-    public Task ConfirmRaidReport(int pendingId) =>
-        Context.Interaction.ModifyDelayedResponseAsync(async () =>
-        {
-            var lang = await ActingUserLanguageAsync();
-
-            // Bound to the caller by GetAsync, so one member cannot confirm another's pending report.
-            if (await pendingModalInputService.GetAsync(pendingId, Context.User.Id) is not { } pending)
-                return await embedBranding.BrandedEditAsync(Context.Guild!.Id, Msg.Bridge.RaidConfirmExpired(lang));
-
-            await pendingModalInputService.DeleteAsync(pendingId);
-
-            var result = await alertService.ReportRaidAsync(Context.Guild!.Id, Context.User.Id, ulong.Parse(pending.Field1!),
-                pending.Field3!, Enum.Parse<RaidServerLocation>(pending.Field2!),
-                string.IsNullOrWhiteSpace(pending.Field4) ? null : pending.Field4);
-
-            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, result);
-        });
-
-    [ComponentInteraction("raid-report-abort")]
-    public Task AbortRaidReport(int pendingId) =>
-        Context.Interaction.ModifyDelayedResponseAsync(async () =>
-        {
-            await pendingModalInputService.DeleteAsync(pendingId);
-            return await embedBranding.BrandedEditAsync(Context.Guild!.Id, Msg.Bridge.RaidConfirmAborted(await ActingUserLanguageAsync()));
-        });
-
+    // The Ja/Nein handlers for the buttons built above live in CommandBridgeButtonModule, not here.
+    // A button interaction only routes to a module typed ComponentInteractionModule<ButtonInteractionContext>;
+    // handlers for one sitting in this modal-typed module are never matched, and Discord answers the
+    // click with "Component interaction not found". Building a component and handling it are separate
+    // decisions about where code goes.
     [ComponentInteraction("shield-reminder-setup-modal")]
     public Task SetShieldReminder()
     {

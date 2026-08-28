@@ -281,6 +281,19 @@ File placement rules:
 
 ## Known gotchas
 
+- **A handler must live in the module whose context matches the component it handles.**
+  NetCord routes by interaction *type* first: a button click only ever reaches a
+  `ComponentInteractionModule<ButtonInteractionContext>`, a modal submit only a
+  `ModalInteractionContext` one, and so on for user menus and string menus. A
+  `[ComponentInteraction("…")]` in the wrong module is never matched, and Discord answers the
+  click with **"Component interaction not found"** — at runtime, in the user's face. It
+  compiles, the attribute looks right, and nothing warns.
+  - The trap is that *building* a component and *handling* it are separate decisions about
+    where code goes. The raid report's Ja/Nein buttons are built by the modal-submit handler,
+    so both handlers were written beside it in `CommandBridgeModalModule` — and no raid report
+    could be confirmed until it was noticed in the wild (2026-08-28).
+  - When a step of a wizard changes component type, check the module type changes with it.
+
 - **NetCord component-interaction handlers always post a *new* message unless you
   explicitly return `InteractionCallback.ModifyMessage(...)`.** Returning a bare
   `InteractionMessageProperties` is always wrapped as `InteractionCallback.Message(...)`
