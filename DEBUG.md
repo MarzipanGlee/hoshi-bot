@@ -11,6 +11,15 @@ production, `compose.yaml` bind-mounts each service's `/app/logs` to a host-visi
 `./logs/bot`/`./logs/web` directory (next to the repo checkout `deploy.sh` runs from) — so log
 files are directly readable/copyable on the host, no `docker compose logs` needed.
 
+**EF Core's SQL logging is turned down to Warning** (`Microsoft.EntityFrameworkCore.Database.Command`
+in each app's `appsettings.json`). At Information — the default — EF writes every statement it
+executes, in full, multi-line. On the bot that was ~708,000 statements a day: **260 MB per day, 3.3 GB
+across the 14 retained files**, and 99.9% of every log file. Failures still log at Error, so a broken
+query is as visible as it ever was.
+
+If you need the SQL back for a debugging session, raise that one override to `Information` and
+remember to lower it again — a day of it costs a quarter of a gigabyte.
+
 There is no remote shell/file access from a Claude Code session to the dev/prod server — the
 only way to get logs to Claude for debugging/confirmation is to pull them manually and paste
 them into the conversation:
