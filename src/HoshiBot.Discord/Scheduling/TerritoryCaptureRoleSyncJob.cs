@@ -14,12 +14,28 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Keeps each guild's configured zone-slot roles (TerritoryCaptureSettingKeys.ZoneSlotRole,
-// slots 1-5 — the alliance's "Zone Slots: N/5" cap, not a day of the week) in sync:
-// slot N's role goes to every guild member who has no Absence overlapping that slot's zone
-// window this week (mirrors legacy's update-tc-roles.yag "take role, TC does not exist" /
-// absence-overlap branches). Reuses TerritoryCaptureDigestService's slot computation so
-// role assignment and the digest always agree on ordering.
+// Two role syncs that happen to share a roster fetch, each behind its OWN feature.
+//
+// Zone-slot roles (TerritoryCaptureSettingKeys.ZoneSlotRole, slots 1-5 — the alliance's
+// "Zone Slots: N/5" cap, not a day of the week): slot N's role goes to every alliance member with
+// no Absence overlapping that slot's window this week. That rule is made of absences, so it belongs
+// to TerritoryCaptureSignOff, whose declared dependencies are exactly TerritoryCapture + Absences —
+// NOT to Territory Capture itself.
+//
+// It was gated on Territory Capture, which meant any guild running the capture digest also had its
+// zone-slot roles rewritten every 10 minutes whether or not it used sign-off. One alliance had all
+// five slot roles pointed at its member role, so this job removed that role from every member
+// without a slot while NotificationRoleSyncJob added it straight back — an add/remove pair per
+// member per cycle, for weeks, until Discord started rate-limiting the role writes.
+//
+// Territory Capture still READS the slot roles: the digest and the capture reminders mention them
+// when they post. Mentioning a role and deciding who holds it are different jobs, and only the
+// second one needs sign-off.
+//
+// Services roles keep their own ServicesRoleSync gate, unchanged.
+//
+// Reuses TerritoryCaptureDigestService's slot computation so role assignment and the digest always
+// agree on ordering.
 public class TerritoryCaptureRoleSyncJob(
     HoshiBotDbContext db,
     TerritoryCaptureDigestService digestService,
@@ -40,9 +56,26 @@ public class TerritoryCaptureRoleSyncJob(
 
         foreach (var guildId in guildIds)
         {
-            // Each TC-enabled alliance has its own 5 zone-slot roles over its own owned zones.
-            var links = await digestService.GetTcEnabledLinksAsync(guildId);
-            if (links.Count == 0)
+            // Every linked alliance, then per link whichever of the two syncs is switched on. The
+            // list used to be the TC-enabled links, which gated BOTH syncs on Territory Capture —
+            // wrong for zone slots (they belong to sign-off) and wrong for services roles, whose
+            // own feature declares no dependency on Territory Capture at all.
+            var links = await db.GuildAlliances
+                .Where(ga => ga.GuildId == guildId)
+                .OrderBy(ga => ga.Id)
+                .ToListAsync();
+
+            var work = new List<(GuildAlliance Link, bool ZoneSlots, bool Services)>();
+            foreach (var link in links)
+            {
+                var zoneSlots = await featureService.IsEnabledAsync(guildId, GuildFeature.TerritoryCaptureSignOff, GuildAudience.Alliance, link.Id);
+                var services = await featureService.IsEnabledAsync(guildId, GuildFeature.ServicesRoleSync, GuildAudience.Alliance, link.Id);
+                if (zoneSlots || services)
+                    work.Add((link, zoneSlots, services));
+            }
+
+            // Nothing to do here — leave before the roster fetch, which is a full member listing.
+            if (work.Count == 0)
                 continue;
 
             // Checked before the roster fetch: five zone-slot roles per alliance across the whole
@@ -73,33 +106,10 @@ public class TerritoryCaptureRoleSyncJob(
                     officerRankRoleIds.Add(rankRoleId);
             }
 
-            foreach (var link in links)
+            foreach (var (link, zoneSlotsEnabled, servicesEnabled) in work)
             {
-                var slots = await digestService.GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart);
-                var slotsByIndex = slots.ToDictionary(s => s.SlotIndex);
-
-                for (var slotIndex = 1; slotIndex <= 5; slotIndex++)
-                {
-                    var slotRoleId = await settingsService.GetSnowflakeAsync(
-                        guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slotIndex));
-                    if (slotRoleId is not { } roleId)
-                        continue;
-
-                    var hasSlot = slotsByIndex.TryGetValue(slotIndex, out var slot);
-
-                    // Iterate EVERY member (not just this alliance's) so the slot role is removed from
-                    // anyone who shouldn't have it — including non-members that a previous run wrongly
-                    // gave it to. Only a holder of this alliance's member role, covering the slot, and
-                    // not absent over its window, should keep it.
-                    foreach (var guildUser in roster.Values)
-                    {
-                        var isAllianceMember = link.MemberRoleId is { } memberRoleId && guildUser.RoleIds.Contains(memberRoleId);
-                        var shouldHaveRole = isAllianceMember && hasSlot &&
-                            !absences.Any(a => a.DiscordUserId == guildUser.Id && a.StartsAt < slot.End && a.EndsAt > slot.Start);
-
-                        await SyncRoleAsync(guildId, guildUser, roleId, shouldHaveRole);
-                    }
-                }
+                if (zoneSlotsEnabled)
+                    await SyncZoneSlotRolesAsync(guildId, link, weekStart, roster, absences);
 
                 // Services Role Sync (separate opt-in feature): when enabled for this alliance, mirror
                 // the Admiral/Commodore rank roles onto its TC Services role — alliance members only.
@@ -107,9 +117,9 @@ public class TerritoryCaptureRoleSyncJob(
                 // / no longer an alliance member. Both roles are the same values shown on the Territory
                 // Capture / Alliance Settings pages (reads a fresh roster, so it reflects the latest
                 // rank-role sync).
-                if (officerRankRoleIds.Count > 0 &&
-                    link.MemberRoleId is { } servicesMemberRoleId &&
-                    await featureService.IsEnabledAsync(guildId, GuildFeature.ServicesRoleSync, GuildAudience.Alliance, link.Id))
+                if (servicesEnabled &&
+                    officerRankRoleIds.Count > 0 &&
+                    link.MemberRoleId is { } servicesMemberRoleId)
                 {
                     var servicesRoleId = await settingsService.GetSnowflakeAsync(
                         guildId, GuildFeature.TerritoryCaptureServiceReminders, GuildAudience.Alliance, link.Id,
@@ -124,6 +134,40 @@ public class TerritoryCaptureRoleSyncJob(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Slot N's role goes to every member of this alliance who has no absence overlapping that slot's
+    // capture window this week. Only reached when TerritoryCaptureSignOff is on for the alliance —
+    // the rule is entirely about absences, so without sign-off the bot has no business deciding who
+    // holds these roles.
+    private async Task SyncZoneSlotRolesAsync(ulong guildId, GuildAlliance link, DateOnly weekStart,
+        Dictionary<ulong, GuildUser> roster, List<Absence> absences)
+    {
+        var slots = await digestService.GetWeeklySlotAssignmentsAsync(link.StfcAllianceId, weekStart);
+        var slotsByIndex = slots.ToDictionary(s => s.SlotIndex);
+
+        for (var slotIndex = 1; slotIndex <= 5; slotIndex++)
+        {
+            var slotRoleId = await settingsService.GetSnowflakeAsync(
+                guildId, GuildFeature.TerritoryCapture, GuildAudience.Alliance, link.Id, TerritoryCaptureSettingKeys.ZoneSlotRole(slotIndex));
+            if (slotRoleId is not { } roleId)
+                continue;
+
+            var hasSlot = slotsByIndex.TryGetValue(slotIndex, out var slot);
+
+            // Iterate EVERY member (not just this alliance's) so the slot role is removed from
+            // anyone who shouldn't have it — including non-members that a previous run wrongly
+            // gave it to. Only a holder of this alliance's member role, covering the slot, and
+            // not absent over its window, should keep it.
+            foreach (var guildUser in roster.Values)
+            {
+                var isAllianceMember = link.MemberRoleId is { } memberRoleId && guildUser.RoleIds.Contains(memberRoleId);
+                var shouldHaveRole = isAllianceMember && hasSlot &&
+                    !absences.Any(a => a.DiscordUserId == guildUser.Id && a.StartsAt < slot.End && a.EndsAt > slot.Start);
+
+                await SyncRoleAsync(guildId, guildUser, roleId, shouldHaveRole);
             }
         }
     }
