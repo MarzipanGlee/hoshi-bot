@@ -12,15 +12,24 @@ using Quartz;
 
 namespace HoshiBot.Discord.Scheduling;
 
-// Keeps each linked alliance's configured "notification role" (the per-alliance Absences
-// NotificationRole setting) in sync for that alliance's members: removed while they're on an
-// absence that suppresses notifications (starting within 15 min or already ongoing), added
-// back otherwise. The role is owned by the Absences feature but pinged by the Territory
-// Capture weekly digest and Announcements — see GuildAlliance.NotificationRoleId.
+// Keeps each linked alliance's configured "notification role" in sync for that alliance's members:
+// removed while they're on an absence that suppresses notifications (starting within 15 min or
+// already ongoing), added back otherwise.
+//
+// Gated on Absences, which owns that behaviour. It used to run for any alliance with a
+// NotificationRoleId set, with no feature check at all — so an alliance that had never enabled
+// Absences still had the role handed out every 10 minutes. One guild had the same role serving as
+// its member role, so a disabled feature was quietly granting membership; removing it by hand did
+// nothing, because the next sweep put it straight back.
+//
+// Other features PING this role (the capture digest, Announcements, the weekly raid report) and
+// keep doing so with Absences off — mentioning a role needs no sync. Without Absences there is
+// simply no absence-clean behaviour to run, and who holds the role is then the admin's business.
 public class NotificationRoleSyncJob(
     HoshiBotDbContext db,
     GatewayClient gatewayClient,
     PlayerLinkService playerLinkService,
+    GuildFeatureService featureService,
     PermissionGuard permissionGuard,
     NotificationDispatcher dispatcher,
     ILogger<NotificationRoleSyncJob> logger) : IJob
@@ -29,10 +38,17 @@ public class NotificationRoleSyncJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var settings = await db.GuildAlliances
+        var configured = await db.GuildAlliances
             .Where(a => a.NotificationRoleId != null)
             .Select(a => new { a.GuildId, GuildAllianceId = a.Id, RoleId = a.NotificationRoleId!.Value })
             .ToListAsync();
+
+        var settings = new List<(ulong GuildId, int GuildAllianceId, ulong RoleId)>();
+        foreach (var candidate in configured)
+        {
+            if (await featureService.IsEnabledAsync(candidate.GuildId, GuildFeature.Absences, GuildAudience.Alliance, candidate.GuildAllianceId))
+                settings.Add((candidate.GuildId, candidate.GuildAllianceId, candidate.RoleId));
+        }
 
         // Fetch each guild's roster once (bulk) and reuse it across that guild's alliances, instead of
         // a GetGuildUserAsync per member.
